@@ -21,7 +21,7 @@ const DEBUG = 1;
 export function activate(context: ExtensionContext) {
 
   let subscriptions = context.subscriptions;
-  DEBUG ? console.log('Congratulations, your extension "vsc-logtalk" is now active!') : null;
+  DEBUG ? console.log('Congratulations, your extension "logtalk-for-vscode" is now active!') : null;
 
   const LOGTALK_MODE: DocumentFilter = { language: "logtalk", scheme: "file" };
 

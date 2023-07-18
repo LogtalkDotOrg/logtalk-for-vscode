@@ -1,9 +1,9 @@
 {
-    "name": "vsc-logtalk",
-    "displayName": "VSC-Logtalk",
-    "description": "Support for Logtalk language",
+    "name": "logtalk-for-vscode",
+    "displayName": "Logtalk for VSCode",
+    "description": "Support for the Logtalk programming language",
     "version": "0.5.0",
-    "publisher": "jacobfriedman",
+    "publisher": "LogtalkDotOrg",
     "icon": "images/logtalk.png",
     "license": "MIT",
     "engines": {
@@ -19,15 +19,16 @@
         "linter",
         "snippet"
     ],
-    "author": {
-        "name": "jacobfriedman",
-        "email": "jfriedman@graphstax.com"
-    },
-    "contributors": [
+    "authors": [
         {
             "name": "Paulo Moura",
-            "email": "support@logtalk.org",
-            "url": "https://github.com/LogtalkDotOrg"
+            "email": "pmoura@logtalk.org",
+            "url": "https://github.com/pmoura"
+        },
+        {
+            "name": "jacobfriedman",
+            "email": "jfriedman@permion.ai",
+            "url": "https://github.com/jacobfriedman"
         },
         {
             "name": "Arthur Wang",
@@ -37,11 +38,10 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://gitlab.optimusprime.ai/jfriedman/visual-studio-code-logtalk-extension"
+        "url": "https://github.com/LogtalkDotOrg/logtalk-for-vscode"
     },
     "bugs": {
-        "url": "https://gitlab.optimusprime.ai/jfriedman/visual-studio-code-logtalk-extension",
-        "email": "jfriedman@graphstax.com"
+        "url": "https://github.com/LogtalkDotOrg/logtalk-for-vscode"
     },
     "main": "./out/src/extension",
     "activationEvents": [
@@ -56,7 +56,8 @@
                 ],
                 "configuration": "./logtalk.configuration.json",
                 "extensions": [
-                    ".lgt"
+                    ".lgt",
+                    ".logtalk"
                 ]
             }
         ],
@@ -311,7 +312,7 @@
         "test": "tsc ./tests/runTest.ts",
         "syntax4logtalk": "yaml2json --pretty --save ./syntaxes/logtalk.tmLanguage.yaml",
         "vsix:make": "vsce package --baseImagesUrl https://raw.githubusercontent.com/llvm/llvm-project/master/clang-tools-extra/clangd/clients/clangd-vscode/",
-        "vsix:install": "code --install-extension vsc-logtalk-0.5.0.vsix"
+        "vsix:install": "code --install-extension logtalk-for-vscode-0.5.0.vsix"
     },
     "devDependencies": {
         "@types/bluebird": "^3.5.25",
