@@ -20,10 +20,10 @@ export default class LogtalkTerminal {
   private static _docletExec:     string;
   private static _docletArgs:     string[];
   private static _docExec:        string;
-  private static _docArgs:        string[];
+  private static _docArgs:        string;
   private static _graphvizExec:   string;
-  private static _graphvizArgs:   string[];
-  private static _graphvizExt:    string[];
+  private static _graphvizArgs:   string;
+  private static _graphvizExt:    string;
   private static _outputChannel:  OutputChannel;
 
   constructor() {
@@ -35,7 +35,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal._context = context;
 
     let section = workspace.getConfiguration("logtalk");
-	
+
     LogtalkTerminal._execArgs      =   section.get<string[]>("executable.arguments");
     LogtalkTerminal._testerExec    =   section.get<string>("tester.script", "logtalk_tester");
     LogtalkTerminal._outputChannel =   window.createOutputChannel("Logtalk Testers & Doclets");
@@ -44,10 +44,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal._docletArgs    =   section.get<string[]>("doclet.arguments");
 
     LogtalkTerminal._docExec       =   section.get<string>("documentation.script", "lgt2html");
-    LogtalkTerminal._docArgs       =   section.get<string[]>("documentation.arguments");
+    LogtalkTerminal._docArgs       =   section.get<string>("documentation.arguments");
     LogtalkTerminal._graphvizExec  =   section.get<string>("graphviz.executable", "dot");
-    LogtalkTerminal._graphvizArgs  =   section.get<string[]>("graphviz.arguments");
-    LogtalkTerminal._graphvizExt   =   section.get<string[]>("graphviz.extension");
+    LogtalkTerminal._graphvizArgs  =   section.get<string>("graphviz.arguments");
+    LogtalkTerminal._graphvizExt   =   section.get<string>("graphviz.extension", "svg");
 
     return (<any>window).onDidCloseTerminal(terminal => {
         LogtalkTerminal._terminal = null;
@@ -81,58 +81,58 @@ export default class LogtalkTerminal {
         args
       );
 
-			let UrlRegex = new RegExp(/(file\s)(\S+).+((at or above line\s(\d+))|(between lines\s(\d+)\-(\d+)))/);
+      let UrlRegex = new RegExp(/(file\s)(\S+).+((at or above line\s(\d+))|(between lines\s(\d+)\-(\d+)))/);
 
-			vscode.window.registerTerminalLinkProvider({
-				provideTerminalLinks: (context: vscode.TerminalLinkContext, token: vscode.CancellationToken) => {
+      vscode.window.registerTerminalLinkProvider({
+        provideTerminalLinks: (context: vscode.TerminalLinkContext, token: vscode.CancellationToken) => {
 
-					let match = UrlRegex.exec(context.line);
-		
-					if (match.length === 0) {
-						return [];
-					}
+          let match = UrlRegex.exec(context.line);
+    
+          if (match.length === 0) {
+            return [];
+          }
 
-					const startIndex = context.line.indexOf(match[0]) + 5; // "file"
+          const startIndex = context.line.indexOf(match[0]) + 5; // "file"
 
-					let file = match[2] + ":"
+          let file = match[2] + ":"
 
-					if(match[7] && match[8]) {
-						file += match[7] + "-" + match[8]
-					} else {
-						file += match[5];
-					}
-	
-					return [{
-						startIndex,
-						length: match[2].length,
-						tooltip:  file
-					}]
-				},
-				handleTerminalLink: async (tooltipText) => {
+          if(match[7] && match[8]) {
+            file += match[7] + "-" + match[8]
+          } else {
+            file += match[5];
+          }
+  
+          return [{
+            startIndex,
+            length: match[2].length,
+            tooltip:  file
+          }]
+        },
+        handleTerminalLink: async (tooltipText) => {
 
-					let text =  tooltipText.tooltip.split(":");
-					let range = text[1].split("-");
-					var pos1 = new vscode.Position(parseInt(range[0]) - 1,0);
-					var pos2;
-					if(range[1]) {
-						pos2 = new vscode.Position(parseInt(range[1]),0);
-					} else {
-						pos2 = pos1;
-					}
+          let text =  tooltipText.tooltip.split(":");
+          let range = text[1].split("-");
+          var pos1 = new vscode.Position(parseInt(range[0]) - 1,0);
+          var pos2;
+          if(range[1]) {
+            pos2 = new vscode.Position(parseInt(range[1]),0);
+          } else {
+            pos2 = pos1;
+          }
 
-					vscode.workspace.openTextDocument(text[0]).then(
-						document => vscode.window.showTextDocument(document).then((editor) =>
-							{
-								editor.selections = [new vscode.Selection(pos1,pos2)]; 
-								var range = new vscode.Range(pos1, pos2);
-								editor.revealRange(range);
-							}					
-						)
-					)
-				}
-			});
+          vscode.workspace.openTextDocument(text[0]).then(
+            document => vscode.window.showTextDocument(document).then((editor) =>
+              {
+                editor.selections = [new vscode.Selection(pos1,pos2)]; 
+                var range = new vscode.Range(pos1, pos2);
+                editor.revealRange(range);
+              }
+            )
+          )
+        }
+      });
 
-		
+
       let goals = `logtalk_load('${logtalkHome}${logtalkMessageFile}', [scratch_directory('${logtalkUser}${logtalkScratch}')]).\r`;
       console.log(goals);
       LogtalkTerminal.sendString(goals, false);
@@ -248,28 +248,16 @@ export default class LogtalkTerminal {
     let dir: string = LogtalkTerminal.ensureDir(uri);
     let file: string = await LogtalkTerminal.ensureFile(uri);
     const xmlDir = path.join(dir, "xml_docs");
-    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}').\r`;
+    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}'), os::shell('cd ${xmlDir} && ${LogtalkTerminal._docExec} ${LogtalkTerminal._docArgs} && code index.html').\r`;
     LogtalkTerminal.sendString(goals);
-    cp.execSync(
-      `${LogtalkTerminal._docExec} ${LogtalkTerminal._docArgs.join(
-        " "
-      )} && code index.html`,
-      { cwd: xmlDir }
-    );
   }
 
   public static async genDiagrams(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     let dir: string = LogtalkTerminal.ensureDir(uri);
     let file: string = await LogtalkTerminal.ensureFile(uri);
-    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}').\r`;
+    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}'), os::shell('for f in *.dot; do ${LogtalkTerminal._graphvizExec} ${LogtalkTerminal._graphvizArgs} "$f" > "$(basename "$f" .dot).${LogtalkTerminal._graphvizExt}" || continue; done').\r`;
     LogtalkTerminal.sendString(goals);
-    cp.execSync(
-      `for f in *.dot; do ${LogtalkTerminal._graphvizExec} ${LogtalkTerminal._graphvizArgs.join(
-        " "
-      )} "$f" > "$(basename "$f" .dot).${LogtalkTerminal._graphvizExt}" || continue; done`,
-      { cwd: dir }
-    );
   }
 
   public static async scanForDeadCode(uri: Uri) {
