@@ -14,7 +14,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -35,7 +35,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-exports.__esModule = true;
+Object.defineProperty(exports, "__esModule", { value: true });
 var path = require("path");
 var test_electron_1 = require("@vscode/test-electron");
 function main() {
@@ -48,7 +48,7 @@ function main() {
                     extensionDevelopmentPath = path.resolve(__dirname, '../../');
                     extensionTestsPath = path.resolve(__dirname, './suite/index');
                     // Download VS Code, unzip it and run the integration test
-                    return [4 /*yield*/, test_electron_1.runTests({ extensionDevelopmentPath: extensionDevelopmentPath, extensionTestsPath: extensionTestsPath })];
+                    return [4 /*yield*/, (0, test_electron_1.runTests)({ extensionDevelopmentPath: extensionDevelopmentPath, extensionTestsPath: extensionTestsPath })];
                 case 1:
                     // Download VS Code, unzip it and run the integration test
                     _a.sent();
