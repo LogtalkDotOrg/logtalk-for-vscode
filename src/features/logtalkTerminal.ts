@@ -229,7 +229,8 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     let dir: string;
     dir = path.dirname(uri.fsPath);
-    const testfile = path.join(dir, "tester");
+    const testfile0 = path.join(dir, "tester");
+    const testfile = path.resolve(testfile0).split(path.sep).join("/");
     let goals = `logtalk_load('${testfile}').\r`;
     LogtalkTerminal.sendString(goals);
   }
@@ -238,7 +239,8 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     let dir: string;
     dir = path.dirname(uri.fsPath);
-    const docfile = path.join(dir, "doclet");
+    const docfile0 = path.join(dir, "doclet");
+    const docfile = path.resolve(docfile0).split(path.sep).join("/");
     let goals = `logtalk_load(doclet(loader)),logtalk_load('${docfile}').\r`;
     LogtalkTerminal.sendString(goals);
   }
