@@ -1,8 +1,14 @@
 # Changelog
 
+## [0.5.1]
+
+* Add load project menu option
+* Fix running tests, doclets, generating documentation, and generating diagrams on Windows by using forward slashes for paths
+* Fix the menu options for generating documentation and diagrams
+
 ## [0.5.0]
 
-* fixed syntax highlighting of escape sequences in double-quoted terms
+* Fix syntax highlighting of escape sequences in double-quoted terms
 
 ## [0.4.9]
 

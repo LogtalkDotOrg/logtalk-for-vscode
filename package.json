@@ -2,7 +2,7 @@
     "name": "logtalk-for-vscode",
     "displayName": "Logtalk for VSCode",
     "description": "Support for the Logtalk programming language",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "publisher": "LogtalkDotOrg",
     "icon": "images/logtalk.png",
     "license": "MIT",
@@ -84,6 +84,10 @@
                 "title": "Logtalk: Goto Previous Error"
             },
             {
+                "command": "logtalk.load.project",
+                "title": "Logtalk: Load Project"
+            },
+            {
                 "command": "logtalk.load.document",
                 "title": "Logtalk: Load Document"
             },
@@ -145,6 +149,10 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
+                    "command": "logtalk.load.project",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
                     "command": "logtalk.load.document",
                     "when": "resourceLangId == logtalk"
                 },
@@ -180,6 +188,10 @@
             "explorer/context": [
                 {
                     "command": "logtalk.make",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.load.project",
                     "when": "resourceLangId == logtalk"
                 },
                 {
@@ -308,7 +320,7 @@
         "test": "tsc ./tests/runTest.ts",
         "syntax4logtalk": "yaml2json --pretty --save ./syntaxes/logtalk.tmLanguage.yaml",
         "vsix:make": "vsce package --baseImagesUrl https://raw.githubusercontent.com/llvm/llvm-project/master/clang-tools-extra/clangd/clients/clangd-vscode/",
-        "vsix:install": "code --install-extension logtalk-for-vscode-0.5.0.vsix"
+        "vsix:install": "code --install-extension logtalk-for-vscode-0.5.1.vsix"
     },
     "devDependencies": {
         "@types/bluebird": "^3.5.38",

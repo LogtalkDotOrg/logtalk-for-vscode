@@ -154,6 +154,71 @@ export default class LogtalkTerminal {
   }
   
 
+  public static async loadProject(uri: Uri, linter: LogtalkLinter) {
+
+    // Declare Variables
+    let dir: string;
+    dir = path.dirname(uri.fsPath);
+    const loader0 = path.join(dir, "loader");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
+    let textDocument = null;
+    let working_directory: string = path.dirname(uri.fsPath);
+    let logtalkHome: string = '',
+        logtalkUser: string = '',
+        tailCommand: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+      tailCommand = jsesc(section.get<string>("tail.command", "logtalk")); 
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+    // Get the Scratch Directory
+    let pathLogtalkMessageFile  = `${logtalkUser}/scratch/.messages`;
+
+    // Open the Text Document
+    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+
+    // Clear the Scratch Message File & Tail it
+    cp.spawn('rm', [`${pathLogtalkMessageFile}`]);
+    cp.spawn('touch', [`${pathLogtalkMessageFile}`]);
+    
+    const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
+    await sleep (500);
+
+    var messages = cp.spawn(tailCommand, ['-f',`${pathLogtalkMessageFile}`, '-n','0']);
+
+    console.log({cp: messages});
+
+    // Clear the Diagnostics & Output Channel
+    // Create the Terminal
+    LogtalkTerminal.createLogtalkTerm();
+
+    // Lint the incoming messages
+    let message = '';
+    let count = 0;
+    messages.stdout.on('data', function(data) {
+      let output = data.toString('ascii');
+      message += output;
+      let last = data.slice(data.length-7, data.length);
+      if(last.toString() == '*     \n' || last.toString() == '!     \n') {
+        linter.lint(textDocument, message);
+        message = '';
+        count++
+        console.log(count)
+      } 
+    });
+
+    messages.stderr.on('data', function(data) {
+      console.log(data)
+    });
+
+    LogtalkTerminal.sendString(`logtalk_load('${loader}').\r`, false);
+
+  }
+
   public static async loadDocument(uri: Uri, linter: LogtalkLinter) {
 
     // Declare Variables
