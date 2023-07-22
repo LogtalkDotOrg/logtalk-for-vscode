@@ -312,24 +312,30 @@ export default class LogtalkTerminal {
 
   public static async genDocumentation(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
-    let dir: string = LogtalkTerminal.ensureDir(uri);
-    let file: string = await LogtalkTerminal.ensureFile(uri);
-    const xmlDir = path.join(dir, "xml_docs");
-    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}'), os::shell('cd ${xmlDir} && ${LogtalkTerminal._docExec} ${LogtalkTerminal._docArgs} && code index.html').\r`;
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const file0: string = await LogtalkTerminal.ensureFile(uri);
+    const file = path.resolve(file0).split(path.sep).join("/");
+    const xmlDir0 = path.join(dir, "xml_docs");
+    const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
+    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}').\r`;
     LogtalkTerminal.sendString(goals);
   }
 
   public static async genDiagrams(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
-    let dir: string = LogtalkTerminal.ensureDir(uri);
-    let file: string = await LogtalkTerminal.ensureFile(uri);
-    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}'), os::shell('for f in *.dot; do ${LogtalkTerminal._graphvizExec} ${LogtalkTerminal._graphvizArgs} "$f" > "$(basename "$f" .dot).${LogtalkTerminal._graphvizExt}" || continue; done').\r`;
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const file0: string = await LogtalkTerminal.ensureFile(uri);
+    const file = path.resolve(file0).split(path.sep).join("/");
+    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}').\r`;
     LogtalkTerminal.sendString(goals);
   }
 
   public static async scanForDeadCode(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
-    const file: string = await LogtalkTerminal.ensureFile(uri);
+    const file0: string = await LogtalkTerminal.ensureFile(uri);
+    const file = path.resolve(file0).split(path.sep).join("/");
     let goals = `set_logtalk_flag(report, warnings),logtalk_load('${file}'),flush_output,logtalk_load(dead_code_scanner(loader)),dead_code_scanner::all.\r`;
     LogtalkTerminal.sendString(goals);
   }
