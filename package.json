@@ -161,6 +161,10 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
+                    "command": "logtalk.run.testers",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
                     "command": "logtalk.run.doclet",
                     "when": "resourceLangId == logtalk"
                 },
@@ -200,6 +204,10 @@
                 },
                 {
                     "command": "logtalk.run.tests",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.run.testers",
                     "when": "resourceLangId == logtalk"
                 },
                 {
