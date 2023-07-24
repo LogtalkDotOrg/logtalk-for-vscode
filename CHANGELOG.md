@@ -6,6 +6,7 @@
 * Add load project menu option
 * Fix running tests, doclets, generating documentation, and generating diagrams on Windows by using forward slashes for paths
 * Fix the menu options for generating documentation and diagrams
+* Fix detection of warnings and errors with "at line" location string
 
 ## [0.5.0]
 

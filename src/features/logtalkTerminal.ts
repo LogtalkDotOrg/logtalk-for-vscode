@@ -81,7 +81,7 @@ export default class LogtalkTerminal {
         args
       );
 
-      let UrlRegex = new RegExp(/(file\s)(\S+).+((at or above line\s(\d+))|(between lines\s(\d+)\-(\d+)))/);
+      let UrlRegex = new RegExp(/(file\s)(\S+).+((at or above line\s(\d+))|(between lines\s(\d+)\-(\d+))|(at line\s(\d+)))/);
 
       vscode.window.registerTerminalLinkProvider({
         provideTerminalLinks: (context: vscode.TerminalLinkContext, token: vscode.CancellationToken) => {
