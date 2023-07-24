@@ -11,6 +11,6 @@ logtalk_load.
 Make option: on the terminal window
 User control 
 
-Load Document - logtalk_load('file')
+Load File - logtalk_load('file')
 
 Save & Make - logtalk_load('file'), logtalk_make('file')

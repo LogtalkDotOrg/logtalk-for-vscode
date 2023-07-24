@@ -20,9 +20,9 @@ export default class LogtalkTerminal {
   private static _docletExec:     string;
   private static _docletArgs:     string[];
   private static _docExec:        string;
-  private static _docArgs:        string;
+  private static _docArgs:        string[];
   private static _graphvizExec:   string;
-  private static _graphvizArgs:   string;
+  private static _graphvizArgs:   string[];
   private static _graphvizExt:    string;
   private static _outputChannel:  OutputChannel;
 
@@ -44,9 +44,9 @@ export default class LogtalkTerminal {
     LogtalkTerminal._docletArgs    =   section.get<string[]>("doclet.arguments");
 
     LogtalkTerminal._docExec       =   section.get<string>("documentation.script", "lgt2html");
-    LogtalkTerminal._docArgs       =   section.get<string>("documentation.arguments");
+    LogtalkTerminal._docArgs       =   section.get<string[]>("documentation.arguments");
     LogtalkTerminal._graphvizExec  =   section.get<string>("graphviz.executable", "dot");
-    LogtalkTerminal._graphvizArgs  =   section.get<string>("graphviz.arguments");
+    LogtalkTerminal._graphvizArgs  =   section.get<string[]>("graphviz.arguments");
     LogtalkTerminal._graphvizExt   =   section.get<string>("graphviz.extension", "svg");
 
     return (<any>window).onDidCloseTerminal(terminal => {
@@ -219,7 +219,7 @@ export default class LogtalkTerminal {
 
   }
 
-  public static async loadDocument(uri: Uri, linter: LogtalkLinter) {
+  public static async loadFile(uri: Uri, linter: LogtalkLinter) {
 
     // Declare Variables
     const file: string = await LogtalkTerminal.ensureFile(uri);

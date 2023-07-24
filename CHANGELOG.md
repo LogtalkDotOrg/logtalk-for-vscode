@@ -2,6 +2,7 @@
 
 ## [0.5.1]
 
+* Rename "Load Document" menu option to "Load File"
 * Add load project menu option
 * Fix running tests, doclets, generating documentation, and generating diagrams on Windows by using forward slashes for paths
 * Fix the menu options for generating documentation and diagrams

@@ -14,7 +14,7 @@ A VSCode extension which provides language support for Logtalk. Forked from the 
 
 This extension can be installed via extensions viewlet of VSCode or 'Extensions: Install from VSIX...' command from the command palette.
 
-Developed and tested in **_Logtalk 3.67.0_** and **_VSCode 1.80.1_** on **_macOS 13.4_** with **Node 16** . Not yet tested under other environments.
+Developed and tested in **Logtalk 3.67.0** and **VSCode 1.80.1** on **macOS 13.4** and **Windows 10** with **Node 16** . Not yet tested under other environments.
 
 ## ⚠️ Known Issues
 
@@ -27,24 +27,24 @@ This extension uses `tail` to pull streamed warning and error messages from logt
 
 ## Features
 
-* [Syntax highlighting](#syntax-highlighting)
-* [Snippets](#indentation-snippets-and-auto-completion)
-* [Grammar Linter](#grammar-linter)
-* [Commands](#commands)
+- [Syntax highlighting](#syntax-highlighting)
+- [Snippets](#indentation-snippets-and-auto-completion)
+- [Grammar Linter](#grammar-linter)
+- [Commands](#commands)
 
 ## Feature descriptions and usages
 
 ### Syntax highlighting
 
-* Full syntax highlight for all Logtalk built-in control constructs, directives, methods, and predicates
-* Full syntax highlight for all ISO Prolog standard built-in control constructs, directives, and predicates
-* Built-ins pattern support
+- Full syntax highlight for all Logtalk built-in control constructs, directives, methods, and predicates
+- Full syntax highlight for all ISO Prolog standard built-in control constructs, directives, and predicates
+- Built-ins pattern support
 
 ### Indentation, snippets and auto-completion
 
-* Indentation after new line
-* Built-in directive, method and predicate template auto-completion
-* Auto-complete recursive parameters: When '.'(dot) occurs as first non-space character, this extension will repeat the nearest above head of clause and automatically change the parameters if possible.
+- Indentation after new line
+- Built-in directive, method and predicate template auto-completion
+- Auto-complete recursive parameters: When '.'(dot) occurs as first non-space character, this extension will repeat the nearest above head of clause and automatically change the parameters if possible.
 
 > Note: Relations between entities use choice snippets. 'orel' triggers object relation choices and 'crel' for category. There is only one relation between protocols 'extends', so 'ext' will trigger the snippet.
 
@@ -95,8 +95,6 @@ This extension uses `tail` to pull streamed warning and error messages from logt
 - The grammar errors (if any) will display in OUTPUT channel when active source file is saved.
 - Command 'Goto next/previous error': see section Commands below.
 
-![linter](images/linter.gif)
-
 ### Commands
 
 #### Project specified commands
@@ -115,32 +113,40 @@ These commands can be triggered from editor/context and explorer/context menus v
 
 |                  Command | Description                                                                                                                                              | Key binding |
 | -----------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------- |
-|            Load Document | Loads the active source file into the Logtalk process                                                                                                    | F9          |
-|            Make Document | Reloads the active source files into the Logtalk process                                                                                                 | F8          |
+|            Load File | Loads the active source file into the Logtalk process                                                                                                    | F9          |
+|            Make (Reload) | Reloads the active source files into the Logtalk process                                                                                                 | F8          |
 |                Run Tests | Runs the tester file under the active source file directory                                                                                              |             |
 |               Run Doclet | Run the doclet file under the active source file directory                                                                                               |             |
 |           Scan Dead Code | Scans active file for dead code                                                                                                                          |             |
 |   Generate Documentation | Generates documentation for the files under the active source file directory                                                                             |             |
 |        Generate Diagrams | Generates diagrams for the files under the active source file directory                                                                                  |             |
 
-* Command 'Logtalk: load document'
-
-![loader](images/loader.gif)
-
 ## Configurations
 
 The user can configure settings via VS Code menu `File/Preferences/Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a descrition of all the settings in this extension with their default values.
 
-### Logtalk environment variables and executable
+### Logtalk environment variables
+
+Until VSCode allows defining settings from environment variable values, the following two settings must be manuallt defined:
+
+    "logtalk.home.path": ""
+    "logtalk.user.path": ""
+
+No defaults. Must be set to the `LOGTALKHOME` and `LOGTALKUSER` environment variable absolute paths.
+
+### Logtalk executable
 
     "logtalk.executable.path": "/usr/local/bin/logtalk"
-
-This setting points to the Logtalk executable, which can be created by running the `logtalk_backend_select` script. In alternative, use the absolute path to the integration script you want to use (e.g. `/usr/local/bin/swilgt`). On Windows systems, use the absolute path to the Prolog backend (e.g. `C:\\Program Files\\swipl\\bin\\swipl.exe`) **and** then set the executable argument to load Logtalk (look into the properties of the Logtalk integration shortcuts that are available from the Start Menu after installing Logtalk).
-
     "logtalk.executable.arguments": [ ]
 
-Arguments of Logtalk executable run in terminal. On Windows systems, this would be set to the argument that loads Logtalk at startup. For example:
+These settings points to the Logtalk executable and its arguments. The excutable can be created by running the `logtalk_backend_select` script. In alternative, use the absolute path to the integration script you want to use. For example:
 
+    "logtalk.executable.path": "/usr/local/bin/swilgt"
+    "logtalk.executable.arguments": [ "-q" ]
+
+On Windows systems, use the absolute path to the Prolog backend executable **and** then set the arguments to load Logtalk (look into the properties of the Logtalk integration shortcuts that are available from the Start Menu after installing Logtalk). For example:
+
+    "logtalk.executable.path": "C:\\Program Files\\swipl\\bin\\swipl.exe"
     "logtalk.executable.arguments": [
         "-s",
         "C:\\Program Files (x86)\\Logtalk\\integration\\logtalk_swi.pl"
@@ -148,61 +154,58 @@ Arguments of Logtalk executable run in terminal. On Windows systems, this would 
 
 Recent Windows versions allows using forward slashes in paths.
 
-    "logtalk.home.path": ""
-
-No default. Must be set to the `LOGTALKHOME` environment variable absolute path.
-
-    "logtalk.user.path": ""
-
-No default; must be set to the `LOGTALKUSER` environment variable absolute path.
-
 ### Logtalk project testers
 
     "logtalk.tester.script": "/usr/local/bin/logtalk_tester"
-
-Automation script for running tests.
-
     "logtalk.tester.arguments": [ ]
 
-Arguments for the automation script for running tests.
+Automation script for running tests and its arguments. The arguments **must** included at least the Prolog backend. For example:
+
+    "logtalk.tester.script": "/usr/local/bin/logtalk_tester"
+    "logtalk.tester.arguments": [ "-p", "swi" ]
+
+ On Windows systems, these settings must be set differently. For example:
+
+    "logtalk.tester.script": "powershell"
+    "logtalk.tester.arguments": [ "-file", "logtalk_tester.ps1", "-p", "swi" ]
 
 ### Logtalk project doclets
 
     "logtalk.doclet.script": "/usr/local/bin/logtalk_doclet"
-
-Automation script for running doclets.
-
     "logtalk.doclet.arguments": [ ]
 
-Arguments for the automation script for running doclets.
+Automation script for running doclets and its arguments. The arguments **must** included at least the Prolog backend. For example:
+
+    "logtalk.doclet.script": "/usr/local/bin/logtalk_doclet"
+    "logtalk.doclet.arguments": [ "-p", "swi" ]
+
+On Windows systems, these settings must be set differently. For example:
+
+    "logtalk.doclet.script": "powershell"
+    "logtalk.doclet.arguments": [ "-file", "logtalk_doclet.ps1", "-p", "swi" ]
 
 ### Logtalk project documentation
 
     "logtalk.documentation.script": "/usr/local/bin/lgt2html"
+    "logtalk.documentation.arguments": [ ]
 
-Script for converting the XML files generated by the Logtalk `lgtdoc` tool.
+Documentation script and its arguments for converting the XML files generated by the Logtalk `lgtdoc` tool to their final format. For example:
 
-    "logtalk.documentation.arguments": ""
+    "logtalk.documentation.script": "/usr/local/bin/lgt2html"
+    "logtalk.documentation.arguments":[ "-t", "APIs documentation" ]
 
-Arguments for the script that converts the XML files generated by the Logtalk `lgtdoc` tool.
+On Windows systems, these settings must be set differently. For example:
+
+    "logtalk.tester.script": "powershell"
+    "logtalk.tester.arguments": [ "-file", "lgt2html.ps1", "-t", "APIs documentation" ]
 
 ### Logtalk project diagrams
 
     "logtalk.graphviz.executable": "/usr/local/bin/dot"
-
-Graphviz executable for converting the `.dot` files generated by the Logtalk `diagrams` tool.
-
-    "logtalk.graphviz.arguments": "-Tsvg"
-
-Arguments for the Graphviz executable that converts the `.dot` files generated by the Logtalk `diagrams` tool.
-
+    "logtalk.graphviz.arguments": [ "-Tsvg" ]
     "logtalk.graphviz.extension": "svg"
 
-File name extension for the diagram files generated by the Graphviz executable.
-
-### Windows
-
-Please see this [discussion](https://github.com/LogtalkDotOrg/logtalk3/discussions/128#discussioncomment-1912911) for a Windows configuration example.  
+Graphviz executable and arguments for converting the `.dot` files generated by the Logtalk `diagrams` tool. Also the file name extension for the diagram files generated by the Graphviz executable.
 
 ## Development 
 

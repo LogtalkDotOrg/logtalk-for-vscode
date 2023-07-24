@@ -37,7 +37,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.linter.nextErrLine",     callback: ()   => linter.nextErrLine()},
     { command: "logtalk.linter.prevErrLine",     callback: ()   => linter.prevErrLine()},
     { command: "logtalk.load.project",           callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
-    { command: "logtalk.load.document",          callback: uri  => LogtalkTerminal.loadDocument(uri, linter)},
+    { command: "logtalk.load.file",              callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
     { command: "logtalk.make",                   callback: async (uri)  => LogtalkTerminal.make(uri)},
     { command: "logtalk.run.tests",              callback: uri  => LogtalkTerminal.runTests(uri)},
     { command: "logtalk.run.doclet",             callback: uri  => LogtalkTerminal.runDoclet(uri)},
