@@ -182,8 +182,7 @@ export default class LogtalkTerminal {
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
 
     // Clear the Scratch Message File & Tail it
-    cp.spawn('rm', [`${pathLogtalkMessageFile}`]);
-    cp.spawn('touch', [`${pathLogtalkMessageFile}`]);
+    fs.truncate(`${pathLogtalkMessageFile}`, (err) => {});
     
     const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
     await sleep (500);
@@ -244,9 +243,8 @@ export default class LogtalkTerminal {
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
 
     // Clear the Scratch Message File & Tail it
-    cp.spawn('rm', [`${pathLogtalkMessageFile}`]);
-    cp.spawn('touch', [`${pathLogtalkMessageFile}`]);
-    
+    fs.truncate(`${pathLogtalkMessageFile}`, (err) => {});
+
     const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
     await sleep (500);
 
