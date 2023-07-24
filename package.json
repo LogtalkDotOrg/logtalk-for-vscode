@@ -264,7 +264,12 @@
                 "logtalk.tail.command": {
                     "type": "string",
                     "default": "tail",
-                    "description": "tail command to be used. In the format of <your tail command> -f $LOGTALKUSER/.messages -n -0"
+                    "description": "The tail command to be used."
+                },
+                "logtalk.tail.arguments": {
+                    "type": "array",
+                    "description": "The arguments the the tail command to be applied to the $LOGTALKUSER/scratch/.messages file.",
+                    "default": []
                 },
                 "logtalk.vscode.messagefile": {
                     "type": "string",

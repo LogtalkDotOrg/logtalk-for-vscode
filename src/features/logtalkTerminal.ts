@@ -165,13 +165,15 @@ export default class LogtalkTerminal {
     let working_directory: string = path.dirname(uri.fsPath);
     let logtalkHome: string = '',
         logtalkUser: string = '',
-        tailCommand: string = '';
+        tailCommand: string = '',
+        tailArguments: string[] = null;
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
     if (section) { 
       logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
       logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-      tailCommand = jsesc(section.get<string>("tail.command", "logtalk")); 
+      tailCommand = jsesc(section.get<string>("tail.command", "tail")); 
+      tailArguments = section.get<string[]>("tail.arguments"); 
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
@@ -187,7 +189,7 @@ export default class LogtalkTerminal {
     const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
     await sleep (500);
 
-    var messages = cp.spawn(tailCommand, ['-f',`${pathLogtalkMessageFile}`, '-n','0']);
+    var messages = cp.spawn(tailCommand, tailArguments);
 
     console.log({cp: messages});
 
@@ -226,13 +228,15 @@ export default class LogtalkTerminal {
     let working_directory: string = path.dirname(uri.fsPath);
     let logtalkHome: string = '',
         logtalkUser: string = '',
-        tailCommand: string = '';
+        tailCommand: string = '',
+        tailArguments: string[] = null;
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
     if (section) { 
       logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
       logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-      tailCommand = jsesc(section.get<string>("tail.command", "logtalk")); 
+      tailCommand = jsesc(section.get<string>("tail.command", "tail")); 
+      tailArguments = section.get<string[]>("tail.arguments"); 
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
@@ -248,7 +252,7 @@ export default class LogtalkTerminal {
     const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
     await sleep (500);
 
-    var messages = cp.spawn(tailCommand, ['-f',`${pathLogtalkMessageFile}`, '-n','0']);
+    var messages = cp.spawn(tailCommand, tailArguments);
 
     console.log({cp: messages});
 
