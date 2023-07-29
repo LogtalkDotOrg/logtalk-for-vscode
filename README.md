@@ -48,13 +48,13 @@ This extension uses `tail` to pull streamed warning and error messages from logt
 
 - Indentation after new line
 - Built-in directive, method and predicate template auto-completion
-- Auto-complete recursive parameters: When '.'(dot) occurs as first non-space character, this extension will repeat the nearest above head of clause and automatically change the parameters if possible.
+- Auto-complete recursive parameters: When `.` (dot) occurs as first non-space character, this extension will repeat the nearest above head of clause and automatically change the parameters if possible.
 
-> Note: Relations between entities use choice snippets. 'orel' triggers object relation choices and 'crel' for category. There is only one relation between protocols 'extends', so 'ext' will trigger the snippet.
+Note: Relations between entities use choice snippets: `orel` triggers object relation choices and `crel` for category. There is only one relation between protocols, 'extends', so `ext` will trigger the snippet.
 
-> The snippets for built-ins all are triggered by natural prefix, i.e. ':- public' triggers ':- public()' directive. You needn't to type all characters to show up the suggestion list.
+The snippets for built-ins all are triggered by natural prefix, i.e. `:- public` triggers `:- public()` directive. You don't need to type all characters to show up the suggestion list.
 
-> Refter to the table below for other snippets:
+Refer to the table below for other snippets:
 
 |    Prefix | Description                          |
 | --------: | ------------------------------------ |
@@ -115,15 +115,15 @@ Project specified commands can be triggered from command palette via entering 'L
 
 These commands can be triggered from editor/context and explorer/context menus via right click editor area or Logtalk files in explorer area respectively. In explorer context, the file name at which right click occurs will be passed in the command as argument. File specified commands can also be triggered from command palette so that active file name in the editor will be passed in the command.
 
-|                  Command | Description                                                                                                                                              | Key binding |
-| -----------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------- |
-|            Load File | Loads the active source file into the Logtalk process                                                                                                    | F9          |
-|            Make (Reload) | Reloads the active source files into the Logtalk process                                                                                                 | F8          |
-|                Run Tests | Runs the tester file under the active source file directory                                                                                              |             |
-|               Run Doclet | Run the doclet file under the active source file directory                                                                                               |             |
-|           Scan Dead Code | Scans active file for dead code                                                                                                                          |             |
-|   Generate Documentation | Generates documentation for the files under the active source file directory                                                                             |             |
-|        Generate Diagrams | Generates diagrams for the files under the active source file directory                                                                                  |             |
+|                  Command | Description                                                                  | Key binding |
+| -----------------------: | :--------------------------------------------------------------------------- | :---------- |
+|                Load File | Loads the active source file into the Logtalk process                        | F9          |
+|            Make (Reload) | Reloads the active source files into the Logtalk process                     | F8          |
+|                Run Tests | Runs the tester file under the active source file directory                  |             |
+|               Run Doclet | Run the doclet file under the active source file directory                   |             |
+|           Scan Dead Code | Scans active file for dead code                                              |             |
+|   Generate Documentation | Generates documentation for the files under the active source file directory |             |
+|        Generate Diagrams | Generates diagrams for the files under the active source file directory      |             |
 
 ## Configurations
 
@@ -239,13 +239,13 @@ Please see the [Changelog](https://github.com/LogtalkDotOrg/logtalk-for-vscode/b
 
 ## Contributions
 
-[Pull requests](https://github.com/LogtalkDotOrg/logtalk-for-vscode/pulls) are welcome.
+[Pull requests](https://github.com/LogtalkDotOrg/logtalk-for-vscode/pulls) are most welcome.
 
 ## Acknowledgements & Contributors
 
 ### Arthur Wang (Original Author)
 
-Due to Arthur's unavailability at the time of this plugin's development and since-deprecated modules, this extension has been adopted by new authors.
+Due to Arthur's current unavailability and since-deprecated modules, this extension has been adopted by new authors.
 
 "The original author of this extension thanks Professor Paulo Moura who is the author of Logtalk for his patient help and support. Syntax highlighting, some snippets, and some commands are integrated from his distro of Logtalk."
 
