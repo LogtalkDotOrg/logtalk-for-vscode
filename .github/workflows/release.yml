@@ -17,10 +17,6 @@ jobs:
           cache: 'npm'
       - run: npm install
       - run: npm run vsix:make
-
-  release:
-    runs-on: "ubuntu-latest"
-    steps:
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
