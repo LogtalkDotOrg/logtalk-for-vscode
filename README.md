@@ -2,7 +2,7 @@
 
 A VSCode extension which provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Developed and tested in **Logtalk 3.67.0** and **VSCode 1.80.1** on **macOS 13.4** and **Windows 10** with **Node 16** . Not yet tested under other environments.
+Developed and tested in **Logtalk 3.67.0** and **VSCode 1.80.1** on **macOS 13.4** and **Windows 10** with **Node 16**. Not yet tested under other environments.
 
 🙏 Sponsored by [Permion](https://permion.ai/).
 
@@ -18,7 +18,7 @@ This extension can be installed via the 'Extensions: Install from VSIX...' comma
 
 ## Configuration
 
-This extension **must** be configured before it can be used. Notably, the following setttings are required:
+This extension **must** be configured before it can be used. Notably, the following settings are required:
 
 - `LOGTALKUSER` and `LOGTALKHOME` environment variable values (as full paths).
 - Logtalk executable or integration script.
@@ -127,11 +127,11 @@ These commands can be triggered from editor/context and explorer/context menus v
 
 ## Configurations
 
-The user can configure settings via VS Code menu `File/Preferences/Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a descrition of all the settings in this extension with their default values.
+The user can configure settings via VS Code menu `File/Preferences/Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a description of all the settings in this extension with their default values.
 
 ### Logtalk environment variables
 
-Until VSCode allows defining settings from environment variable values, the following two settings must be manuallt defined:
+Until VSCode allows defining settings from environment variable values, the following two settings must be manually defined:
 
     "logtalk.home.path": ""
     "logtalk.user.path": ""
@@ -143,7 +143,7 @@ No defaults. Must be set to the `LOGTALKHOME` and `LOGTALKUSER` environment vari
     "logtalk.executable.path": "/usr/local/bin/logtalk"
     "logtalk.executable.arguments": [ ]
 
-These settings points to the Logtalk executable and its arguments. The excutable can be created by running the `logtalk_backend_select` script. In alternative, use the absolute path to the integration script you want to use. For example:
+These settings points to the Logtalk executable and its arguments. The executable can be created by running the `logtalk_backend_select` script. In alternative, use the absolute path to the integration script you want to use. For example:
 
     "logtalk.executable.path": "/usr/local/bin/swilgt"
     "logtalk.executable.arguments": [ "-q" ]
@@ -231,7 +231,7 @@ On Windows systems, these settings must be set differently. For example:
 
 This extension has been package and tested with Node 16.
 
-After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run  vsix:install` installs it. Restart VSCode after installation.
+After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
 ## Update Notes
 
