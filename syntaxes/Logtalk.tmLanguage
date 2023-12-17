@@ -129,7 +129,7 @@
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>(:|::|\^\^)</string>
+			<string>(::|:|\^\^)</string>
 			<key>name</key>
 			<string>keyword.operator.message-sending.logtalk</string>
 		</dict>
@@ -141,19 +141,19 @@
 		</dict>
 		<dict>
 			<key>match</key>
+			<string>(@=&lt;|@&lt;|@&gt;=|@&gt;|==|\\==)</string>
+			<key>name</key>
+			<string>keyword.operator.comparison.term.logtalk</string>
+		</dict>
+		<dict>
+			<key>match</key>
 			<string>(\?|@)</string>
 			<key>name</key>
 			<string>keyword.operator.mode.logtalk</string>
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>(@=&lt;|@&lt;|@&gt;|@&gt;=|==|\\==)</string>
-			<key>name</key>
-			<string>keyword.operator.comparison.term.logtalk</string>
-		</dict>
-		<dict>
-			<key>match</key>
-			<string>(=&lt;|&lt;|&gt;|&gt;=|=:=|=\\=)</string>
+			<string>(=&lt;|&lt;|&gt;=|&gt;|=:=|=\\=)</string>
 			<key>name</key>
 			<string>keyword.operator.comparison.arithmetic.logtalk</string>
 		</dict>
@@ -171,15 +171,15 @@
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>(\*\*|\+|-|\*|/|//)</string>
+			<string>(!|:-|\\+|,|;|--&gt;|-&gt;|=\.\.|=|\\=|\.|\^|\b(as|is)\b)</string>
 			<key>name</key>
-			<string>keyword.operator.evaluable.logtalk</string>
+			<string>keyword.operator.misc.logtalk</string>
 		</dict>
 		<dict>
 			<key>match</key>
-			<string>(:-|!|\\+|,|;|--&gt;|-&gt;|=|\=|\.|=\.\.|\^|\bas\b|\bis\b)</string>
+			<string>(\*\*|\+|-|\*|/|//)</string>
 			<key>name</key>
-			<string>keyword.operator.misc.logtalk</string>
+			<string>keyword.operator.evaluable.logtalk</string>
 		</dict>
 		<dict>
 			<key>match</key>

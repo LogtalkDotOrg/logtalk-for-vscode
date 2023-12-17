@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.3]
+
+* Fix syntax highlight of term and arithmetic comparison operators
+
 ## [0.5.1]
 
 * Rename "Load Document" menu option to "Load File"
