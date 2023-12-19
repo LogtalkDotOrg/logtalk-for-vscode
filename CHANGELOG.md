@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.4]
+
+* Fix syntax highlight of operators
+
 ## [0.5.3]
 
 * Fix syntax highlight of term and arithmetic comparison operators
