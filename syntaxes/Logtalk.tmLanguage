@@ -129,6 +129,12 @@
 		</dict>
 		<dict>
 			<key>match</key>
+			<string>(:-)</string>
+			<key>name</key>
+			<string>keyword.operator.clause.logtalk</string>
+		</dict>
+		<dict>
+			<key>match</key>
 			<string>(::|:|\^\^)</string>
 			<key>name</key>
 			<string>keyword.operator.message-sending.logtalk</string>
@@ -153,6 +159,12 @@
 		</dict>
 		<dict>
 			<key>match</key>
+			<string>([!]|\\\+|,|;|--&gt;|-&gt;|=\.\.|=|\\=|\.|\^|\b(as|is)\b)</string>
+			<key>name</key>
+			<string>keyword.operator.misc.logtalk</string>
+		</dict>
+		<dict>
+			<key>match</key>
 			<string>(=&lt;|&lt;|&gt;=|&gt;|=:=|=\\=)</string>
 			<key>name</key>
 			<string>keyword.operator.comparison.arithmetic.logtalk</string>
@@ -167,19 +179,13 @@
 			<key>match</key>
 			<string>\b(e|pi|mod|rem|div)\b(?![-!(^~])</string>
 			<key>name</key>
-			<string>keyword.operator.evaluable.logtalk</string>
-		</dict>
-		<dict>
-			<key>match</key>
-			<string>(!|:-|\\+|,|;|--&gt;|-&gt;|=\.\.|=|\\=|\.|\^|\b(as|is)\b)</string>
-			<key>name</key>
-			<string>keyword.operator.misc.logtalk</string>
+			<string>support.function.evaluable.logtalk</string>
 		</dict>
 		<dict>
 			<key>match</key>
 			<string>(\*\*|\+|-|\*|/|//)</string>
 			<key>name</key>
-			<string>keyword.operator.evaluable.logtalk</string>
+			<string>support.function.evaluable.logtalk</string>
 		</dict>
 		<dict>
 			<key>match</key>
