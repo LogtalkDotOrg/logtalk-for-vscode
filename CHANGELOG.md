@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.5]
+
+* Fix syntax highlight of the uninstantiation_error/1 built-in method
+
 ## [0.5.4]
 
 * Fix syntax highlight of operators
