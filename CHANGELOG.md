@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.1]
+
+* Improve generation of diagrams and documentation in the final format
+
 ## [0.6.0]
 
 * Change settings for configuring the script to be used to generate diagrams

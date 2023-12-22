@@ -9,6 +9,8 @@ import * as cp from 'child_process';
 import { spawn } from "process-promises";
 import LogtalkLinter from "./logtalkLinter";
 import { isFunction } from "util";
+import * as fsp from "fs/promises";
+import * as timers from "timers/promises";
 
 export default class LogtalkTerminal {
   private static _context:        ExtensionContext;
@@ -320,10 +322,10 @@ export default class LogtalkTerminal {
     const file = path.resolve(file0).split(path.sep).join("/");
     const xmlDir0 = path.join(dir, "xml_docs");
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
-    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}').\r`;
+    let goals = `catch(ignore(os::delete_file('${dir}/.xml_files_done')),_,true),logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}'),os::ensure_file('${dir}/.xml_files_done').\r`;
     LogtalkTerminal.sendString(goals);
-    const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
-    await sleep (3000);
+    const marker = path.join(dir0, ".xml_files_done");
+    await LogtalkTerminal.waitForFile(marker);
     LogtalkTerminal.spawnScript4(
       xmlDir0,
       ["documentation", "logtalk.documentation.script", LogtalkTerminal._docExec],
@@ -338,10 +340,10 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const file0: string = await LogtalkTerminal.ensureFile(uri);
     const file = path.resolve(file0).split(path.sep).join("/");
-    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}').\r`;
+    let goals = `catch(ignore(os::delete_file('${dir}/.dot_files_done')),_,true),logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}'),os::ensure_file('${dir}/.dot_files_done').\r`;
     LogtalkTerminal.sendString(goals);
-    const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
-    await sleep (3000);
+    const marker = path.join(dir0, ".dot_files_done");
+    await LogtalkTerminal.waitForFile(marker);
     LogtalkTerminal.spawnScript4(
       dir0,
       ["diagrams", "logtalk.diagrams.script", LogtalkTerminal._diaExec],
@@ -433,5 +435,26 @@ export default class LogtalkTerminal {
     }
     return dir;
   }
+
+  private static waitForFile = async (
+    filePath,
+    {timeout = 30_000, delay = 200} = {}
+  ) => {
+    const tid = setTimeout(() => {
+      const msg = `Timeout of ${timeout} ms exceeded waiting for ${filePath}`;
+      throw Error(msg);
+    }, timeout);
+
+    for (;;) {
+      try {
+        await fsp.stat(filePath);
+        clearTimeout(tid);
+        return;
+      }
+      catch (err) {}
+
+      await timers.setTimeout(delay);
+    }
+  };
 
 }
