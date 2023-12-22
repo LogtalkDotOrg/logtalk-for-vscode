@@ -21,9 +21,8 @@ export default class LogtalkTerminal {
   private static _docletArgs:     string[];
   private static _docExec:        string;
   private static _docArgs:        string[];
-  private static _graphvizExec:   string;
-  private static _graphvizArgs:   string[];
-  private static _graphvizExt:    string;
+  private static _diaExec:        string;
+  private static _diaArgs:        string[];
   private static _outputChannel:  OutputChannel;
 
   constructor() {
@@ -45,9 +44,8 @@ export default class LogtalkTerminal {
 
     LogtalkTerminal._docExec       =   section.get<string>("documentation.script", "lgt2html");
     LogtalkTerminal._docArgs       =   section.get<string[]>("documentation.arguments");
-    LogtalkTerminal._graphvizExec  =   section.get<string>("graphviz.executable", "dot");
-    LogtalkTerminal._graphvizArgs  =   section.get<string[]>("graphviz.arguments");
-    LogtalkTerminal._graphvizExt   =   section.get<string>("graphviz.extension", "svg");
+    LogtalkTerminal._diaExec       =   section.get<string>("diagrams.script", "lgt2svg");
+    LogtalkTerminal._diaArgs       =   section.get<string[]>("diagrams.arguments");
 
     return (<any>window).onDidCloseTerminal(terminal => {
         LogtalkTerminal._terminal = null;
@@ -324,6 +322,14 @@ export default class LogtalkTerminal {
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
     let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}').\r`;
     LogtalkTerminal.sendString(goals);
+    const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
+    await sleep (3000);
+    LogtalkTerminal.spawnScript4(
+      xmlDir0,
+      ["documentation", "logtalk.documentation.script", LogtalkTerminal._docExec],
+      LogtalkTerminal._docExec,
+      LogtalkTerminal._docArgs
+    );
   }
 
   public static async genDiagrams(uri: Uri) {
@@ -334,6 +340,14 @@ export default class LogtalkTerminal {
     const file = path.resolve(file0).split(path.sep).join("/");
     let goals = `logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}').\r`;
     LogtalkTerminal.sendString(goals);
+    const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
+    await sleep (3000);
+    LogtalkTerminal.spawnScript4(
+      dir0,
+      ["diagrams", "logtalk.diagrams.script", LogtalkTerminal._diaExec],
+      LogtalkTerminal._diaExec,
+      LogtalkTerminal._diaArgs
+    );
   }
 
   public static async scanForDeadCode(uri: Uri) {
@@ -353,9 +367,7 @@ export default class LogtalkTerminal {
     );
   }
 
-  private static spawnScript(type: string[], path: string, args: string[]) {
-    let dir: string;
-    dir = workspace.rootPath;
+  private static spawnScript4(dir: string, type: string[], path: string, args: string[]) {
     let pp = spawn(path, args, { cwd: dir })
       .on("stdout", out => {
         LogtalkTerminal._outputChannel.append(out + "\n");
@@ -377,6 +389,12 @@ export default class LogtalkTerminal {
         this._outputChannel.append(message);
         this._outputChannel.show(true);
       });
+  }
+
+  private static spawnScript(type: string[], path: string, args: string[]) {
+    let dir: string;
+    dir = workspace.rootPath;
+    LogtalkTerminal.spawnScript4(dir, type, path, args);
   }
   
   public static runDoclets() {
@@ -415,6 +433,5 @@ export default class LogtalkTerminal {
     }
     return dir;
   }
+
 }
-
-

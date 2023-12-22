@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0]
+
+* Change settings for configuring the script to be used to generate diagrams
+* Update Windows configuration instructions
+* Fix generating documentation in the final format
+* Fix generating diagrams in the final format
+
 ## [0.5.5]
 
 * Fix syntax highlight of the uninstantiation_error/1 built-in method
