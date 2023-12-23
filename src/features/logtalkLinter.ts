@@ -90,7 +90,7 @@ export default class LogtalkLinter implements CodeActionProvider {
     }
 
     let fromCol = 0;
-    let toCol = 200; // Default horizontal rangew
+    let toCol = 200; // Default horizontal range
     let fromPos = new Position(lineFrom, fromCol);
     let toPos = new Position(lineTo, toCol);
     let range = new Range(fromPos, toPos);

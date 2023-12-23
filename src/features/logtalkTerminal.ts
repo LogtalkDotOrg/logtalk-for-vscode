@@ -163,7 +163,6 @@ export default class LogtalkTerminal {
     const loader0 = path.join(dir, "loader");
     const loader = path.resolve(loader0).split(path.sep).join("/");
     let textDocument = null;
-    let working_directory: string = path.dirname(uri.fsPath);
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -174,31 +173,38 @@ export default class LogtalkTerminal {
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
-    // Get the Scratch Directory
-    let pathLogtalkMessageFile  = `${logtalkUser}/scratch/.messages`;
-
     // Open the Text Document
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
-
     // Clear the Scratch Message File
-    fs.truncate(`${pathLogtalkMessageFile}`, (err) => {});
-    
-    const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
-    await sleep (500);
-
+    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-
-    LogtalkTerminal.sendString(`logtalk_load('${loader}').\r`, false);
+    LogtalkTerminal.sendString(`(logtalk_load([os(loader),'${loader}']) -> os::ensure_file('${dir}/.loading_done'); os::ensure_file('${dir}/.loading_done')).\r`, false);
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir, ".loading_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split('\n');
+    let message = '';
+    for (const line of lines) {
+      message = message + line + '\n';
+      if(line == '*     ' || line == '!     ') {
+        linter.lint(textDocument, message);
+        message = '';
+      } 
+    }
 
   }
 
   public static async loadFile(uri: Uri, linter: LogtalkLinter) {
 
     // Declare Variables
-    const file: string = await LogtalkTerminal.ensureFile(uri);
+    let dir: string;
+    dir = path.dirname(uri.fsPath);
+    const file0: string = await LogtalkTerminal.ensureFile(uri);
+    const file = path.resolve(file0).split(path.sep).join("/");
     let textDocument = null;
-    let working_directory: string = path.dirname(uri.fsPath);
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -209,21 +215,27 @@ export default class LogtalkTerminal {
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
-    // Get the Scratch Directory
-    let pathLogtalkMessageFile  = `${logtalkUser}/scratch/.messages`;
-
     // Open the Text Document
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
-
     // Clear the Scratch Message File
-    fs.truncate(`${pathLogtalkMessageFile}`, (err) => {});
-
+    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-
-    let sourceFile = file.replace(/\\/g, "/");
-
-    LogtalkTerminal.sendString(`logtalk_load('${sourceFile}').\r`, false);
+    LogtalkTerminal.sendString(`(logtalk_load([os(loader),'${file}']) -> os::ensure_file('${dir}/.loading_done'); os::ensure_file('${dir}/.loading_done')).\r`, false);
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir, ".loading_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split('\n');
+    let message = '';
+    for (const line of lines) {
+      message = message + line + '\n';
+      if(line == '*     ' || line == '!     ') {
+        linter.lint(textDocument, message);
+        message = '';
+      } 
+    }
 
   }
 
@@ -380,28 +392,6 @@ export default class LogtalkTerminal {
 
   private static waitForFile = async (
     filePath,
-    {timeout = 60000, delay = 200} = {}
-  ) => {
-    const tid = setTimeout(() => {
-      const msg = `Timeout of ${timeout} ms exceeded waiting for ${filePath}`;
-      throw Error(msg);
-    }, timeout);
-
-    for (;;) {
-      try {
-        await fsp.stat(filePath);
-        clearTimeout(tid);
-        return;
-      }
-      catch (err) {}
-
-      await timers.setTimeout(delay);
-    }
-  };
-
-  private static waitForFileContent = async (
-    filePath,
-    content,
     {timeout = 60000, delay = 200} = {}
   ) => {
     const tid = setTimeout(() => {
