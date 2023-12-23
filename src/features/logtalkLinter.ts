@@ -93,7 +93,7 @@ export default class LogtalkLinter implements CodeActionProvider {
     let fromPos = new Position(lineFrom, fromCol);
     let toPos = new Position(lineTo, toCol);
     let range = new Range(fromPos, toPos);
-    let errMsg = match[1].replace(new RegExp(/\*     /,'g'), '').replace(new RegExp(/\!     /,'g'), '')
+    let errMsg = match[1].replace(new RegExp(/\*     /,'g'), '').replace(new RegExp(/\!     /,'g'), '');
     let diag = new Diagnostic(range, errMsg, severity);
 
     if (diag) {
