@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.0]
+
+* Delete temporary marker files created when generating diagrams and documentation
+
 ## [0.6.1]
 
 * Improve generation of diagrams and documentation in the final format

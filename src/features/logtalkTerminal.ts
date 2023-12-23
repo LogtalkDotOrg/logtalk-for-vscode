@@ -322,10 +322,11 @@ export default class LogtalkTerminal {
     const file = path.resolve(file0).split(path.sep).join("/");
     const xmlDir0 = path.join(dir, "xml_docs");
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
-    let goals = `catch(ignore(os::delete_file('${dir}/.xml_files_done')),_,true),logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}'),os::ensure_file('${dir}/.xml_files_done').\r`;
+    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}'),os::ensure_file('${dir}/.xml_files_done').\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
     LogtalkTerminal.spawnScript4(
       xmlDir0,
       ["documentation", "logtalk.documentation.script", LogtalkTerminal._docExec],
@@ -340,10 +341,11 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const file0: string = await LogtalkTerminal.ensureFile(uri);
     const file = path.resolve(file0).split(path.sep).join("/");
-    let goals = `catch(ignore(os::delete_file('${dir}/.dot_files_done')),_,true),logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}'),os::ensure_file('${dir}/.dot_files_done').\r`;
+    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${dir}'),os::ensure_file('${dir}/.dot_files_done').\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
     LogtalkTerminal.spawnScript4(
       dir0,
       ["diagrams", "logtalk.diagrams.script", LogtalkTerminal._diaExec],
