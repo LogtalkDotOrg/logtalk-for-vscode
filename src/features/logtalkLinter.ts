@@ -1,5 +1,4 @@
 ("use strict");
-import { spawn } from "process-promises";
 
 import {
   CancellationToken,
@@ -23,7 +22,7 @@ import {
   workspace,
   WorkspaceEdit
 } from "vscode";
-import { dirname, basename } from "path";
+import * as path from "path";
 
 import LogtalkTerminal from "./logtalkTerminal"; 
 
@@ -72,7 +71,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       severity = DiagnosticSeverity.Error
     } 
 
-    let fileName = match[6];
+    let fileName = path.resolve(match[6]).split(path.sep).join("/");
     console.log(fileName);
     let lineFrom = 0,
         lineTo   = 0;
@@ -90,7 +89,7 @@ export default class LogtalkLinter implements CodeActionProvider {
     }
 
     let fromCol = 0;
-    let toCol = 200; // Default horizontal range
+    let toCol = 240; // Default horizontal range
     let fromPos = new Position(lineFrom, fromCol);
     let toPos = new Position(lineTo, toCol);
     let range = new Range(fromPos, toPos);
@@ -152,7 +151,7 @@ export default class LogtalkLinter implements CodeActionProvider {
 
   public activate(subscriptions): void {
 
-    this.diagnosticCollection = languages.createDiagnosticCollection();
+    this.diagnosticCollection = languages.createDiagnosticCollection('Logtalk Linter');
 
     workspace.onDidChangeConfiguration(
       this.loadConfiguration,

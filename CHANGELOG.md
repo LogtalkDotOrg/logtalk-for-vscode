@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1]
+
+* Fix Windows compatibility issue when loading files
+
+## [0.8.0]
+
+* Add compiler errors and warnings to the "Problems" pane
+
 ## [0.7.0]
 
 * Delete temporary marker files created when generating diagrams and documentation

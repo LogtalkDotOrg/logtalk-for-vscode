@@ -158,8 +158,9 @@ export default class LogtalkTerminal {
   public static async loadProject(uri: Uri, linter: LogtalkLinter) {
 
     // Declare Variables
-    let dir: string;
-    dir = path.dirname(uri.fsPath);
+    let dir0: string;
+    dir0 = path.dirname(uri.fsPath);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
     const loader0 = path.join(dir, "loader");
     const loader = path.resolve(loader0).split(path.sep).join("/");
     let textDocument = null;
@@ -182,10 +183,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`(logtalk_load([os(loader),'${loader}']) -> os::ensure_file('${dir}/.loading_done'); os::ensure_file('${dir}/.loading_done')).\r`, false);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir, ".loading_done");
+    const marker = path.join(dir0, ".loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split('\n');
+    const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
     let message = '';
     for (const line of lines) {
       message = message + line + '\n';
@@ -200,8 +201,9 @@ export default class LogtalkTerminal {
   public static async loadFile(uri: Uri, linter: LogtalkLinter) {
 
     // Declare Variables
-    let dir: string;
-    dir = path.dirname(uri.fsPath);
+    let dir0: string;
+    dir0 = path.dirname(uri.fsPath);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
     const file0: string = await LogtalkTerminal.ensureFile(uri);
     const file = path.resolve(file0).split(path.sep).join("/");
     let textDocument = null;
@@ -224,10 +226,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`(logtalk_load([os(loader),'${file}']) -> os::ensure_file('${dir}/.loading_done'); os::ensure_file('${dir}/.loading_done')).\r`, false);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir, ".loading_done");
+    const marker = path.join(dir0, ".loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split('\n');
+    const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
     let message = '';
     for (const line of lines) {
       message = message + line + '\n';
@@ -392,7 +394,7 @@ export default class LogtalkTerminal {
 
   private static waitForFile = async (
     filePath,
-    {timeout = 60000, delay = 200} = {}
+    {timeout = 120000, delay = 200} = {}
   ) => {
     const tid = setTimeout(() => {
       const msg = `Timeout of ${timeout} ms exceeded waiting for ${filePath}`;
