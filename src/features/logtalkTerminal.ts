@@ -5,7 +5,6 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as jsesc from "jsesc";
 import * as fs from "fs";
-import * as cp from 'child_process';
 import { spawn } from "process-promises";
 import LogtalkLinter from "./logtalkLinter";
 import { isFunction } from "util";
@@ -165,17 +164,13 @@ export default class LogtalkTerminal {
     const loader = path.resolve(loader0).split(path.sep).join("/");
     let textDocument = null;
     let working_directory: string = path.dirname(uri.fsPath);
-    let logtalkHome: string = '',
-        logtalkUser: string = '',
-        tailCommand: string = '',
-        tailArguments: string[] = null;
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
     if (section) { 
       logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
       logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-      tailCommand = jsesc(section.get<string>("tail.command", "tail")); 
-      tailArguments = section.get<string[]>("tail.arguments"); 
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
@@ -185,38 +180,14 @@ export default class LogtalkTerminal {
     // Open the Text Document
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
 
-    // Clear the Scratch Message File & Tail it
+    // Clear the Scratch Message File
     fs.truncate(`${pathLogtalkMessageFile}`, (err) => {});
     
     const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
     await sleep (500);
 
-    var messages = cp.spawn(tailCommand, tailArguments);
-
-    console.log({cp: messages});
-
-    // Clear the Diagnostics & Output Channel
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-
-    // Lint the incoming messages
-    let message = '';
-    let count = 0;
-    messages.stdout.on('data', function(data) {
-      let output = data.toString('ascii');
-      message += output;
-      let last = data.slice(data.length-7, data.length);
-      if(last.toString() == '*     \n' || last.toString() == '!     \n') {
-        linter.lint(textDocument, message);
-        message = '';
-        count++
-        console.log(count)
-      } 
-    });
-
-    messages.stderr.on('data', function(data) {
-      console.log(data)
-    });
 
     LogtalkTerminal.sendString(`logtalk_load('${loader}').\r`, false);
 
@@ -228,17 +199,13 @@ export default class LogtalkTerminal {
     const file: string = await LogtalkTerminal.ensureFile(uri);
     let textDocument = null;
     let working_directory: string = path.dirname(uri.fsPath);
-    let logtalkHome: string = '',
-        logtalkUser: string = '',
-        tailCommand: string = '',
-        tailArguments: string[] = null;
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
     if (section) { 
       logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
       logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-      tailCommand = jsesc(section.get<string>("tail.command", "tail")); 
-      tailArguments = section.get<string[]>("tail.arguments"); 
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
@@ -248,38 +215,11 @@ export default class LogtalkTerminal {
     // Open the Text Document
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
 
-    // Clear the Scratch Message File & Tail it
+    // Clear the Scratch Message File
     fs.truncate(`${pathLogtalkMessageFile}`, (err) => {});
 
-    const sleep = (waitTimeInMs) => new Promise (resolve => setTimeout (resolve, waitTimeInMs));
-    await sleep (500);
-
-    var messages = cp.spawn(tailCommand, tailArguments);
-
-    console.log({cp: messages});
-
-    // Clear the Diagnostics & Output Channel
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-
-    // Lint the incoming messages
-    let message = '';
-    let count = 0;
-    messages.stdout.on('data', function(data) {
-      let output = data.toString('ascii');
-      message += output;
-      let last = data.slice(data.length-7, data.length);
-      if(last.toString() == '*     \n' || last.toString() == '!     \n') {
-        linter.lint(textDocument, message);
-        message = '';
-        count++
-        console.log(count)
-      } 
-    });
-
-    messages.stderr.on('data', function(data) {
-      console.log(data)
-    });
 
     let sourceFile = file.replace(/\\/g, "/");
 
@@ -440,7 +380,29 @@ export default class LogtalkTerminal {
 
   private static waitForFile = async (
     filePath,
-    {timeout = 30_000, delay = 200} = {}
+    {timeout = 60000, delay = 200} = {}
+  ) => {
+    const tid = setTimeout(() => {
+      const msg = `Timeout of ${timeout} ms exceeded waiting for ${filePath}`;
+      throw Error(msg);
+    }, timeout);
+
+    for (;;) {
+      try {
+        await fsp.stat(filePath);
+        clearTimeout(tid);
+        return;
+      }
+      catch (err) {}
+
+      await timers.setTimeout(delay);
+    }
+  };
+
+  private static waitForFileContent = async (
+    filePath,
+    content,
+    {timeout = 60000, delay = 200} = {}
   ) => {
     const tid = setTimeout(() => {
       const msg = `Timeout of ${timeout} ms exceeded waiting for ${filePath}`;

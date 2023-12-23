@@ -261,16 +261,6 @@
                     "default": "/scratch",
                     "description": "Logtalk scratch path i.e $LOGTALKUSER + /scratch"
                 },
-                "logtalk.tail.command": {
-                    "type": "string",
-                    "default": "tail",
-                    "description": "The tail command to be used."
-                },
-                "logtalk.tail.arguments": {
-                    "type": "array",
-                    "description": "The arguments the the tail command to be applied to the $LOGTALKUSER/scratch/.messages file.",
-                    "default": []
-                },
                 "logtalk.vscode.messagefile": {
                     "type": "string",
                     "default": "/coding/vscode/vscode_message_streamer.lgt",
@@ -356,7 +346,6 @@
         "process-promises": "^1.0.0",
         "split": "^1.0.1",
         "stack-trace": "0.0.10",
-        "tail": "^2.2.6",
         "xpath": "0.0.24"
     }
 }
