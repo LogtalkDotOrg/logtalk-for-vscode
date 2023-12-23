@@ -71,7 +71,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       severity = DiagnosticSeverity.Error
     } 
 
-    let fileName = path.resolve(match[6]).split(path.sep).join("/");
+    let fileName = path.resolve(match[6]).split(path.sep).join("/").replace(/(\s)/g, '\\$1');
     console.log(fileName);
     let lineFrom = 0,
         lineTo   = 0;
