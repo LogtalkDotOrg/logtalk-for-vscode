@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.3]
+
+* Update for compatibility with recent changes to the "diagrams" tool
+
 ## [0.8.2]
 
 * Fix Windows broken file paths in the "Problems" pane
