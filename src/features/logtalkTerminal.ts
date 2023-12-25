@@ -102,12 +102,11 @@ export default class LogtalkTerminal {
           } else {
             file += match[5];
           }
-          file = file.replace(/(\s)/g, '\\$1');
   
           return [{
             startIndex,
             length: match[2].length,
-            tooltip:  file
+            tooltip: file
           }]
         },
         handleTerminalLink: async (tooltipText) => {

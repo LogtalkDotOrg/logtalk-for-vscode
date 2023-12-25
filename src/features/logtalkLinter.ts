@@ -33,7 +33,7 @@ export default class LogtalkLinter implements CodeActionProvider {
   public  diagnosticHash = [];
   private filePathIds: { [id: string]: string } = {};
   private sortedDiagIndex: { [docName: string]: number[] } = {};
-  private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(\S+).+((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/;
+  private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)(\s(at or above line\s(\d+))|\s(between lines\s(\d+)[-](\d+))|\s(at line\s(\d+)))/;
   private executable: string;
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
@@ -71,7 +71,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       severity = DiagnosticSeverity.Error
     } 
 
-    let fileName = path.resolve(match[6]).split(path.sep).join("/").replace(/(\s)/g, '\\$1');
+    let fileName = path.resolve(match[6]);
     console.log(fileName);
     let lineFrom = 0,
         lineTo   = 0;

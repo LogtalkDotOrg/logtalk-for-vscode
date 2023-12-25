@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.2]
+
+* Fix Windows broken file paths in the "Problems" pane
+
 ## [0.8.1]
 
 * Fix Windows compatibility issue when loading files
