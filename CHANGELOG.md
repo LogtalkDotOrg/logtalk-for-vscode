@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.4]
+
+* Minor code cleanup
+
 ## [0.8.3]
 
 * Update for compatibility with recent changes to the "diagrams" tool

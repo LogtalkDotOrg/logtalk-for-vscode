@@ -33,7 +33,7 @@ export default class LogtalkLinter implements CodeActionProvider {
   public  diagnosticHash = [];
   private filePathIds: { [id: string]: string } = {};
   private sortedDiagIndex: { [docName: string]: number[] } = {};
-  private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)(\s(at or above line\s(\d+))|\s(between lines\s(\d+)[-](\d+))|\s(at line\s(\d+)))/;
+  private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/;
   private executable: string;
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
