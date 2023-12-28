@@ -13,7 +13,6 @@ import * as timers from "timers/promises";
 
 export default class LogtalkTerminal {
   private static _context:        ExtensionContext;
-  private static _messages :      any;
   private static _terminal:       Terminal;
   private static _execArgs:       string[];
   private static _testerExec:     string;
@@ -24,6 +23,7 @@ export default class LogtalkTerminal {
   private static _docArgs:        string[];
   private static _diaExec:        string;
   private static _diaArgs:        string[];
+  private static _timeout:        number;
   private static _outputChannel:  OutputChannel;
 
   constructor() {
@@ -47,14 +47,11 @@ export default class LogtalkTerminal {
     LogtalkTerminal._docArgs       =   section.get<string[]>("documentation.arguments");
     LogtalkTerminal._diaExec       =   section.get<string>("diagrams.script", "lgt2svg");
     LogtalkTerminal._diaArgs       =   section.get<string[]>("diagrams.arguments");
+    LogtalkTerminal._timeout       =   section.get<number>("scripts.timeout", 480000);
 
     return (<any>window).onDidCloseTerminal(terminal => {
         LogtalkTerminal._terminal = null;
         terminal.dispose();
-        // if ('kill' in LogtalkTerminal._messages) {
-        //   LogtalkTerminal._messages.kill('SIGHUP');
-        // }
-        
     });
   }
 
@@ -395,7 +392,7 @@ export default class LogtalkTerminal {
 
   private static waitForFile = async (
     filePath,
-    {timeout = 480000, delay = 200} = {}
+    {timeout = LogtalkTerminal._timeout, delay = 200} = {}
   ) => {
     const tid = setTimeout(() => {
       const msg = `Timeout of ${timeout} ms exceeded waiting for ${filePath}`;
