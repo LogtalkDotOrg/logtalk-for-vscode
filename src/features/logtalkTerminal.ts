@@ -395,7 +395,7 @@ export default class LogtalkTerminal {
 
   private static waitForFile = async (
     filePath,
-    {timeout = 120000, delay = 200} = {}
+    {timeout = 480000, delay = 200} = {}
   ) => {
     const tid = setTimeout(() => {
       const msg = `Timeout of ${timeout} ms exceeded waiting for ${filePath}`;
