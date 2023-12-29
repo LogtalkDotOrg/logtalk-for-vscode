@@ -267,12 +267,12 @@ export default class LogtalkTerminal {
   public static async genDocumentation(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
+    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const file0: string = await LogtalkTerminal.ensureFile(uri);
-    const file = path.resolve(file0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
     const xmlDir0 = path.join(dir, "xml_docs");
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
-    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}',[xml_docs_directory('${dir}/xml_docs')]),os::ensure_file('${dir}/.xml_files_done').\r`;
+    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${loader}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}',[xml_docs_directory('${dir}/xml_docs')]),os::ensure_file('${dir}/.xml_files_done').\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -288,11 +288,11 @@ export default class LogtalkTerminal {
   public static async genDiagrams(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
+    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const file0: string = await LogtalkTerminal.ensureFile(uri);
-    const file = path.resolve(file0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
     const project = path.basename(dir);
-    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${file}'),os::change_directory('${dir}'),diagrams::directory('${project}','${dir}',[output_directory('${dir}/dot_dias')]),os::ensure_file('${dir}/.dot_files_done').\r`;
+    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${loader}'),os::change_directory('${dir}'),diagrams::directory('${project}','${dir}',[output_directory('${dir}/dot_dias')]),os::ensure_file('${dir}/.dot_files_done').\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -307,9 +307,11 @@ export default class LogtalkTerminal {
 
   public static async scanForDeadCode(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
-    const file0: string = await LogtalkTerminal.ensureFile(uri);
-    const file = path.resolve(file0).split(path.sep).join("/");
-    let goals = `set_logtalk_flag(report, warnings),logtalk_load('${file}'),flush_output,logtalk_load(dead_code_scanner(loader)),dead_code_scanner::all.\r`;
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
+    const loader0 = path.join(dir0, "loader");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
+    let goals = `logtalk_load(dead_code_scanner(loader)),logtalk_load('${loader}'),dead_code_scanner::directory('${dir}').\r`;
     LogtalkTerminal.sendString(goals);
   }
 
