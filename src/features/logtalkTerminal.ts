@@ -324,6 +324,15 @@ export default class LogtalkTerminal {
     );
   }
 
+  public static runDoclets() {
+    LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal.spawnScript(
+      ["logtalk_doclet", "logtalk.run.doclets", LogtalkTerminal._docletExec],
+      LogtalkTerminal._docletExec,
+      LogtalkTerminal._docletArgs
+    );
+  }
+
   private static spawnScript4(dir: string, type: string[], path: string, args: string[]) {
     let pp = spawn(path, args, { cwd: dir })
       .on("stdout", out => {
@@ -352,15 +361,6 @@ export default class LogtalkTerminal {
     let dir: string;
     dir = workspace.rootPath;
     LogtalkTerminal.spawnScript4(dir, type, path, args);
-  }
-  
-  public static runDoclets() {
-    LogtalkTerminal.createLogtalkTerm();
-    LogtalkTerminal.spawnScript(
-      ["logtalk_doclet", "logtalk.run.doclets", LogtalkTerminal._docletExec],
-      LogtalkTerminal._docletExec,
-      LogtalkTerminal._docletArgs
-    );
   }
 
   private static async ensureFile(uri: Uri): Promise<string> {

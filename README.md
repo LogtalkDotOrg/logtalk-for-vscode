@@ -100,11 +100,11 @@ Refer to the table below for other snippets:
 
 Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension.
 
-|      Command | Description                                                    |
-| -----------: | :-----------------------------------------------------------   |
-| Open Logtalk | Opens Logtalk in an integrated terminal                        |
-|  Run Testers | Runs the `logtalk_tester` script on the project root directory |
-|  Run Doclets | Runs the `logtalk_doclet` script on the project root directory |
+|      Command | Description                                                 |
+| -----------: | :---------------------------------------------------------- |
+| Open Logtalk | Opens Logtalk in an integrated terminal                     |
+|  Run Testers | Runs the `logtalk_tester` script on the workspace directory |
+|  Run Doclets | Runs the `logtalk_doclet` script on the workspace directory |
 
 The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane.
 
@@ -112,16 +112,16 @@ The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in 
 
 These commands can be triggered from editor/context and explorer/context menus via right click editor area or Logtalk files in explorer area respectively. In explorer context, the file name at which right click occurs will be passed in the command as argument. File specified commands can also be triggered from command palette so that active file name in the editor will be passed in the command.
 
-|                  Command | Description                                                                  |
-| -----------------------: | :--------------------------------------------------------------------------- |
-|           Load Directory | Loads the current directory loader file into the Logtalk process             |
-|                Load File | Loads the active source file into the Logtalk process                        |
-|            Make (Reload) | Reloads the active source files into the Logtalk process                     |
-|                Run Tests | Runs the tester file under the active source file directory                  |
-|               Run Doclet | Run the doclet file under the active source file directory                   |
-|           Scan Dead Code | Scans active file for dead code                                              |
-|   Generate Documentation | Generates documentation for the files under the active source file directory |
-|        Generate Diagrams | Generates diagrams for the files under the active source file directory      |
+|                  Command | Description                                                       |
+| -----------------------: | :---------------------------------------------------------------- |
+|           Load Directory | Loads the current directory loader file into the Logtalk process  |
+|                Load File | Loads the active source file into the Logtalk process             |
+|            Make (Reload) | Reloads the active source files into the Logtalk process          |
+|                Run Tests | Runs the tester file under the active source file directory       |
+|               Run Doclet | Run the doclet file under the active source file directory        |
+|           Scan Dead Code | Scans the active source file directory for dead code              |
+|   Generate Documentation | Generates documentation for the active source file directory      |
+|        Generate Diagrams | Generates diagrams for the active source file directory           |
 
 ## Configurations
 

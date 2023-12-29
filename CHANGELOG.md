@@ -4,6 +4,7 @@
 
 * Remove all extension defined key bindings
 * Remove editor/context menu commands to navigate to the next/previous error/warning
+* Remove from the editor/context menu all commands that are workspace specific
 * Rename editor/context menu item "Load Project" to "Load Directory"
 * Fixed scanning for dead code, generating documentation, and generating diagrams to load the current directory loader file first
 

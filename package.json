@@ -113,11 +113,11 @@
             },
             {
                 "command": "logtalk.run.testers",
-                "title": "Logtalk: Run Testers"
+                "title": "Logtalk: Run Testers (workspace)"
             },
             {
                 "command": "logtalk.run.doclets",
-                "title": "Logtalk: Run Doclets"
+                "title": "Logtalk: Run Doclets (workspace)"
             }
         ],
         "keybindings": [
@@ -141,10 +141,6 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
-                    "command": "logtalk.run.testers",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
                     "command": "logtalk.run.doclet",
                     "when": "resourceLangId == logtalk"
                 },
@@ -162,6 +158,10 @@
                 }
             ],
             "explorer/context": [
+                {
+                    "command": "logtalk.open",
+                    "when": "resourceLangId == logtalk"
+                },
                 {
                     "command": "logtalk.make",
                     "when": "resourceLangId == logtalk"
@@ -183,12 +183,12 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
-                    "command": "logtalk.run.doclet",
+                    "command": "logtalk.run.doclets",
                     "when": "resourceLangId == logtalk"
                 },
                 {
-                    "command": "logtalk.run.doclets",
-                    "title": "Logtalk: Run Doclet"
+                    "command": "logtalk.run.doclet",
+                    "when": "resourceLangId == logtalk"
                 },
                 {
                     "command": "logtalk.generate.documentation",
