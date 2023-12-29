@@ -34,7 +34,7 @@ export function activate(context: ExtensionContext) {
   Utils.init(context);
 
   let logtalkCommands = [
-    { command: "logtalk.load.project",           callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
+    { command: "logtalk.load.directory",         callback: uri  => LogtalkTerminal.loadDirectory(uri, linter)},
     { command: "logtalk.load.file",              callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
     { command: "logtalk.make",                   callback: async (uri)  => LogtalkTerminal.make(uri)},
     { command: "logtalk.run.tests",              callback: uri  => LogtalkTerminal.runTests(uri)},

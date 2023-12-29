@@ -76,9 +76,8 @@
         ],
         "commands": [
             {
-            {
-                "command": "logtalk.load.project",
-                "title": "Logtalk: Load Project"
+                "command": "logtalk.load.directory",
+                "title": "Logtalk: Load Directory"
             },
             {
                 "command": "logtalk.load.file",
@@ -130,7 +129,7 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
-                    "command": "logtalk.load.project",
+                    "command": "logtalk.load.directory",
                     "when": "resourceLangId == logtalk"
                 },
                 {
@@ -168,7 +167,7 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
-                    "command": "logtalk.load.project",
+                    "command": "logtalk.load.directory",
                     "when": "resourceLangId == logtalk"
                 },
                 {

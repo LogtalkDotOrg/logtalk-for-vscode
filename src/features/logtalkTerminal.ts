@@ -152,13 +152,12 @@ export default class LogtalkTerminal {
   }
   
 
-  public static async loadProject(uri: Uri, linter: LogtalkLinter) {
+  public static async loadDirectory(uri: Uri, linter: LogtalkLinter) {
 
     // Declare Variables
-    let dir0: string;
-    dir0 = path.dirname(uri.fsPath);
+    const dir0 = path.dirname(uri.fsPath);
+    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader0 = path.join(dir, "loader");
     const loader = path.resolve(loader0).split(path.sep).join("/");
     let textDocument = null;
     let logtalkHome: string = '';

@@ -4,6 +4,7 @@
 
 * Remove all extension defined key bindings
 * Remove editor/context menu commands to navigate to the next/previous error/warning
+* Rename editor/context menu item "Load Project" to "Load Directory"
 
 ## [0.8.4]
 

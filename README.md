@@ -96,37 +96,38 @@ Refer to the table below for other snippets:
 
 ### Commands
 
-#### Project specified commands
+#### Workspace commands
 
-Project specified commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension.
+Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension.
 
-|      Command | Description                                                  | Key binding |
-| -----------: | :----------------------------------------------------------- | :---------- |
-| Open Logtalk | Opens Logtalk in an integrated terminal                      | alt-x o     |
-|  Run Testers | Runs the logtalk_tester script on the project root directory |             |
-|  Run Doclets | Runs the logtalk_doclet script on the project root directory |             |
+|      Command | Description                                                    |
+| -----------: | :-----------------------------------------------------------   |
+| Open Logtalk | Opens Logtalk in an integrated terminal                        |
+|  Run Testers | Runs the `logtalk_tester` script on the project root directory |
+|  Run Doclets | Runs the `logtalk_doclet` script on the project root directory |
 
-### Source file specified commands
+The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane.
+
+### Directory and source file specified commands
 
 These commands can be triggered from editor/context and explorer/context menus via right click editor area or Logtalk files in explorer area respectively. In explorer context, the file name at which right click occurs will be passed in the command as argument. File specified commands can also be triggered from command palette so that active file name in the editor will be passed in the command.
 
-|                  Command | Description                                                                  | Key binding |
-| -----------------------: | :--------------------------------------------------------------------------- | :---------- |
-|                Load File | Loads the active source file into the Logtalk process                        | F9          |
-|            Make (Reload) | Reloads the active source files into the Logtalk process                     | F8          |
-|                Run Tests | Runs the tester file under the active source file directory                  |             |
-|               Run Doclet | Run the doclet file under the active source file directory                   |             |
-|           Scan Dead Code | Scans active file for dead code                                              |             |
-|   Generate Documentation | Generates documentation for the files under the active source file directory |             |
-|        Generate Diagrams | Generates diagrams for the files under the active source file directory      |             |
+|                  Command | Description                                                                  |
+| -----------------------: | :--------------------------------------------------------------------------- |
+|           Load Directory | Loads the current directory loader file into the Logtalk process             |
+|                Load File | Loads the active source file into the Logtalk process                        |
+|            Make (Reload) | Reloads the active source files into the Logtalk process                     |
+|                Run Tests | Runs the tester file under the active source file directory                  |
+|               Run Doclet | Run the doclet file under the active source file directory                   |
+|           Scan Dead Code | Scans active file for dead code                                              |
+|   Generate Documentation | Generates documentation for the files under the active source file directory |
+|        Generate Diagrams | Generates diagrams for the files under the active source file directory      |
 
 ## Configurations
 
-The user can configure settings via VS Code menu `File/Preferences/Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a description of all the settings in this extension with their default values.
+The user can configure settings via VS Code menu `Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a description of all the settings in this extension with their default values.
 
 ### Logtalk environment variables
-
-Until VSCode allows defining settings from environment variable values, the following two settings must be manually defined:
 
     "logtalk.home.path": ""
     "logtalk.user.path": ""
