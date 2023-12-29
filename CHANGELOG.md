@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.9.0]
+
+* Remove all extension defined key bindings
+
 ## [0.8.4]
 
 * Add setting for the default timeout for waiting to run the scripts that convert documentation files and diagram files to final formats when running the lgtdoc and diagrams tools

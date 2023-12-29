@@ -2,7 +2,7 @@
     "name": "logtalk-for-vscode",
     "displayName": "Logtalk for VSCode",
     "description": "Support for the Logtalk programming language",
-    "version": "0.8.4",
+    "version": "0.9.0",
     "publisher": "LogtalkDotOrg",
     "icon": "images/logtalk.png",
     "license": "MIT",
@@ -129,18 +129,6 @@
             }
         ],
         "keybindings": [
-            {
-                "command": "logtalk.make",
-                "key": "f8"
-            },
-            {
-                "command": "logtalk.load.file",
-                "key": "f9"
-            },
-            {
-                "command": "logtalk.open",
-                "key": "alt-x o"
-            }
         ],
         "menus": {
             "editor/context": [
@@ -326,7 +314,7 @@
         "compile": "tsc -watch -p ./",
         "test": "tsc ./tests/runTest.ts",
         "vsix:make": "vsce package --baseImagesUrl https://raw.githubusercontent.com/llvm/llvm-project/master/clang-tools-extra/clangd/clients/clangd-vscode/",
-        "vsix:install": "code --install-extension logtalk-for-vscode-0.8.4.vsix"
+        "vsix:install": "code --install-extension logtalk-for-vscode-0.9.0.vsix"
     },
     "devDependencies": {
         "@types/bluebird": "^3.5.38",
