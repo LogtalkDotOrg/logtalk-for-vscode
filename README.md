@@ -91,9 +91,8 @@ Refer to the table below for other snippets:
 
 ### Grammar linter
 
-- Errors/warnings from file sources in the Logtalk terminal can be jumped to with ctrl+click.
-- The grammar errors (if any) will display in OUTPUT channel when active source file is saved.
-- Command 'Goto next/previous error': see section Commands below.
+- Errors/warnings when compiling source files are added to the "PROBLEMS" pane.
+- Errors/warnings when compiling source files can also be navigated from the Logtalk terminal via ctrl+click.
 
 ### Commands
 

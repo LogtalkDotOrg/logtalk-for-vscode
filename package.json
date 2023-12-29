@@ -76,13 +76,6 @@
         ],
         "commands": [
             {
-                "command": "logtalk.linter.nextErrLine",
-                "title": "Logtalk: Goto Next Error"
-            },
-            {
-                "command": "logtalk.linter.prevErrLine",
-                "title": "Logtalk: Goto Previous Error"
-            },
             {
                 "command": "logtalk.load.project",
                 "title": "Logtalk: Load Project"
@@ -162,14 +155,6 @@
                 },
                 {
                     "command": "logtalk.generate.diagrams",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.linter.nextErrLine",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.linter.prevErrLine",
                     "when": "resourceLangId == logtalk"
                 },
                 {

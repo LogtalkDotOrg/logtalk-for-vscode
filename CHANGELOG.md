@@ -3,6 +3,7 @@
 ## [0.9.0]
 
 * Remove all extension defined key bindings
+* Remove editor/context menu commands to navigate to the next/previous error/warning
 
 ## [0.8.4]
 

@@ -34,8 +34,6 @@ export function activate(context: ExtensionContext) {
   Utils.init(context);
 
   let logtalkCommands = [
-    { command: "logtalk.linter.nextErrLine",     callback: ()   => linter.nextErrLine()},
-    { command: "logtalk.linter.prevErrLine",     callback: ()   => linter.prevErrLine()},
     { command: "logtalk.load.project",           callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
     { command: "logtalk.load.file",              callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
     { command: "logtalk.make",                   callback: async (uri)  => LogtalkTerminal.make(uri)},
