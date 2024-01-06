@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.3]
+
+* Allow running commands from the command palette
+
+## [0.9.2]
+
+* Update readme section on code navigation
+
+## [0.9.1]
+
+* Add readme section on code navigation
+
 ## [0.9.0]
 
 * Remove all extension defined key bindings

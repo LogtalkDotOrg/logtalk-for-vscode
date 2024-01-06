@@ -153,7 +153,9 @@ export default class LogtalkTerminal {
   
 
   public static async loadDirectory(uri: Uri, linter: LogtalkLinter) {
-
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const loader0 = path.join(dir0, "loader");
@@ -182,20 +184,23 @@ export default class LogtalkTerminal {
     const marker = path.join(dir0, ".loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
-    let message = '';
-    for (const line of lines) {
-      message = message + line + '\n';
-      if(line == '*     ' || line == '!     ') {
-        linter.lint(textDocument, message);
-        message = '';
-      } 
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      for (const line of lines) {
+        message = message + line + '\n';
+        if(line == '*     ' || line == '!     ') {
+          linter.lint(textDocument, message);
+          message = '';
+        } 
+      }
     }
-
   }
 
   public static async loadFile(uri: Uri, linter: LogtalkLinter) {
-
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     // Declare Variables
     let dir0: string;
     dir0 = path.dirname(uri.fsPath);
@@ -225,16 +230,17 @@ export default class LogtalkTerminal {
     const marker = path.join(dir0, ".loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
-    let message = '';
-    for (const line of lines) {
-      message = message + line + '\n';
-      if(line == '*     ' || line == '!     ') {
-        linter.lint(textDocument, message);
-        message = '';
-      } 
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      for (const line of lines) {
+        message = message + line + '\n';
+        if(line == '*     ' || line == '!     ') {
+          linter.lint(textDocument, message);
+          message = '';
+        } 
+      }
     }
-
   }
 
   public static async make(uri: Uri) {
@@ -245,6 +251,9 @@ export default class LogtalkTerminal {
   }
 
   public static runTests(uri: Uri) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     LogtalkTerminal.createLogtalkTerm();
     let dir: string;
     dir = path.dirname(uri.fsPath);
@@ -255,6 +264,9 @@ export default class LogtalkTerminal {
   }
 
   public static runDoclet(uri: Uri) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     LogtalkTerminal.createLogtalkTerm();
     let dir: string;
     dir = path.dirname(uri.fsPath);
@@ -265,6 +277,9 @@ export default class LogtalkTerminal {
   }
 
   public static async genDocumentation(uri: Uri) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
     const loader0 = path.join(dir0, "loader");
@@ -286,6 +301,9 @@ export default class LogtalkTerminal {
   }
 
   public static async genDiagrams(uri: Uri) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
     const loader0 = path.join(dir0, "loader");
@@ -306,6 +324,9 @@ export default class LogtalkTerminal {
   }
 
   public static async scanForDeadCode(uri: Uri) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
     const loader0 = path.join(dir0, "loader");
