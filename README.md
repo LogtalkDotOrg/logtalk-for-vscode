@@ -114,7 +114,8 @@ These commands can be triggered from editor/context and explorer/context menus v
 | -----------------------: | :---------------------------------------------------------------- |
 |           Load Directory | Loads the current directory loader file into the Logtalk process  |
 |                Load File | Loads the active source file into the Logtalk process             |
-|            Make (Reload) | Reloads the active source files into the Logtalk process          |
+|            Make - Reload | Reloads the active source files into the Logtalk process          |
+|             Make - Check | Checks for code issues in the Logtalk process                     |
 |                Run Tests | Runs the tester file under the active source file directory       |
 |               Run Doclet | Run the doclet file under the active source file directory        |
 |           Scan Dead Code | Scans the active source file directory for dead code              |

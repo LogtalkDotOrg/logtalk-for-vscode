@@ -243,10 +243,17 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static async make(uri: Uri) {
+  public static async makeReload(uri: Uri) {
     const file: string = await LogtalkTerminal.ensureFile(uri);
     LogtalkTerminal.createLogtalkTerm();
-    let goals = `logtalk_make.\r`;
+    let goals = `logtalk_make(all).\r`;
+    LogtalkTerminal.sendString(goals);
+  }
+
+  public static async makeCheck(uri: Uri) {
+    const file: string = await LogtalkTerminal.ensureFile(uri);
+    LogtalkTerminal.createLogtalkTerm();
+    let goals = `logtalk_make(check).\r`;
     LogtalkTerminal.sendString(goals);
   }
 

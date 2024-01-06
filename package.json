@@ -2,7 +2,7 @@
     "name": "logtalk-for-vscode",
     "displayName": "Logtalk for VSCode",
     "description": "Support for the Logtalk programming language",
-    "version": "0.9.3",
+    "version": "0.10.0",
     "publisher": "LogtalkDotOrg",
     "icon": "images/logtalk.png",
     "license": "MIT",
@@ -84,8 +84,12 @@
                 "title": "Logtalk: Load File"
             },
             {
-                "command": "logtalk.make",
-                "title": "Logtalk: Make (Reload)"
+                "command": "logtalk.make.reload",
+                "title": "Logtalk: Make - Reload"
+            },
+            {
+                "command": "logtalk.make.check",
+                "title": "Logtalk: Make - Check"
             },
             {
                 "command": "logtalk.run.tests",
@@ -124,7 +128,11 @@
         "menus": {
             "editor/context": [
                 {
-                    "command": "logtalk.make",
+                    "command": "logtalk.make.reload",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.check",
                     "when": "resourceLangId == logtalk"
                 },
                 {
@@ -162,7 +170,11 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
-                    "command": "logtalk.make",
+                    "command": "logtalk.make.reload",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.check",
                     "when": "resourceLangId == logtalk"
                 },
                 {
@@ -297,7 +309,7 @@
         "compile": "tsc -watch -p ./",
         "test": "tsc ./tests/runTest.ts",
         "vsix:make": "vsce package --baseImagesUrl https://raw.githubusercontent.com/llvm/llvm-project/master/clang-tools-extra/clangd/clients/clangd-vscode/",
-        "vsix:install": "code --install-extension logtalk-for-vscode-0.9.3.vsix"
+        "vsix:install": "code --install-extension logtalk-for-vscode-0.10.0.vsix"
     },
     "devDependencies": {
         "@types/bluebird": "^3.5.38",

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.10.0]
+
+* Add make check command
+
 ## [0.9.3]
 
 * Allow running commands from the command palette
