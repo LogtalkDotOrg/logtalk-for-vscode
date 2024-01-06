@@ -126,7 +126,7 @@ These commands can be triggered from editor/context and explorer/context menus v
 Install the [ctagsx](https://marketplace.visualstudio.com/items?itemName=jtanx.ctagsx) extension and generate a `tags` or `.tags` file for your projects.
 The Logtalk support for [Exuberant Ctags](https://ctags.sourceforge.net) must be installed separatelly. See the `coding/ctags` directory in the Logtalk distribution for details.
 
-You can then select an entity name, a predicate indicator, or a non-terminal indicator and use the "Go to Definition" menu option.
+You can then select an entity name, a predicate indicator, or a non-terminal indicator and use the "Go to Definition" menu option. You can also use `Cmd+T` or `Ctrl+T` to search for a tag.
 
 ## Configuration
 
