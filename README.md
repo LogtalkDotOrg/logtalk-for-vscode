@@ -2,7 +2,7 @@
 
 A VSCode extension which provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Developed and tested in **Logtalk 3.67.0** and **VSCode 1.80.1** on **macOS 13.4** and **Windows 10** with **Node 16**. Not yet tested under other environments.
+Developed and tested in **Logtalk 3.73.0** and **VSCode 1.85.1** on **macOS 14.2** and **Windows 10** with **Node 21**.
 
 🙏 Sponsored by [Permion](https://permion.ai/).
 
@@ -15,15 +15,12 @@ Developed and tested in **Logtalk 3.67.0** and **VSCode 1.80.1** on **macOS 13.4
 ## Installation
 
 This extension can be installed via the 'Extensions: Install from VSIX...' command from the command palette. See [Development](#development) for details on how the generate the extension `.vsix` file.
-
-## Configuration
-
 This extension **must** be configured before it can be used. Notably, the following settings are required:
 
 - `LOGTALKUSER` and `LOGTALKHOME` environment variable values (as full paths).
 - Logtalk executable or integration script.
 
-For details, see [Configuration](#configurations).
+For details, see [Configuration](#configuration).
 
 ## Features
 
@@ -31,6 +28,7 @@ For details, see [Configuration](#configurations).
 - [Snippets](#indentation-snippets-and-auto-completion)
 - [Grammar Linter](#grammar-linter)
 - [Commands](#commands)
+- [Code Navigation](#code-navigation)
 
 ## Feature descriptions and usages
 
@@ -123,7 +121,14 @@ These commands can be triggered from editor/context and explorer/context menus v
 |   Generate Documentation | Generates documentation for the active source file directory      |
 |        Generate Diagrams | Generates diagrams for the active source file directory           |
 
-## Configurations
+### Code Navigation
+
+Install the [ctagsx](https://marketplace.visualstudio.com/items?itemName=jtanx.ctagsx) extension and generate a `tags` or `.tags` file for your projects.
+The Logtalk support for [Exuberant Ctags](https://ctags.sourceforge.net) must be installed separatelly. See the `coding/ctags` directory in the Logtalk distribution for details.
+
+You can then select an entity name, a predicate indicator, or a non-terminal indicator and use the "Go to Definition" menu option.
+
+## Configuration
 
 The user can configure settings via VS Code menu `Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a description of all the settings in this extension with their default values.
 
