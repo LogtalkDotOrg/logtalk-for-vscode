@@ -14,7 +14,8 @@ Developed and tested in **Logtalk 3.73.0** and **VSCode 1.85.1** on **macOS 14.2
 
 ## Installation
 
-This extension can be installed via the 'Extensions: Install from VSIX...' command from the command palette. See [Development](#development) for details on how the generate the extension `.vsix` file.
+This extension can be installed from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=LogtalkDotOrg.logtalk-for-vscode&ssr=false#overview) or by downloading its `.vsix` file and selecting `'Extensions: Install from VSIX...'` command from the command palette. See [Development](#development) for details on how the generate the extension `.vsix` file.
+
 This extension **must** be configured before it can be used. Notably, the following settings are required:
 
 - `LOGTALKUSER` and `LOGTALKHOME` environment variable values (as full paths).
@@ -26,7 +27,7 @@ For details, see [Configuration](#configuration).
 
 - [Syntax highlighting](#syntax-highlighting)
 - [Snippets](#indentation-snippets-and-auto-completion)
-- [Grammar Linter](#grammar-linter)
+- [Linter](#linter)
 - [Commands](#commands)
 - [Code Navigation](#code-navigation)
 
@@ -87,10 +88,10 @@ Refer to the table below for other snippets:
 
 ![snippets](images/snippets.gif)
 
-### Grammar linter
+### Linter
 
 - Errors/warnings when compiling source files are added to the "PROBLEMS" pane.
-- Errors/warnings when compiling source files can also be navigated from the Logtalk terminal via ctrl+click.
+- Errors/warnings when compiling source files can also be navigated from the Logtalk terminal via Ctrl+click (Windows, Linux) or Cmd+click (macOS).
 
 ### Commands
 
@@ -125,7 +126,7 @@ These commands can be triggered from editor/context and explorer/context menus v
 ### Code Navigation
 
 Install the [ctagsx](https://marketplace.visualstudio.com/items?itemName=jtanx.ctagsx) extension and generate a `tags` or `.tags` file for your projects.
-The Logtalk support for [Exuberant Ctags](https://ctags.sourceforge.net) must be installed separatelly. See the `coding/ctags` directory in the Logtalk distribution for details.
+The Logtalk support for [Exuberant Ctags](https://ctags.sourceforge.net) must be installed separately. See the `coding/ctags` directory in the Logtalk distribution for details.
 
 You can then select an entity name, a predicate indicator, or a non-terminal indicator and use the "Go to Definition" menu option. You can also use `Cmd+T` or `Ctrl+T` to search for a tag.
 
