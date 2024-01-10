@@ -1,8 +1,8 @@
 {
     "name": "logtalk-for-vscode",
     "displayName": "Logtalk for VSCode",
-    "description": "Support for the Logtalk programming language",
-    "version": "0.10.0",
+    "description": "Logtalk programming support",
+    "version": "0.11.0",
     "publisher": "LogtalkDotOrg",
     "icon": "images/logtalk.png",
     "license": "MIT",
@@ -222,21 +222,21 @@
                 "logtalk.home.path": {
                     "type": "string",
                     "default": "",
-                    "description": "Points to the Logtalk home directory."
+                    "description": "Points to the Logtalk home directory (LOGTALKHOME environment variable value)."
                 },
                 "logtalk.user.path": {
                     "type": "string",
                     "default": "",
-                    "description": "Points to the Logtalk user directory."
+                    "description": "Points to the Logtalk user directory (LOGTALKUSER environment variable value)."
                 },
                 "logtalk.executable.path": {
                     "type": "string",
                     "default": "/usr/local/bin/logtalk",
-                    "description": "Points to the Logtalk executable."
+                    "description": "Points to the Logtalk executable or integration script."
                 },
                 "logtalk.executable.arguments": {
                     "type": "array",
-                    "description": "Arguments of Logtalk executable run in terminal.",
+                    "description": "Arguments of the Logtalk executable or integration script.",
                     "default": []
                 },
                 "logtalk.scratch.path": {
@@ -247,7 +247,7 @@
                 "logtalk.vscode.messagefile": {
                     "type": "string",
                     "default": "/coding/vscode/vscode_message_streamer.lgt",
-                    "description": "Logtalk vscode_message_streamer.lgt location"
+                    "description": "Logtalk vscode_message_streamer.lgt location."
                 },
                 "logtalk.tester.script": {
                     "type": "string",
@@ -309,7 +309,7 @@
         "compile": "tsc -watch -p ./",
         "test": "tsc ./tests/runTest.ts",
         "vsix:make": "vsce package --baseImagesUrl https://raw.githubusercontent.com/llvm/llvm-project/master/clang-tools-extra/clangd/clients/clangd-vscode/",
-        "vsix:install": "code --install-extension logtalk-for-vscode-0.10.0.vsix"
+        "vsix:install": "code --install-extension logtalk-for-vscode-0.11.0.vsix"
     },
     "devDependencies": {
         "@types/bluebird": "^3.5.38",
