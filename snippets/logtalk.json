@@ -221,7 +221,7 @@
   "directives:initialization/1": {
     "body":":- initialization(${1:Goal}).\n",
     "description": [
-        "When used within an object, this directive defines a goal to be called immediately after the object has been loaded into memory. When used at a global level within a source file, this directive defines a goal to be called immediately after the compiled source file is loaded into memory.\n"
+        "When used within an object, this directive defines a goal to be called immediately after the object has been loaded into memory. When used at a global level within a source file, this directive defines a goal to be called immediately after the compiled source file is loaded into memory.\n",
         "Template and modes",
         "initialization(@callable)"
     ],
@@ -659,8 +659,8 @@
     "body":"expand_goal(${1:Goal}, ${2:ExpandedGoal})$0",
     "description": [
         "Expands a goal.\n",
-        "Template and modes","
-        expand_goal(?term, ?term)"
+        "Template and modes",
+        "expand_goal(?term, ?term)"
     ],
     "prefix":"expand_goal",
     "scope":"source.logtalk"
