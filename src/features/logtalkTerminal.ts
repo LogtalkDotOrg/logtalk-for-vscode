@@ -65,10 +65,6 @@ export default class LogtalkTerminal {
     if (section) {
       let logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
       let logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
-
-      let logtalkMessageFile = jsesc(section.get<string>("vscode.messagefile", "logtalk"));
-      let logtalkScratch = jsesc(section.get<string>("scratch.path", "logtalk"));
-
       let executable = jsesc(section.get<string>("executable.path", "logtalk"));
       let args = section.get<string[]>("executable.arguments");
       LogtalkTerminal._terminal = (<any>window).createTerminal(
@@ -130,8 +126,7 @@ export default class LogtalkTerminal {
         }
       });
 
-
-      let goals = `logtalk_load('${logtalkHome}${logtalkMessageFile}', [scratch_directory('${logtalkUser}${logtalkScratch}')]).\r`;
+      let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode_message_streamer.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
       console.log(goals);
       LogtalkTerminal.sendString(goals, false);
 

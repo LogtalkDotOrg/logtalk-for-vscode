@@ -139,7 +139,7 @@ The user can configure settings via VS Code menu `Settings`. Entering `Logtalk` 
     "logtalk.home.path": ""
     "logtalk.user.path": ""
 
-No defaults. Must be set to the `LOGTALKHOME` and `LOGTALKUSER` environment variable absolute paths.
+No defaults. Must be set to the `LOGTALKHOME` and `LOGTALKUSER` environment variable absolute paths. On Windows, also use forward slashes (e.g. `C:/Program Files (x86)/Logtalk`).
 
 ### Logtalk executable
 
