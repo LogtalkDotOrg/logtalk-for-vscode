@@ -1793,5 +1793,65 @@
     ],
     "prefix":"system_error",
     "scope":"source.logtalk"
+  },
+  "directives:object/1": {
+    "body":":- object(${1:Object}).\n",
+    "description": [
+        "Starting object directive.\n",
+        "Template and modes",
+        "object(@callable)"
+    ],
+    "prefix":":- object",
+    "scope":"source.logtalk"
+  },
+  "directives:end_object/0": {
+    "body":":- end_object.\n",
+    "description": [
+        "Ending object directive.\n",
+        "Template and modes",
+        "end_object"
+    ],
+    "prefix":":- end_object",
+    "scope":"source.logtalk"
+  },
+  "directives:protocol/1": {
+    "body":":- protocol(${1:Protocol}).\n",
+    "description": [
+        "Starting protocol directive.\n",
+        "Template and modes",
+        "protocol(+atom)"
+    ],
+    "prefix":":- protocol",
+    "scope":"source.logtalk"
+  },
+  "directives:end_protocol/0": {
+    "body":":- end_protocol.\n",
+    "description": [
+        "Ending protocol directive.\n",
+        "Template and modes",
+        "end_protocol"
+    ],
+    "prefix":":- end_protocol",
+    "scope":"source.logtalk"
+  },
+  "directives:category/1": {
+    "body":":- category(${1:Categpry}).\n",
+    "description": [
+        "Starting category directive.\n",
+        "Template and modes",
+        "category(@callable)"
+    ],
+    "prefix":":- category",
+    "scope":"source.logtalk"
+  },
+  "directives:end_category/0": {
+    "body":":- end_category.\n",
+    "description": [
+        "Ending category directive.\n",
+        "Template and modes",
+        "end_category"
+    ],
+    "prefix":":- end_category",
+    "scope":"source.logtalk"
   }
 }
