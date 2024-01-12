@@ -86,7 +86,7 @@
   "directives:alias/2": {
     "body":":- alias(${1:Entity}, ${2:PredicateAliases}).\n",
     "description": [
-        "Declares predicate and grammar rule non-terminal aliases. A predicate (non-terminal) alias is an alternative name for a predicate (non-terminal) declared or defined in an extended protocol, an implemented protocol, an extended category, an imported category, an extended prototype, an instantiated class, or a specialized class. Predicate aliases may be used to solve conflicts between imported or inherited predicates. It may also be used to give a predicate (non-terminal) a name more appropriated in its usage context. This directive may be used in objects, protocols, and categories.\n",
+        "Declares predicate and non-terminal aliases. A predicate (non-terminal) alias is an alternative name for a predicate (non-terminal) declared or defined in an extended protocol, an implemented protocol, an extended category, an imported category, an extended prototype, an instantiated class, or a specialized class. Predicate aliases may be used to solve conflicts between imported or inherited predicates. It may also be used to give a predicate (non-terminal) a name more appropriated in its usage context. This directive may be used in objects, protocols, and categories.\n",
         "Template and modes",
         "alias(@entity_identifier, +list(predicate_indicator_alias))",
         "alias(@entity_identifier, +list(non_terminal_indicator_alias))"
@@ -95,7 +95,7 @@
     "scope":"source.logtalk"
   },
   "directives:built_in/0": {
-    "body":":- built_in$0.\n",
+    "body":":- built_in.\n",
     "description": [
         "Declares an entity as built-in. Built-in entities cannot be redefined once loaded.\n",
         "Template and modes",
@@ -118,7 +118,7 @@
   "directives:discontiguous/1": {
     "body":":- discontiguous(${1:Name}/${2:Arity}).\n",
     "description": [
-        "Declares discontiguous predicates and discontiguous grammar rule non-terminals. The use of this directive should be avoided as not all backend Prolog compilers support discontiguous predicates.\n",
+        "Declares discontiguous predicates and discontiguous non-terminals. The use of this directive should be avoided as not all backend Prolog compilers support discontiguous predicates.\n",
         "Template and modes",
         "discontiguous(+predicate_indicator_term)",
         "discontiguous(+non_terminal_indicator_term)"
@@ -127,7 +127,7 @@
     "scope":"source.logtalk"
   },
   "directives:dynamic/0": {
-    "body":":- dynamic$0.\n",
+    "body":":- dynamic.\n",
     "description": [
         "Declares an entity and its contents as dynamic. Dynamic entities can be abolished at runtime.\n",
         "Template and modes",
@@ -139,7 +139,7 @@
   "directives:dynamic/1": {
     "body":":- dynamic(${1:Name}/${2:Arity}).\n",
     "description": [
-        "Declares dynamic predicates and dynamic grammar rule non-terminals. Note that an object can be static and have both static and dynamic predicates/non-terminals. Dynamic predicates cannot be declared as synchronized. When the dynamic predicates are local to an object, declaring them also as private predicates allows the Logtalk compiler to generate optimized code for asserting and retracting predicate clauses. Categories can also contain dynamic predicate directives but cannot contain clauses for dynamic predicates.\n",
+        "Declares dynamic predicates and dynamic non-terminals. Note that an object can be static and have both static and dynamic predicates/non-terminals. Dynamic predicates cannot be declared as synchronized. When the dynamic predicates are local to an object, declaring them also as private predicates allows the Logtalk compiler to generate optimized code for asserting and retracting predicate clauses. Categories can also contain dynamic predicate directives but cannot contain clauses for dynamic predicates.\n",
         "Template and modes",
         "dynamic(+qualified_predicate_indicator_term)",
         "dynamic(+qualified_non_terminal_indicator_term)"
@@ -158,7 +158,7 @@
     "scope":"source.logtalk"
   },
   "directives:else/0": {
-    "body":":- else$0.\n",
+    "body":":- else.\n",
     "description": [
         "Starts a else branch when performing conditional compilation.\n",
         "Template and modes",
@@ -210,7 +210,7 @@
   "directives:info/2": {
     "body":":- info(${1:Name}/${2:Arity}, ${2:List}).\n",
     "description": [
-        "Documentation directive for predicates and grammar rule non-terminals. The first argument is either a predicate indicator or a grammar rule non-terminal indicator. The second argument is a list of pairs using the format Key is Value. See the documenting Logtalk programs section for a description of the default keys.\n",
+        "Documentation directive for predicates and non-terminals. The first argument is either a predicate indicator or a non-terminal indicator. The second argument is a list of pairs using the format Key is Value. See the documenting Logtalk programs section for a description of the default keys.\n",
         "Template and modes",
         "info(+predicate_indicator, +predicate_info_list)",
         "info(+non_terminal_indicator, +predicate_info_list)"
@@ -231,7 +231,7 @@
   "directives:meta_non_terminal/1": {
     "body":":- meta_non_terminal(${1:MetaNonTerminalTemplate}).\n",
     "description": [
-        "Declares meta-non-terminals, i.e., non-terminals that have arguments that will be called as non-terminals (or grammar rule bodies). An argument may also be a closure instead of a goal if the non-terminal uses the call//1-N Logtalk built-in methods to construct and call the actual non-terminal from the closure and the additional arguments.\n",
+        "Declares meta-non-terminals, i.e., non-terminals that have arguments that will be called as non-terminals (or grammar rule bodies). An argument may also be a closure instead of a goal if the non-terminal uses the call//1-N or phrase//1 built-in methods.\n",
         "Template and modes",
         "meta_non_terminal(+meta_non_terminal_template_term)",
         "meta_non_terminal(+object_identifier::+meta_non_terminal_template_term)",
@@ -257,7 +257,7 @@
   "directives:mode/2": {
     "body":":- mode(${1:Mode}, ${2|zero,zero_or_one,zero_or_more,one,one_or_more,zero_or_error,one_or_error,zero_or_one_or_error,zero_or_more_or_error,one_or_more_or_error,error|}).\n",
     "description": [
-        "Most predicates can be used with several instantiations modes. This directive enables the specification of each instantiation mode and the corresponding number of proofs (not necessarily distinct solutions). You may also use this directive for documenting grammar rule non-terminals.\n",
+        "Most predicates can be used with several instantiations modes. This directive enables the specification of each instantiation mode and the corresponding number of proofs (not necessarily distinct solutions). You may also use this directive for documenting non-terminals.\n",
         "Template and modes",
         "mode(+predicate_mode_term, +number_of_proofs)",
         "mode(+non_terminal_mode_term, +number_of_proofs)"
@@ -268,7 +268,7 @@
   "directives:multifile/1": {
     "body":":- multifile(${1:Name}/${2:Arity}).\n",
     "description": [
-        "Declares multifile predicates and multifile grammar rule non-terminals. In the case of object or category multifile predicates, the predicate (or non-terminal) must also have a scope directive in the object or category holding its primary declaration (i.e. the declaration without the Entity:: prefix). Entities holding multifile predicate primary declarations must be compiled and loaded prior to any entities contributing with clauses for the multifile predicates.\n",
+        "Declares multifile predicates and non-terminals. In the case of object or category multifile predicates, the predicate (or non-terminal) must also have a scope directive in the object or category holding its primary declaration (i.e. the declaration without the Entity:: prefix). Entities holding multifile predicate primary declarations must be compiled and loaded prior to any entities contributing with clauses for the multifile predicates.\n",
         "Template and modes",
         "multifile(+qualified_predicate_indicator_term)",
         "multifile(+qualified_non_terminal_indicator_term)"
@@ -404,7 +404,7 @@
     "scope":"source.logtalk"
   },
   "directives:threaded/0": {
-    "body":":- threaded$0.\n",
+    "body":":- threaded.\n",
     "description": [
         "Declares that an object supports concurrent calls and asynchronous messages. Any object containing calls to the built-in multi-threading predicates (or importing a category that contains such calls) must include this directive.\n",
         "Template and modes",
@@ -481,7 +481,7 @@
     "scope":"source.logtalk"
   },
   "methods:abolish/1": {
-    "body":"abolish(${1:Predicate})$0\n",
+    "body":"abolish(${1:Predicate})$0",
     "description": [
         "Abolishes a runtime declared dynamic predicate or a local dynamic predicate. When the predicate indicator for Head is declared in a uses/2 or use_module/2 directive, the predicate is abolished in the referenced object or module. Otherwise the predicate is abolished in an object's database. In the case of objects, only predicates that are dynamically declared (using a call to the asserta/1 or assertz/1 built-in methods) can be abolished.\n",
         "Template and modes",
@@ -491,7 +491,7 @@
     "scope":"source.logtalk"
   },
   "methods:after/3": {
-    "body":"after(${1:Object}, ${2:Message}, ${3:Sender})$0\n",
+    "body":"after(${1:Object}, ${2:Message}, ${3:Sender})$0",
     "description": [
         "User-defined method for handling after events. This method is declared in the monitoring built-in protocol as a public predicate. Note that you can make its scope protected or private by using, respectively, protected or private implementation of the monitoring protocol.\n",
         "Template and modes",
@@ -501,7 +501,7 @@
     "scope":"source.logtalk"
   },
   "methods:ask_question/5": {
-    "body":"ask_question(${1:Question}, ${2:Kind}, ${3:Component}, ${4:Check}, ${5:Answer})$0\n",
+    "body":"ask_question(${1:Question}, ${2:Kind}, ${3:Component}, ${4:Check}, ${5:Answer})$0",
     "description": [
         "Built-in method for asking a question represented by a term, Question, which is converted to the question text using the logtalk::message_tokens(Question, Component) hook predicate. This method is declared in the logtalk built-in object as a public predicate. The default question prompt and the input stream used for each Kind-Component pair can be found using the logtalk::question_prompt_stream(Kind, Component, Prompt, Stream) hook predicate. The Check argument is a closure that is converted into a checking goal by extending it with the user supplied answer. This predicate implements a read-loop that terminates when the checking predicate succeeds.\n",
         "Template and modes",
@@ -510,7 +510,7 @@
     "scope":"source.logtalk"
   },
   "methods:asserta/1": {
-    "body":"asserta(${1:Clause})$0\n",
+    "body":"asserta(${1:Clause})$0",
     "description": [
         "Asserts a clause as the first one for a dynamic predicate. When the predicate indicator for Head is declared in a uses/2 or use_module/2 directive, the clause is asserted in the referenced object or module. Otherwise the clause is asserted for an object's dynamic predicate. If the predicate is not previously declared (using a scope directive), then a dynamic predicate declaration is added to the object (assuming that we are asserting locally or that the compiler flag dynamic_declarations was set to allow when the object was created or compiled).\n",
         "Template and modes",
@@ -520,7 +520,7 @@
     "scope":"source.logtalk"
   },
   "methods:assertz/1": {
-    "body":"assertz(${1:Clause})$0\n",
+    "body":"assertz(${1:Clause})$0",
     "description": [
         "Asserts a clause as the last one for a dynamic predicate. When the predicate indicator for Head is declared in a uses/2 or use_module/2 directive, the clause is asserted in the referenced object or module. Otherwise the clause is asserted for an object's dynamic predicate. If the predicate is not previously declared (using a scope directive), then a dynamic predicate declaration is added to the object (assuming that we are asserting locally or that the compiler flag dynamic_declarations was set to allow when the object was created or compiled).\n",
         "Template and modes",
@@ -530,7 +530,7 @@
     "scope":"source.logtalk"
   },
   "methods:bagof/3": {
-    "body":"bagof(${1:Template}, ${2:Goal}, ${3:List})$0\n",
+    "body":"bagof(${1:Template}, ${2:Goal}, ${3:List})$0",
     "description": [
         "Collects a bag of solutions for the goal for each set of instantiations of the free variables in the goal. The order of the elements in the bag follows the order of the goal solutions. The free variables in the goal are the variables that occur in the goal but not in the template. Free variables can be ignored, however, by using the ^/2 existential qualifier. For example, if T is term containing all the free variables that we want to ignore, we can write T^Goal. Note that the term T can be written as V1^V2^....\n",
         "Template and modes",
@@ -540,7 +540,7 @@
     "scope":"source.logtalk"
   },
   "methods:before/3": {
-    "body":"before(${1:Object}, ${2:Message}, ${3:Sender})$0\n",
+    "body":"before(${1:Object}, ${2:Message}, ${3:Sender})$0",
     "description": [
         "User-defined method for handling before events. This method is declared in the monitoring built-in protocol as a public predicate. Note that you can make its scope protected or private by using, respectively, protected or private implementation of the monitoring protocol.\n",
         "Template and modes",
@@ -550,7 +550,7 @@
     "scope":"source.logtalk"
   },
   "methods:call//1-N": {
-    "body":"call(${1:Closure})$0\n",
+    "body":"call(${1:Closure})$0",
     "description": [
         "This non-terminal takes a closure and is processed by appending the input list of tokens and the list of remaining tokens to the arguments of the closure. This built-in non-terminal is interpreted as a private non-terminal and thus cannot be used as a message to an object. When using a back-end Prolog compiler supporting a module system, calls in the format call(Module:Closure) may also be used. By using as argument a lambda expression, this built-in non-terminal provides controlled access to the input list of tokens and to the list of the remaining tokens processed by the grammar rule containing the call.\n",
         "Template and modes",
@@ -563,7 +563,7 @@
     "scope":"source.logtalk"
   },
   "methods:call/1-N": {
-    "body":"call(${1:Goal})$0\n",
+    "body":"call(${1:Goal})$0",
     "description": [
         "Calls a goal, which might be constructed by appending additional arguments to a closure. The upper limit for N depends on the upper limit for the arity of a compound term of the back-end Prolog compiler. This built-in meta-predicate is declared as a private method and thus cannot be used as a message to an object. The Closure argument can also be a lambda expression or a Logtalk control construct. When using a back-end Prolog compiler supporting a module system, calls in the format call(Module:Closure, Arg1, ...) may also be used.\n",
         "Template and modes",
@@ -576,7 +576,7 @@
     "scope":"source.logtalk"
   },
   "methods:catch/3": {
-    "body":"catch(${1:Goal}, ${2:Catcher}, ${3:Recovery})$0\n",
+    "body":"catch(${1:Goal}, ${2:Catcher}, ${3:Recovery})$0",
     "description": [
         "Catches exceptions thrown by a goal. See the Prolog ISO standard definition. This built-in meta-predicate is declared as a private method and thus cannot be used as a message to an object.\n",
         "Template and modes",
@@ -586,7 +586,7 @@
     "scope":"source.logtalk"
   },
   "methods:clause/2": {
-    "body":"clause(${1:Head}, ${2:Body})$0\n",
+    "body":"clause(${1:Head}, ${2:Body})$0",
     "description": [
         "Enumerates, by backtracking, the clauses of a dynamic predicate. When the predicate indicator for Head is declared in a uses/2 or use_module/2 directive, the predicate enumerates the clauses in the referenced object or module. Otherwise it enumerates the clauses for an object's dynamic predicate.\n",
         "Template and modes",
@@ -596,7 +596,7 @@
     "scope":"source.logtalk"
   },
   "methods:coinductive_success_hook/1": {
-    "body":"coinductive_success_hook(${1:Head})$0\n",
+    "body":"coinductive_success_hook(${1:Head})$0",
     "description": [
         "User-defined hook predicates that are automatically called in case of coinductive success when proving a query for a coinductive predicates. The hook predicates are called with the head of the coinductive predicate on coinductive success.\n",
         "Template and modes",
@@ -606,7 +606,7 @@
     "scope":"source.logtalk"
   },
   "methods:coinductive_success_hook/2": {
-    "body":"coinductive_success_hook(${1:Head}, ${2:Hypothesis})$0\n",
+    "body":"coinductive_success_hook(${1:Head}, ${2:Hypothesis})$0",
     "description": [
         "User-defined hook predicates that are automatically called in case of coinductive success when proving a query for a coinductive predicates. The hook predicates are called with the head of the coinductive predicate on coinductive success and with the hypothesis used that to reach coinductive success.\n",
         "Template and modes",
@@ -616,7 +616,7 @@
     "scope":"source.logtalk"
   },
   "methods:context/1": {
-    "body":"context(${1:Context})$0\n",
+    "body":"context(${1:Context})$0",
     "description": [
         "Returns the execution context for a predicate call using the format logtalk(Call,ExecutionContext). Mainly used for providing a default error context when type-checking predicate arguments. The ExecutionContext should be regarded as an opaque term, which can be decoded using the logtalk::execution_context/7 predicate. Calls to this predicate are inlined at compilation time.\n",
         "Template and modes",
@@ -626,7 +626,7 @@
     "scope":"source.logtalk"
   },
   "methods:current_op/3": {
-    "body":"current_op(${1:Priority},${2|fx,fy,xfx,xfy,yfx,xf,yf|},${3:Operator})$0\n",
+    "body":"current_op(${1:Priority},${2|fx,fy,xfx,xfy,yfx,xf,yf|},${3:Operator})$0",
     "description": [
         "Enumerates, by backtracking, the visible operators declared for an object. Operators not declared using a scope directive are not enumerated.\n",
         "Template and modes",
@@ -636,7 +636,7 @@
     "scope":"source.logtalk"
   },
   "methods:current_predicate/1": {
-    "body":"current_predicate(${1:Predicate})$0\n",
+    "body":"current_predicate(${1:Predicate})$0",
     "description": [
         "Enumerates, by backtracking, visible user predicates. When the predicate is declared in a uses/2 or use_module/2 directive, predicates are enumerated for the referenced object or module. Otherwise predicates are enumerated for an object. In the case of objects, predicates not declared using a scope directive are not enumerated.\n",
         "Template and modes",
@@ -646,7 +646,7 @@
     "scope":"source.logtalk"
   },
   "methods:eos//0": {
-    "body":"eos$0$0\n",
+    "body":"eos$0$0",
     "description": [
         "This non-terminal matches the end-of-input. It is implemented by checking that the implicit difference list unifies with []-[].\n",
         "Template and modes",
@@ -656,7 +656,7 @@
     "scope":"source.logtalk"
   },
   "methods:expand_goal/2": {
-    "body":"expand_goal(${1:Goal}, ${2:ExpandedGoal})$0\n",
+    "body":"expand_goal(${1:Goal}, ${2:ExpandedGoal})$0",
     "description": [
         "Expands a goal.\n",
         "Template and modes","
@@ -666,7 +666,7 @@
     "scope":"source.logtalk"
   },
   "methods:expand_term/2": {
-    "body":"expand_term(${1:Term}, ${2:Expansion})$0\n",
+    "body":"expand_term(${1:Term}, ${2:Expansion})$0",
     "description": [
         "Expands a term. The most common use is to expand a grammar rule into a clause. Users may override the default Logtalk grammar rule translator by defining clauses for the term_expansion/2 hook predicate.\n",
         "Template and modes",
@@ -676,7 +676,7 @@
     "scope":"source.logtalk"
   },
   "methods:findall/3": {
-    "body":"findall(${1:Template}, ${2:Goal}, ${3:List})$0\n",
+    "body":"findall(${1:Template}, ${2:Goal}, ${3:List})$0",
     "description": [
         "Collects a list of solutions for the goal. The order of the elements in the list follows the order of the goal solutions. It succeeds returning an empty list when the goal have no solutions.\n",
         "Template and modes",
@@ -686,7 +686,7 @@
     "scope":"source.logtalk"
   },
   "methods:findall/4": {
-    "body":"findall(${1:Template}, ${2:Goal}, ${3:List}, ${4:Tail})$0\n",
+    "body":"findall(${1:Template}, ${2:Goal}, ${3:List}, ${4:Tail})$0",
     "description": [
         "Variant of the findall/3 method that allows passing the tail of the results list. It succeeds returning the  tail argument when the goal have no solutions.\n",
         "Template and modes",
@@ -696,7 +696,7 @@
     "scope":"source.logtalk"
   },
   "methods:forall/2": {
-    "body":"forall(${1:Generator}, ${2:Test})$0\n",
+    "body":"forall(${1:Generator}, ${2:Test})$0",
     "description": [
         "For all solutions of Generator, Test is true. This built-in meta-predicate is declared as a private method and thus cannot be used as a message to an object.\n",
         "Template and modes",
@@ -706,7 +706,7 @@
     "scope":"source.logtalk"
   },
   "methods:forward/1": {
-    "body":"forward(${1:Message})$0\n",
+    "body":"forward(${1:Message})$0",
     "description": [
         "User-defined method for forwarding unknown messages sent to an object (using the ::/2 control construct), automatically called by the runtime when defined. This method is declared in the forwarding built-in protocol as a public predicate. Note that you can make its scope protected or private by using, respectively, protected or private implementation of the forwarding protocol.\n",
         "Template and modes",
@@ -716,7 +716,7 @@
     "scope":"source.logtalk"
   },
   "methods:goal_expansion/2": {
-    "body":"goal_expansion(${1:Goal}, ${2:ExpandedGoal})$0\n",
+    "body":"goal_expansion(${1:Goal}, ${2:ExpandedGoal})$0",
     "description": [
         "Defines an expansion for a goal. The first argument is the goal to be expanded. The expanded goal is returned in the second argument. This predicate is called recursively on the expanded goal until a fixed point is reached. Thus, care must be taken to avoid compilation loops. This predicate, when defined and within scope, is automatically called by the expand_goal/2 method. Use of this predicate by the expand_goal/2 method may be restricted by changing its default public scope.\n",
         "Template and modes",
@@ -726,7 +726,7 @@
     "scope":"source.logtalk"
   },
   "methods:ignore/1": {
-    "body":"ignore(${1:Goal})$0\n",
+    "body":"ignore(${1:Goal})$0",
     "description": [
         "This predicate succeeds whether its argument succeeds or fails and it is not re-executable. This built-in meta-predicate is declared as a private method and thus cannot be used as a message to an object.\n",
         "Template and modes",
@@ -736,7 +736,7 @@
     "scope":"source.logtalk"
   },
   "methods:message_hook/4": {
-    "body":"message_hook(${1:Message}, ${2:Kind}, ${3:Component}, ${4:Tokens})$0\n",
+    "body":"message_hook(${1:Message}, ${2:Kind}, ${3:Component}, ${4:Tokens})$0",
     "description": [
         "User-defined hook method for intercepting printing of a message, declared in the logtalk built-in object as a public, multifile, and dynamic predicate. This hook method is automatically called by the print_message/3 method. When the call succeeds, the print_message/3 method assumes that the message have been successfully printed.\n",
         "Template and modes",
@@ -746,7 +746,7 @@
     "scope":"source.logtalk"
   },
   "methods:message_prefix_stream/4": {
-    "body":"message_prefix_stream(${1:Kind}, ${2:Component}, ${3:Prefix}, ${4:Stream})$0\n",
+    "body":"message_prefix_stream(${1:Kind}, ${2:Component}, ${3:Prefix}, ${4:Stream})$0",
     "description": [
         "User-defined hook method for specifying the default prefix and stream for printing a message for a given kind and component. This method is declared in the logtalk built-in object as a public, multifile, and dynamic predicate.\n",
         "Template and modes",
@@ -756,7 +756,7 @@
     "scope":"source.logtalk"
   },
   "methods:message_tokens//2": {
-    "body":"message_tokens(${1:Message}, ${2:Component})$0\n",
+    "body":"message_tokens(${1:Message}, ${2:Component})$0",
     "description": [
         "User-defined non-terminal hook used to rewrite a message term into a list of tokens and declared in the logtalk built-in object as a public, multifile, and dynamic non-terminal. The list of tokens can be printed by calling the print_message_tokens/3 method. This non-terminal hook is automatically called by the print_message/3 method.\n",
         "Template and modes",
@@ -766,7 +766,7 @@
     "scope":"source.logtalk"
   },
   "methods:once/1": {
-    "body":"once(${1:Goal})$0\n",
+    "body":"once(${1:Goal})$0",
     "description": [
         "This predicate behaves as call(Goal) but it is not re-executable. This built-in meta-predicate is declared as a private method and thus cannot be used as a message to an object.\n",
         "Template and modes",
@@ -776,7 +776,7 @@
     "scope":"source.logtalk"
   },
   "methods:parameter/2": {
-    "body":"parameter(${1:Number}, ${2:Term})$0\n",
+    "body":"parameter(${1:Number}, ${2:Term})$0",
     "description": [
         "Used in parametric objects (and parametric categories), this private method provides runtime access to the parameter values of the entity that contains the predicate clause whose body is being executed by using the argument number in the entity identifier. This predicate is implemented as a unification between its second argument and the corresponding implicit execution-context argument in the predicate containing the call. This unification occurs at the clause head when the second argument is not instantiated (the most common case). When the second argument is instantiated, the unification must be delayed to runtime and thus occurs at the clause body. See also this/1.\n",
         "Template and modes",
@@ -786,9 +786,9 @@
     "scope":"source.logtalk"
   },
   "methods:phrase//1": {
-    "body":"phrase(${1:NonTerminal})$0\n",
+    "body":"phrase(${1:NonTerminal})$0",
     "description": [
-        "This non-terminal takes a non-terminal or a grammar rule body and parses it using the current implicit list of tokens. A common use is to wrap what otherwise would be a naked variable in a grammar rule body.\n",
+        "This non-terminal takes a grammar rule body and parses it using the current implicit list of tokens. A common use is to wrap what otherwise would be a naked variable in a grammar rule body.\n",
         "Template and modes",
         "phrase(+callable)"
     ],
@@ -796,7 +796,7 @@
     "scope":"source.logtalk"
   },
   "methods:phrase/2": {
-    "body":"phrase(${1:GrammarRuleBody}, ${2:Input})$0\n",
+    "body":"phrase(${1:GrammarRuleBody}, ${2:Input})$0",
     "description": [
         "True when the GrammarRuleBody grammar rule body can be applied to the Input list of tokens. In the most common case, GrammarRuleBody is a non-terminal defined by a grammar rule. This built-in method is declared private and thus cannot be used as a message to an object. When using a back-end Prolog compiler supporting a module system, calls in the format phrase(Module:GrammarRuleBody, Input) may also be used.\n",
         "Template and modes",
@@ -806,7 +806,7 @@
     "scope":"source.logtalk"
   },
   "methods:phrase/3": {
-    "body":"phrase(${1:GrammarRuleBody}, ${2:Input}, ${3:Rest})$0\n",
+    "body":"phrase(${1:GrammarRuleBody}, ${2:Input}, ${3:Rest})$0",
     "description": [
         "True when the GrammarRuleBody grammar rule body can be applied to the Input-Rest difference list of tokens. In the most common case, GrammarRuleBody is a non-terminal defined by a grammar rule. This built-in method is declared private and thus cannot be used as a message to an object. When using a back-end Prolog compiler supporting a module system, calls in the format phrase(Module:GrammarRuleBody, Input, Rest) may also be used.\n",
         "Template and modes",
@@ -816,7 +816,7 @@
     "scope":"source.logtalk"
   },
   "methods:predicate_property/2": {
-    "body":"predicate_property(${1:Predicate}, ${2:Property})$0\n",
+    "body":"predicate_property(${1:Predicate}, ${2:Property})$0",
     "description": [
         "Enumerates, by backtracking, the properties of a visible predicate. When the predicate indicator for Predicate is declared in a uses/2 or use_module/2 directive, properties are enumerated for the referenced object or module predicate. Otherwise properties are enumerated for an object predicate. In the case of objects, properties for predicates not declared using a scope directive are not enumerated. The valid predicate properties are listed in the language grammar.\n",
         "Template and modes",
@@ -825,7 +825,7 @@
     "scope":"source.logtalk"
   },
   "methods:print_message/3": {
-    "body":"print_message(${1:Kind}, ${2:Component}, ${3:Term})$0\n",
+    "body":"print_message(${1:Kind}, ${2:Component}, ${3:Term})$0",
     "description": [
         "Built-in method for printing a message represented by a term, which is converted to the message text using the logtalk::message_tokens(Term, Component) hook non-terminal. This method is declared in the logtalk built-in object as a public predicate. The line prefix and the output stream used for each Kind-Component pair can be found using the logtalk::message_prefix_stream(Kind, Component, Prefix, Stream) hook predicate.\n",
         "Template and modes",
@@ -835,7 +835,7 @@
     "scope":"source.logtalk"
   },
   "methods:print_message_token/4": {
-    "body":"print_message_token(${1:Stream}, ${2:Prefix}, ${3:Token}, ${4:Tokens})$0\n",
+    "body":"print_message_token(${1:Stream}, ${2:Prefix}, ${3:Token}, ${4:Tokens})$0",
     "description": [
         "User-defined hook method for printing a message token, declared in the logtalk built-in object as a public, multifile, and dynamic predicate. It allows the user to intercept the printing of a message token. This hook method is automatically called by the print_message_tokens/3 built-in method for each token.\n",
         "Template and modes",
@@ -845,7 +845,7 @@
     "scope":"source.logtalk"
   },
   "methods:print_message_tokens/3": {
-    "body":"print_message_tokens(${1:Stream}, ${2:Prefix}, ${3:Tokens})$0\n",
+    "body":"print_message_tokens(${1:Stream}, ${2:Prefix}, ${3:Tokens})$0",
     "description": [
         "Built-in method for printing a list of message tokens, declared in the logtalk built-in object as a public predicate. This method is automatically called by the print_message/3 method (assuming that the message was not intercepted by a message_hook/4 definition) and calls the user-defined hook predicate print_message_token/4 for each token. When a call to this hook predicate succeeds, the print_message_tokens/3 predicate assumes that the token have been printed. When the call fails, the print_message_tokens/3 predicate uses a default printing procedure for the token.\n",
         "Template and modes",
@@ -855,7 +855,7 @@
     "scope":"source.logtalk"
   },
   "methods:question_hook/6": {
-    "body":"question_hook(${1:Question}, ${2:Kind}, ${3:Component}, ${4:Tokens}, ${5:Check}, ${6:Answer})$0\n",
+    "body":"question_hook(${1:Question}, ${2:Kind}, ${3:Component}, ${4:Tokens}, ${5:Check}, ${6:Answer})$0",
     "description": [
         "User-defined hook method for intercepting asking a question, declared in the logtalk built-in object as a public, multifile, and dynamic predicate. This hook method is automatically called by the ask_question/5 method. When the call succeeds, the ask_question/5 method assumes that the question have been successfully asked and replied.\n",
         "Template and modes",
@@ -865,7 +865,7 @@
     "scope":"source.logtalk"
   },
   "methods:question_prompt_stream/4": {
-    "body":"question_prompt_stream(${1:Kind}, ${2:Component}, ${3:Prompt}, ${4:Stream})$0\n",
+    "body":"question_prompt_stream(${1:Kind}, ${2:Component}, ${3:Prompt}, ${4:Stream})$0",
     "description": [
         "User-defined hook method for specifying the default prompt and input stream for asking a question for a given kind and component. This method is declared in the logtalk built-in object as a public, multifile, and dynamic predicate.\n",
         "Template and modes",
@@ -875,7 +875,7 @@
     "scope":"source.logtalk"
   },
   "methods:retract/1": {
-    "body":"retract(${1:Clause})$0\n",
+    "body":"retract(${1:Clause})$0",
     "description": [
         "Retracts a clause for a dynamic predicate. When the predicate indicator for Head is declared in a uses/2 or use_module/2 directive, the clause is retracted in the referenced object or module. Otherwise the clause is retracted in an object's dynamic predicate. On backtracking, the predicate retracts the next matching clause.\n",
         "Template and modes",
@@ -885,7 +885,7 @@
     "scope":"source.logtalk"
   },
   "methods:retractall/1": {
-    "body":"retractall(${1:Head})$0\n",
+    "body":"retractall(${1:Head})$0",
     "description": [
         "Retracts all clauses with a matching head for a dynamic predicate. When the predicate indicator for Head is declared in a uses/2 or use_module/2 directive, the clauses are retracted in the referenced object or module. Otherwise the clauses are retracted in an object's dynamic predicate.\n",
         "Template and modes",
@@ -895,7 +895,7 @@
     "scope":"source.logtalk"
   },
   "methods:self/1": {
-    "body":"self(${1:Self})$0\n",
+    "body":"self(${1:Self})$0",
     "description": [
         "Returns the object that has received the message under processing. This private method is translated to a unification between its argument and the corresponding implicit context argument in the predicate containing the call. This unification occurs at the clause head when the argument is not instantiated (the most common case).\n",
         "Template and modes",
@@ -905,7 +905,7 @@
     "scope":"source.logtalk"
   },
   "methods:sender/1": {
-    "body":"sender(${1:Sender})$0\n",
+    "body":"sender(${1:Sender})$0",
     "description": [
         "Returns the object that has sent the message under processing. This private method is translated into a unification between its argument and the corresponding implicit context argument in the predicate containing the call. This unification occurs at the clause head when the argument is not instantiated (the most common case).\n",
         "Template and modes",
@@ -915,7 +915,7 @@
     "scope":"source.logtalk"
   },
   "methods:setof/3": {
-    "body":"setof(${1:Template}, ${2:Goal}, ${3:List})$0\n",
+    "body":"setof(${1:Template}, ${2:Goal}, ${3:List})$0",
     "description": [
         "Collects a set of solutions for the goal for each set of instantiations of the free variables in the goal. The solutions are sorted using standard term order. The free variables in the goal are the variables that occur in the goal but not in the template. Free variables can be ignored, however, by using the ^/2 existential qualifier. For example, if T is term containing all the free variables that we want to ignore, we can write T^Goal. Note that the term T can be written as V1^V2^....\n",
         "Template and modes",
@@ -925,7 +925,7 @@
     "scope":"source.logtalk"
   },
   "methods:term_expansion/2": {
-    "body":"term_expansion(${1:Term}, ${2:Expansion})$0\n",
+    "body":"term_expansion(${1:Term}, ${2:Expansion})$0",
     "description": [
         "Defines an expansion for a term. This predicate, when defined and within scope, is automatically called by the expand_term/2 method. When that is not the case, the expand_term/2 method only uses the default expansions. Use of this predicate by the expand_term/2 method may be restricted by changing its default public scope.\n",
         "Template and modes",
@@ -936,7 +936,7 @@
     "scope":"source.logtalk"
   },
   "methods:this/1": {
-    "body":"this(${1:This})$0\n",
+    "body":"this(${1:This})$0",
     "description": [
         "Unifies its argument with the identifier of the object for which the predicate clause whose body is being executed is defined (or the object importing the category that contains the predicate clause). This private method is implemented as a unification between its argument and the corresponding implicit execution-context argument in the predicate containing the call. This unification occurs at the clause head when the argument is not instantiated (the most common case). This method is useful for avoiding hard-coding references to an object identifier or for retrieving all object parameters with a single call when using parametric objects. See also parameter/2.\n",
         "Template and modes",
@@ -946,7 +946,7 @@
     "scope":"source.logtalk"
   },
   "methods:throw/1": {
-    "body":"throw(${1:Exception})$0\n",
+    "body":"throw(${1:Exception})$0",
     "description": [
         "Throws an exception. This built-in predicate is declared as a private method and thus cannot be used as a message to an object.\n",
         "Template and modes",
@@ -986,7 +986,7 @@
     "scope":"source.logtalk"
   },
   "predicates:abolish_category/1": {
-    "body":"abolish_category(${1:Category})$0\n",
+    "body":"abolish_category(${1:Category})$0",
     "description": [
         "Abolishes a dynamic category.\n",
         "Template and modes",
@@ -996,7 +996,7 @@
     "scope":"source.logtalk"
   },
   "predicates:abolish_events/5": {
-    "body":"abolish_events(${1:Event}, ${2:Object}, ${3:Message}, ${4:Sender}, ${5:Monitor})$0\n",
+    "body":"abolish_events(${1:Event}, ${2:Object}, ${3:Message}, ${4:Sender}, ${5:Monitor})$0",
     "description": [
         "Abolishes all matching events. The two types of events are represented by the atoms before and after. When the predicate is called with the first argument unbound, both types of events are abolished.\n",
         "Template and modes",
@@ -1006,7 +1006,7 @@
     "scope":"source.logtalk"
   },
   "predicates:abolish_object/1": {
-    "body":"abolish_object(${1:Object})$0\n",
+    "body":"abolish_object(${1:Object})$0",
     "description": [
         "Abolishes a dynamic object.\n",
         "Template and modes",
@@ -1016,7 +1016,7 @@
     "scope":"source.logtalk"
   },
   "predicates:abolish_protocol/1": {
-    "body":"abolish_protocol(${1:Protocol})$0\n",
+    "body":"abolish_protocol(${1:Protocol})$0",
     "description": [
         "Abolishes a dynamic protocol.\n",
         "Template and modes",
@@ -1026,7 +1026,7 @@
     "scope":"source.logtalk"
   },
   "predicates:category_property/2": {
-    "body":"category_property(${1:Category}, ${2:Property})$0\n",
+    "body":"category_property(${1:Category}, ${2:Property})$0",
     "description": [
         "Enumerates, by backtracking, the properties associated with the defined categories. The valid category properties are listed in the language grammar.\n",
         "Template and modes",
@@ -1036,7 +1036,7 @@
     "scope":"source.logtalk"
   },
   "predicates:complements_object/2": {
-    "body":"complements_object(${1:Category}, ${2:Object})$0\n",
+    "body":"complements_object(${1:Category}, ${2:Object})$0",
     "description": [
         "Enumerates, by backtracking, all category–object pairs such that the category explicitly complements the object.\n",
         "Template and modes",
@@ -1046,7 +1046,7 @@
     "scope":"source.logtalk"
   },
   "predicates:conforms_to_protocol/2": {
-    "body":"conforms_to_protocol(${1:Object}, ${2:Protocol})$0\n",
+    "body":"conforms_to_protocol(${1:Object}, ${2:Protocol})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of entities such that an object or a category conforms to a protocol. This predicate implements a transitive closure for the protocol implementation relation.\n",
         "Template and modes",
@@ -1057,7 +1057,7 @@
     "scope":"source.logtalk"
   },
   "predicates:conforms_to_protocol/3": {
-    "body":"conforms_to_protocol(${1:Object}, ${2:Protocol}, ${3:Scope})$0\n",
+    "body":"conforms_to_protocol(${1:Object}, ${2:Protocol}, ${3:Scope})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of entities such that an object or a category conforms to a protocol. The relation scope is represented by the atoms public, protected, and private. This predicate implements a transitive closure for the protocol implementation relation.\n",
         "Template and modes",
@@ -1068,7 +1068,7 @@
     "scope":"source.logtalk"
   },
   "predicates:create_category/4": {
-    "body":"create_category(${1:Identifier}, ${2:Relations}, ${3:Directives}, ${4:Clauses})$0\n",
+    "body":"create_category(${1:Identifier}, ${2:Relations}, ${3:Directives}, ${4:Clauses})$0",
     "description": [
         "Creates a new, dynamic category. This predicate is often used as a primitive to implement high-level category creation methods.\n",
         "Template and modes",
@@ -1078,7 +1078,7 @@
     "scope":"source.logtalk"
   },
   "predicates:create_logtalk_flag/3": {
-    "body":"create_logtalk_flag(${1:Flag}, ${2:Value}, ${3:Options})$0\n",
+    "body":"create_logtalk_flag(${1:Flag}, ${2:Value}, ${3:Options})$0",
     "description": [
         "Creates a new Logtalk flag and sets its default value. User-defined flags can be queried and set in the same way as pre-defined flags by using, respectively, the current_logtalk_flag/2 and set_logtalk_flag/2 built-in predicates.\n",
         "Template and modes",
@@ -1088,7 +1088,7 @@
     "scope":"source.logtalk"
   },
   "predicates:create_object/4": {
-    "body":"create_object(${1:Identifier}, ${2:Relations}, ${3:Directives}, ${4:Clauses})$0\n",
+    "body":"create_object(${1:Identifier}, ${2:Relations}, ${3:Directives}, ${4:Clauses})$0",
     "description": [
         "Creates a new, dynamic object. The word object is used here as a generic term. This predicate can be used to create new prototypes, instances, and classes. This predicate is often used as a primitive to implement high-level object creation methods.\n",
         "Template and modes",
@@ -1098,7 +1098,7 @@
     "scope":"source.logtalk"
   },
   "predicates:create_protocol/3": {
-    "body":"create_protocol(${1:Identifier}, ${2:Relations}, ${3:Directives})$0\n",
+    "body":"create_protocol(${1:Identifier}, ${2:Relations}, ${3:Directives})$0",
     "description": [
         "Creates a new, dynamic, protocol. This predicate is often used as a primitive to implement high-level protocol creation methods.\n",
         "Template and modes",
@@ -1108,7 +1108,7 @@
     "scope":"source.logtalk"
   },
   "predicates:current_category/1": {
-    "body":"current_category(${1:Category})$0\n",
+    "body":"current_category(${1:Category})$0",
     "description": [
         "Enumerates, by backtracking, all currently defined categories. All categories are found, either static, dynamic, or built-in.\n",
         "Template and modes",
@@ -1118,7 +1118,7 @@
     "scope":"source.logtalk"
   },
   "predicates:current_event/5": {
-    "body":"current_event(${1:Event}, ${2:Object}, ${3:Message}, ${4:Sender}, ${5:Monitor})$0\n",
+    "body":"current_event(${1:Event}, ${2:Object}, ${3:Message}, ${4:Sender}, ${5:Monitor})$0",
     "description": [
         "Enumerates, by backtracking, all defined events. The two types of events are represented by the atoms before and after.\n",
         "Template and modes",
@@ -1128,7 +1128,7 @@
     "scope":"source.logtalk"
   },
   "predicates:current_logtalk_flag/2": {
-    "body":"current_logtalk_flag(${1:Flag}, ${2:Value})$0\n",
+    "body":"current_logtalk_flag(${1:Flag}, ${2:Value})$0",
     "description": [
         "Enumerates, by backtracking, the current Logtalk flag values.\n",
         "Template and modes",
@@ -1138,7 +1138,7 @@
     "scope":"source.logtalk"
   },
   "predicates:current_object/1": {
-    "body":"current_object(${1:Object})$0\n",
+    "body":"current_object(${1:Object})$0",
     "description": [
         "Enumerates, by backtracking, all currently defined objects. All objects are found, either static, dynamic or built-in.\n",
         "Template and modes",
@@ -1148,7 +1148,7 @@
     "scope":"source.logtalk"
   },
   "predicates:current_protocol/1": {
-    "body":"current_protocol(${1:Protocol})$0\n",
+    "body":"current_protocol(${1:Protocol})$0",
     "description": [
         "Enumerates, by backtracking, all currently defined protocols. All protocols are found, either static, dynamic, or built-in.\n",
         "Template and modes",
@@ -1158,7 +1158,7 @@
     "scope":"source.logtalk"
   },
   "predicates:define_events/5": {
-    "body":"define_events(${1:Event}, ${2:Object}, ${3:Message}, ${4:Sender}, ${5:Monitor})$0\n",
+    "body":"define_events(${1:Event}, ${2:Object}, ${3:Message}, ${4:Sender}, ${5:Monitor})$0",
     "description": [
         "Defines a new set of events. The two types of events are represented by the atoms before and after. When the predicate is called with the first argument unbound, both types of events are defined. The object Monitor must define the event handler methods required by the Event argument.\n",
         "Template and modes",
@@ -1168,7 +1168,7 @@
     "scope":"source.logtalk"
   },
   "predicates:extends_category/2": {
-    "body":"extends_category(${1:Category1}, ${2:Category2})$0\n",
+    "body":"extends_category(${1:Category1}, ${2:Category2})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of categories such that the first one extends the second.\n",
         "Template and modes",
@@ -1178,7 +1178,7 @@
     "scope":"source.logtalk"
   },
   "predicates:extends_category/3": {
-    "body":"extends_category(${1:Category1}, ${2:Category2}, ${3:Scope})$0\n",
+    "body":"extends_category(${1:Category1}, ${2:Category2}, ${3:Scope})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of categories such that the first one extends the second. The relation scope is represented by the atoms public, protected, and private.\n",
         "Template and modes",
@@ -1188,7 +1188,7 @@
     "scope":"source.logtalk"
   },
   "predicates:extends_object/2": {
-    "body":"extends_object(${1:Prototype}, ${2:Parent})$0\n",
+    "body":"extends_object(${1:Prototype}, ${2:Parent})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of objects such that the first one extends the second.\n",
         "Template and modes",
@@ -1198,7 +1198,7 @@
     "scope":"source.logtalk"
   },
   "predicates:extends_object/3": {
-    "body":"extends_object(${1:Prototype}, ${2:Parent}, ${3:Scope})$0\n",
+    "body":"extends_object(${1:Prototype}, ${2:Parent}, ${3:Scope})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of objects such that the first one extends the second. The relation scope is represented by the atoms public, protected, and private.\n",
         "Template and modes",
@@ -1208,7 +1208,7 @@
     "scope":"source.logtalk"
   },
   "predicates:extends_protocol/2": {
-    "body":"extends_protocol(${1:Protocol1}, ${2:Protocol2})$0\n",
+    "body":"extends_protocol(${1:Protocol1}, ${2:Protocol2})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of protocols such that the first one extends the second.\n",
         "Template and modes",
@@ -1218,7 +1218,7 @@
     "scope":"source.logtalk"
   },
   "predicates:extends_protocol/3": {
-    "body":"extends_protocol(${1:Protocol1}, ${2:Protocol2}, ${3:Scope})$0\n",
+    "body":"extends_protocol(${1:Protocol1}, ${2:Protocol2}, ${3:Scope})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of protocols such that the first one extends the second. The relation scope is represented by the atoms public, protected, and private.\n",
         "Template and modes",
@@ -1228,7 +1228,7 @@
     "scope":"source.logtalk"
   },
   "predicates:implements_protocol/2": {
-    "body":"implements_protocol(${1:Object}, ${2:Protocol})$0\n",
+    "body":"implements_protocol(${1:Object}, ${2:Protocol})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of entities such that an object or a category implements a protocol. This predicate only returns direct implementation relations; it does not implement a transitive closure.\n",
         "Template and modes",
@@ -1239,7 +1239,7 @@
     "scope":"source.logtalk"
   },
   "predicates:implements_protocol/3": {
-    "body":"implements_protocol(${1:Object}, ${2:Protocol}, ${3:Scope})$0\n",
+    "body":"implements_protocol(${1:Object}, ${2:Protocol}, ${3:Scope})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of entities such that an object or a category implements a protocol. The relation scope is represented by the atoms public, protected, and private. This predicate only returns direct implementation relations; it does not implement a transitive closure.\n",
         "Template and modes",
@@ -1250,7 +1250,7 @@
     "scope":"source.logtalk"
   },
   "predicates:imports_category/2": {
-    "body":"imports_category(${1:Object}, ${2:Category})$0\n",
+    "body":"imports_category(${1:Object}, ${2:Category})$0",
     "description": [
         "Enumerates, by backtracking, importation relations between objects and categories.\n",
         "Template and modes",
@@ -1260,7 +1260,7 @@
     "scope":"source.logtalk"
   },
   "predicates:imports_category/3": {
-    "body":"imports_category(${1:Object}, ${2:Category}, ${3:Scope})$0\n",
+    "body":"imports_category(${1:Object}, ${2:Category}, ${3:Scope})$0",
     "description": [
         "Enumerates, by backtracking, importation relations between objects and categories. The relation scope is represented by the atoms public, protected, and private.\n",
         "Template and modes",
@@ -1270,7 +1270,7 @@
     "scope":"source.logtalk"
   },
   "predicates:instantiates_class/2": {
-    "body":"instantiates_class(${1:Instance}, ${2:Class})$0\n",
+    "body":"instantiates_class(${1:Instance}, ${2:Class})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of objects such that the first one instantiates the second. The relation scope is represented by the atoms public, protected, and private.\n",
         "Template and modes",
@@ -1280,7 +1280,7 @@
     "scope":"source.logtalk"
   },
   "predicates:instantiates_class/3": {
-    "body":"instantiates_class(${1:Instance}, ${2:Class}, ${3:Scope})$0\n",
+    "body":"instantiates_class(${1:Instance}, ${2:Class}, ${3:Scope})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of objects such that the first one instantiates the second. The relation scope is represented by the atoms public, protected, and private.\n",
         "Template and modes",
@@ -1290,7 +1290,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_compile/1": {
-    "body":"logtalk_compile(${1:File})$0\n",
+    "body":"logtalk_compile(${1:File})$0",
     "description": [
         "Compiles to disk a source file or a list of source files using the current default compiler flag values. The Logtalk source file name extension (by default, .lgt) can be omitted. Source file paths can be absolute, relative to the current directory, or use library notation. This predicate can also be used to compile Prolog source files as Logtalk source code. When no recognized Logtalk or Prolog extension is specified, the compiler tries first to append a Logtalk source file extension and then a Prolog source file extension. If that fails, the compiler tries to use the file name as-is.\n",
         "Template and modes",
@@ -1301,7 +1301,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_compile/2": {
-    "body":"logtalk_compile(${1:File}, ${2:Flags})$0\n",
+    "body":"logtalk_compile(${1:File}, ${2:Flags})$0",
     "description": [
         "Compiles to disk a  source file or a list of source files using a list of compiler flags. The Logtalk source file name extension (by default, .lgt) can be omitted. Source file paths can be absolute, relative to the current directory, or use library notation. This predicate can also be used to compile Prolog source files as Logtalk source code. When no recognized Logtalk or Prolog extension is specified, the compiler tries first to append a Logtalk source file extension and then a Prolog source file extension. If that fails, the compiler tries to use the file name as-is. Compiler flags are represented as flag(value). For a description of the available compiler flags, please consult the User Manual.\n",
         "Template and modes",
@@ -1312,7 +1312,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_library_path/2": {
-    "body":"logtalk_library_path(${1:Library}, ${2:Path})$0\n",
+    "body":"logtalk_library_path(${1:Library}, ${2:Path})$0",
     "description": [
         "Dynamic and multifile user-defined predicate, allowing the declaration of aliases to library paths. Library aliases may also be used on the second argument (using the notation alias(path)). Paths must always end with the path directory separator character ('/').\n",
         "Template and modes",
@@ -1323,7 +1323,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_load/1": {
-    "body":"logtalk_load(${1:File})$0\n",
+    "body":"logtalk_load(${1:File})$0",
     "description": [
         "Compiles to disk and then loads to memory a source file or a list of source files using the current default compiler flag values. The Logtalk source file name extension (by default, .lgt) can be omitted. Source file paths can be absolute, relative to the current directory, or use library notation. This predicate can also be used to compile Prolog source files as Logtalk source code. When no recognized Logtalk or Prolog extension is specified, the compiler tries first to append a Logtalk source file extension and then a Prolog source file extension. If that fails, the compiler tries to use the file name as-is.\n",
         "Template and modes",
@@ -1334,7 +1334,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_load/2": {
-    "body":"logtalk_load(${1:File}, ${2:Flags})$0\n",
+    "body":"logtalk_load(${1:File}, ${2:Flags})$0",
     "description": [
         "Compiles to disk and then loads to memory a source file or a list of source files using a list of compiler flags. The Logtalk source file name extension (by default, .lgt) can be omitted. Compiler flags are represented as flag(value). This predicate can also be used to compile Prolog source files as Logtalk source code. When no recognized Logtalk or Prolog extension is specified, the compiler tries first to append a Logtalk source file extension and then a Prolog source file extension. If that fails, the compiler tries to use the file name as-is. For a description of the available compiler flags, please consult the User Manual. Source file paths can be absolute, relative to the current directory, or use library notation.\n",
         "Template and modes",
@@ -1345,7 +1345,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_load_context/2": {
-    "body":"logtalk_load_context(${1:Key}, ${2:Value})$0\n",
+    "body":"logtalk_load_context(${1:Key}, ${2:Value})$0",
     "description": [
         "Provides access to the Logtalk compilation/loading context. The following keys are currently supported: entity_identifier, entity_prefix, entity_type (returns the value module when compiling a module as an object), source, file (the actual file being compiled, which is different from source only when processing an include/1 directive), basename, directory, stream, target (the full path of the intermediate Prolog file), flags (the list of the explicit flags used for the compilation of the source file), term (the term being expanded), term_position (StartLine-EndLine), and variable_names ([Name1=Variable1, ...]). The term_position key is only supported in back-end Prolog compilers that provide access to the start and end lines of a read term.\n",
         "Template and modes",
@@ -1355,7 +1355,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_make/0": {
-    "body":"logtalk_make$0$0\n",
+    "body":"logtalk_make$0$0",
     "description": [
         "Reloads all Logtalk source files that have been modified since the time they are last loaded. Only source files loaded using the logtalk_load/1-2 predicates are reloaded. Non-modified files will also be reloaded when there is a change to the compilation mode (i.e. when the files were loaded without explicit debug/1 or optimize/1 flags and the default values of these flags changed after loading; no check is made, however, for other implicit compiler flags that may have changed since loading). When an included file is modified, this predicate reloads its main file (i.e. the file that contains the include/1 directive).\n",
         "Template and modes",
@@ -1365,7 +1365,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_make/1": {
-    "body":"logtalk_make(${1:Target})$0\n",
+    "body":"logtalk_make(${1:Target})$0",
     "description": [
         "Allows reloading all Logtalk source files that have been modified since last loaded when called with the target all, deleting all intermediate files generated by the compilation of Logtalk source files when called with the target clean, checking for code issues when called with the target check, and listing of circular dependencies between pairs or trios of objects when called with the target circular.\n",
         "Template and modes",
@@ -1375,7 +1375,7 @@
     "scope":"source.logtalk"
   },
   "predicates:object_property/2": {
-    "body":"object_property(${1:Object}, ${2:Property})$0\n",
+    "body":"object_property(${1:Object}, ${2:Property})$0",
     "description": [
         "Enumerates, by backtracking, the properties associated with the defined objects. The valid object properties are listed in the language grammar.\n",
         "Template and modes",
@@ -1385,7 +1385,7 @@
     "scope":"source.logtalk"
   },
   "predicates:protocol_property/2": {
-    "body":"protocol_property(${1:Protocol}, ${2:Property})$0\n",
+    "body":"protocol_property(${1:Protocol}, ${2:Property})$0",
     "description": [
         "Enumerates, by backtracking, the properties associated with the currently defined protocols. The valid protocol properties are listed in the language grammar.\n",
         "Template and modes",
@@ -1395,7 +1395,7 @@
     "scope":"source.logtalk"
   },
   "predicates:set_logtalk_flag/2": {
-    "body":"set_logtalk_flag(${1:Flag}, ${2:Value})$0\n",
+    "body":"set_logtalk_flag(${1:Flag}, ${2:Value})$0",
     "description": [
         "Sets Logtalk default, global, flag values. For local flag scope, use the corresponding set_logtalk_flag/2 directive. To set a global flag value when compiling and loading a source file, wrap the calls to this built-in predicate with an initialization/1 directive.\n",
         "Template and modes",
@@ -1405,7 +1405,7 @@
     "scope":"source.logtalk"
   },
   "predicates:specializes_class/2": {
-    "body":"specializes_class(${1:Class}, ${2:Superclass})$0\n",
+    "body":"specializes_class(${1:Class}, ${2:Superclass})$0",
     "description": [
         "Enumerates, by backtracking, all pairs of objects such that the first one specializes the second.\n",
         "Template and modes",
@@ -1415,7 +1415,7 @@
     "scope":"source.logtalk"
   },
   "predicates:specializes_class/3": {
-    "body":"specializes_class(${1:Class}, ${2:Superclass}, Scope)$0\n",
+    "body":"specializes_class(${1:Class}, ${2:Superclass}, Scope)$0",
     "description": [
         "Enumerates, by backtracking, all pairs of objects such that the first one specializes the second. The relation scope is represented by the atoms public, protected, and private.\n",
         "Template and modes",
@@ -1425,7 +1425,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded/1": {
-    "body":"threaded(${1:Goals})$0\n",
+    "body":"threaded(${1:Goals})$0",
     "description": [
         "Proves each goal in a conjunction (disjunction) of goals in its own thread. This predicate is deterministic and opaque to cuts. The predicate argument is not flattened.\n",
         "Template and modes",
@@ -1435,7 +1435,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_call/1": {
-    "body":"threaded_call(${1:Goal})$0\n",
+    "body":"threaded_call(${1:Goal})$0",
     "description": [
         "Proves Goal asynchronously using a new thread. The argument can be a message sending goal. Calls to this predicate always succeeds and return immediately. The results (success, failure, or exception) are sent back to the message queue of the object containing the call (this); they can be retrieved by calling the threaded_exit/1 predicate.\n",
         "Template and modes",
@@ -1445,7 +1445,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_call/2": {
-    "body":"threaded_call(${1:Goal}, Tag)$0\n",
+    "body":"threaded_call(${1:Goal}, Tag)$0",
     "description": [
         "Proves Goal asynchronously using a new thread. The argument can be a message sending goal. Calls to this predicate always succeeds and return immediately. The results (success, failure, or exception) are sent back to the message queue of the object containing the call (this); they can be retrieved by calling the threaded_exit/2 predicate.\n",
         "Template and modes",
@@ -1455,7 +1455,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine/1": {
-    "body":"threaded_engine(${1:Engine})$0\n",
+    "body":"threaded_engine(${1:Engine})$0",
     "description": [
         "Enumerates, by backtracking, all existing engines.\n",
         "Template and modes",
@@ -1465,7 +1465,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine_create/3": {
-    "body":"threaded_engine_create(${1:AnswerTemplate}, ${2:Goal}, ${3:Engine})$0\n",
+    "body":"threaded_engine_create(${1:AnswerTemplate}, ${2:Goal}, ${3:Engine})$0",
     "description": [
         "Creates a new engine for proving the given goal and defines an answer template for retrieving the goal solution bindings. A message queue for passing arbitrary terms to the engine is also created. If the name for the engine is not given, a unique name is generated and returned.\n",
         "Template and modes",
@@ -1475,7 +1475,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine_destroy/1": {
-    "body":"threaded_engine_destroy(${1:Engine})$0\n",
+    "body":"threaded_engine_destroy(${1:Engine})$0",
     "description": [
         "Stops an engine.\n",
         "Template and modes",
@@ -1485,7 +1485,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine_fetch/1": {
-    "body":"threaded_engine_fetch(${1:Term})$0\n",
+    "body":"threaded_engine_fetch(${1:Term})$0",
     "description": [
         "Fetches a term from the engine term queue. Blocks until a term is available. Fails in not called from within an engine.\n",
         "Template and modes",
@@ -1495,7 +1495,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine_next/2": {
-    "body":"threaded_engine_next(${1:Engine}, ${2:Answer})$0\n",
+    "body":"threaded_engine_next(${1:Engine}, ${2:Answer})$0",
     "description": [
         "Retrieves the next answer from an engine. This predicate blocks until an answer becomes available. The predicate fails when there are no more solutions to the engine goal. If the engine goal throws an exception, calling this predicate will re-throw the exception and subsequent calls will fail.\n",
         "Template and modes",
@@ -1505,7 +1505,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine_next_reified/2": {
-    "body":"threaded_engine_next_reified(${1:Engine}, ${2:Answer})$0\n",
+    "body":"threaded_engine_next_reified(${1:Engine}, ${2:Answer})$0",
     "description": [
         "Retrieves the next reified answer from an engine. This predicate predicate always succeeds and blocks until an answer becomes available. Answers are returned using the terms the(Answer), no, and exception(Error).\n",
         "Template and modes",
@@ -1515,7 +1515,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine_post/2": {
-    "body":"threaded_engine_post(${1:Engine}, ${2:Term})$0\n",
+    "body":"threaded_engine_post(${1:Engine}, ${2:Term})$0",
     "description": [
         "Posts a term to the engine term queue.\n",
         "Template and modes",
@@ -1525,7 +1525,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine_self/1": {
-    "body":"threaded_engine_self(${1:Engine})$0\n",
+    "body":"threaded_engine_self(${1:Engine})$0",
     "description": [
         "Queries the name of engine calling the predicate.\n",
         "Template and modes",
@@ -1535,7 +1535,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_engine_yield/1": {
-    "body":"threaded_engine_yield(${1:Answer})$0\n",
+    "body":"threaded_engine_yield(${1:Answer})$0",
     "description": [
         "Returns an answer independent of the solutions of the engine goal. Fails if not called from within an engine. This predicate is usually used when the engine goal is call to a recursive predicate processing terms from the engine term queue.\n",
         "Template and modes",
@@ -1545,7 +1545,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_exit/1": {
-    "body":"threaded_exit(${1:Goal})$0\n",
+    "body":"threaded_exit(${1:Goal})$0",
     "description": [
         "Retrieves the result of proving Goal in a new thread. This predicate blocks execution until the reply is sent to the this message queue by the thread executing the goal. When there is no thread proving the goal, the predicate generates an exception. This predicate is non-deterministic, providing access to any alternative solutions of its argument.\n",
         "Template and modes",
@@ -1555,7 +1555,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_exit/2": {
-    "body":"threaded_exit(${1:Goal}, Tag)$0\n",
+    "body":"threaded_exit(${1:Goal}, Tag)$0",
     "description": [
         "Retrieves the result of proving Goal in a new thread. This predicate blocks execution until the reply is sent to the this message queue by the thread executing the goal. When there is no thread proving the goal, the predicate generates an exception. This predicate is non-deterministic, providing access to any alternative solutions of its argument.\n",
         "Template and modes",
@@ -1565,7 +1565,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_ignore/1": {
-    "body":"threaded_ignore(${1:Goal})$0\n",
+    "body":"threaded_ignore(${1:Goal})$0",
     "description": [
         "Proves Goal asynchronously using a new thread. Only the first goal solution is found. The argument can be a message sending goal. This call always succeeds, independently of the result (success, failure, or exception), which is simply discarded instead of being sent back to the message queue of the object containing the call (this).\n",
         "Template and modes",
@@ -1575,7 +1575,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_notify/1": {
-    "body":"threaded_notify(${1:Term})$0\n",
+    "body":"threaded_notify(${1:Term})$0",
     "description": [
         "Sends Term as a notification to any thread suspended waiting for it in order to proceed. The call must be made within the same object (this) containing the calls to the threaded_wait/1 predicate waiting for the notification. The argument may also be a list of notifications, [Term| Terms]. In this case, all notifications in the list will be sent to any threads suspended waiting for them in order to proceed.\n",
         "Template and modes",
@@ -1586,7 +1586,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_once/1": {
-    "body":"threaded_once(${1:Goal})$0\n",
+    "body":"threaded_once(${1:Goal})$0",
     "description": [
         "Proves Goal asynchronously using a new thread. Only the first goal solution is found. The argument can be a message sending goal. This call always succeeds. The result (success, failure, or exception) is sent back to the message queue of the object containing the call (this).\n",
         "Template and modes",
@@ -1596,7 +1596,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_once/2": {
-    "body":"threaded_once(${1:Goal}, Tag)$0\n",
+    "body":"threaded_once(${1:Goal}, Tag)$0",
     "description": [
         "Proves Goal asynchronously using a new thread. Only the first goal solution is found. The argument can be a message sending goal. This call always succeeds. The result (success, failure, or exception) is sent back to the message queue of the object containing the call (this).\n",
         "Template and modes",
@@ -1606,7 +1606,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_peek/1": {
-    "body":"threaded_peek(${1:Goal})$0\n",
+    "body":"threaded_peek(${1:Goal})$0",
     "description": [
         "Checks if the result of proving Goal in a new thread is already available. This call succeeds or fails without blocking execution waiting for a reply to be available.\n",
         "Template and modes",
@@ -1616,7 +1616,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_peek/2": {
-    "body":"threaded_peek(${1:Goal}, Tag)$0\n",
+    "body":"threaded_peek(${1:Goal}, Tag)$0",
     "description": [
         "Checks if the result of proving Goal in a new thread is already available. This call succeeds or fails without blocking execution waiting for a reply to be available.\n",
         "Template and modes",
@@ -1626,7 +1626,7 @@
     "scope":"source.logtalk"
   },
   "predicates:threaded_wait/1": {
-    "body":"threaded_wait(${1:Term})$0\n",
+    "body":"threaded_wait(${1:Term})$0",
     "description": [
         "Suspends the thread making the call until a notification is received that unifies with Term. The call must be made within the same object (this) containing the calls to the threaded_notify/1 predicate that will eventually send the notification. The argument may also be a list of notifications, [Term| Terms]. In this case, the thread making the call will suspend until all notifications in the list are received.\n",
         "Template and modes",
@@ -1682,6 +1682,116 @@
     "body":"\t:- public(${1:Name}/${2:Arity}).\n\t:- mode(${1:Functor}(${3:Arguments}), ${4:Solutions}).\n\t:- info(${1:Name}/${2:Arity}, [\n\t\tcomment is '${5:Description}',\n\t\targuments is ['$6'-'$7']\n\t]).\n\n$0",
     "description":"Public predicate",
     "prefix":"public",
+    "scope":"source.logtalk"
+  },
+  "predicates:instantiation_error/0": {
+    "body":"instantiation_error$0",
+    "description": [
+        "Throws an instantiation error. Used when an argument or one of its sub-arguments is a variable but a non-variable term is required. For example, trying to open a file with a variable for the input/output mode.\n",
+        "Template and modes",
+        "instantiation_error"
+    ],
+    "prefix":"instantiation_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:uninstantiation_error/1": {
+    "body":"uninstantiation_error(${1:Culprit})$0",
+    "description": [
+        "Throws an uninstantiation error. Used when an argument or one of its sub-arguments is bound but a variable is required. For example, trying to open a file with a stream argument bound.\n",
+        "Template and modes",
+        "uninstantiation_error(@nonvar)"
+    ],
+    "prefix":"uninstantiation_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:type_error/2": {
+    "body":"type_error(${1:Type}, ${2:Culprit})$0",
+    "description": [
+        "Throws a type error. Used when the type of an argument is incorrect. For example, trying to use a non-callable term as a message.\n",
+        "Template and modes",
+        "type_error(@nonvar, @term)"
+    ],
+    "prefix":"type_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:domain_error/2": {
+    "body":"domain_error(${1:Domain}, ${2:Culprit})$0",
+    "description": [
+        "Throws a domain error. Used when an argument is of the correct type but outside the valid domain. For example, trying to use an atom as an operator specifier that is not a valid specifier.\n",
+        "Template and modes",
+        "domain_error(+atom, @nonvar)"
+    ],
+    "prefix":"domain_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:existence_error/2": {
+    "body":"existence_error(${1:Thing}, ${2:Culprit})$0",
+    "description": [
+        "Throws an existence error. Used when the subject of an operation does not exist.\n",
+        "Template and modes",
+        "existence_error(@nonvar, @nonvar)"
+    ],
+    "prefix":"existence_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:permission_error/3": {
+    "body":"permission_error(${1:Operation}, ${2:Permission}, ${3:Culprit})$0",
+    "description": [
+        "Throws an permission error. Used when an operation is not allowed. For example, sending a message for a predicate that is not within the scope of the sender.\n",
+        "Template and modes",
+        "permission_error(@nonvar, @nonvar, @nonvar)"
+    ],
+    "prefix":"permission_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:representation_error/1": {
+    "body":"representation_error(${1:Flag})$0",
+    "description": [
+        "Throws a representation error. Used when some representation limit is exceeded. For example, trying to construct a compound term that exceeds the maximum arity supported by the backend Prolog system.\n",
+        "Template and modes",
+        "representation_error(+atom)"
+    ],
+    "prefix":"representation_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:evaluation_error/1": {
+    "body":"evaluation_error(${1:Error})$0",
+    "description": [
+        "Throws an evaluation error. Used when evaluating an arithmetic expression generates an exception.\n",
+        "Template and modes",
+        "evaluation_error(@nonvar)"
+    ],
+    "prefix":"evaluation_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:resource_error/1": {
+    "body":"resource_error(${1:Resource})$0",
+    "description": [
+        "Throws a resource error. Used when a required resource (e.g. memory or disk space) to complete execution is not available.\n",
+        "Template and modes",
+        "resource_error(@nonvar)"
+    ],
+    "prefix":"resource_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:syntax_error/1": {
+    "body":"syntax_error(${1:Description})$0",
+    "description": [
+        "Throws a syntax error. Used when the sequence of characters being read are not syntactically valid. \n",
+        "Template and modes",
+        "syntax_error(@nonvar)"
+    ],
+    "prefix":"syntax_error",
+    "scope":"source.logtalk"
+  },
+  "predicates:system_error/0": {
+    "body":"system_error$0",
+    "description": [
+        "Throws a system error. Used when runtime execution can no longer proceed. For example, an exception is thrown without an active catcher.\n",
+        "Template and modes",
+        "system_error"
+    ],
+    "prefix":"system_error",
     "scope":"source.logtalk"
   }
 }
