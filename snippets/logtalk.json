@@ -293,7 +293,8 @@
         "Template and modes",
         "protected(+predicate_indicator)"
     ],
-    "prefix":":- private"
+    "prefix":":- private",
+    "scope":"source.logtalk"
   },
   "directives:private/1 (non-terminal)": {
     "body":":- private(${1:Name}//${2:Arity}).\n",
@@ -302,7 +303,8 @@
         "Template and modes",
         "protected(+non_terminal_indicator)"
     ],
-    "prefix":":- private"
+    "prefix":":- private",
+    "scope":"source.logtalk"
   },
   "directives:private/1 (operator)": {
     "body":":- private(op(${1:Priority},${2|fx,fy,xfx,xfy,yfx,xf,yf|},${3:Operator})).\n",
@@ -311,13 +313,14 @@
         "Template and modes",
         "protected(+operator_declaration)"
     ],
-    "prefix":":- private"
+    "prefix":":- private",
+    "scope":"source.logtalk"
   },
   "directives:protected/1 (predicate)": {
     "body":":- protected(${1:Name}/${2:Arity}).\n",
     "description": [
         "Declares protected predicates. A protected predicate can only be called from the object containing the directive or from an object that inherits the directive.\n",
-        "Template and modes\n",
+        "Template and modes",
         "protected(+predicate_indicator_term)"
     ],
     "prefix":":- protected",
@@ -327,7 +330,7 @@
     "body":":- protected(${1:Name}//${2:Arity}).\n",
     "description": [
         "Declares protected non-terminals. A protected non-terminal can only be used as an argument in a phrase/2 and phrase/3 calls from the object containing the directive or from an object that inherits the directive.\n",
-        "Template and modes\n",
+        "Template and modes",
         "protected(+non_terminal_indicator_term)"
     ],
     "prefix":":- protected",
@@ -337,7 +340,7 @@
     "body":":- protected(op(${1:Priority},${2|fx,fy,xfx,xfy,yfx,xf,yf|},${3:Operator})).\n",
     "description": [
         "Declares protected operators. Protected operators are not inherited but declaring them provides useful information for defining descendant objects.\n",
-        "Template and modes\n",
+        "Template and modes",
         "protected(+operator_declaration)"
     ],
     "prefix":":- protected",
@@ -360,7 +363,7 @@
         "Template and modes",
         "public(+non_terminal_indicator_term)"
     ],
-    "prefix":":- public (operator)",
+    "prefix":":- public",
     "scope":"source.logtalk"
   },
   "directives:public/1 (operator)": {
