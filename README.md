@@ -30,6 +30,7 @@ For details, see [Configuration](#configuration).
 - [Linter](#linter)
 - [Commands](#commands)
 - [Code Navigation](#code-navigation)
+- [Hover contents](#hover-contents)
 
 ## Feature descriptions and usages
 
@@ -129,6 +130,10 @@ Install the [ctagsx](https://marketplace.visualstudio.com/items?itemName=jtanx.c
 The Logtalk support for [Exuberant Ctags](https://ctags.sourceforge.net) must be installed separately. See the `coding/ctags` directory in the Logtalk distribution for details.
 
 You can then select an entity name, a predicate indicator, or a non-terminal indicator and use the "Go to Definition" menu option. You can also use `Cmd+T` or `Ctrl+T` to search for a tag.
+
+### Hover contents
+
+Hover contents is provided for built-in directives, built-in predicates, and built-in methods.
 
 ## Configuration
 
