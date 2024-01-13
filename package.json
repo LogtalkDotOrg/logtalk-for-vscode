@@ -222,17 +222,17 @@
                 "logtalk.home.path": {
                     "type": "string",
                     "default": "",
-                    "description": "Points to the Logtalk home directory (LOGTALKHOME environment variable value)."
+                    "description": "Logtalk home absolute path (LOGTALKHOME environment variable value)."
                 },
                 "logtalk.user.path": {
                     "type": "string",
                     "default": "",
-                    "description": "Points to the Logtalk user directory (LOGTALKUSER environment variable value)."
+                    "description": "Logtalk user absolute path (LOGTALKUSER environment variable value)."
                 },
                 "logtalk.executable.path": {
                     "type": "string",
                     "default": "/usr/local/bin/logtalk",
-                    "description": "Points to the Logtalk executable or integration script."
+                    "description": "Logtalk executable or integration script absolute path."
                 },
                 "logtalk.executable.arguments": {
                     "type": "array",
@@ -281,7 +281,7 @@
                 },
                 "logtalk.scripts.timeout": {
                     "type": "number",
-                    "description": "Timeout (in milliseconds) for waiting to run the scripts that convert documentation files and diagram files to final formats when running the lgtdoc and diagrams tools.",
+                    "description": "Timeout (in milliseconds) for waiting to run the scripts that convert documentation and diagram files to final formats when running the lgtdoc and diagrams tools. Also for waiting to populate the 'Problems' pane when compiling a file.",
                     "default": 480000
                 }
             }

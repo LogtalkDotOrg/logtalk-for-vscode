@@ -18,7 +18,7 @@ This extension can be installed from the [Marketplace](https://marketplace.visua
 
 This extension **must** be configured before it can be used. Notably, the following settings are required:
 
-- `LOGTALKUSER` and `LOGTALKHOME` environment variable values (as full paths).
+- Logtalk home and user paths
 - Logtalk executable or integration script.
 
 For details, see [Configuration](#configuration).
@@ -117,8 +117,8 @@ These commands can be triggered from editor/context and explorer/context menus v
 |                Load File | Loads the active source file into the Logtalk process             |
 |            Make - Reload | Reloads the active source files into the Logtalk process          |
 |             Make - Check | Checks for code issues in the Logtalk process                     |
-|                Run Tests | Runs the tester file under the active source file directory       |
-|               Run Doclet | Run the doclet file under the active source file directory        |
+|                Run Tests | Loads the tester file under the active source file directory      |
+|               Run Doclet | Loads the doclet file under the active source file directory      |
 |           Scan Dead Code | Scans the active source file directory for dead code              |
 |   Generate Documentation | Generates documentation for the active source file directory      |
 |        Generate Diagrams | Generates diagrams for the active source file directory           |
@@ -134,12 +134,12 @@ You can then select an entity name, a predicate indicator, or a non-terminal ind
 
 The user can configure settings via VS Code menu `Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a description of all the settings in this extension with their default values.
 
-### Logtalk environment variables
+### Logtalk home and user paths
 
     "logtalk.home.path": ""
     "logtalk.user.path": ""
 
-No defaults (VSCode doesn't support using environment variables to define settings). Must be set to the `LOGTALKHOME` and `LOGTALKUSER` environment variable absolute paths. On Windows, also use forward slashes (e.g. `C:/Program Files (x86)/Logtalk`).
+No defaults (VSCode doesn't support using environment variables to define settings). Must be set to the `LOGTALKHOME` and `LOGTALKUSER` environment variable **absolute path** values. On Windows, also use forward slashes (e.g. `C:/Program Files (x86)/Logtalk`).
 
 ### Logtalk executable
 
