@@ -1,84 +1,84 @@
 {
-  "category": {
+  "entity:category (implements)": {
     "body":"\n:- category(${1:Category},\n\timplements(${2:Protocol})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${3:Author}',\n\t\tdate is ${4:$CURRENT_YEAR}-${5:$CURRENT_MONTH}-${6:$CURRENT_DATE},\n\t\tcomment is '${7:Description}'\n\t]).\n\n$0\n\n:- end_category.\n",
     "description":"Category with protocol",
     "prefix":"category",
     "scope":"source.logtalk"
   },
-  "category1": {
+  "entity:category (standalone)": {
     "body":"\n:- category(${1:Category}).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${2:Author}',\n\t\tdate is ${3:$CURRENT_YEAR}-${4:$CURRENT_MONTH}-${5:$CURRENT_DATE},\n\t\tcomment is '${6:Description}'\n\t]).\n\n$0\n\n:- end_category.\n",
     "description":"Category",
     "prefix":"category",
     "scope":"source.logtalk"
   },
-  "category2": {
+  "entity:category (complements)": {
     "body":"\n:- category(${1:Category},\n\tcomplements(${2:Object})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${3:Author}',\n\t\tdate is ${4:$CURRENT_YEAR}-${5:$CURRENT_MONTH}-${6:$CURRENT_DATE},\n\t\tcomment is '${7:Description}'\n\t]).\n\n$0\n\n:- end_category.\n",
     "description":"Complementing category",
     "prefix":"category",
     "scope":"source.logtalk"
   },
-  "category3": {
+  "entity:category (extends)": {
     "body":"\n:- category(${1:ExtendedCategory},\n\textends(${2:MinimalCategory})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${3:Author}',\n\t\tdate is ${4:$CURRENT_YEAR}-${5:$CURRENT_MONTH}-${6:$CURRENT_DATE},\n\t\tcomment is '${7:Description}'\n\t]).\n\n$0\n\n:- end_category.\n",
     "description":"Extended category",
     "prefix":"category",
     "scope":"source.logtalk"
   },
-  "class": {
+  "entity:class": {
     "body":"\n:- object(${1:Class},\n\timplements(${2:Protocol}),\n\timports(${3:Category}),\n\tinstantiates(${4:Metaclass}),\n\tspecializes(${5:Superclass})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${6:Author}',\n\t\tdate is ${7:$CURRENT_YEAR}-${8:$CURRENT_MONTH}-${9:$CURRENT_DATE},\n\t\tcomment is '${10:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
     "description":"Class with all",
     "prefix":"class",
     "scope":"source.logtalk"
   },
-  "class1": {
+  "entity:class1": {
     "body":"\n:- object(${1:Class},\n\timports(${2:Category}),\n\tspecializes(${3:Superclass})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${4:Author}',\n\t\tdate is ${5:$CURRENT_YEAR}-${6:$CURRENT_MONTH}-${7:$CURRENT_DATE},\n\t\tcomment is '${8:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
     "description":"Class with category",
     "prefix":"class",
     "scope":"source.logtalk"
   },
-  "class2": {
+  "entity:class2": {
     "body":"\n:- object(${1:Class},\n\tinstantiates(${2:Metaclass}),\n\tspecializes(${3:Superclass})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${4:Author}',\n\t\tdate is ${5:$CURRENT_YEAR}-${6:$CURRENT_MONTH}-${7:$CURRENT_DATE},\n\t\tcomment is '${8:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
     "description":"Class with metaclass",
     "prefix":"class",
     "scope":"source.logtalk"
   },
-  "class3": {
+  "entity:class3": {
     "body":"\n:- object(${1:Class},\n\timplements(${2:Protocol}),\n\tspecializes(${3:Superclass})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${4:Author}',\n\t\tdate is ${5:$CURRENT_YEAR}-${6:$CURRENT_MONTH}-${7:$CURRENT_DATE},\n\t\tcomment is '${8:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
     "description":"Class with protocol",
     "prefix":"class",
     "scope":"source.logtalk"
   },
-  "class4": {
+  "entity:class4": {
     "body":"\n:- object(${1:Class},\n\tspecializes(${2:Superclass})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${3:Author}',\n\t\tdate is ${4:$CURRENT_YEAR}-${5:$CURRENT_MONTH}-${6:$CURRENT_DATE},\n\t\tcomment is '${7:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
     "description":"Class",
     "prefix":"class",
     "scope":"source.logtalk"
   },
-  "directive:category": {
+  "entity:category": {
     "body":":- category(${1:name}).\n\t$2\n:- end_category.\n",
     "prefix":":- cat",
     "scope":"source.logtalk"
   },
-  "directive:catrelation": {
+  "entity:catrelation": {
     "body":"${1|implements,extends,complements|}($2)",
     "description":"relations between categories",
     "prefix":"crel"
   },
-  "directive:object": {
+  "entity:object": {
     "body":":- object(${1:name}).\n\t$2\n:- end_object.\n",
     "prefix":":- obj",
     "scope":"source.logtalk"
   },
-  "directive:objrelation": {
+  "entity:objrelation": {
     "body":"${1|implements,imports,extends,instantiates,specializes|}($2)",
     "description":"relations between objects",
     "prefix":"orel"
   },
-  "directive:prorelation": {
+  "entity:prorelation": {
     "body":"extends(${1})",
     "description":"relations between categories",
     "prefix":"ext"
   },
-  "directive:protocol": {
+  "entity:protocol": {
     "body":":- protocol(${1:name}).\n\t$2\n:- end_protocol.\n",
     "prefix":":- pro",
     "scope":"source.logtalk"
@@ -265,12 +265,21 @@
     "prefix":":- mode",
     "scope":"source.logtalk"
   },
-  "directives:multifile/1": {
+  "directives:multifile/1 (predicate)": {
     "body":":- multifile(${1:Name}/${2:Arity}).\n",
     "description": [
-        "Declares multifile predicates and non-terminals. In the case of object or category multifile predicates, the predicate (or non-terminal) must also have a scope directive in the object or category holding its primary declaration (i.e. the declaration without the Entity:: prefix). Entities holding multifile predicate primary declarations must be compiled and loaded prior to any entities contributing with clauses for the multifile predicates.\n",
+        "Declares multifile predicates. In the case of object or category multifile predicates, the predicate must also have a scope directive in the object or category holding its primary declaration (i.e. the declaration without the Entity:: prefix). Entities holding multifile predicate primary declarations must be compiled and loaded prior to any entities contributing with clauses for the multifile predicates.\n",
         "Template and modes",
-        "multifile(+qualified_predicate_indicator_term)",
+        "multifile(+qualified_predicate_indicator_term)"
+    ],
+    "prefix":":- multifile",
+    "scope":"source.logtalk"
+  },
+  "directives:multifile/1 (non-terminal)": {
+    "body":":- multifile(${1:Name}//${2:Arity}).\n",
+    "description": [
+        "Declares multifile non-terminals. In the case of object or category multifile non-terminals, the non-terminal must also have a scope directive in the object or category holding its primary declaration (i.e. the declaration without the Entity:: prefix). Entities holding multifile non-terminal primary declarations must be compiled and loaded prior to any entities contributing with clauses for the multifile non-terminals.\n",
+        "Template and modes",
         "multifile(+qualified_non_terminal_indicator_term)"
     ],
     "prefix":":- multifile",
@@ -291,7 +300,7 @@
     "description": [
         "Declares private predicates. A private predicate can only be called from the object containing the private directive.\n",
         "Template and modes",
-        "protected(+predicate_indicator)"
+        "private(+predicate_indicator)"
     ],
     "prefix":":- private",
     "scope":"source.logtalk"
@@ -301,7 +310,7 @@
     "description": [
         "Declares private non-terminals. A private non-terminal can only be used in a call of the phrase/2 and phrase/3 methods from the object containing the private directive.\n",
         "Template and modes",
-        "protected(+non_terminal_indicator)"
+        "private(+non_terminal_indicator)"
     ],
     "prefix":":- private",
     "scope":"source.logtalk"
@@ -311,7 +320,7 @@
     "description": [
         "Declares private operators.\n",
         "Template and modes",
-        "protected(+operator_declaration)"
+        "private(+operator_declaration)"
     ],
     "prefix":":- private",
     "scope":"source.logtalk"
@@ -958,33 +967,33 @@
     "prefix":"throw",
     "scope":"source.logtalk"
   },
-  "object": {
-    "body":"\n:- object(${1:Prototype},\n\timplements(${2:Protocol}),\n\timports(${3:Category}),\n\textends(${4:Parent})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${5:Author}',\n\t\tdate is ${6:$CURRENT_YEAR}-${7:$CURRENT_MONTH}-${8:$CURRENT_DATE},\n\t\tcomment is '${9:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
-    "description":"Prototype with all",
+  "entity:object (standalone)": {
+    "body":"\n:- object(${1:Object}).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${2:Author}',\n\t\tdate is ${3:$CURRENT_YEAR}-${4:$CURRENT_MONTH}-${5:$CURRENT_DATE},\n\t\tcomment is '${6:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
+    "description":"Prototype",
     "prefix":"object",
     "scope":"source.logtalk"
   },
-  "object1": {
+  "entity:object (imports)": {
     "body":"\n:- object(${1:Prototype},\n\timports(${2:Category})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${3:Author}',\n\t\tdate is ${4:$CURRENT_YEAR}-${5:$CURRENT_MONTH}-${6:$CURRENT_DATE},\n\t\tcomment is '${7:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
     "description":"Prototype with category",
     "prefix":"object",
     "scope":"source.logtalk"
   },
-  "object2": {
+  "entity:object (extends)": {
     "body":"\n:- object(${1:Prototype},\n\textends(${2:Parent})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${3:Author}',\n\t\tdate is ${4:$CURRENT_YEAR}-${5:$CURRENT_MONTH}-${6:$CURRENT_DATE},\n\t\tcomment is '${7:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
     "description":"Prototype with parent",
     "prefix":"object",
     "scope":"source.logtalk"
   },
-  "object3": {
+  "entity:object (implements)": {
     "body":"\n:- object(${1:Prototype},\n\timplements(${2:Protocol})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${3:Author}',\n\t\tdate is ${4:$CURRENT_YEAR}-${5:$CURRENT_MONTH}-${6:$CURRENT_DATE},\n\t\tcomment is '${7:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
     "description":"Prototype with protocol",
     "prefix":"object",
     "scope":"source.logtalk"
   },
-  "object4": {
-    "body":"\n:- object(${1:Object}).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${2:Author}',\n\t\tdate is ${3:$CURRENT_YEAR}-${4:$CURRENT_MONTH}-${5:$CURRENT_DATE},\n\t\tcomment is '${6:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
-    "description":"Prototype",
+  "entity:object (all)": {
+    "body":"\n:- object(${1:Prototype},\n\timplements(${2:Protocol}),\n\timports(${3:Category}),\n\textends(${4:Parent})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${5:Author}',\n\t\tdate is ${6:$CURRENT_YEAR}-${7:$CURRENT_MONTH}-${8:$CURRENT_DATE},\n\t\tcomment is '${9:Description}'\n\t]).\n\n$0\n\n:- end_object.\n",
+    "description":"Prototype with all",
     "prefix":"object",
     "scope":"source.logtalk"
   },
@@ -1639,49 +1648,49 @@
     "prefix":"threaded_wait",
     "scope":"source.logtalk"
   },
-  "private": {
+  "predicate_declaration:private": {
     "body":"\t:- private(${1:Functor}/0).\n\t:- mode(${1:Functor}, ${2:Solutions}).\n\t:- info(${1:Functor}/0, [\n\t\tcomment is '${3:Description}'\n\t]).\n\n$0",
-    "description":"(with no arguments)",
+    "description":"Private predicate (with no arguments)",
     "prefix":"private",
     "scope":"source.logtalk"
   },
-  "private1": {
+  "predicate_declaration:private1": {
     "body":"\t:- private(${1:Name}/${2:Arity}).\n\t:- mode(${1:Functor}(${3:Arguments}), ${4:Solutions}).\n\t:- info(${1:Name}/${2:Arity}, [\n\t\tcomment is '${5:Description}',\n\t\targuments is ['$6'-'$7']\n\t]).\n\n$0",
     "description":"Private predicate",
     "prefix":"private",
     "scope":"source.logtalk"
   },
-  "protected": {
+  "predicate_declaration:protected": {
     "body":"\t:- protected(${1:Functor}/0).\n\t:- mode(${1:Functor}, ${2:Solutions}).\n\t:- info(${1:Functor}/0, [\n\t\tcomment is '${3:Description}'\n\t]).\n\n$0",
-    "description":"(with no arguments)",
+    "description":"Protected predicate (with no arguments)",
     "prefix":"protected",
     "scope":"source.logtalk"
   },
-  "protected1": {
+  "predicate_declaration:protected1": {
     "body":"\t:- protected(${1:Name}/${2:Arity}).\n\t:- mode(${1:Functor}(${3:Arguments}), ${4:Solutions}).\n\t:- info(${1:Name}/${2:Arity}, [\n\t\tcomment is '${5:Description}',\n\t\targuments is ['$6'-'$7']\n\t]).\n\n$0",
     "description":"Protected predicate",
     "prefix":"protected",
     "scope":"source.logtalk"
   },
-  "protocol": {
+  "entity:protocol (extends)": {
     "body":"\n:- protocol(${1:Extended},\n\textends(${2:Minimal})).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${3:Author}',\n\t\tdate is ${4:$CURRENT_YEAR}-${5:$CURRENT_MONTH}-${6:$CURRENT_DATE},\n\t\tcomment is '${7:Description}'\n\t]).\n\n$0\n\n:- end_protocol.\n",
     "description":"Extended protocol",
     "prefix":"protocol",
     "scope":"source.logtalk"
   },
-  "protocol1": {
+  "entity:protocol (standalone)": {
     "body":"\n:- protocol(${1:Protocol}).\n\n\t:- info([\n\t\tversion is 1:0:0,\n\t\tauthor is '${2:Author}',\n\t\tdate is ${3:$CURRENT_YEAR}-${4:$CURRENT_MONTH}-${5:$CURRENT_DATE},\n\t\tcomment is '${6:Description}'\n\t]).\n\n$0\n\n:- end_protocol.\n",
     "description":"Protocol",
     "prefix":"protocol",
     "scope":"source.logtalk"
   },
-  "public": {
+  "predicate_declaration:public": {
     "body":"\t:- public(${1:Functor}/0).\n\t:- mode(${1:Functor}, ${2:Solutions}).\n\t:- info(${1:Functor}/0, [\n\t\tcomment is '${3:Description}'\n\t]).\n\n$0",
-    "description":"(with no arguments)",
+    "description":"Public predicate (with no arguments)",
     "prefix":"public",
     "scope":"source.logtalk"
   },
-  "public1": {
+  "predicate_declaration:public1": {
     "body":"\t:- public(${1:Name}/${2:Arity}).\n\t:- mode(${1:Functor}(${3:Arguments}), ${4:Solutions}).\n\t:- info(${1:Name}/${2:Arity}, [\n\t\tcomment is '${5:Description}',\n\t\targuments is ['$6'-'$7']\n\t]).\n\n$0",
     "description":"Public predicate",
     "prefix":"public",
