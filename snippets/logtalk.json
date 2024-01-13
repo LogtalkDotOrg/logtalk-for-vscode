@@ -646,7 +646,7 @@
     "scope":"source.logtalk"
   },
   "methods:eos//0": {
-    "body":"eos$0$0",
+    "body":"eos$0",
     "description": [
         "This non-terminal matches the end-of-input. It is implemented by checking that the implicit difference list unifies with []-[].\n",
         "Template and modes",
@@ -1355,7 +1355,7 @@
     "scope":"source.logtalk"
   },
   "predicates:logtalk_make/0": {
-    "body":"logtalk_make$0$0",
+    "body":"logtalk_make$0",
     "description": [
         "Reloads all Logtalk source files that have been modified since the time they are last loaded. Only source files loaded using the logtalk_load/1-2 predicates are reloaded. Non-modified files will also be reloaded when there is a change to the compilation mode (i.e. when the files were loaded without explicit debug/1 or optimize/1 flags and the default values of these flags changed after loading; no check is made, however, for other implicit compiler flags that may have changed since loading). When an included file is modified, this predicate reloads its main file (i.e. the file that contains the include/1 directive).\n",
         "Template and modes",
