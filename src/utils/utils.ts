@@ -10,7 +10,7 @@ interface ISnippet {
   [predIndicator: string]: {
     prefix: string;
     body: string[];
-    description: string;
+    description: string[];
   };
 }
 import * as fs from "fs";
@@ -69,7 +69,7 @@ export class Utils {
       if (re.test(key)) {
         let desc = descs.push(
           Utils.snippets[key].description
-            .replace("Description", "")
+            .join('\n')
             .replace("Template and modes", "Template and modes\n")
         );
       }
