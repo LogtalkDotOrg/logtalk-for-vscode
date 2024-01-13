@@ -17,6 +17,7 @@ import * as fs from "fs";
 import * as cp from "child_process";
 import * as jsesc from "jsesc";
 import * as path from "path";
+import * as vscode from "vscode";
 
 export class Utils {
   private static snippets: ISnippet = null;
@@ -61,20 +62,23 @@ export class Utils {
   public static getSnippetDescription(
     doc: TextDocument,
     pred: string
-  ): string[] {
+  ): vscode.MarkdownString {
     const docTxt = doc.getText();
-    let descs: string[] = [];
-    const re = new RegExp("^\\w+:" + pred);
+    const desc = new vscode.MarkdownString();
+    const re = new RegExp("^(directives|predicates|methods):" + pred);
     for (let key in Utils.snippets) {
       if (re.test(key)) {
-        let desc = descs.push(
+        desc.appendMarkdown("<p>");
+        desc.appendMarkdown(
           Utils.snippets[key].description
-            .join('\n')
-            .replace("Template and modes", "Template and modes\n")
+            .join('\n\n')
+            .replace("Template and modes", "<strong>Template and modes</strong><pre>")
         );
+        desc.appendMarkdown("</pre>");
       }
     }
-    return descs;
+    desc.appendMarkdown("<p>");
+    return desc;
   }
 
   public static getPredicateUnderCursor(

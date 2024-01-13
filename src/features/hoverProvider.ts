@@ -12,6 +12,7 @@ import { Utils } from "../utils/utils";
 import * as fs from "fs";
 import * as path from "path";
 import * as xpath from "xpath";
+import * as vscode from "vscode";
 import { DOMParser } from "@xmldom/xmldom";
 
 export default class LogtalkHoverProvider implements HoverProvider {
@@ -27,8 +28,10 @@ export default class LogtalkHoverProvider implements HoverProvider {
       return;
     }
     let pi = Utils.getPredicateUnderCursor(doc, position);
-    let contents: string[] = Utils.getSnippetDescription(doc, pi);
-    return contents.length == 0 ? null : new Hover(contents, wordRange);
+    let contents: vscode.MarkdownString = Utils.getSnippetDescription(doc, pi);
+    contents.supportHtml = true;
+    contents.isTrusted = true;
+    return contents.value.length < 7 ? null : new Hover(contents, wordRange);
 
   }
   
