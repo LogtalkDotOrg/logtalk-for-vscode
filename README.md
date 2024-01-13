@@ -139,7 +139,7 @@ The user can configure settings via VS Code menu `Settings`. Entering `Logtalk` 
     "logtalk.home.path": ""
     "logtalk.user.path": ""
 
-No defaults. Must be set to the `LOGTALKHOME` and `LOGTALKUSER` environment variable absolute paths. On Windows, also use forward slashes (e.g. `C:/Program Files (x86)/Logtalk`).
+No defaults (VSCode doesn't support using environment variables to define settings). Must be set to the `LOGTALKHOME` and `LOGTALKUSER` environment variable absolute paths. On Windows, also use forward slashes (e.g. `C:/Program Files (x86)/Logtalk`).
 
 ### Logtalk executable
 
@@ -227,7 +227,7 @@ This timeout is also used to wait for a file compilation to finish before adding
 
 ## Known Issues
 
-On Windows systems, the file paths on the "Problems" pane are not relative to the workspace directory. The "Go to Definition" menu item is non-operational.
+On Windows systems, the file paths on the "Problems" pane are not relative to the workspace directory.
 
 ## Development
 
