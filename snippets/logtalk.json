@@ -160,11 +160,21 @@
   "directives:else/0": {
     "body":":- else.\n",
     "description": [
-        "Starts a else branch when performing conditional compilation.\n",
+        "Starts an else branch when performing conditional compilation.\n",
         "Template and modes",
         "else"
     ],
     "prefix":":- else",
+    "scope":"source.logtalk"
+  },
+  "directives:endif/0": {
+    "body":":- endif.\n",
+    "description": [
+        "Ends an if branch when performing conditional compilation.\n",
+        "Template and modes",
+        "endif"
+    ],
+    "prefix":":- endif",
     "scope":"source.logtalk"
   },
   "directives:encoding/1": {
@@ -180,7 +190,7 @@
   "directives:if/1": {
     "body":":- if(${1:Goal}).\n",
     "description": [
-        "Starts conditional compilation. The code following the directive is compiled if Goal is true. The goal is subjected to goal expansion when the directive occurs in a source file.\n",
+        "Starts an if-then branch when performing conditional compilation. The code following the directive is compiled if Goal is true. The goal is subjected to goal expansion when the directive occurs in a source file.\n",
         "Template and modes",
         "if(@callable)"
     ],
