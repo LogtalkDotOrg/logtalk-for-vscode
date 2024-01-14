@@ -121,7 +121,7 @@ export class Utils {
       
       if (pp.status === 0) {
         let out = pp.stdout.toString();
-        let match = out.match(/name=(\w+);arity=(\d+)/);
+        let match = out.match(/name=[(]?(\w+)[)]?;arity=(\d+)/);
         if (match) {
           [name, arity] = [match[1], parseInt(match[2])];
         }

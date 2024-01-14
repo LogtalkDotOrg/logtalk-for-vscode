@@ -14,7 +14,7 @@ Developed and tested in **Logtalk 3.73.0** and **VSCode 1.85.1** on **macOS 14.2
 
 ## Installation
 
-This extension can be installed from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=LogtalkDotOrg.logtalk-for-vscode&ssr=false#overview) or by downloading its `.vsix` file and selecting `'Extensions: Install from VSIX...'` command from the command palette. See [Development](#development) for details on how the generate the extension `.vsix` file.
+This extension can be installed directly from VSCode, from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=LogtalkDotOrg.logtalk-for-vscode&ssr=false#overview), or by downloading its `.vsix` file and selecting `'Extensions: Install from VSIX...'` command from the command palette. See [Development](#development) for details on how the generate the extension `.vsix` file for a git version.
 
 This extension **must** be configured before it can be used. Notably, the following settings are required:
 
