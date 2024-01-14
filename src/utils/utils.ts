@@ -68,16 +68,11 @@ export class Utils {
     const re = new RegExp("^(directives|predicates|methods):" + pred);
     for (let key in Utils.snippets) {
       if (re.test(key)) {
-        desc.appendMarkdown("<p>");
-        desc.appendMarkdown(
-          Utils.snippets[key].description
-            .join('\n\n')
-            .replace("Template and modes", "<strong>Template and modes</strong><pre>")
-        );
-        desc.appendMarkdown("</pre>");
+        const contents = Utils.snippets[key].description.join('\n').split("Template and modes");
+        desc.appendCodeblock(contents[1], "logtalk");
+        desc.appendMarkdown(contents[0]);
       }
     }
-    desc.appendMarkdown("<p>");
     return desc;
   }
 
