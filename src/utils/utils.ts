@@ -116,7 +116,7 @@ export class Utils {
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, [], {
         cwd: workspace.rootPath,
         encoding: "utf8",
-        input: `functor(${wholePred}, N, A), write(name=N;arity=A).`
+        input: `functor(${wholePred}, N, A), write((name=N;arity=A)), nl.`
       });
       
       if (pp.status === 0) {
