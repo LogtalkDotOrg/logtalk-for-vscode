@@ -240,6 +240,8 @@ This timeout is also used to wait for a file compilation to finish before adding
 
 On Windows systems, the file paths on the "Problems" pane are not relative to the workspace directory.
 
+If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated context menu items even after uninstalling it. If that happens, delete any extension leftovers in the `%USERPROFILE%\.vscode\extensions` (for Windows) or `~/.vscode/extensions` (for Linux and macOS) directory.
+
 ## Development
 
 This extension has been package and tested with Node 21.
