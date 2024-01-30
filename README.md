@@ -2,13 +2,13 @@
 
 A VSCode extension which provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Developed and tested in **Logtalk 3.73.0** and **VSCode 1.85.1** on **macOS 14.2** and **Windows 10** with **Node 21**.
+Developed and tested in **Logtalk 3.73.0** and **VSCode 1.85.2** on **macOS 14.3** and **Windows 10** with **Node 21**.
 
 🙏 Sponsored by [Permion](https://permion.ai/).
 
 ---
 
-[Features](#features) | [Configuration](#configuration) | [Bug Reporting](https://github.com/LogtalkDotOrg/logtalk-for-vscode/issues)
+[Features](#features) | [Configuration](#configuration) | [Known Issues](#known-issues) | [Development](#development) | [Acknowledgements](#acknowledgements) | [Licence](#license)
 
 ---
 
@@ -32,18 +32,15 @@ For details, see [Configuration](#configuration).
 - [Code Navigation](#code-navigation)
 - [Hover contents](#hover-contents)
 
-## Feature descriptions and usages
-
 ### Syntax highlighting
 
 - Full syntax highlight for all Logtalk built-in control constructs, directives, methods, and predicates
 - Full syntax highlight for all ISO Prolog standard built-in control constructs, directives, and predicates
-- Built-ins pattern support
 
 ### Indentation, snippets and auto-completion
 
 - Indentation after new line
-- Built-in directive, method and predicate template auto-completion
+- Built-in directive, method, and predicate template auto-completion
 - Auto-complete recursive parameters: When `.` (dot) occurs as first non-space character, this extension will repeat the nearest above head of clause and automatically change the parameters if possible.
 
 Note: Relations between entities use choice snippets: `orel` triggers object relation choices and `crel` for category. There is only one relation between protocols, 'extends', so `ext` will trigger the snippet.
@@ -244,19 +241,11 @@ If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated
 
 ## Development
 
-This extension has been package and tested with Node 21.
+This extension has been package and tested with Node 21. After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
-After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
+See the [Changelog](https://github.com/LogtalkDotOrg/logtalk-for-vscode/blob/master/CHANGELOG.md) for the most recent changes. [Contributions](https://github.com/LogtalkDotOrg/logtalk-for-vscode/pulls) and [bug reports](https://github.com/LogtalkDotOrg/logtalk-for-vscode/issues) are most welcome.
 
-## Update Notes
-
-Please see the [Changelog](https://github.com/LogtalkDotOrg/logtalk-for-vscode/blob/master/CHANGELOG.md).
-
-## Contributions
-
-[Pull requests](https://github.com/LogtalkDotOrg/logtalk-for-vscode/pulls) are most welcome.
-
-## Acknowledgements & Contributors
+## Acknowledgements
 
 ### Arthur Wang (Original Author)
 
@@ -266,4 +255,4 @@ Due to Arthur's current unavailability and since-deprecated modules, this extens
 
 ## License
 
-[MIT](http://www.opensource.org/licenses/mit-license.php)
+This extension is published under the [MIT](http://www.opensource.org/licenses/mit-license.php) license.
