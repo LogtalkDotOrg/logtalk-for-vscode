@@ -23,15 +23,16 @@ comment
 :- set_prolog_flag(Flag, Value).
 :- set_logtalk_flag(Flag, Value).
 
+
 :- object(prototype,
 	implements(protocol),
 	imports(category),
 	extends(parent)).
 
 	:- info([
-		version is 1:48:0,
+		version is 1:50:0,
 		author is 'Paulo Moura',
-		date is 2020-07-31,
+		date is 2024-01-13,
 		comment is 'Sample prototype for testing syntax coloring.'
 	]).
 
@@ -218,6 +219,7 @@ comment
 		forward(Message).
 
 	dcg_rules_parsing_methods :-
+		phrase(NonTerminal, Input),
 		phrase(NonTerminal, Input, Rest).
 
 	term_expansion_methods :-
@@ -253,8 +255,8 @@ comment
 		X1 is 13, X2 is -13, X3 is +13,
 		Y1 is 13.13, Y2 is -13.13, Y3 is +13.13,
 		Z1 is 13.13e-23, Z2 is -13.13e-23, Z3 is +13.13e-23,
-		C1 is 0'A, C2 is 0'', C3 is 0'", C4 is 0'%,
-		C5 is 0'\n, C6 is 0'\\, C7 is 0'\', C8 is 0'\", C9 is 0'\`,
+		C1 is 0'A, C2 is 0'a, C3 is 0'-, C4 is 0'*, C5 is 0'%,
+		C6 is 0'\n, C7 is 0'\\, C8 is 0'\', C9 is 0'\", C10 is 0'\`,
 		B1 is 0b1011101,
 		O1 is 0o1234560,
 		H1 is 0x1234567890abcDEF.
@@ -396,6 +398,9 @@ comment
 		keysort(List, Sorted),
 		sort(List, Sorted).
 
+	built_in_non_terminals(NonTerminal) -->
+		phrase(NonTerminal), call(NonTerminal), eos.
+
 	number(C) --> "+", number(C).
 	number(C) --> "-", number(X), {C is -X}.
 	number(X) --> [C], {0'0 =< C, C =< 0'9, X is C - 0'0}.
@@ -407,6 +412,14 @@ comment
 		write('Quoted atom with control escape sequences: \a \b \r \f \t \n \v'),
 		write('Quoted atom with an octal escape sequence: \123\.'),
 		write('Quoted atom with an hexadecimal escape sequence: \x123f\.').
+
+	escape_sequences :-
+		write("Double-quoted term with a double-quote ("") inside."),
+		write("Double-quoted term with a double-quote (\") inside using a control escape sequence."),
+		write("Double-quoted term with a backslash (\\) inside."),
+		write("Double-quoted term with control escape sequences: \a \b \r \f \t \n \v"),
+		write("Double-quoted term with an octal escape sequence: \123\."),
+		write("Double-quoted term with an hexadecimal escape sequence: \x123f\.").
 
 	% nothing in the following predicate definition should be highlighted
 	sort :-
