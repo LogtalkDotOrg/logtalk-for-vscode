@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.19.0]
+
+* Update the syntax test file
+* Improve the readme file configuration section
+* Update the "Known Issues" section in the readme file
+
+## [0.18.0]
+
+* Fix hover contents to work with more strictly compliant Prolog backends
+* Update minimum VSCode version required to 1.31.0
+
+## [0.17.0]
+
+* Fix missing hover contents for directives where the name is declared as an operator by the backend Prolog compiler
+
+## [0.16.0]
+
+* Add missing snippet for the `endif/0` directive
+* Improve hover contents styling
+* Snippets fixes and improvements
+
+## [0.15.0]
+
+* Mention hover contents provider in the readme file
+
+## [0.14.0]
+
+* Fix some snippets typos
+* Fix hover provider for recent changes to snippets
+* Fix typos in snippets for the `logtalk_make/0` predicate and `eos//0` non-terminal
+
+## [0.13.0]
+
+* Improve descriptions of some of the settings
+* Update readme file "Known Issues" section
+* Remove `logtalk.scratch.path` and `logtalk.vscode.messagefile` settings
+
+## [0.12.0]
+
+* Fix syntax error in the snippets JSON file
+
+## [0.11.0]
+
+* Add code completion support for the opening and closing entity directives
+* Add code completion support for the error handling built-in methods
+* Improve code completion for built-in features
+* Improve description of some of the configuration settings
+* Update readme file installation instructions
+
 ## [0.10.0]
 
 * Add make check command
