@@ -1,6 +1,6 @@
 "use strict";
 
-import { Terminal, window, workspace, TextDocument, Disposable, OutputChannel, Uri, ExtensionContext, TerminalLink } from "vscode";
+import { Terminal, window, workspace, TextDocument, Disposable, OutputChannel, Uri, ExtensionContext, TerminalLink, Position } from "vscode";
 import * as vscode from "vscode";
 import * as path from "path";
 import * as jsesc from "jsesc";
@@ -356,6 +356,28 @@ export default class LogtalkTerminal {
       LogtalkTerminal._docletExec,
       LogtalkTerminal._docletArgs
     );
+  }
+
+  public static async getDeclaration(doc: TextDocument, position: Position, functor: string, arity: number) {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+    const loader0 = path.join(dir0, "loader");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
+    let goals = `
+      logtalk_load('${loader}'),
+      object_property(Object, file('${doc.fileName}')),
+      object_property(Object, lines(BeginLine, EndLine)),
+      BeginLine =< ${position.line}, ${position.line} =< EndLine,
+      functor(Template, ${functor}, ${arity}),
+      Object::predicate_property(Template, declared_in(Entity, Line)),
+      object_property(Entity, file(File)),
+      open('${dir}/.declaration_done', write, Stream),
+      format(Stream, "File:~w;Line:~d~n", [File, Line]),
+      close(Stream).\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(dir0, ".declaration_done");
+    await LogtalkTerminal.waitForFile(marker);
   }
 
   private static spawnScript4(dir: string, type: string[], path: string, args: string[]) {
