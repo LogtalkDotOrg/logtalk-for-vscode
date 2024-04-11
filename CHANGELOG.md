@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.20.0]
+
+* Fix JavaScript error when parsing terminal output
+
 ## [0.19.0]
 
 * Update the syntax test file

@@ -80,7 +80,9 @@ export default class LogtalkTerminal {
 
           let match = UrlRegex.exec(context.line);
     
-          if (match.length === 0) {
+          if (match == null) {
+            return [];
+          } else if (match.length === 0) {
             return [];
           }
 
@@ -88,9 +90,9 @@ export default class LogtalkTerminal {
 
           let file = match[2] + ":"
 
-          if(match[7] && match[8]) {
+          if (match[7] && match[8]) {
             file += match[7] + "-" + match[8]
-          } else if(match[10]){
+          } else if (match[10]){
             file += match[10];
           } else {
             file += match[5];
