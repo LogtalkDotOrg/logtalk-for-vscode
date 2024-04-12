@@ -136,4 +136,76 @@ export class Utils {
     }
     return name + "/" + arity;
   }
+
+  public static getCallUnderCursor(
+    doc: TextDocument,
+    position: Position
+  ): string {
+    let wordRange: Range = doc.getWordRangeAtPosition(
+      position,
+      /(\w+)?(::|\^\^)?\w+/
+    );
+    if (!wordRange) {
+      return null;
+    }
+    let arity = 0;
+    let name = doc.getText(wordRange);
+//    console.log("name: " + name);
+    let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    let re = new RegExp("^(?:" + name_escaped + ")\\(");
+    let re1 = new RegExp("^(?:" + name_escaped + ")/(\\d+)");
+    let doctext = doc.getText();
+    let text = doctext
+      .split("\n")
+      .slice(position.line)
+      .join("")
+      .slice(wordRange.start.character)
+      .replace(/\s+/g, " ");
+//    console.log("text: " + name);
+    if (re.test(text)) {
+//      console.log("match");
+      let i = text.indexOf("(") + 1;
+      let matched = 1;
+      while (matched > 0) {
+        if (text.charAt(i) === "(") {
+          matched++;
+          i++;
+          continue;
+        }
+        if (text.charAt(i) === ")") {
+          matched--;
+          i++;
+          continue;
+        }
+        i++;
+      }
+      let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
+//      console.log("wholePred: " + wholePred);
+
+      let pp = cp.spawnSync(Utils.RUNTIMEPATH, [], {
+        cwd: workspace.rootPath,
+        encoding: "utf8",
+        input: `(${wholePred} = (Obj::Pred) -> functor(Pred, N, A), write((name=(Obj::N);arity=A)); ${wholePred} = (::Pred) -> functor(Pred, N, A), write((name=(::N);arity=A)); ${wholePred} = (^^Pred) -> functor(Pred, N, A), write((name=(^^N);arity=A)); functor(${wholePred}, N, A), write((name=N;arity=A))), nl.`
+      });
+
+      if (pp.status === 0) {
+        let out = pp.stdout.toString();
+//        console.log("out: " + out);
+        let match = out.match(/name=\s*[(]?((?:\w|:|\^)+)[)]?;arity=(\d+)/);
+        if (match) {
+          [name, arity] = [match[1], parseInt(match[2])];
+        }
+      } else {
+        console.log(pp.stderr.toString());
+      }
+    } else {
+      let m = text.match(re1);
+      if (m) {
+        arity = parseInt(m[1]);
+      }
+    }
+//    console.log("call: " + name + "/" + arity);
+    return name + "/" + arity;
+  }
+
 }

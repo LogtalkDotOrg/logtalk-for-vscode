@@ -23,7 +23,7 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
     token: CancellationToken
   ): Promise<Location> {
     let location: Location = null;
-    let pi = Utils.getPredicateUnderCursor(doc, position);
+    let pi = Utils.getCallUnderCursor(doc, position);
     if (!pi) {
       return null;
     }

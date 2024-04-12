@@ -365,15 +365,17 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const loader = path.resolve(loader0).split(path.sep).join("/");
     let goals = `
-      logtalk_load('${loader}'),
-      object_property(Object, file('${doc.fileName}')),
-      object_property(Object, lines(BeginLine, EndLine)),
-      BeginLine =< ${position.line}, ${position.line} =< EndLine,
-      functor(Template, ${functor}, ${arity}),
-      Object::predicate_property(Template, declared_in(Entity, Line)),
-      object_property(Entity, file(File)),
       open('${dir}/.declaration_done', write, Stream),
-      format(Stream, "File:~w;Line:~d~n", [File, Line]),
+      ( logtalk_load('${loader}'),
+        object_property(Object, file('${doc.fileName}')),
+        object_property(Object, lines(BeginLine, EndLine)),
+        BeginLine =< ${position.line}, ${position.line} =< EndLine,
+        functor(Template, ${functor}, ${arity}),
+        Object::predicate_property(Template, declared_in(Entity, Line)),
+        object_property(Entity, file(File)) ->
+        format(Stream, "File:~w;Line:~d~n", [File, Line])
+      ; true
+      ),
       close(Stream).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".declaration_done");
