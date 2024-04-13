@@ -367,8 +367,7 @@ export default class LogtalkTerminal {
     let goals = `
       open('${dir}/.declaration_done', write, Stream),
       ( logtalk_load('${loader}'),
-        vscode_reflection::entity('${doc.fileName}', ${position.line}, Entity),
-        vscode_reflection::decode(${call}, Entity, _, _, _, File, Line, _, declaration, _) ->
+        vscode_reflection::find_declaration(${call}, '${doc.fileName}', ${position.line}, File, Line) ->
         format(Stream, "File:~w;Line:~d~n", [File, Line])
       ; true
       ),
@@ -387,8 +386,7 @@ export default class LogtalkTerminal {
     let goals = `
       open('${dir}/.definition_done', write, Stream),
       ( logtalk_load('${loader}'),
-        vscode_reflection::entity('${doc.fileName}', ${position.line}, Entity),
-        vscode_reflection::decode(${call}, Entity, _, _, _, File, Line, _, definition, _) ->
+        vscode_reflection::find_definition(${call}, '${doc.fileName}', ${position.line}, File, Line) ->
         format(Stream, "File:~w;Line:~d~n", [File, Line])
       ; true
       ),
