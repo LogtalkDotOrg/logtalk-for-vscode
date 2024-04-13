@@ -15,8 +15,8 @@ import LogtalkDocumentHighlightProvider from "./features/documentHighlightProvid
 import LogtalkTerminal from "./features/logtalkTerminal";
 import LogtalkLinter from "./features/logtalkLinter";
 import LogtalkHoverProvider from "./features/hoverProvider";
-//import { LogtalkDefinitionProvider } from "./features/definitionProvider";
 import { LogtalkDeclarationProvider } from "./features/declarationProvider";
+import { LogtalkDefinitionProvider } from "./features/definitionProvider";
 
 const DEBUG = 1;
 
@@ -68,9 +68,9 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerDeclarationProvider(LOGTALK_MODE, new LogtalkDeclarationProvider())
   );
-//  context.subscriptions.push(
-//    languages.registerDefinitionProvider(LOGTALK_MODE, new LogtalkDefinitionProvider())
-//  );
+  context.subscriptions.push(
+    languages.registerDefinitionProvider(LOGTALK_MODE, new LogtalkDefinitionProvider())
+  );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }
 // this method is called when your extension is deactivated

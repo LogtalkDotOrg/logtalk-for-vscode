@@ -1,6 +1,6 @@
 import {
   CancellationToken,
-  DeclarationProvider,
+  DefinitionProvider,
   Location,
   Position,
   Range,
@@ -16,8 +16,8 @@ import * as jsesc from "jsesc";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 
-export class LogtalkDeclarationProvider implements DeclarationProvider {
-  public async provideDeclaration(
+export class LogtalkDefinitionProvider implements DefinitionProvider {
+  public async provideDefinition(
     doc: TextDocument,
     position: Position,
     token: CancellationToken
@@ -28,10 +28,10 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
       return null;
     }
 
-    await LogtalkTerminal.getDeclaration(doc, position, call);
+    await LogtalkTerminal.getDefinition(doc, position, call);
 
     const dir = path.dirname(doc.uri.fsPath);
-    const dcl = path.join(dir, ".declaration_done");
+    const dcl = path.join(dir, ".definition_done");
 
     if (fs.existsSync(dcl)) {
       let out = await fs.readFileSync(dcl).toString();

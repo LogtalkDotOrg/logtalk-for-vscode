@@ -128,7 +128,7 @@ export default class LogtalkTerminal {
         }
       });
 
-      let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode_message_streamer.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
+      let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode_support.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
       console.log(goals);
       LogtalkTerminal.sendString(goals, false);
 
@@ -358,7 +358,7 @@ export default class LogtalkTerminal {
     );
   }
 
-  public static async getDeclaration(doc: TextDocument, position: Position, functor: string, arity: number) {
+  public static async getDeclaration(doc: TextDocument, position: Position, call: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const loader0 = path.join(dir0, "loader");
@@ -370,15 +370,35 @@ export default class LogtalkTerminal {
         object_property(Object, file('${doc.fileName}')),
         object_property(Object, lines(BeginLine, EndLine)),
         BeginLine =< ${position.line}, ${position.line} =< EndLine,
-        functor(Template, ${functor}, ${arity}),
-        Object::predicate_property(Template, declared_in(Entity, Line)),
-        object_property(Entity, file(File)) ->
+        vscode_reflection::decode(${call}, Object, _, _, _, File, Line, _, declaration, _) ->
         format(Stream, "File:~w;Line:~d~n", [File, Line])
       ; true
       ),
       close(Stream).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".declaration_done");
+    await LogtalkTerminal.waitForFile(marker);
+  }
+
+  public static async getDefinition(doc: TextDocument, position: Position, call: string) {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+    const loader0 = path.join(dir0, "loader");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
+    let goals = `
+      open('${dir}/.definition_done', write, Stream),
+      ( logtalk_load('${loader}'),
+        object_property(Object, file('${doc.fileName}')),
+        object_property(Object, lines(BeginLine, EndLine)),
+        BeginLine =< ${position.line}, ${position.line} =< EndLine,
+        vscode_reflection::decode(${call}, Object, _, _, _, File, Line, _, definition, _) ->
+        format(Stream, "File:~w;Line:~d~n", [File, Line])
+      ; true
+      ),
+      close(Stream).\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(dir0, ".definition_done");
     await LogtalkTerminal.waitForFile(marker);
   }
 
