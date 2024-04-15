@@ -123,6 +123,8 @@ These commands can be triggered from editor/context and explorer/context menus v
 
 ### Code Navigation
 
+Code navigation features **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
+
 #### Go to Declaration
 
 Click in the middle of a predicate name and select the "Go to Declaration" menu or context menu item.

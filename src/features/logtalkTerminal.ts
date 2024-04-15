@@ -361,17 +361,8 @@ export default class LogtalkTerminal {
   public static async getDeclaration(doc: TextDocument, position: Position, call: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
-    let goals = `
-      open('${dir}/.declaration_done', write, Stream),
-      ( logtalk_load('${loader}'),
-        vscode_reflection::find_declaration(${call}, '${doc.fileName}', ${position.line}, File, Line) ->
-        format(Stream, "File:~w;Line:~d~n", [File, Line])
-      ; true
-      ),
-      close(Stream).\r`;
+    let goals = `vscode_reflection::find_declaration('${dir}', ${call}, '${doc.fileName}', ${position.line}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".declaration_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -380,17 +371,8 @@ export default class LogtalkTerminal {
   public static async getDefinition(doc: TextDocument, position: Position, call: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
-    let goals = `
-      open('${dir}/.definition_done', write, Stream),
-      ( logtalk_load('${loader}'),
-        vscode_reflection::find_definition(${call}, '${doc.fileName}', ${position.line}, File, Line) ->
-        format(Stream, "File:~w;Line:~d~n", [File, Line])
-      ; true
-      ),
-      close(Stream).\r`;
+    let goals = `vscode_reflection::find_definition('${dir}', ${call}, '${doc.fileName}', ${position.line}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".definition_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -399,17 +381,8 @@ export default class LogtalkTerminal {
   public static async getTypeDefinition(doc: TextDocument, entity: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
-    let goals = `
-      open('${dir}/.type_definition_done', write, Stream),
-      ( logtalk_load('${loader}'),
-        vscode_reflection::find_type_definition(${entity}, File, Line) ->
-        format(Stream, "File:~w;Line:~d~n", [File, Line])
-      ; true
-      ),
-      close(Stream).\r`;
+    let goals = `vscode_reflection::find_type_definition('${dir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".type_definition_done");
     await LogtalkTerminal.waitForFile(marker);
