@@ -31,11 +31,11 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     await LogtalkTerminal.getDefinition(doc, position, call);
 
     const dir = path.dirname(doc.uri.fsPath);
-    const dcl = path.join(dir, ".definition_done");
+    const def = path.join(dir, ".definition_done");
 
-    if (fs.existsSync(dcl)) {
-      let out = await fs.readFileSync(dcl).toString();
-      fsp.rm(dcl, { force: true });
+    if (fs.existsSync(def)) {
+      let out = await fs.readFileSync(def).toString();
+      fsp.rm(def, { force: true });
       let match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
         let fileName: string = match[1];

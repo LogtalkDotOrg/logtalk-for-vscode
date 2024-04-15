@@ -2,7 +2,7 @@
 
 A VSCode extension which provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Developed and tested in **Logtalk 3.74.0** and **VSCode 1.85.2** on **macOS 14.3** and **Windows 10** with **Node 21**.
+Developed and tested in **Logtalk 3.78.0** and **VSCode 1.88.1** on **macOS 14.4** and **Windows 10** with **Node 21**.
 
 🙏 Sponsored by [Permion](https://permion.ai/).
 
@@ -124,6 +124,8 @@ These commands can be triggered from editor/context and explorer/context menus v
 ### Code Navigation
 
 Code navigation features **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
+
+Code navigation support require Logtalk 3.78.0 or a later version.
 
 #### Go to Declaration
 

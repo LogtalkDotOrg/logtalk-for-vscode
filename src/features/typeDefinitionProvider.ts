@@ -31,11 +31,11 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
     await LogtalkTerminal.getTypeDefinition(doc, entity);
 
     const dir = path.dirname(doc.uri.fsPath);
-    const dcl = path.join(dir, ".type_definition_done");
+    const tdef = path.join(dir, ".type_definition_done");
 
-    if (fs.existsSync(dcl)) {
-      let out = await fs.readFileSync(dcl).toString();
-      fsp.rm(dcl, { force: true });
+    if (fs.existsSync(tdef)) {
+      let out = await fs.readFileSync(tdef).toString();
+      fsp.rm(tdef, { force: true });
       let match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
         let fileName: string = match[1];
