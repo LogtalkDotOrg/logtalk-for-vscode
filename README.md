@@ -123,10 +123,17 @@ These commands can be triggered from editor/context and explorer/context menus v
 
 ### Code Navigation
 
-Install the [ctagsx](https://marketplace.visualstudio.com/items?itemName=jtanx.ctagsx) extension and generate a `tags` or `.tags` file for your projects.
-The Logtalk support for [Exuberant Ctags](https://ctags.sourceforge.net) must be installed separately. See the `coding/ctags` directory in the Logtalk distribution for details.
+#### Go to Declaration
 
-You can then select an entity name, a predicate indicator, or a non-terminal indicator and use the "Go to Definition" menu option. You can also use `Cmd+T` or `Ctrl+T` to search for a tag.
+Click in the middle of a predicate name and select the "Go to Declaration" menu or context menu item.
+
+#### Go to Definition
+
+Click in the middle of a predicate name and select the "Go to Definition" menu or context menu item.
+
+#### Go to Type Definition
+
+Entities (objects, protocols, and categories) are interpreted as types. Click in the middle of an entity name and select the "Go to Type Definition" menu or context menu item.
 
 ### Hover contents
 

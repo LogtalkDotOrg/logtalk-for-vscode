@@ -2,6 +2,8 @@
 
 ## [0.20.0]
 
+* Add "Go to Declaration" and "Go to Definition" support
+* Add "Go to Type Definition" support (with objects, protocols, and categories interpreted as types)
 * Fix JavaScript error when parsing terminal output
 
 ## [0.19.0]

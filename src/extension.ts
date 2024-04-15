@@ -17,6 +17,7 @@ import LogtalkLinter from "./features/logtalkLinter";
 import LogtalkHoverProvider from "./features/hoverProvider";
 import { LogtalkDeclarationProvider } from "./features/declarationProvider";
 import { LogtalkDefinitionProvider } from "./features/definitionProvider";
+import { LogtalkTypeDefinitionProvider } from "./features/typeDefinitionProvider";
 
 const DEBUG = 1;
 
@@ -70,6 +71,9 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerDefinitionProvider(LOGTALK_MODE, new LogtalkDefinitionProvider())
+  );
+  context.subscriptions.push(
+    languages.registerTypeDefinitionProvider(LOGTALK_MODE, new LogtalkTypeDefinitionProvider())
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }

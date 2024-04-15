@@ -1,6 +1,6 @@
 import {
   CancellationToken,
-  DefinitionProvider,
+  TypeDefinitionProvider,
   Location,
   Position,
   Range,
@@ -16,22 +16,22 @@ import * as jsesc from "jsesc";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 
-export class LogtalkDefinitionProvider implements DefinitionProvider {
-  public async provideDefinition(
+export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
+  public async provideTypeDefinition(
     doc: TextDocument,
     position: Position,
     token: CancellationToken
   ): Promise<Location> {
     let location: Location = null;
-    let call = Utils.getCallUnderCursor(doc, position);
-    if (!call) {
+    let entity = Utils.getCallUnderCursor(doc, position);
+    if (!entity) {
       return null;
     }
 
-    await LogtalkTerminal.getDefinition(doc, position, call);
+    await LogtalkTerminal.getTypeDefinition(doc, entity);
 
     const dir = path.dirname(doc.uri.fsPath);
-    const dcl = path.join(dir, ".definition_done");
+    const dcl = path.join(dir, ".type_definition_done");
 
     if (fs.existsSync(dcl)) {
       let out = await fs.readFileSync(dcl).toString();
@@ -43,7 +43,7 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }
     } else {
-      console.log('definition not found');
+      console.log('type definition not found');
     }
 
     return location;

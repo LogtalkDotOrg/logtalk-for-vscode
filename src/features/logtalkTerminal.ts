@@ -396,6 +396,25 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
   }
 
+  public static async getTypeDefinition(doc: TextDocument, entity: string) {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+    const loader0 = path.join(dir0, "loader");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
+    let goals = `
+      open('${dir}/.type_definition_done', write, Stream),
+      ( logtalk_load('${loader}'),
+        vscode_reflection::find_type_definition(${entity}, File, Line) ->
+        format(Stream, "File:~w;Line:~d~n", [File, Line])
+      ; true
+      ),
+      close(Stream).\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(dir0, ".type_definition_done");
+    await LogtalkTerminal.waitForFile(marker);
+  }
+
   private static spawnScript4(dir: string, type: string[], path: string, args: string[]) {
     let pp = spawn(path, args, { cwd: dir })
       .on("stdout", out => {
