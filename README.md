@@ -139,6 +139,14 @@ Click in the middle of a predicate name and select the "Go to Definition" menu o
 
 Entities (objects, protocols, and categories) are interpreted as types. Click in the middle of an entity name and select the "Go to Type Definition" menu or context menu item.
 
+#### Go to References
+
+Click in the middle of a predicate name and select the "Go to References" or "Find All References" menu or context menu items.
+
+#### Go to Implementations
+
+Click in the middle of a predicate name in a predicate indicator in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items.
+
 ### Hover contents
 
 Hover contents is provided for built-in directives, built-in predicates, and built-in methods.

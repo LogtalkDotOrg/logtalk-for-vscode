@@ -19,6 +19,7 @@ import { LogtalkDeclarationProvider } from "./features/declarationProvider";
 import { LogtalkDefinitionProvider } from "./features/definitionProvider";
 import { LogtalkTypeDefinitionProvider } from "./features/typeDefinitionProvider";
 import { LogtalkReferenceProvider } from "./features/referenceProvider";
+import { LogtalkImplementationProvider } from "./features/implementationProvider";
 
 const DEBUG = 1;
 
@@ -78,6 +79,9 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerReferenceProvider(LOGTALK_MODE, new LogtalkReferenceProvider())
+  );
+  context.subscriptions.push(
+    languages.registerImplementationProvider(LOGTALK_MODE, new LogtalkImplementationProvider())
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }
