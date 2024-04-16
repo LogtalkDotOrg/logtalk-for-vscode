@@ -27,7 +27,7 @@ export default class LogtalkHoverProvider implements HoverProvider {
     if (!wordRange) {
       return;
     }
-    let pi = Utils.getPredicateUnderCursor(doc, position);
+    let pi = Utils.getIndicatorUnderCursor(doc, position);
     let contents: vscode.MarkdownString = Utils.getSnippetDescription(doc, pi);
     contents.supportHtml = true;
     contents.isTrusted = true;

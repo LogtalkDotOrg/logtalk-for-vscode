@@ -23,7 +23,7 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
     token: CancellationToken
   ): Promise<Location> {
     let location: Location = null;
-    let entity = Utils.getCallUnderCursor(doc, position);
+    let entity = Utils.getIndicatorUnderCursor(doc, position);
     if (!entity) {
       return null;
     }

@@ -123,7 +123,7 @@ These commands can be triggered from editor/context and explorer/context menus v
 
 ### Code Navigation
 
-Code navigation features **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
+Code navigation **experimental** features **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
 
 Code navigation support require Logtalk 3.78.0 or a later version.
 

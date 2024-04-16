@@ -94,7 +94,7 @@ export class Utils {
     return name + "/" + arity;
   }
 
-  public static getPredicateUnderCursor(
+  public static getIndicatorUnderCursor(
     doc: TextDocument,
     position: Position
   ): string {
