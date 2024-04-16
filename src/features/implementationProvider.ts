@@ -26,12 +26,17 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
     token: CancellationToken
   ): Promise<Definition | LocationLink[]> {
     let locations: Location[] = [];
-    let predicate = Utils.getPredicateIndicatorUnderCursor(doc, position);
-    if (!predicate) {
+    let resource = Utils.getPredicateIndicatorUnderCursor(doc, position);
+    let kind = "predicate";
+    if (!resource) {
+      resource = Utils.getCallUnderCursor(doc, position);
+      kind = "entity";
+    }
+    if (!resource) {
       return null;
     }
 
-    await LogtalkTerminal.getImplementations(doc, position, predicate);
+    await LogtalkTerminal.getImplementations(doc, position, kind, resource);
 
     const dir = path.dirname(doc.uri.fsPath);
     const imps = path.join(dir, ".implementations_done");
@@ -40,16 +45,12 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
       let out = await fs.readFileSync(imps).toString();
       fsp.rm(imps, { force: true });
       let matches = out.matchAll(/File:(.+);Line:(\d+)/g);
-      console.log(predicate);
-      console.log(matches);
       var match = null;
       for (match of matches) {
-        console.log(match[1]);
-        console.log(match[2]);
         locations.push(new Location(Uri.file(match[1]), new Position(parseInt(match[2]) - 1, 0)));
       }
     } else {
-      console.log('references not found');
+      console.log('resource not found');
     }
 
     return locations;

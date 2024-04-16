@@ -146,6 +146,7 @@ Click in the middle of a predicate name and select the "Go to References" or "Fi
 #### Go to Implementations
 
 Click in the middle of a predicate name in a predicate indicator in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items.
+Alternatively click in an entity name to go/find all entities implementing, importing, extending, instantiating, or specializing the selected entity.
 
 ### Hover contents
 
