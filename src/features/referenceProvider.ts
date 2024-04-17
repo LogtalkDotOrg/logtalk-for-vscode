@@ -41,8 +41,6 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
       let matches = out.matchAll(/File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {
-        console.log(match[1]);
-        console.log(match[2]);
         locations.push(new Location(Uri.file(match[1]), new Position(parseInt(match[2]) - 1, 0)));
       }
     } else {

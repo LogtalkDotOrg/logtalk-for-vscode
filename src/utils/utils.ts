@@ -161,14 +161,14 @@ export class Utils {
   ): string {
     let wordRange: Range = doc.getWordRangeAtPosition(
       position,
-      /(\w+)?(::|\^\^)?\w+/
+      /(\w+(\(.*\))?)?(::|\^\^)?\w+/
     );
     if (!wordRange) {
       return null;
     }
     let arity = 0;
     let name = doc.getText(wordRange);
-//    console.log("name: " + name);
+    console.log("name: " + name);
     let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let re = new RegExp("^(?:" + name_escaped + ")\\(");
     let re1 = new RegExp("^(?:" + name_escaped + ")/(\\d+)");
@@ -179,10 +179,10 @@ export class Utils {
       .join("")
       .slice(wordRange.start.character)
       .replace(/\s+/g, " ");
-//    console.log("text: " + name);
+    console.log("text: " + text);
     if (re.test(text)) {
 //      console.log("match");
-      let i = text.indexOf("(") + 1;
+      let i = wordRange.end.character + 1;
       let matched = 1;
       while (matched > 0) {
         if (text.charAt(i) === "(") {
@@ -198,20 +198,22 @@ export class Utils {
         i++;
       }
       let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
-//      console.log("wholePred: " + wholePred);
+      console.log("wholePred: " + wholePred);
 
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, [], {
         cwd: workspace.rootPath,
         encoding: "utf8",
-        input: `(${wholePred} = (Obj::Pred) -> functor(Pred, N, A), write((name=(Obj::N);arity=A)); ${wholePred} = (::Pred) -> functor(Pred, N, A), write((name=(::N);arity=A)); ${wholePred} = (^^Pred) -> functor(Pred, N, A), write((name=(^^N);arity=A)); functor(${wholePred}, N, A), write((name=N;arity=A))), nl.`
+        input: `(${wholePred} = (Obj::Pred) -> functor(Pred, N, A), write((arity=A;name=(Obj::N))); ${wholePred} = (::Pred) -> functor(Pred, N, A), write((arity=A;name=(::N))); ${wholePred} = (^^Pred) -> functor(Pred, N, A), write((arity=A;name=(^^N))); functor(${wholePred}, N, A), write((arity=A;name=N))), nl.`
       });
 
       if (pp.status === 0) {
         let out = pp.stdout.toString();
-//        console.log("out: " + out);
-        let match = out.match(/name=\s*[(]?((?:\w|:|\^)+)[)]?;arity=(\d+)/);
+        console.log("out: " + out);
+        let match = out.match(/arity=(\d+);name=(.*)/);
         if (match) {
-          [name, arity] = [match[1], parseInt(match[2])];
+          console.log("m1: " + match[1]);
+          console.log("m2: " + match[2]);
+          [arity, name] = [parseInt(match[1]), match[2]];
         }
       } else {
         console.log(pp.stderr.toString());

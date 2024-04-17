@@ -129,7 +129,7 @@ export default class LogtalkTerminal {
       });
 
       let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode_support.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
-      console.log(goals);
+//      console.log(goals);
       LogtalkTerminal.sendString(goals, false);
 
     } else {

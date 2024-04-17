@@ -124,6 +124,7 @@ These commands can be triggered from editor/context and explorer/context menus v
 ### Code Navigation
 
 Code navigation **experimental** features **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
+Additionally, code must be compiled with the `source_data` flag set to `on` (default) and the `context_switching_calls` set to `allow` (default).
 
 Code navigation support require Logtalk 3.78.0 or a later version.
 
@@ -146,7 +147,7 @@ Click in the middle of a predicate name and select the "Go to References" or "Fi
 #### Go to Implementations
 
 Click in the middle of a predicate name in a predicate indicator in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items.
-Alternatively click in an entity name to go/find all entities implementing, importing, extending, instantiating, or specializing the selected entity.
+Alternatively, click in an entity name to go/find all entities implementing, importing, extending, instantiating, or specializing the selected entity.
 
 ### Hover contents
 
