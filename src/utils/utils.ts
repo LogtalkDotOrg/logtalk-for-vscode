@@ -168,7 +168,7 @@ export class Utils {
     }
     let arity = 0;
     let name = doc.getText(wordRange);
-    console.log("name: " + name);
+//    console.log("name: " + name);
     let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let re = new RegExp("^(?:" + name_escaped + ")\\(");
     let re1 = new RegExp("^(?:" + name_escaped + ")/(\\d+)");
@@ -179,10 +179,10 @@ export class Utils {
       .join("")
       .slice(wordRange.start.character)
       .replace(/\s+/g, " ");
-    console.log("text: " + text);
+//    console.log("text: " + text);
     if (re.test(text)) {
 //      console.log("match");
-      let i = wordRange.end.character + 1;
+      let i = wordRange.end.character - wordRange.start.character + 2;
       let matched = 1;
       while (matched > 0) {
         if (text.charAt(i) === "(") {
@@ -198,7 +198,7 @@ export class Utils {
         i++;
       }
       let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
-      console.log("wholePred: " + wholePred);
+//      console.log("wholePred: " + wholePred);
 
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, [], {
         cwd: workspace.rootPath,
@@ -211,8 +211,8 @@ export class Utils {
         console.log("out: " + out);
         let match = out.match(/arity=(\d+);name=(.*)/);
         if (match) {
-          console.log("m1: " + match[1]);
-          console.log("m2: " + match[2]);
+//          console.log("m1: " + match[1]);
+//          console.log("m2: " + match[2]);
           [arity, name] = [parseInt(match[1]), match[2]];
         }
       } else {
