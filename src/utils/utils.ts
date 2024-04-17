@@ -94,6 +94,24 @@ export class Utils {
     return name + "/" + arity;
   }
 
+  public static getNonTerminalIndicatorUnderCursor(
+    doc: TextDocument,
+    position: Position
+  ): string {
+    let wordRange: Range = doc.getWordRangeAtPosition(
+      position,
+      /(\w+)[/][/](\d+)/
+    );
+    if (!wordRange) {
+      return null;
+    }
+    let doctext = doc.getText(wordRange);
+    let match = doctext.match(/(\w+)[/][/](\d+)/);
+    let name: string = match[1];
+    let arity: number = parseInt(match[2]);
+    return name + "//" + arity;
+  }
+
   public static getIndicatorUnderCursor(
     doc: TextDocument,
     position: Position

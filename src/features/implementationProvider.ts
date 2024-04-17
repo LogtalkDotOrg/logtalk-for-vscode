@@ -26,7 +26,10 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
     token: CancellationToken
   ): Promise<Definition | LocationLink[]> {
     let locations: Location[] = [];
-    let resource = Utils.getPredicateIndicatorUnderCursor(doc, position);
+    let resource = Utils.getNonTerminalIndicatorUnderCursor(doc, position);
+    if (!resource) {
+      resource = Utils.getPredicateIndicatorUnderCursor(doc, position);
+    }
     let kind = "predicate";
     if (!resource) {
       resource = Utils.getCallUnderCursor(doc, position);
