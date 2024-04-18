@@ -189,7 +189,7 @@ export class Utils {
 //    console.log("name: " + name);
     let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let re = new RegExp("^(?:" + name_escaped + ")\\(");
-    let re1 = new RegExp("^(?:" + name_escaped + ")/(\\d+)");
+    let re1 = new RegExp("^(?:" + name_escaped + ")/[/]?(\\d+)");
     let doctext = doc.getText();
     let text = doctext
       .split("\n")
