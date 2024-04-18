@@ -362,7 +362,8 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    let goals = `vscode_reflection::find_declaration('${dir}', ${call}, '${doc.fileName}', ${position.line+1}).\r`;
+    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    let goals = `vscode_reflection::find_declaration('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".declaration_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -372,7 +373,8 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    let goals = `vscode_reflection::find_definition('${dir}', ${call}, '${doc.fileName}', ${position.line+1}).\r`;
+    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    let goals = `vscode_reflection::find_definition('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".definition_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -392,7 +394,8 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    let goals = `vscode_reflection::find_references('${dir}', ${call}, '${doc.fileName}', ${position.line+1}).\r`;
+    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    let goals = `vscode_reflection::find_references('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".references_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -402,7 +405,8 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    let goals = `vscode_reflection::find_implementations('${dir}', ${kind}, ${resource}, '${doc.fileName}', ${position.line+1}).\r`;
+    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    let goals = `vscode_reflection::find_implementations('${dir}', ${kind}, ${resource}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".implementations_done");
     await LogtalkTerminal.waitForFile(marker);
