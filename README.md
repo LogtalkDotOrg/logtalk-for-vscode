@@ -4,7 +4,7 @@ A VSCode extension which provides language support for Logtalk. Forked from the 
 
 Developed and tested in **Logtalk 3.78.0** and **VSCode 1.88.1** on **macOS 14.4** and **Windows 10** with **Node 21**.
 
-🙏 Sponsored by [Permion](https://permion.ai/).
+🙏 Sponsored by [Permion](https://permion.ai/) and GitHub Sponsors.
 
 ---
 
