@@ -142,7 +142,7 @@ Entities (objects, protocols, and categories) are interpreted as types. Click in
 
 #### Go to References
 
-Click in the middle of a predicate name in a message goal or in a `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References is interpreted here as messages.
+Click in the middle of a predicate name in a message goal or in a `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References is interpreted here as messages and predicate calls.
 
 #### Go to Implementations
 
