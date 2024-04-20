@@ -176,7 +176,7 @@ export default class LogtalkTerminal {
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    LogtalkTerminal.sendString(`(logtalk_load([os(loader),'${loader}']) -> os::ensure_file('${dir}/.loading_done'); os::ensure_file('${dir}/.loading_done')).\r`, false);
+    LogtalkTerminal.sendString(`vscode_reflection::load('${dir}','${loader}').\r`, false);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".loading_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -222,7 +222,7 @@ export default class LogtalkTerminal {
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    LogtalkTerminal.sendString(`(logtalk_load([os(loader),'${file}']) -> os::ensure_file('${dir}/.loading_done'); os::ensure_file('${dir}/.loading_done')).\r`, false);
+    LogtalkTerminal.sendString(`vscode_reflection::load('${dir}','${file}').\r`, false);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".loading_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -291,8 +291,7 @@ export default class LogtalkTerminal {
     const loader = path.resolve(loader0).split(path.sep).join("/");
     const xmlDir0 = path.join(dir, "xml_docs");
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
-    let goals = `logtalk_load(lgtdoc(loader)),logtalk_load('${loader}'),os::change_directory('${dir}'),lgtdoc::directory('${dir}',[xml_docs_directory('${dir}/xml_docs')]),os::ensure_file('${dir}/.xml_files_done').\r`;
-    LogtalkTerminal.sendString(goals);
+    LogtalkTerminal.sendString(`vscode_reflection::documentation('${dir}','${loader}').\r`, false);
     const marker = path.join(dir0, ".xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
@@ -314,8 +313,7 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const loader = path.resolve(loader0).split(path.sep).join("/");
     const project = path.basename(dir);
-    let goals = `logtalk_load(diagrams(loader)),logtalk_load('${loader}'),os::change_directory('${dir}'),diagrams::directory('${project}','${dir}',[output_directory('${dir}/dot_dias')]),os::ensure_file('${dir}/.dot_files_done').\r`;
-    LogtalkTerminal.sendString(goals);
+    LogtalkTerminal.sendString(`vscode_reflection::diagrams('${project}','${dir}','${loader}').\r`, false);
     const marker = path.join(dir0, ".dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
