@@ -410,6 +410,17 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
   }
 
+  public static async getSymbols(doc: TextDocument) {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    let goals = `vscode::find_symbols('${dir}', '${file}').\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(dir0, ".symbols_done");
+    await LogtalkTerminal.waitForFile(marker);
+  }
+
   private static spawnScript4(dir: string, type: string[], path: string, args: string[]) {
     let pp = spawn(path, args, { cwd: dir })
       .on("stdout", out => {
