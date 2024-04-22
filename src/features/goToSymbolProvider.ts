@@ -15,33 +15,40 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
     return new Promise((resolve, reject) => {
       var symbols = [];
 
-      let ro = /(?:\:- object\()([^(),.]+(\(.*\))?)/;
-      let rp = /(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
-      let rc = /(?:\:- category\()([^(),.]+(\(.*\))?)/;
+      let object_re   = /^(?:\:- object\()([^(),.]+(\(.*\))?)/;
+      let protocol_re = /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
+      let category_re = /^(?:\:- category\()([^(),.]+(\(.*\))?)/;
 
-      let ppub = /(?:\s*\:- public\()(\w+[/]\d+)/;
-      let ppro = /(?:\s*\:- protected\()(\w+[/]\d+)/;
-      let ppri = /(?:\s*\:- private\()(\w+[/]\d+)/;
+      let public_predicate_re    = /(?:\s*\:- public\()(\w+[/]\d+)/;
+      let protected_predicate_re = /(?:\s*\:- protected\()(\w+[/]\d+)/;
+      let private_predicate_re   = /(?:\s*\:- private\()(\w+[/]\d+)/;
+
+      let public_non_terminal_re    = /(?:\s*\:- public\()(\w+[/][/]\d+)/;
+      let protected_non_terminal_re = /(?:\s*\:- protected\()(\w+[/][/]\d+)/;
+      let private_non_terminal_re   = /(?:\s*\:- private\()(\w+[/][/]\d+)/;
 
       let found;
 
       for (var i = 0; i < doc.lineCount; i++) {
         var line = doc.lineAt(i);
-        if (line.text.startsWith(":- object(")) {
-          found = line.text.match(ro);
+        if (found = line.text.match(object_re)) {
           symbols.push(new SymbolInformation(found[1], SymbolKind.Object, "object", new Location(doc.uri, line.range)))
-        } else if (line.text.startsWith(":- protocol(")) {
-          found = line.text.match(rp);
+        } else if (found = line.text.match(protocol_re)) {
           symbols.push(new SymbolInformation(found[1], SymbolKind.Interface, "protocol", new Location(doc.uri, line.range)))
-        } else if (line.text.startsWith(":- category(")) {
-          found = line.text.match(rc);
+        } else if (found = line.text.match(category_re)) {
           symbols.push(new SymbolInformation(found[1], SymbolKind.Struct, "category", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(ppub)) {
+        } else if (found = line.text.match(public_predicate_re)) {
           symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "public predicate", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(ppro)) {
+        } else if (found = line.text.match(protected_predicate_re)) {
           symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "protected predicate", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(ppri)) {
+        } else if (found = line.text.match(private_predicate_re)) {
           symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "private predicate", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(public_non_terminal_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "public non-terminal", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(protected_non_terminal_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "protected non-terminal", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(private_non_terminal_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "private non-terminal", new Location(doc.uri, line.range)))
         }
       }
 
