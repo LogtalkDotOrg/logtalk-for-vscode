@@ -19,22 +19,22 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
     token: CancellationToken
   ): Promise<SymbolInformation[]> {
     var symbols = [];
-    
+
     let object_re   = /^(?:\:- object\()([^(),.]+(\(.*\))?)/;
     let protocol_re = /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
     let category_re = /^(?:\:- category\()([^(),.]+(\(.*\))?)/;
-    
+
     let public_predicate_re    = /(?:\s*\:- public\()(\w+[/]\d+)/;
     let protected_predicate_re = /(?:\s*\:- protected\()(\w+[/]\d+)/;
     let private_predicate_re   = /(?:\s*\:- private\()(\w+[/]\d+)/;
-    
+
     let public_non_terminal_re    = /(?:\s*\:- public\()(\w+[/][/]\d+)/;
     let protected_non_terminal_re = /(?:\s*\:- protected\()(\w+[/][/]\d+)/;
     let private_non_terminal_re   = /(?:\s*\:- private\()(\w+[/][/]\d+)/;
-    
+
     let found;
-    
-    const docs = await workspace.findFiles(new RelativePattern(workspace.rootPath, '**/*.lgt'));
+
+    const docs = await workspace.findFiles(new RelativePattern(workspace.rootPath, '**/*.{lgt,logtalk}'));
     for (var i = 0; i < docs.length; i++) {
       const doc = await workspace.openTextDocument(docs[i]);
       for (var j = 0; j < doc.lineCount; j++) {
