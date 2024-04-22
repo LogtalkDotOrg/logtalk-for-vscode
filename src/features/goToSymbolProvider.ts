@@ -6,6 +6,7 @@ import {
   Range,
   TextDocument,
   SymbolInformation,
+  SymbolKind,
   Uri,
   workspace
 } from "vscode";
@@ -24,22 +25,21 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
   ): Promise<SymbolInformation[]> {
     var symbols = [];
   
-    await LogtalkTerminal.getSymbols(doc);
+    let ro = /(?:\:- object\()([^(),.]+(\(.*\))?)/;
+    let rp = /(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
+    let rc = /(?:\:- category\()([^(),.]+(\(.*\))?)/;
   
-    const dir = path.dirname(doc.uri.fsPath);
-    const triples = path.join(dir, ".symbols_done");
-  
-    if (fs.existsSync(triples)) {
-      let out = await fs.readFileSync(triples).toString();
-      fsp.rm(triples, { force: true });
-      let matches = out.matchAll(/Symbol:(\w+);Kind:(\d+);Line:(\d+)/g);
-      var match = null;
-      for (match of matches) {
-        symbols.push({
-            name: match[1],
-            kind: parseInt(match[2]),
-            location: new Location(doc.uri, new Range(new Position(parseInt(match[3]) - 1, 0), new Position(parseInt(match[3]) - 1, 0)))
-        })
+    for (var i = 0; i < doc.lineCount; i++) {
+      var line = doc.lineAt(i);
+      if (line.text.startsWith(":- object(")) {
+        const found = line.text.match(ro);
+        symbols.push(new SymbolInformation(found[1], SymbolKind.Object, "object", new Location(doc.uri, line.range)))
+      } else if (line.text.startsWith(":- protocol(")) {
+        const found = line.text.match(rp);
+        symbols.push(new SymbolInformation(found[1], SymbolKind.Interface, "protocol", new Location(doc.uri, line.range)))
+      } else if (line.text.startsWith(":- category(")) {
+        const found = line.text.match(rc);
+        symbols.push(new SymbolInformation(found[1], SymbolKind.Package, "category", new Location(doc.uri, line.range)))
       }
     }
   
