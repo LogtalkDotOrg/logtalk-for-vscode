@@ -28,7 +28,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
     if (fs.existsSync(results)) {
       let out = await fs.readFileSync(results).toString();
       fsp.rm(results, { force: true });
-      let matches = out.matchAll(/Symbol:(\w+);Kind:(\d+);Line:(\d+);File:([^\r\n]+)/g);
+      let matches = out.matchAll(/Symbol:(\w+(?:\(.*\))?|\w+[/][/]?\d+);Kind:(\d+);Line:(\d+);File:([^\r\n]+)/g);
       var match = null;
       for (match of matches) {
         if (match[1].match(matcher)) {

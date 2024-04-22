@@ -157,6 +157,8 @@ Symbols include object, protocol, and category identifiers in entity opening dir
 
 Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons.
 
+Using this feature **requires** the `"workbench.quickOpen.closeOnFocusLost": false` setting.
+
 ### Hover contents
 
 Hover contents is provided for built-in directives, built-in predicates, and built-in methods.
