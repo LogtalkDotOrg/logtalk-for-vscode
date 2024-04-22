@@ -151,13 +151,11 @@ Alternatively, click in an entity name to go/find all entities implementing, imp
 
 #### Go to Symbol in Editor...
 
-Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons.
+Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded.
 
 #### Go to Symbol in Workspace...
 
-Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons.
-
-Using this feature **requires** the `"workbench.quickOpen.closeOnFocusLost": false` setting.
+Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded.
 
 ### Hover contents
 

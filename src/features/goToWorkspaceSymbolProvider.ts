@@ -7,36 +7,60 @@ import {
   SymbolInformation,
   SymbolKind,
   Uri,
+  RelativePattern,
   workspace
 } from "vscode";
 import * as path from "path";
-import * as fs from "fs";
-import * as fsp from "fs/promises";
 import LogtalkTerminal from "./logtalkTerminal";
 
 export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
   public async provideWorkspaceSymbols(
-    query: string
+    query: string,
+    token: CancellationToken
   ): Promise<SymbolInformation[]> {
     var symbols = [];
-
-    await LogtalkTerminal.getSymbols();
-
-    const matcher = query ? new RegExp(query.split("").join(".*"), "i") : /.*/;
-    const results = path.join(workspace.rootPath, ".symbols_done");
-  
-    if (fs.existsSync(results)) {
-      let out = await fs.readFileSync(results).toString();
-      fsp.rm(results, { force: true });
-      let matches = out.matchAll(/Symbol:(\w+(?:\(.*\))?|\w+[/][/]?\d+);Kind:(\d+);Line:(\d+);File:([^\r\n]+)/g);
-      var match = null;
-      for (match of matches) {
-        if (match[1].match(matcher)) {
-          symbols.push(new SymbolInformation(match[1], parseInt(match[2]), "", new Location(Uri.file(match[4]), new Position(parseInt(match[3]) - 1, 0))))
+    
+    let object_re   = /^(?:\:- object\()([^(),.]+(\(.*\))?)/;
+    let protocol_re = /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
+    let category_re = /^(?:\:- category\()([^(),.]+(\(.*\))?)/;
+    
+    let public_predicate_re    = /(?:\s*\:- public\()(\w+[/]\d+)/;
+    let protected_predicate_re = /(?:\s*\:- protected\()(\w+[/]\d+)/;
+    let private_predicate_re   = /(?:\s*\:- private\()(\w+[/]\d+)/;
+    
+    let public_non_terminal_re    = /(?:\s*\:- public\()(\w+[/][/]\d+)/;
+    let protected_non_terminal_re = /(?:\s*\:- protected\()(\w+[/][/]\d+)/;
+    let private_non_terminal_re   = /(?:\s*\:- private\()(\w+[/][/]\d+)/;
+    
+    let found;
+    
+    const docs = await workspace.findFiles(new RelativePattern(workspace.rootPath, '**/*.lgt'));
+    for (var i = 0; i < docs.length; i++) {
+      const doc = await workspace.openTextDocument(docs[i]);
+      for (var j = 0; j < doc.lineCount; j++) {
+        var line = doc.lineAt(j);
+        if (found = line.text.match(object_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Object, "object", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(protocol_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Interface, "protocol", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(category_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Struct, "category", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(public_predicate_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "public predicate", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(protected_predicate_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "protected predicate", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(private_predicate_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "private predicate", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(public_non_terminal_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "public non-terminal", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(protected_non_terminal_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "protected non-terminal", new Location(doc.uri, line.range)))
+        } else if (found = line.text.match(private_non_terminal_re)) {
+          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "private non-terminal", new Location(doc.uri, line.range)))
         }
       }
     }
-    
+
     return symbols;
   }
 }
