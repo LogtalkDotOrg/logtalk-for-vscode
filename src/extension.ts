@@ -20,7 +20,8 @@ import { LogtalkDefinitionProvider } from "./features/definitionProvider";
 import { LogtalkTypeDefinitionProvider } from "./features/typeDefinitionProvider";
 import { LogtalkReferenceProvider } from "./features/referenceProvider";
 import { LogtalkImplementationProvider } from "./features/implementationProvider";
-import { LogtalkDocumentSymbolProvider } from "./features/goToSymbolProvider";
+import { LogtalkDocumentSymbolProvider } from "./features/goToDocumentSymbolProvider";
+import { LogtalkWorkspaceSymbolProvider } from "./features/goToWorkspaceSymbolProvider";
 
 const DEBUG = 1;
 
@@ -86,6 +87,9 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerDocumentSymbolProvider(LOGTALK_MODE, new LogtalkDocumentSymbolProvider())
+  );
+  context.subscriptions.push(
+    languages.registerWorkspaceSymbolProvider(new LogtalkWorkspaceSymbolProvider( ))
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }

@@ -410,6 +410,14 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
   }
 
+  public static async getSymbols() {
+    LogtalkTerminal.createLogtalkTerm();
+    let goals = `vscode::find_symbols('${workspace.rootPath}').\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(workspace.rootPath, ".symbols_done");
+    await LogtalkTerminal.waitForFile(marker);
+  }
+
   private static spawnScript4(dir: string, type: string[], path: string, args: string[]) {
     let pp = spawn(path, args, { cwd: dir })
       .on("stdout", out => {
