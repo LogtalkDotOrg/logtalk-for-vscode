@@ -1,3 +1,5 @@
+"use strict";
+
 import {
   CancellationToken,
   ImplementationProvider,
@@ -6,16 +8,12 @@ import {
   LocationLink,
   Location,
   Position,
-  Range,
   TextDocument,
-  Uri,
-  workspace
+  Uri
 } from "vscode";
-import * as cp from "child_process";
 import LogtalkTerminal from "./logtalkTerminal";
 import { Utils } from "../utils/utils";
 import * as path from "path";
-import * as jsesc from "jsesc";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 

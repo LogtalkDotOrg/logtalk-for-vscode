@@ -1,4 +1,5 @@
 "use strict";
+
 import {
   /* CommentRule, OnEnterRule, */
   Disposable, IndentAction, languages,

@@ -1,8 +1,9 @@
+"use strict";
+
 import {
   CancellationToken,
   WorkspaceSymbolProvider,
   Location,
-  Position,
   TextDocument,
   SymbolInformation,
   SymbolKind,
@@ -10,8 +11,6 @@ import {
   RelativePattern,
   workspace
 } from "vscode";
-import * as path from "path";
-import LogtalkTerminal from "./logtalkTerminal";
 
 export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
   public async provideWorkspaceSymbols(

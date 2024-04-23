@@ -1,3 +1,5 @@
+"use strict";
+
 import {
   CancellationToken,
   DocumentHighlightProvider,

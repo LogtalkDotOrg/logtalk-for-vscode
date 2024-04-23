@@ -1,10 +1,11 @@
+"use strict";
+
 import {
   TextDocument,
   Position,
   Range,
   ExtensionContext,
-  workspace,
-  window
+  workspace
 } from "vscode";
 interface ISnippet {
   [predIndicator: string]: {
