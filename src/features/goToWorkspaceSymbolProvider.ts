@@ -35,28 +35,32 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
 
     const docs = await workspace.findFiles(new RelativePattern(workspace.rootPath, '**/*.{lgt,logtalk}'));
     for (var i = 0; i < docs.length; i++) {
-      const doc = await workspace.openTextDocument(docs[i]);
-      for (var j = 0; j < doc.lineCount; j++) {
-        var line = doc.lineAt(j);
-        if (found = line.text.match(object_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Object, "object", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(protocol_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Interface, "protocol", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(category_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Struct, "category", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(public_predicate_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "public predicate", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(protected_predicate_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "protected predicate", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(private_predicate_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "private predicate", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(public_non_terminal_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "public non-terminal", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(protected_non_terminal_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "protected non-terminal", new Location(doc.uri, line.range)))
-        } else if (found = line.text.match(private_non_terminal_re)) {
-          symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "private non-terminal", new Location(doc.uri, line.range)))
+      try {
+        const doc = await workspace.openTextDocument(docs[i]);
+        for (var j = 0; j < doc.lineCount; j++) {
+          var line = doc.lineAt(j);
+          if (found = line.text.match(object_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Object, "object", new Location(doc.uri, line.range)))
+          } else if (found = line.text.match(protocol_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Interface, "protocol", new Location(doc.uri, line.range)))
+          } else if (found = line.text.match(category_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Struct, "category", new Location(doc.uri, line.range)))
+          } else if (found = line.text.match(public_predicate_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "public predicate", new Location(doc.uri, line.range)))
+          } else if (found = line.text.match(protected_predicate_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "protected predicate", new Location(doc.uri, line.range)))
+          } else if (found = line.text.match(private_predicate_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Function, "private predicate", new Location(doc.uri, line.range)))
+          } else if (found = line.text.match(public_non_terminal_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "public non-terminal", new Location(doc.uri, line.range)))
+          } else if (found = line.text.match(protected_non_terminal_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "protected non-terminal", new Location(doc.uri, line.range)))
+          } else if (found = line.text.match(private_non_terminal_re)) {
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Field, "private non-terminal", new Location(doc.uri, line.range)))
+          }
         }
+      } catch(err) {
+        console.log("failed to open " + docs[i]);
       }
     }
 
