@@ -23,12 +23,18 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
     token: CancellationToken
   ): Promise<Location[]> {
     let locations: Location[] = [];
-    let call = Utils.getCallUnderCursor(doc, position);
-    if (!call) {
+    let resource = Utils.getNonTerminalIndicatorUnderCursor(doc, position);
+    if (!resource) {
+      resource = Utils.getPredicateIndicatorUnderCursor(doc, position);
+    }
+    if (!resource) {
+      resource = Utils.getCallUnderCursor(doc, position);
+    }
+    if (!resource) {
       return null;
     }
 
-    await LogtalkTerminal.getReferences(doc, position, call);
+    await LogtalkTerminal.getReferences(doc, position, resource);
 
     const dir = path.dirname(doc.uri.fsPath);
     const refs = path.join(dir, ".references_done");
