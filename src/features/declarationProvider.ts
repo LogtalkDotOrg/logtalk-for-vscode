@@ -29,7 +29,7 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
     await LogtalkTerminal.getDeclaration(doc, position, call);
 
     const dir = path.dirname(doc.uri.fsPath);
-    const dcl = path.join(dir, ".declaration_done");
+    const dcl = path.join(dir, ".vscode_declaration");
 
     if (fs.existsSync(dcl)) {
       let out = await fs.readFileSync(dcl).toString();

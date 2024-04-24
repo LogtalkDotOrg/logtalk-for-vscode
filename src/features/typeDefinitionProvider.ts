@@ -29,7 +29,7 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
     await LogtalkTerminal.getTypeDefinition(doc, entity);
 
     const dir = path.dirname(doc.uri.fsPath);
-    const tdef = path.join(dir, ".type_definition_done");
+    const tdef = path.join(dir, ".vscode_type_definition");
 
     if (fs.existsSync(tdef)) {
       let out = await fs.readFileSync(tdef).toString();

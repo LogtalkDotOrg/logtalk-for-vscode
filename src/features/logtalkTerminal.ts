@@ -178,7 +178,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::load('${dir}','${loader}').\r`, false);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir0, ".loading_done");
+    const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
@@ -224,7 +224,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::load('${dir}','${file}').\r`, false);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir0, ".loading_done");
+    const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
@@ -292,7 +292,7 @@ export default class LogtalkTerminal {
     const xmlDir0 = path.join(dir, "xml_docs");
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
     LogtalkTerminal.sendString(`vscode::documentation('${dir}','${loader}').\r`, false);
-    const marker = path.join(dir0, ".xml_files_done");
+    const marker = path.join(dir0, ".vscode_xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     LogtalkTerminal.spawnScript4(
@@ -314,7 +314,7 @@ export default class LogtalkTerminal {
     const loader = path.resolve(loader0).split(path.sep).join("/");
     const project = path.basename(dir);
     LogtalkTerminal.sendString(`vscode::diagrams('${project}','${dir}','${loader}').\r`, false);
-    const marker = path.join(dir0, ".dot_files_done");
+    const marker = path.join(dir0, ".vscode_dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     LogtalkTerminal.spawnScript4(
@@ -363,8 +363,9 @@ export default class LogtalkTerminal {
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_declaration('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".declaration_done");
+    const marker = path.join(dir0, ".vscode_declaration_done");
     await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
   }
 
   public static async getDefinition(doc: TextDocument, position: Position, call: string) {
@@ -374,8 +375,9 @@ export default class LogtalkTerminal {
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_definition('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".definition_done");
+    const marker = path.join(dir0, ".vscode_definition_done");
     await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
   }
 
   public static async getTypeDefinition(doc: TextDocument, entity: string) {
@@ -384,8 +386,9 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     let goals = `vscode::find_type_definition('${dir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".type_definition_done");
+    const marker = path.join(dir0, ".vscode_type_definition_done");
     await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
   }
 
   public static async getReferences(doc: TextDocument, position: Position, call: string) {
@@ -395,8 +398,9 @@ export default class LogtalkTerminal {
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_references('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".references_done");
+    const marker = path.join(dir0, ".vscode_references_done");
     await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
   }
 
   public static async getImplementations(doc: TextDocument, position: Position, kind: string, resource: string) {
@@ -406,16 +410,9 @@ export default class LogtalkTerminal {
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_implementations('${dir}', ${kind}, ${resource}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".implementations_done");
+    const marker = path.join(dir0, ".vscode_implementations_done");
     await LogtalkTerminal.waitForFile(marker);
-  }
-
-  public static async getSymbols() {
-    LogtalkTerminal.createLogtalkTerm();
-    let goals = `vscode::find_symbols('${workspace.rootPath}').\r`;
-    LogtalkTerminal.sendString(goals);
-    const marker = path.join(workspace.rootPath, ".symbols_done");
-    await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
   }
 
   private static spawnScript4(dir: string, type: string[], path: string, args: string[]) {

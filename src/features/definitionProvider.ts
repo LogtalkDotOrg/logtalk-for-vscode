@@ -29,7 +29,7 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     await LogtalkTerminal.getDefinition(doc, position, call);
 
     const dir = path.dirname(doc.uri.fsPath);
-    const def = path.join(dir, ".definition_done");
+    const def = path.join(dir, ".vscode_definition");
 
     if (fs.existsSync(def)) {
       let out = await fs.readFileSync(def).toString();
