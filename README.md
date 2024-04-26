@@ -130,19 +130,19 @@ Code navigation support require Logtalk 3.78.0 or a later version.
 
 #### Go to Declaration
 
-Click in the middle of a predicate name and select the "Go to Declaration" menu or context menu item.
+Click in a predicate name and select the "Go to Declaration" menu or context menu item.
 
 #### Go to Definition
 
-Click in the middle of a predicate name and select the "Go to Definition" menu or context menu item.
+Click in a predicate name and select the "Go to Definition" menu or context menu item.
 
 #### Go to Type Definition
 
-Entities (objects, protocols, and categories) are interpreted as types. Click in the middle of an entity name and select the "Go to Type Definition" menu or context menu item.
+Entities (objects, protocols, and categories) are interpreted as types. Click in an entity name and select the "Go to Type Definition" menu or context menu item.
 
 #### Go to References
 
-Click in the middle of a predicate name in a scope directive, message goal, or a `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, and predicate calls.
+Click in a predicate name in a scope directive, message goal, or a `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, and predicate calls.
 
 Click in an entity name in its entity opening directive to find all entities implementing, importing, extending, instantiating, or specializing the selected entity. In the case of an object, this also finds explicit messages to the object and references to the object in `uses/1-2` directives. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
 

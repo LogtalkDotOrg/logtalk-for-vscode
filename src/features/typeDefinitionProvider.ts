@@ -26,7 +26,7 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
       return null;
     }
 
-    await LogtalkTerminal.getTypeDefinition(doc, entity);
+    await LogtalkTerminal.getTypeDefinition(doc, position, entity);
 
     const dir = path.dirname(doc.uri.fsPath);
     const tdef = path.join(dir, ".vscode_type_definition");
