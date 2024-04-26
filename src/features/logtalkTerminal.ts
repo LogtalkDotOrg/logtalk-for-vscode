@@ -403,12 +403,12 @@ export default class LogtalkTerminal {
     fsp.rm(marker, { force: true });
   }
 
-  public static async getImplementations(doc: TextDocument, position: Position, kind: string, resource: string) {
+  public static async getImplementations(doc: TextDocument, position: Position, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
-    let goals = `vscode::find_implementations('${dir}', ${kind}, ${resource}, '${file}', ${position.line+1}).\r`;
+    let goals = `vscode::find_implementations('${dir}', ${predicate}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".vscode_implementations_done");
     await LogtalkTerminal.waitForFile(marker);
