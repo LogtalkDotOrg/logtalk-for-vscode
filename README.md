@@ -130,15 +130,15 @@ Code navigation support require Logtalk 3.78.0 or a later version.
 
 #### Go to Declaration
 
-Click in a predicate name and select the "Go to Declaration" menu or context menu item.
+Click in a predicate name and select the "Go to Declaration" menu or context menu item to go to the predicate scope directive.
 
 #### Go to Definition
 
-Click in a predicate name and select the "Go to Definition" menu or context menu item.
+Click in a predicate name and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate.
 
 #### Go to Type Definition
 
-Entities (objects, protocols, and categories) are interpreted as types. Click in an entity name and select the "Go to Type Definition" menu or context menu item.
+Entities (objects, protocols, and categories) are interpreted as types. Click in an entity name and select the "Go to Type Definition" menu or context menu item to go to the entity opening directive.
 
 #### Go to References
 
@@ -157,6 +157,10 @@ Symbols include object, protocol, and category identifiers in entity opening dir
 #### Go to Symbol in Workspace...
 
 Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded.
+
+#### Show Call Hierarchy
+
+Click in the middle of a predicate name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate.
 
 ### Hover contents
 
