@@ -40,7 +40,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
         for (var j = 0; j < doc.lineCount; j++) {
           var line = doc.lineAt(j);
           if (found = line.text.match(object_re)) {
-            symbols.push(new SymbolInformation(found[1], SymbolKind.Object, "object", new Location(doc.uri, line.range)))
+            symbols.push(new SymbolInformation(found[1], SymbolKind.Class, "object", new Location(doc.uri, line.range)))
           } else if (found = line.text.match(protocol_re)) {
             symbols.push(new SymbolInformation(found[1], SymbolKind.Interface, "protocol", new Location(doc.uri, line.range)))
           } else if (found = line.text.match(category_re)) {

@@ -168,7 +168,7 @@ Hover contents is provided for built-in directives, built-in predicates, and bui
 
 ## Configuration
 
-The user can configure settings via VS Code menu `Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a description of all the settings in this extension with their default values (if any). On Windows, use forward slashes in settings that require paths. Also on Windows, PowerShell 7.3.x or later is required for settings that call scripts., On a POSIX system (e.g. macOS, Linux, or BSD), if you're running Logtalk from a clone of its git repo, you may need to add the `.sh` extension to all scripts in the settings.
+The user can configure settings via VSCode menu `Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a description of all the settings in this extension with their default values (if any). On Windows, use forward slashes in settings that require paths. Also on Windows, PowerShell 7.3.x or later is required for settings that call scripts., On a POSIX system (e.g. macOS, Linux, or BSD), if you're running Logtalk from a clone of its git repo, you may need to add the `.sh` extension to all scripts in the settings.
 
 ### Logtalk home and user paths
 
