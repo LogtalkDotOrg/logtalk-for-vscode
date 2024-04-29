@@ -338,18 +338,20 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
   }
 
-  public static runTesters() {
+  public static runTesters(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.spawnScript(
+      uri,
       ["logtalk_tester", "logtalk.run.tester", LogtalkTerminal._testerExec],
       LogtalkTerminal._testerExec,
       LogtalkTerminal._testerArgs
     );
   }
 
-  public static runDoclets() {
+  public static runDoclets(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.spawnScript(
+      uri,
       ["logtalk_doclet", "logtalk.run.doclets", LogtalkTerminal._docletExec],
       LogtalkTerminal._docletExec,
       LogtalkTerminal._docletArgs
@@ -460,9 +462,9 @@ export default class LogtalkTerminal {
       });
   }
 
-  private static spawnScript(type: string[], path: string, args: string[]) {
+  private static spawnScript(uri: Uri, type: string[], path: string, args: string[]) {
     let dir: string;
-    dir = workspace.rootPath;
+    dir = LogtalkTerminal.getWorkspaceFolder(uri);
     LogtalkTerminal.spawnScript4(dir, type, path, args);
   }
 
@@ -514,5 +516,11 @@ export default class LogtalkTerminal {
       await timers.setTimeout(delay);
     }
   };
+
+  private static getWorkspaceFolder(uri: Uri): string {
+    return vscode.workspace.workspaceFolders
+      ?.map((folder) => folder.uri.fsPath)
+      .filter((fsPath) => uri.path?.startsWith(fsPath))[0];
+  }
 
 }

@@ -151,7 +151,7 @@ export class Utils {
       let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
 
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, [], {
-        cwd: workspace.rootPath,
+        cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
         encoding: "utf8",
         input: `functor(${wholePred}, N, A), write((name=N;arity=A)), nl.`
       });
@@ -220,7 +220,7 @@ export class Utils {
 //      console.log("wholePred: " + wholePred);
 
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, [], {
-        cwd: workspace.rootPath,
+        cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
         encoding: "utf8",
         input: `(${wholePred} = (Obj::Pred) -> functor(Pred, N, A), write((arity=A;name=(Obj::N))); ${wholePred} = (::Pred) -> functor(Pred, N, A), write((arity=A;name=(::N))); ${wholePred} = (^^Pred) -> functor(Pred, N, A), write((arity=A;name=(^^N))); functor(${wholePred}, N, A), write((arity=A;name=N))), nl.`
       });
@@ -245,6 +245,12 @@ export class Utils {
     }
 //    console.log("call: " + name + "/" + arity);
     return name + "/" + arity;
+  }
+
+  public static getWorkspaceFolderFromTextDocument(doc: TextDocument): string {
+    return vscode.workspace.workspaceFolders
+      ?.map((folder) => folder.uri.fsPath)
+      .filter((fsPath) => doc.fileName?.startsWith(fsPath))[0];
   }
 
 }

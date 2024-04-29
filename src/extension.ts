@@ -52,10 +52,10 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.generate.documentation", callback: uri  => LogtalkTerminal.genDocumentation(uri)},
     { command: "logtalk.generate.diagrams",      callback: uri  => LogtalkTerminal.genDiagrams(uri)},
     { command: "logtalk.open",                   callback: ()   => LogtalkTerminal.openLogtalk()},
-    { command: "logtalk.run.testers",            callback: uri  => LogtalkTerminal.runTesters()},
-    { command: "logtalk.run.doclets",            callback: uri  => LogtalkTerminal.runDoclets()}
+    { command: "logtalk.run.testers",            callback: uri  => LogtalkTerminal.runTesters(uri)},
+    { command: "logtalk.run.doclets",            callback: uri  => LogtalkTerminal.runDoclets(uri)}
   ];
-  
+
   logtalkCommands.map(command => {
     context.subscriptions.push(
       commands.registerCommand(command.command, command.callback)
