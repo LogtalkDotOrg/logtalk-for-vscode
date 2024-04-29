@@ -95,7 +95,7 @@ Refer to the table below for other snippets:
 
 #### Workspace commands
 
-Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension.
+Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. Alternatively, Ctrl+click (Windows, Linux, BSD, ...) or Cmd+click (macOS) in a Logtalk source file in the Explorer.
 
 |      Command | Description                                                 |
 | -----------: | :---------------------------------------------------------- |
@@ -152,11 +152,11 @@ Click in the middle of a predicate name in a predicate indicator in a scope dire
 
 #### Go to Symbol in Editor...
 
-Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded.
+Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded. Assumes that a single predicate (or non-terminal) is declared per scope directive.
 
 #### Go to Symbol in Workspace...
 
-Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded.
+Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded. Assumes that a single predicate (or non-terminal) is declared per scope directive.
 
 #### Show Call Hierarchy
 
