@@ -33,7 +33,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
 
     let found;
 
-    const docs = await workspace.findFiles(new RelativePattern(workspace.rootPath, '**/*.{lgt,logtalk}'));
+    const docs = await workspace.findFiles('**/*.{lgt,logtalk}');
     for (var i = 0; i < docs.length; i++) {
       try {
         const doc = await workspace.openTextDocument(docs[i]);
