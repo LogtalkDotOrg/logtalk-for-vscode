@@ -53,7 +53,8 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.generate.diagrams",      callback: uri  => LogtalkTerminal.genDiagrams(uri)},
     { command: "logtalk.open",                   callback: ()   => LogtalkTerminal.openLogtalk()},
     { command: "logtalk.run.testers",            callback: uri  => LogtalkTerminal.runTesters(uri)},
-    { command: "logtalk.run.doclets",            callback: uri  => LogtalkTerminal.runDoclets(uri)}
+    { command: "logtalk.run.doclets",            callback: uri  => LogtalkTerminal.runDoclets(uri)},
+    { command: "logtalk.goto.loaderFile",        callback: uri  => LogtalkTerminal.gotoLoaderFile(uri)}
   ];
 
   logtalkCommands.map(command => {

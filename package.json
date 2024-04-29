@@ -122,6 +122,10 @@
             {
                 "command": "logtalk.run.doclets",
                 "title": "Logtalk: Run Doclets (workspace)"
+            },
+            {
+                "command": "logtalk.goto.loaderFile",
+                "title": "Logtalk: Go to Loader File"
             }
         ],
         "keybindings": [],
@@ -161,6 +165,10 @@
                 },
                 {
                     "command": "logtalk.scan.deadCode",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.goto.loaderFile",
                     "when": "resourceLangId == logtalk"
                 }
             ],
