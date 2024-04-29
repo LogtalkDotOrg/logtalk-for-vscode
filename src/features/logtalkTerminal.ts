@@ -491,7 +491,7 @@ export default class LogtalkTerminal {
     if (uri && uri.fsPath) {
       dir = path.dirname(uri.fsPath);
     } else {
-      dir = workspace.rootPath;
+      dir = vscode.workspace.workspaceFolders[0].uri.fsPath;
     }
     return dir;
   }
