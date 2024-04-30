@@ -453,9 +453,23 @@ export default class LogtalkTerminal {
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     let goals = `vscode::find_descendants('${dir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir, ".vscode_descendants");
+    const marker = path.join(dir, ".vscode_descendants_done");
     await LogtalkTerminal.waitForFile(marker);
     fsp.rm(marker, { force: true });
+  }
+
+  public static async getType(file: string, entity: string): Promise<string> {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    let goals = `vscode::find_entity_type('${dir}', ${entity}).\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(dir, ".vscode_type_done");
+    await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
+    const result = path.join(dir, ".vscode_type");
+    let type = await fs.readFileSync(result).toString();
+    fsp.rm(result, { force: true });
+    return type;
   }
 
   public static async openParentFile(uri: Uri) {

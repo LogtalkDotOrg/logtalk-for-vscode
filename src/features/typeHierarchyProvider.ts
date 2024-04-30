@@ -21,17 +21,19 @@ import * as fs from "fs";
 import * as fsp from "fs/promises";
 
 export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
-  public prepareTypeHierarchy(
+  public async prepareTypeHierarchy(
     doc: TextDocument,
     position: Position,
     token: CancellationToken
-  ): ProviderResult<TypeHierarchyItem> {
+  ): Promise<TypeHierarchyItem> {
     let entity = Utils.getEntityNameUnderCursor(doc, position);
     if (!entity) {
       return null;
     } else {
+      let type = await LogtalkTerminal.getType(doc.uri.fsPath, entity);
+      let symbol = type == "object" ? SymbolKind.Class : type == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
       return new TypeHierarchyItem(
-        SymbolKind.Function,
+        symbol,
         entity,
         "",
         doc.uri,
@@ -58,17 +60,19 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     if (fs.existsSync(refs)) {
       let out = await fs.readFileSync(refs).toString();
       fsp.rm(refs, { force: true });
-      let matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
+      let matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
+      var symbol = null;
       for (match of matches) {
+        symbol = match[1] == "object" ? SymbolKind.Class : match[1] == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
         ancestors.push(
           new TypeHierarchyItem(
-            SymbolKind.Function,
-            match[1],
+            symbol,
+            match[2],
             "",
-            Uri.file(match[2]),
-            new Range(new Position(parseInt(match[3]) - 1, 0), new Position(parseInt(match[3]) - 1, 0)),
-            new Range(new Position(parseInt(match[3]) - 1, 0), new Position(parseInt(match[3]) - 1, 0))
+            Uri.file(match[3]),
+            new Range(new Position(parseInt(match[4]) - 1, 0), new Position(parseInt(match[4]) - 1, 0)),
+            new Range(new Position(parseInt(match[4]) - 1, 0), new Position(parseInt(match[4]) - 1, 0))
           )
         );
       }
@@ -96,17 +100,19 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     if (fs.existsSync(refs)) {
       let out = await fs.readFileSync(refs).toString();
       fsp.rm(refs, { force: true });
-      let matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
+      let matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
+      var symbol = null;
       for (match of matches) {
+        symbol = match[1] == "object" ? SymbolKind.Class : match[1] == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
         descendants.push(
           new TypeHierarchyItem(
-            SymbolKind.Function,
-            match[1],
+            symbol,
+            match[2],
             "",
-            Uri.file(match[2]),
-            new Range(new Position(parseInt(match[3]) - 1, 0), new Position(parseInt(match[3]) - 1, 0)),
-            new Range(new Position(parseInt(match[3]) - 1, 0), new Position(parseInt(match[3]) - 1, 0))
+            Uri.file(match[3]),
+            new Range(new Position(parseInt(match[4]) - 1, 0), new Position(parseInt(match[4]) - 1, 0)),
+            new Range(new Position(parseInt(match[4]) - 1, 0), new Position(parseInt(match[4]) - 1, 0))
           )
         );
       }
