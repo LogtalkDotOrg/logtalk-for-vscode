@@ -47,7 +47,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
   ): Promise<CallHierarchyIncomingCall[]> {
     let callers: CallHierarchyIncomingCall[] = [];
     let fromRanges: Range[] = [];
-    let file = item.uri.path;
+    let file = item.uri.fsPath;
     let predicate = item.name;
     let position = item.range.start;
 
@@ -89,7 +89,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
   ): Promise<CallHierarchyOutgoingCall[]> {
     let callees: CallHierarchyOutgoingCall[] = [];
     let fromRanges: Range[] = [];
-    let file = item.uri.path;
+    let file = item.uri.fsPath;
     let predicate = item.name;
     let position = item.range.start;
 

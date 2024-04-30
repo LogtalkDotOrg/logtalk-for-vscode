@@ -49,7 +49,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
   ): Promise<TypeHierarchyItem[]> {
     let ancestors: TypeHierarchyItem[] = [];
     let fromRanges: Range[] = [];
-    let file = item.uri.path;
+    let file = item.uri.fsPath;
     let entity = item.name;
 
     await LogtalkTerminal.getAncestors(file, entity);
@@ -89,7 +89,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
   ): Promise<TypeHierarchyItem[]> {
     let descendants: TypeHierarchyItem[] = [];
     let fromRanges: Range[] = [];
-    let file = item.uri.path;
+    let file = item.uri.fsPath;
     let entity = item.name;
 
     await LogtalkTerminal.getDescendants(file, entity);

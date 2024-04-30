@@ -421,7 +421,8 @@ export default class LogtalkTerminal {
   public static async getCallers(file: string, position: Position, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
-    let goals = `vscode::find_callers('${dir}', ${predicate}, '${file}', ${position.line+1}).\r`;
+    const fileSlash = path.resolve(file).split(path.sep).join("/");
+    let goals = `vscode::find_callers('${dir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_callers_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -431,7 +432,8 @@ export default class LogtalkTerminal {
   public static async getCallees(file: string, position: Position, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
-    let goals = `vscode::find_callees('${dir}', ${predicate}, '${file}', ${position.line+1}).\r`;
+    const fileSlash = path.resolve(file).split(path.sep).join("/");
+    let goals = `vscode::find_callees('${dir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_callees_done");
     await LogtalkTerminal.waitForFile(marker);
