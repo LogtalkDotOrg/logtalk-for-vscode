@@ -127,7 +127,7 @@ export class Utils {
     let re1 = new RegExp("^" + name + "/(\\d+)");
     let doctext = doc.getText();
     let text = doctext
-      .split("\n")
+      .split(/\r?\n/)
       .slice(position.line)
       .join("")
       .slice(wordRange.start.character)
@@ -193,7 +193,7 @@ export class Utils {
     let re1 = new RegExp("^(?:" + name_escaped + ")/[/]?(\\d+)");
     let doctext = doc.getText();
     let text = doctext
-      .split("\n")
+      .split(/\r?\n/)
       .slice(position.line)
       .join("")
       .slice(wordRange.start.character)
@@ -265,7 +265,7 @@ export class Utils {
     let re = new RegExp("^(?:" + name_escaped + ")\\(");
     let doctext = doc.getText();
     let text = doctext
-      .split("\n")
+      .split(/\r?\n/)
       .slice(position.line)
       .join("")
       .slice(wordRange.start.character)
