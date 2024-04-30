@@ -24,6 +24,7 @@ export class Utils {
   private static snippets: ISnippet = null;
   public static CONTEXT: ExtensionContext | null = null;
   public static RUNTIMEPATH: string = "logtalk";
+  public static RUNTIMEARGS: string[] = [];
   public static REFMANPATH: string;
 
   constructor() {}
@@ -34,6 +35,9 @@ export class Utils {
     Utils.RUNTIMEPATH = workspace
       .getConfiguration("logtalk")
       .get<string>("executable.path", process.env.LOGTALKHOME);
+    Utils.RUNTIMEARGS = workspace
+      .getConfiguration("logtalk")
+      .get<string[]>("executable.arguments");
     Utils.loadSnippets(context);
   }
 
@@ -150,7 +154,7 @@ export class Utils {
       }
       let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
 
-      let pp = cp.spawnSync(Utils.RUNTIMEPATH, [], {
+      let pp = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
         cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
         encoding: "utf8",
         input: `functor(${wholePred}, N, A), write((name=N;arity=A)), nl.`
@@ -219,7 +223,7 @@ export class Utils {
       let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
 //      console.log("wholePred: " + wholePred);
 
-      let pp = cp.spawnSync(Utils.RUNTIMEPATH, [], {
+      let pp = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
         cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
         encoding: "utf8",
         input: `(${wholePred} = (Obj::Pred) -> functor(Pred, N, A), write((arity=A;name=(Obj::N))); ${wholePred} = (::Pred) -> functor(Pred, N, A), write((arity=A;name=(::N))); ${wholePred} = (^^Pred) -> functor(Pred, N, A), write((arity=A;name=(^^N))); functor(${wholePred}, N, A), write((arity=A;name=N))), nl.`
