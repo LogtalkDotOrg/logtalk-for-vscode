@@ -438,6 +438,26 @@ export default class LogtalkTerminal {
     fsp.rm(marker, { force: true });
   }
 
+  public static async getAncestors(file: string, entity: string) {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    let goals = `vscode::find_ancestors('${dir}', ${entity}).\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(dir, ".vscode_ancestors_done");
+    await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
+  }
+
+  public static async getDescendants(file: string, entity: string) {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    let goals = `vscode::find_descendants('${dir}', ${entity}).\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(dir, ".vscode_descendants");
+    await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
+  }
+
   public static async openParentFile(uri: Uri) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;

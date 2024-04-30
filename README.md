@@ -163,6 +163,10 @@ Symbols include object, protocol, and category identifiers in entity opening dir
 
 Click in the middle of a predicate name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate.
 
+#### Show Type Hierarchy
+
+Click in the middle of an entity name and select the "Show Type Hierarchy" context menu item to browse ancestors and descendants of the selected entity. Here, ancestor is interpreted as any entity from which the selected entity inherits and descendant is interpreted as any entity that inherits from the selected entity.
+
 ### Hover contents
 
 Hover contents is provided for built-in directives, built-in predicates, and built-in methods.

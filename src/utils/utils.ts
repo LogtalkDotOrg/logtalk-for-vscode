@@ -247,6 +247,53 @@ export class Utils {
     return name + "/" + arity;
   }
 
+  public static getEntityNameUnderCursor(
+    doc: TextDocument,
+    position: Position
+  ): string {
+    let wordRange: Range = doc.getWordRangeAtPosition(
+      position,
+      /\w+/
+    );
+    if (!wordRange) {
+      return null;
+    }
+    let name = doc.getText(wordRange);
+    let fullName = name;
+//    console.log("name: " + name);
+    let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    let re = new RegExp("^(?:" + name_escaped + ")\\(");
+    let doctext = doc.getText();
+    let text = doctext
+      .split("\n")
+      .slice(position.line)
+      .join("")
+      .slice(wordRange.start.character)
+      .replace(/\s+/g, " ");
+//    console.log("text: " + text);
+    if (re.test(text)) {
+//      console.log("match");
+      let i = wordRange.end.character - wordRange.start.character + 2;
+      let matched = 1;
+      while (matched > 0) {
+        if (text.charAt(i) === "(") {
+          matched++;
+          i++;
+          continue;
+        }
+        if (text.charAt(i) === ")") {
+          matched--;
+          i++;
+          continue;
+        }
+        i++;
+      }
+      fullName = jsesc(text.slice(0, i), { quotes: "double" });
+//      console.log("fullName: " + fullName);
+    }
+    return fullName;
+  }
+
   public static getWorkspaceFolderFromTextDocument(doc: TextDocument): string {
     return vscode.workspace.workspaceFolders
       ?.map((folder) => folder.uri.fsPath)
