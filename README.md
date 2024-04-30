@@ -135,7 +135,7 @@ Click in a predicate name and select the "Go to Declaration" menu or context men
 
 #### Go to Definition
 
-Click in a predicate name and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate.
+Click in a predicate name in a goal or `uses/2` directive and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate.
 
 #### Go to Type Definition
 
@@ -143,7 +143,7 @@ Entities (objects, protocols, and categories) are interpreted as types. Click in
 
 #### Go to References
 
-Click in a predicate name in a scope directive, message goal, or a `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, and predicate calls.
+Click in a predicate name in a scope directive, goal, or `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, and predicate calls.
 
 Click in an entity name in its entity opening directive to find all entities implementing, importing, extending, instantiating, or specializing the selected entity. In the case of an object, this also finds explicit messages to the object and references to the object in `uses/1-2` directives. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
 
