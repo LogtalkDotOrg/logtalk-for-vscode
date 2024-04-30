@@ -120,7 +120,7 @@ These commands can be triggered from editor/context and explorer/context menus v
 |           Scan Dead Code | Scans the active source file directory for dead code              |
 |   Generate Documentation | Generates documentation for the active source file directory      |
 |        Generate Diagrams | Generates diagrams for the active source file directory           |
-|        Go to Loader File | Go to the loader file for the active source file                  |
+|         Open Parent File | Open the parent file of the active source file                    |
 
 ### Code Navigation
 

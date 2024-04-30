@@ -124,8 +124,8 @@
                 "title": "Logtalk: Run Doclets (workspace)"
             },
             {
-                "command": "logtalk.goto.loaderFile",
-                "title": "Logtalk: Go to Loader File"
+                "command": "logtalk.open.parentFile",
+                "title": "Logtalk: Open Parent File"
             }
         ],
         "keybindings": [],
@@ -168,7 +168,7 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
-                    "command": "logtalk.goto.loaderFile",
+                    "command": "logtalk.open.parentFile",
                     "when": "resourceLangId == logtalk"
                 }
             ],

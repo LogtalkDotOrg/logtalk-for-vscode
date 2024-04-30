@@ -438,7 +438,7 @@ export default class LogtalkTerminal {
     fsp.rm(marker, { force: true });
   }
 
-  public static async gotoLoaderFile(uri: Uri) {
+  public static async openParentFile(uri: Uri) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -446,12 +446,12 @@ export default class LogtalkTerminal {
     const dir0: string = LogtalkTerminal.ensureDir(uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const file: string = path.resolve(uri.fsPath).split(path.sep).join("/");
-    let goals = `vscode::find_loader_file('${dir}', '${file}').\r`;
+    let goals = `vscode::find_parent_file('${dir}', '${file}').\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir, ".vscode_find_loader_done");
+    const marker = path.join(dir, ".vscode_find_parent_done");
     await LogtalkTerminal.waitForFile(marker);
     fsp.rm(marker, { force: true });
-    const result = path.join(dir, ".vscode_find_loader");
+    const result = path.join(dir, ".vscode_find_parent");
     let loader = await fs.readFileSync(result).toString();
     fsp.rm(result, { force: true });
     workspace.openTextDocument(loader).then(doc => {
