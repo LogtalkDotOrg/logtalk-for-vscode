@@ -161,7 +161,7 @@ Symbols include object, protocol, and category identifiers in entity opening dir
 
 #### Show Call Hierarchy
 
-Click in the middle of a predicate name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate.
+Click in the middle of a predicate name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate. Note that callers and callees that can only be resolved at runtime (e.g. in a message to _self_ goal) may not be returned.
 
 #### Show Type Hierarchy
 
