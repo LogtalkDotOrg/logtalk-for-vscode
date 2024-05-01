@@ -36,49 +36,19 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
 
       let found;
       let entity;
-      let end_entity;
 
-      var i = 0;
-      var j = 0;
-      while ( i < doc.lineCount ) {
+      for (var i = 0; i < doc.lineCount; i++) {
         var line = doc.lineAt(i);
         if (found = line.text.match(object_re)) {
-          j = i + 1;
-          end_entity = false;
-          while (!end_entity && j < doc.lineCount) {
-            var jline = doc.lineAt(j);
-            if (jline.text.match(end_object_re)) {
-              end_entity = true;
-            } else {
-              j++;
-            }
-          }
+          var j = LogtalkDocumentSymbolProvider.findEndEntityDirectivePosition(doc, i, end_object_re);
           entity = new DocumentSymbol(found[1], "object", SymbolKind.Class, new Range(new Position(i,0), new Position(j,13)), new Range(line.range.start, line.range.end));
           symbols.push(entity)
         } else if (found = line.text.match(protocol_re)) {
-          j = i + 1;
-          end_entity = false;
-          while (!end_entity && j < doc.lineCount) {
-            var jline = doc.lineAt(j);
-            if (jline.text.match(end_protocol_re)) {
-              end_entity = true;
-            } else {
-              j++;
-            }
-          }
+          var j = LogtalkDocumentSymbolProvider.findEndEntityDirectivePosition(doc, i, end_protocol_re);
           entity = new DocumentSymbol(found[1], "protocol", SymbolKind.Interface, new Range(new Position(i,0), new Position(j,15)), new Range(line.range.start, line.range.end));
           symbols.push(entity)
         } else if (found = line.text.match(category_re)) {
-          j = i + 1;
-          end_entity = false;
-          while (!end_entity && j < doc.lineCount) {
-            var jline = doc.lineAt(j);
-            if (jline.text.match(end_category_re)) {
-              end_entity = true;
-            } else {
-              j++;
-            }
-          }
+          var j = LogtalkDocumentSymbolProvider.findEndEntityDirectivePosition(doc, i, end_category_re);
           entity = new DocumentSymbol(found[1], "category", SymbolKind.Struct, new Range(new Position(i,0), new Position(j,15)), new Range(line.range.start, line.range.end));
           symbols.push(entity)
         } else if (found = line.text.match(public_predicate_re)) {
@@ -94,10 +64,23 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
         } else if (found = line.text.match(private_non_terminal_re)) {
           entity.children.push(new DocumentSymbol(found[1], "private non-terminal", SymbolKind.Field, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
         }
-        i++;
       }
 
       resolve(symbols);
     });
+  }
+
+  private static findEndEntityDirectivePosition(doc: TextDocument, i: number, regex: RegExp): number {
+    var j = i + 1;
+    let end_entity = false;
+    while (!end_entity && j < doc.lineCount) {
+      var line = doc.lineAt(j);
+      if (line.text.match(regex)) {
+        end_entity = true;
+      } else {
+        j++;
+      }
+    }
+    return j;
   }
 }
