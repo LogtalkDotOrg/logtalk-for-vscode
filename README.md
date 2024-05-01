@@ -135,7 +135,7 @@ Click in a predicate name and select the "Go to Declaration" menu or context men
 
 #### Go to Definition
 
-Click in a predicate name in a goal or `uses/2` directive and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate.
+Click in a predicate name in a goal or `uses/2` directive and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate. Note that definitions may only be resolved at runtime (e.g. in a message to _self_ goal). When a definition is not found, try in alternative to go to the declaration and then to the references.
 
 #### Go to Type Definition
 
