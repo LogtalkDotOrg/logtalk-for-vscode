@@ -5,6 +5,7 @@ import {
   DocumentSymbolProvider,
   DocumentSymbol,
   Range,
+  Position,
   TextDocument,
   SymbolKind
 } from "vscode";
@@ -21,6 +22,10 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
       let protocol_re = /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
       let category_re = /^(?:\:- category\()([^(),.]+(\(.*\))?)/;
 
+      let end_object_re   = /^(?:\:- end_object\.)/;
+      let end_protocol_re = /^(?:\:- end_protocol\.)/;
+      let end_category_re = /^(?:\:- end_category\.)/;
+
       let public_predicate_re    = /(?:\s*\:- public\()(\w+[/]\d+)/;
       let protected_predicate_re = /(?:\s*\:- protected\()(\w+[/]\d+)/;
       let private_predicate_re   = /(?:\s*\:- private\()(\w+[/]\d+)/;
@@ -31,17 +36,50 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
 
       let found;
       let entity;
+      let end_entity;
 
-      for (var i = 0; i < doc.lineCount; i++) {
+      var i = 0;
+      var j = 0;
+      while ( i < doc.lineCount ) {
         var line = doc.lineAt(i);
         if (found = line.text.match(object_re)) {
-          entity = new DocumentSymbol(found[1], "object", SymbolKind.Class, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end));
+          j = i + 1;
+          end_entity = false;
+          while (!end_entity && j < doc.lineCount) {
+            var jline = doc.lineAt(j);
+            if (jline.text.match(end_object_re)) {
+              end_entity = true;
+            } else {
+              j++;
+            }
+          }
+          entity = new DocumentSymbol(found[1], "object", SymbolKind.Class, new Range(new Position(i,0), new Position(j,13)), new Range(line.range.start, line.range.end));
           symbols.push(entity)
         } else if (found = line.text.match(protocol_re)) {
-          entity = new DocumentSymbol(found[1], "protocol", SymbolKind.Interface, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end));
+          j = i + 1;
+          end_entity = false;
+          while (!end_entity && j < doc.lineCount) {
+            var jline = doc.lineAt(j);
+            if (jline.text.match(end_protocol_re)) {
+              end_entity = true;
+            } else {
+              j++;
+            }
+          }
+          entity = new DocumentSymbol(found[1], "protocol", SymbolKind.Interface, new Range(new Position(i,0), new Position(j,15)), new Range(line.range.start, line.range.end));
           symbols.push(entity)
         } else if (found = line.text.match(category_re)) {
-          entity = new DocumentSymbol(found[1], "category", SymbolKind.Struct, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end));
+          j = i + 1;
+          end_entity = false;
+          while (!end_entity && j < doc.lineCount) {
+            var jline = doc.lineAt(j);
+            if (jline.text.match(end_category_re)) {
+              end_entity = true;
+            } else {
+              j++;
+            }
+          }
+          entity = new DocumentSymbol(found[1], "category", SymbolKind.Struct, new Range(new Position(i,0), new Position(j,15)), new Range(line.range.start, line.range.end));
           symbols.push(entity)
         } else if (found = line.text.match(public_predicate_re)) {
           entity.children.push(new DocumentSymbol(found[1], "public predicate", SymbolKind.Function, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
@@ -56,6 +94,7 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
         } else if (found = line.text.match(private_non_terminal_re)) {
           entity.children.push(new DocumentSymbol(found[1], "private non-terminal", SymbolKind.Field, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
         }
+        i++;
       }
 
       resolve(symbols);
