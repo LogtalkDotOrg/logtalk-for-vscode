@@ -67,11 +67,12 @@ export default class LogtalkTerminal {
       let logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
       let executable = jsesc(section.get<string>("executable.path", "logtalk"));
       let args = section.get<string[]>("executable.arguments");
-      LogtalkTerminal._terminal = (<any>window).createTerminal(
-        "Logtalk",
-        executable,
-        args
-      );
+      LogtalkTerminal._terminal = (<any>window).createTerminal({
+        name: "Logtalk",
+        shellPath: executable,
+        shellArgs: args,
+        isTransient: true
+      });
 
       let UrlRegex = new RegExp(/(in file)\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/);
 
