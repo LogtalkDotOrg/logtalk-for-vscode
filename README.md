@@ -4,7 +4,7 @@ A VSCode extension which provides language support for Logtalk. Forked from the 
 
 Developed and tested in **Logtalk 3.78.0** and **VSCode 1.88.1** on **macOS 14.4** and **Windows 10** with **Node 21**.
 
-🙏 Sponsored by [Permion](https://permion.ai/) and GitHub Sponsors.
+🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
 ---
 
@@ -14,7 +14,7 @@ Developed and tested in **Logtalk 3.78.0** and **VSCode 1.88.1** on **macOS 14.4
 
 ## Installation
 
-This extension can be installed directly from VSCode, from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=LogtalkDotOrg.logtalk-for-vscode&ssr=false#overview), or by downloading its `.vsix` file and selecting `'Extensions: Install from VSIX...'` command from the command palette. See [Development](#development) for details on how the generate the extension `.vsix` file for a git version.
+This extension can be installed directly from [VSCode](https://code.visualstudio.com/), from its [Marketplace](https://marketplace.visualstudio.com/items?itemName=LogtalkDotOrg.logtalk-for-vscode), or by [downloading](https://github.com/LogtalkDotOrg/logtalk-for-vscode/releases/latest) its `.vsix` file and selecting the "Extensions: Install from VSIX..." command from the command palette. It can also be installed directly from [VSCodium](https://vscodium.com/) or by downloading its `.vsix` file from its [Marketplace](https://marketplace.visualstudio.com/items?itemName=LogtalkDotOrg.logtalk-for-vscode). See [Development](#development) for details on how the generate the extension `.vsix` file for a git version.
 
 This extension **must** be configured before it can be used. Notably, the following settings are required:
 
