@@ -135,7 +135,7 @@ Click in a predicate name and select the "Go to Declaration" menu or context men
 
 #### Go to Definition
 
-Click in a predicate name in a goal or `uses/2` directive and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate. Note that definitions may only be resolved at runtime (e.g. in a message to _self_ goal). When a definition is not found, try in alternative to go to the declaration and then to the references.
+Click in a predicate name in a goal or `uses/2` directive and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate. Note that definitions may only be resolved at runtime (e.g. in a message to _self_ goal or when dynamic predicates are used). When a definition is not found, try in alternative to go to the declaration and then to the references.
 
 #### Go to Type Definition
 
@@ -149,7 +149,7 @@ Click in an entity name in its entity opening directive to find references to it
 
 #### Go to Implementations
 
-Click in the middle of a predicate name in a predicate indicator in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items. Note that you can go to a predicate scope directive by clicking the predicate name in a goal and selecting the "Go to Declaration" menu or context menu item.
+Click in the middle of a predicate name in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items. Note that you can go to a predicate scope directive by clicking the predicate name in a goal and selecting the "Go to Declaration" menu or context menu item.
 
 #### Go to Symbol in Editor...
 
@@ -161,7 +161,7 @@ Symbols include object, protocol, and category identifiers in entity opening dir
 
 #### Show Call Hierarchy
 
-Click in the middle of a predicate name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate. Note that callers and callees that can only be resolved at runtime (e.g. in a message to _self_ goal) may not be returned.
+Click in the middle of a predicate name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate. Note that callers and callees that can only be resolved at runtime (e.g. in a message to _self_ goal or when dynamic predicates are used) may not be returned.
 
 #### Show Type Hierarchy
 
