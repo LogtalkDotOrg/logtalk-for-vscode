@@ -1,11 +1,17 @@
 # Changelog
 
+## [0.21.0]
+
+* Update the "Known Issues" section in the readme file
+
 ## [0.20.0]
 
 * Add "Go to Declaration" and "Go to Definition" support
 * Add "Go to Type Definition" support (with objects, protocols, and categories interpreted as types)
 * Add "Go to References" and "Go to Implementations" support
 * Add "Go to Symbol in Editor..." and "Go to Symbol in Workspace..." support
+* Add "Show Call Hierarchy" and "Show Type Hierarchy" support
+* Add "Open Parent File" command
 * Fix JavaScript error when parsing terminal output
 
 ## [0.19.0]

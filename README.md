@@ -275,7 +275,11 @@ The number of milliseconds to wait before running the scripts that convert `.xml
 
 On Windows systems, the file paths on the "Problems" pane are not relative to the workspace directory.
 
-On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues. Also, GNU Prolog cannot be used as it starts a GUI shell instead of running on the terminal.
+On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues. Also, using GNU Prolog requires the following setting:
+
+    "terminal.integrated.env.windows": {
+        "LINEDIT": "gui=no"
+    }
 
 If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated context menu items even after uninstalling it. If that happens, delete any extension leftovers in the `%USERPROFILE%\.vscode\extensions` (for Windows) or `~/.vscode/extensions` (for Linux and macOS) directory.
 
