@@ -2,6 +2,7 @@
 
 ## [0.21.0]
 
+* Add "Logtalk: Scan Dead Code (workspace)" command
 * Update the "Known Issues" section in the readme file
 
 ## [0.20.0]

@@ -97,11 +97,12 @@ Refer to the table below for other snippets:
 
 Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. Alternatively, Ctrl+click (Windows, Linux, BSD, ...) or Cmd+click (macOS) in a Logtalk source file in the Explorer.
 
-|      Command | Description                                                 |
-| -----------: | :---------------------------------------------------------- |
-| Open Logtalk | Opens Logtalk in an integrated terminal                     |
-|  Run Testers | Runs the `logtalk_tester` script on the workspace directory |
-|  Run Doclets | Runs the `logtalk_doclet` script on the workspace directory |
+|                     Command | Description                                                 |
+| --------------------------: | :---------------------------------------------------------- |
+|                Open Logtalk | Opens Logtalk in an integrated terminal                     |
+|  Scan Dead Code (workspace) | Recursively scans the workspace directory for dead code     |
+|     Run Testers (workspace) | Runs the `logtalk_tester` script on the workspace directory |
+|     Run Doclets (workspace) | Runs the `logtalk_doclet` script on the workspace directory |
 
 The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane.
 

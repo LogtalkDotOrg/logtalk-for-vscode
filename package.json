@@ -116,6 +116,10 @@
                 "title": "Logtalk: Open Logtalk"
             },
             {
+                "command": "logtalk.rscan.deadCode",
+                "title": "Logtalk: Scan Dead Code (workspace)"
+            },
+            {
                 "command": "logtalk.run.testers",
                 "title": "Logtalk: Run Testers (workspace)"
             },
@@ -195,6 +199,10 @@
                 },
                 {
                     "command": "logtalk.run.tests",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.rscan.deadCode",
                     "when": "resourceLangId == logtalk"
                 },
                 {

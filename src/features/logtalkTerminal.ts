@@ -339,6 +339,19 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
   }
 
+  public static async rscanForDeadCode(uri: Uri) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
+    LogtalkTerminal.createLogtalkTerm();
+    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    const loader0 = path.join(dir0, "loader");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
+    let goals = `logtalk_load(dead_code_scanner(loader)),logtalk_load('${loader}'),dead_code_scanner::rdirectory('${dir}').\r`;
+    LogtalkTerminal.sendString(goals);
+  }
+
   public static runTesters(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.spawnScript(
