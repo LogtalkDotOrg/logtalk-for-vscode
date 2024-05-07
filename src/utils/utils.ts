@@ -231,7 +231,7 @@ export class Utils {
 
       if (pp.status === 0) {
         let out = pp.stdout.toString();
-        console.log("out: " + out);
+//        console.log("out: " + out);
         let match = out.match(/arity=(\d+);name=(.*)/);
         if (match) {
 //          console.log("m1: " + match[1]);

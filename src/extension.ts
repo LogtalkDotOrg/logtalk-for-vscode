@@ -14,6 +14,7 @@ import { Utils } from "./utils/utils";
 import LogtalkDocumentHighlightProvider from "./features/documentHighlightProvider";
 import LogtalkTerminal from "./features/logtalkTerminal";
 import LogtalkLinter from "./features/logtalkLinter";
+import LogtalkDeadCodeScanner from "./features/logtalkDeadCodeScanner";
 import LogtalkHoverProvider from "./features/hoverProvider";
 import { LogtalkDeclarationProvider } from "./features/declarationProvider";
 import { LogtalkDefinitionProvider } from "./features/definitionProvider";
@@ -37,6 +38,8 @@ export function activate(context: ExtensionContext) {
   loadEditHelpers(subscriptions);
   const linter = new LogtalkLinter(context);
   linter.activate(subscriptions);
+  const deadCodeScanner = new LogtalkDeadCodeScanner(context);
+  deadCodeScanner.activate(subscriptions);
 
   DEBUG ? console.log('Linter Loaded.') : null;
 
@@ -49,11 +52,11 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.make.check",             callback: async (uri)  => LogtalkTerminal.makeCheck(uri)},
     { command: "logtalk.run.tests",              callback: uri  => LogtalkTerminal.runTests(uri)},
     { command: "logtalk.run.doclet",             callback: uri  => LogtalkTerminal.runDoclet(uri)},
-    { command: "logtalk.scan.deadCode",          callback: uri  => LogtalkTerminal.scanForDeadCode(uri)},
+    { command: "logtalk.scan.deadCode",          callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
     { command: "logtalk.generate.documentation", callback: uri  => LogtalkTerminal.genDocumentation(uri)},
     { command: "logtalk.generate.diagrams",      callback: uri  => LogtalkTerminal.genDiagrams(uri)},
     { command: "logtalk.open",                   callback: ()   => LogtalkTerminal.openLogtalk()},
-    { command: "logtalk.rscan.deadCode",         callback: uri  => LogtalkTerminal.rscanForDeadCode(uri)},
+    { command: "logtalk.rscan.deadCode",         callback: uri  => LogtalkTerminal.rscanForDeadCode(uri, deadCodeScanner)},
     { command: "logtalk.run.testers",            callback: uri  => LogtalkTerminal.runTesters(uri)},
     { command: "logtalk.run.doclets",            callback: uri  => LogtalkTerminal.runDoclets(uri)},
     { command: "logtalk.open.parentFile",        callback: uri  => LogtalkTerminal.openParentFile(uri)}
