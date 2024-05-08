@@ -243,18 +243,57 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static async makeReload(uri: Uri) {
-    const file: string = await LogtalkTerminal.ensureFile(uri);
-    LogtalkTerminal.createLogtalkTerm();
-    let goals = `logtalk_make(all).\r`;
-    LogtalkTerminal.sendString(goals);
+  public static async makeReload(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "all");
   }
 
-  public static async makeCheck(uri: Uri) {
-    const file: string = await LogtalkTerminal.ensureFile(uri);
+  public static async makeCheck(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "check");
+  }
+
+  public static async make(uri: Uri, linter: LogtalkLinter, target: string) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
+    // Declare Variables
+    const dir0 = path.dirname(uri.fsPath);
+    const loader0 = path.join(dir0, "loader");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
+    let textDocument = null;
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+    // Open the Text Document
+    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    // Clear the Scratch Message File
+    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    let goals = `logtalk_make(check).\r`;
-    LogtalkTerminal.sendString(goals);
+    LogtalkTerminal.sendString(`vscode::make('${dir}','${target}').\r`, false);
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir0, ".vscode_make_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      for (const line of lines) {
+        message = message + line + '\n';
+        if(line == '*     ' || line == '!     ') {
+          linter.lint(textDocument, message);
+          message = '';
+        } 
+      }
+    }
   }
 
   public static runTests(uri: Uri) {
