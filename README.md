@@ -97,16 +97,18 @@ Refer to the table below for other snippets:
 
 Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. Alternatively, Ctrl+click (Windows, Linux, BSD, ...) or Cmd+click (macOS) in a Logtalk source file in the Explorer.
 
-|                     Command | Description                                                 |
-| --------------------------: | :---------------------------------------------------------- |
-|                Open Logtalk | Opens Logtalk in an integrated terminal                     |
-|  Scan Dead Code (workspace) | Recursively scans the workspace directory for dead code     |
-|     Run Testers (workspace) | Runs the `logtalk_tester` script on the workspace directory |
-|     Run Doclets (workspace) | Runs the `logtalk_doclet` script on the workspace directory |
+|                             Command | Description                                                      |
+| ----------------------------------: | :--------------------------------------------------------------- |
+|                        Open Logtalk | Opens Logtalk in an integrated terminal                          |
+|          Scan Dead Code (workspace) | Recursively scans the workspace directory for dead code          |
+|  Generate Documentation (workspace) | Recursively generates documentation for the workspace directory  |
+|       Generate Diagrams (workspace) | Recursively generates diagrams for the workspace directory       |
+|             Run Testers (workspace) | Runs the `logtalk_tester` script on the workspace directory      |
+|             Run Doclets (workspace) | Runs the `logtalk_doclet` script on the workspace directory      |
 
 The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane.
 
-### Directory and source file specified commands
+### Directory and source file commands
 
 These commands can be triggered from editor/context and explorer/context menus via right click editor area or Logtalk files in explorer area respectively. In explorer context, the file name at which right click occurs will be passed in the command as argument. File specified commands can also be triggered from command palette so that active file name in the editor will be passed in the command.
 

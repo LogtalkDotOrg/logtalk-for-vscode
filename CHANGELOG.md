@@ -2,6 +2,8 @@
 
 ## [0.21.0]
 
+* Add "Logtalk: Generate Documentation (workspace)" command
+* Add "Logtalk: Generate Diagrams (workspace)" command
 * Add "Logtalk: Scan Dead Code (workspace)" command
 * Add `dead_code_scanner` tool warnings to the "Problems" pane
 * Add `lgtdoc` tool warnings to the "Problems" pane

@@ -120,6 +120,14 @@
                 "title": "Logtalk: Scan Dead Code (workspace)"
             },
             {
+                "command": "logtalk.rgenerate.documentation",
+                "title": "Logtalk: Generate Documentation (workspace)"
+            },
+            {
+                "command": "logtalk.rgenerate.diagrams",
+                "title": "Logtalk: Generate Diagrams (workspace)"
+            },
+            {
                 "command": "logtalk.run.testers",
                 "title": "Logtalk: Run Testers (workspace)"
             },
@@ -203,6 +211,14 @@
                 },
                 {
                     "command": "logtalk.rscan.deadCode",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.rgenerate.diagrams",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.rgenerate.documentation",
                     "when": "resourceLangId == logtalk"
                 },
                 {
