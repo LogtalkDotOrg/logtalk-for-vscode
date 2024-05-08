@@ -316,11 +316,9 @@ export default class LogtalkTerminal {
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader0 = path.join(dir0, "loader");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
     const xmlDir0 = path.join(dir, "xml_docs");
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
-    LogtalkTerminal.sendString(`vscode::${predicate}('${dir}','${loader}').\r`, false);
+    LogtalkTerminal.sendString(`vscode::${predicate}('${dir}').\r`, false);
     const marker = path.join(dir0, ".vscode_xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
@@ -358,11 +356,9 @@ export default class LogtalkTerminal {
       uri = window.activeTextEditor.document.uri;
     }
     LogtalkTerminal.createLogtalkTerm();
-    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
     const project = path.basename(dir);
-    LogtalkTerminal.sendString(`vscode::${predicate}('${project}','${dir}','${loader}').\r`, false);
+    LogtalkTerminal.sendString(`vscode::${predicate}('${project}','${dir}').\r`, false);
     const marker = path.join(dir0, ".vscode_dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
@@ -406,10 +402,8 @@ export default class LogtalkTerminal {
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
-    let goals = `vscode::${predicate}('${dir}','${loader}').\r`;
+    let goals = `vscode::${predicate}('${dir}').\r`;
     LogtalkTerminal.sendString(goals);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_dead_code_scanning_done");
