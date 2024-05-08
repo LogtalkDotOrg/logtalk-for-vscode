@@ -3,6 +3,7 @@
 ## [0.21.0]
 
 * Change commands that run the developer tools to require the code to be loaded first
+* Inform the user when commands that spawn processes complete
 * Add "Logtalk: Generate Documentation (workspace)" command
 * Add "Logtalk: Generate Diagrams (workspace)" command
 * Add "Logtalk: Scan Dead Code (workspace)" command

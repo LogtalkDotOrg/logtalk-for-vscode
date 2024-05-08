@@ -5,7 +5,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as jsesc from "jsesc";
 import * as fs from "fs";
-import { spawn } from "process-promises";
+import { spawn } from "child_process";
 import LogtalkLinter from "./logtalkLinter";
 import LogtalkDeadCodeScanner from "./logtalkDeadCodeScanner";
 import LogtalkDocumentationLinter from "./logtalkDocumentationLinter";
@@ -333,11 +333,12 @@ export default class LogtalkTerminal {
         } 
       }
     }
-    LogtalkTerminal.spawnScript4(
+    LogtalkTerminal.spawnScript(
       xmlDir0,
       ["documentation", "logtalk.documentation.script", LogtalkTerminal._docExec],
       LogtalkTerminal._docExec,
-      LogtalkTerminal._docArgs
+      LogtalkTerminal._docArgs,
+      "Documentation generation completed."
     );
   }
 
@@ -362,11 +363,12 @@ export default class LogtalkTerminal {
     const marker = path.join(dir0, ".vscode_dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    LogtalkTerminal.spawnScript4(
+    LogtalkTerminal.spawnScript(
       path.join(dir0, "dot_dias"),
       ["diagrams", "logtalk.diagrams.script", LogtalkTerminal._diaExec],
       LogtalkTerminal._diaExec,
-      LogtalkTerminal._diaArgs
+      LogtalkTerminal._diaArgs,
+      "Diagrams generation completed."
     );
   }
 
@@ -420,25 +422,28 @@ export default class LogtalkTerminal {
         } 
       }
     }
+    vscode.window.showInformationMessage("Dead code scanning completed.");
   }
 
   public static runTesters(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
-    LogtalkTerminal.spawnScript(
+    LogtalkTerminal.spawnScriptWorkspace(
       uri,
       ["logtalk_tester", "logtalk.run.tester", LogtalkTerminal._testerExec],
       LogtalkTerminal._testerExec,
-      LogtalkTerminal._testerArgs
+      LogtalkTerminal._testerArgs,
+      "Testers completed."
     );
   }
 
   public static runDoclets(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
-    LogtalkTerminal.spawnScript(
+    LogtalkTerminal.spawnScriptWorkspace(
       uri,
       ["logtalk_doclet", "logtalk.run.doclets", LogtalkTerminal._docletExec],
       LogtalkTerminal._docletExec,
-      LogtalkTerminal._docletArgs
+      LogtalkTerminal._docletArgs,
+      "Doclets completed."
     );
   }
 
@@ -579,34 +584,37 @@ export default class LogtalkTerminal {
     });
   }
 
-  private static spawnScript4(dir: string, type: string[], path: string, args: string[]) {
-    let pp = spawn(path, args, { cwd: dir })
-      .on("stdout", out => {
-        LogtalkTerminal._outputChannel.append(out + "\n");
-        LogtalkTerminal._outputChannel.show(true);
-      })
-      .on("stderr", err => {
-        LogtalkTerminal._outputChannel.append(err + "\n");
-        LogtalkTerminal._outputChannel.show(true);
-      })
-      .catch(error => {
-        let message: string = null;
-        if ((<any>error).code === "ENOENT") {
-          message = `Cannot run the ${type[0]} script. The script was not found. Use the '${type[1]}' setting to configure`;
-        } else {
-          message = error.message
-            ? error.message
-            : `Failed to run the script ${type[0]} using path: ${type[2]}. Reason is unknown.`;
-        }
-        this._outputChannel.append(message);
-        this._outputChannel.show(true);
-      });
+  private static spawnScript(dir: string, type: string[], path: string, args: string[], message: string) {
+    let pp = spawn(path, args, { cwd: dir });
+    pp.stdout.on('data', (data) => {
+      LogtalkTerminal._outputChannel.append(data + "\n");
+      LogtalkTerminal._outputChannel.show(true);
+    });
+    pp.stderr.on('data', (data) => {
+      LogtalkTerminal._outputChannel.append(data + "\n");
+      LogtalkTerminal._outputChannel.show(true);
+    });
+    pp.on('error', (err) => {
+      let message: string = null;
+      if ((<any>err).code === "ENOENT") {
+        message = `Cannot run the ${type[0]} script. The script was not found. Use the '${type[1]}' setting to configure`;
+      } else {
+        message = err.message
+          ? err.message
+          : `Failed to run the script ${type[0]} using path: ${type[2]}. Reason is unknown.`;
+      }
+      this._outputChannel.append(message);
+      this._outputChannel.show(true);
+    });
+    pp.on('close', (code) => {
+      vscode.window.showInformationMessage(message);
+    })
   }
 
-  private static spawnScript(uri: Uri, type: string[], path: string, args: string[]) {
+  private static spawnScriptWorkspace(uri: Uri, type: string[], path: string, args: string[], message: string) {
     let dir: string;
     dir = LogtalkTerminal.getWorkspaceFolder(uri);
-    LogtalkTerminal.spawnScript4(dir, type, path, args);
+    LogtalkTerminal.spawnScript(dir, type, path, args, message);
   }
 
   private static async ensureFile(uri: Uri): Promise<string> {
