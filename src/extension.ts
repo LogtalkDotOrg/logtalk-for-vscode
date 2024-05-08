@@ -15,6 +15,7 @@ import LogtalkDocumentHighlightProvider from "./features/documentHighlightProvid
 import LogtalkTerminal from "./features/logtalkTerminal";
 import LogtalkLinter from "./features/logtalkLinter";
 import LogtalkDeadCodeScanner from "./features/logtalkDeadCodeScanner";
+import LogtalkDocumentationLinter from "./features/logtalkDocumentationLinter";
 import LogtalkHoverProvider from "./features/hoverProvider";
 import { LogtalkDeclarationProvider } from "./features/declarationProvider";
 import { LogtalkDefinitionProvider } from "./features/definitionProvider";
@@ -40,8 +41,10 @@ export function activate(context: ExtensionContext) {
   linter.activate(subscriptions);
   const deadCodeScanner = new LogtalkDeadCodeScanner(context);
   deadCodeScanner.activate(subscriptions);
+  const documentationLinter = new LogtalkDocumentationLinter(context);
+  documentationLinter.activate(subscriptions);
 
-  DEBUG ? console.log('Linter Loaded.') : null;
+  DEBUG ? console.log('Linters loaded') : null;
 
   Utils.init(context);
 
@@ -53,7 +56,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.run.tests",              callback: uri  => LogtalkTerminal.runTests(uri)},
     { command: "logtalk.run.doclet",             callback: uri  => LogtalkTerminal.runDoclet(uri)},
     { command: "logtalk.scan.deadCode",          callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
-    { command: "logtalk.generate.documentation", callback: uri  => LogtalkTerminal.genDocumentation(uri)},
+    { command: "logtalk.generate.documentation", callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},
     { command: "logtalk.generate.diagrams",      callback: uri  => LogtalkTerminal.genDiagrams(uri)},
     { command: "logtalk.open",                   callback: ()   => LogtalkTerminal.openLogtalk()},
     { command: "logtalk.rscan.deadCode",         callback: uri  => LogtalkTerminal.rscanForDeadCode(uri, deadCodeScanner)},

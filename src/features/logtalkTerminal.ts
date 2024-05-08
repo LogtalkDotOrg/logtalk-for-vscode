@@ -8,6 +8,7 @@ import * as fs from "fs";
 import { spawn } from "process-promises";
 import LogtalkLinter from "./logtalkLinter";
 import LogtalkDeadCodeScanner from "./logtalkDeadCodeScanner";
+import LogtalkDocumentationLinter from "./logtalkDocumentationLinter";
 import { isFunction } from "util";
 import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
@@ -282,10 +283,27 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
   }
 
-  public static async genDocumentation(uri: Uri) {
+  public static async genDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    let textDocument = null;
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+    // Open the Text Document
+    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    // Clear the Scratch Message File
+    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
     const loader0 = path.join(dir0, "loader");
@@ -297,6 +315,17 @@ export default class LogtalkTerminal {
     const marker = path.join(dir0, ".vscode_xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      for (const line of lines) {
+        message = message + line + '\n';
+        if(line == '*     ' || line == '!     ') {
+          documentationLinter.lint(textDocument, message);
+          message = '';
+        } 
+      }
+    }
     LogtalkTerminal.spawnScript4(
       xmlDir0,
       ["documentation", "logtalk.documentation.script", LogtalkTerminal._docExec],

@@ -4,6 +4,7 @@
 
 * Add "Logtalk: Scan Dead Code (workspace)" command
 * Add `dead_code_scanner` tool warnings to the "Problems" pane
+* Add `lgtdoc` tool warnings to the "Problems" pane
 * Update the "Known Issues" section in the readme file
 
 ## [0.20.0]
