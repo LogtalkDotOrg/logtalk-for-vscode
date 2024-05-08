@@ -284,57 +284,16 @@ export default class LogtalkTerminal {
   }
 
   public static async genDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
-    if (typeof uri === 'undefined') {
-      uri = window.activeTextEditor.document.uri;
-    }
-    let textDocument = null;
-    let logtalkHome: string = '';
-    let logtalkUser: string = '';
-    // Check for Configurations
-    let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
-    }
-    // Open the Text Document
-    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
-    // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
-    // Create the Terminal
-    LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
-    const loader0 = path.join(dir0, "loader");
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
-    const xmlDir0 = path.join(dir, "xml_docs");
-    const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
-    LogtalkTerminal.sendString(`vscode::documentation('${dir}','${loader}').\r`, false);
-    const marker = path.join(dir0, ".vscode_xml_files_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
-      let message = '';
-      for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          documentationLinter.lint(textDocument, message);
-          message = '';
-        } 
-      }
-    }
-    LogtalkTerminal.spawnScript4(
-      xmlDir0,
-      ["documentation", "logtalk.documentation.script", LogtalkTerminal._docExec],
-      LogtalkTerminal._docExec,
-      LogtalkTerminal._docArgs
-    );
+    LogtalkTerminal.genDocumentationHelper(uri, documentationLinter, dir0, "documentation");
   }
 
   public static async rgenDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
+    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    LogtalkTerminal.genDocumentationHelper(uri, documentationLinter, dir0, "documentation_recursive");
+  }
+
+  public static async genDocumentationHelper(uri: Uri, documentationLinter: LogtalkDocumentationLinter, dir0: string, predicate: string) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -356,13 +315,12 @@ export default class LogtalkTerminal {
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
-    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    const loader0 = path.join(dir0, "loader");
     const loader = path.resolve(loader0).split(path.sep).join("/");
     const xmlDir0 = path.join(dir, "xml_docs");
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
-    LogtalkTerminal.sendString(`vscode::documentation_recursive('${dir}','${loader}').\r`, false);
+    LogtalkTerminal.sendString(`vscode::${predicate}('${dir}','${loader}').\r`, false);
     const marker = path.join(dir0, ".vscode_xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
@@ -386,38 +344,25 @@ export default class LogtalkTerminal {
   }
 
   public static async genDiagrams(uri: Uri) {
-    if (typeof uri === 'undefined') {
-      uri = window.activeTextEditor.document.uri;
-    }
-    LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
-    const loader0 = path.join(dir0, "loader");
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
-    const project = path.basename(dir);
-    LogtalkTerminal.sendString(`vscode::diagrams('${project}','${dir}','${loader}').\r`, false);
-    const marker = path.join(dir0, ".vscode_dot_files_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    LogtalkTerminal.spawnScript4(
-      path.join(dir0, "dot_dias"),
-      ["diagrams", "logtalk.diagrams.script", LogtalkTerminal._diaExec],
-      LogtalkTerminal._diaExec,
-      LogtalkTerminal._diaArgs
-    );
+    LogtalkTerminal.rgenDiagramsHelper(uri, dir0, "diagrams");
   }
 
   public static async rgenDiagrams(uri: Uri) {
+    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    LogtalkTerminal.rgenDiagramsHelper(uri, dir0, "diagrams_recursive");
+  }
+
+  public static async rgenDiagramsHelper(uri: Uri, dir0: string, predicate: string) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
     LogtalkTerminal.createLogtalkTerm();
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
     const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const loader = path.resolve(loader0).split(path.sep).join("/");
     const project = path.basename(dir);
-    LogtalkTerminal.sendString(`vscode::diagrams_recursive('${project}','${dir}','${loader}').\r`, false);
+    LogtalkTerminal.sendString(`vscode::${predicate}('${project}','${dir}','${loader}').\r`, false);
     const marker = path.join(dir0, ".vscode_dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
@@ -430,51 +375,16 @@ export default class LogtalkTerminal {
   }
 
   public static async scanForDeadCode(uri: Uri, deadCodeScanner: LogtalkDeadCodeScanner) {
-    if (typeof uri === 'undefined') {
-      uri = window.activeTextEditor.document.uri;
-    }
-    let textDocument = null;
-    let logtalkHome: string = '';
-    let logtalkUser: string = '';
-    // Check for Configurations
-    let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
-    }
-    // Open the Text Document
-    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
-    // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
-    // Create the Terminal
-    LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
-    const loader0 = path.join(dir0, "loader");
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
-    let goals = `vscode::dead_code('${dir}','${loader}').\r`;
-    LogtalkTerminal.sendString(goals);
-    // Parse any compiler errors or warnings
-    const marker = path.join(dir0, ".vscode_dead_code_scanning_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
-      let message = '';
-      for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          deadCodeScanner.lint(textDocument, message);
-          message = '';
-        } 
-      }
-    }
+    LogtalkTerminal.scanForDeadCodeHelper(uri, deadCodeScanner, dir0, "dead_code")
   }
 
   public static async rscanForDeadCode(uri: Uri, deadCodeScanner: LogtalkDeadCodeScanner) {
+    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    LogtalkTerminal.scanForDeadCodeHelper(uri, deadCodeScanner, dir0, "dead_code_recursive")
+  }
+
+  public static async scanForDeadCodeHelper(uri: Uri, deadCodeScanner: LogtalkDeadCodeScanner, dir0: string, predicate: string) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -496,11 +406,10 @@ export default class LogtalkTerminal {
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
     const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const loader = path.resolve(loader0).split(path.sep).join("/");
-    let goals = `vscode::dead_code_recursive('${dir}','${loader}').\r`;
+    let goals = `vscode::${predicate}('${dir}','${loader}').\r`;
     LogtalkTerminal.sendString(goals);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_dead_code_scanning_done");
