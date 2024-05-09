@@ -153,9 +153,18 @@ export class Utils {
         i++;
       }
       let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
-
+      //      console.log("wholePred: " + wholePred);
+      let env;
+      if (process.platform === 'win32') {
+        env = workspace.getConfiguration("terminal.integrated.env.windows", doc.uri);
+      } else if (process.platform === 'darwin') {
+        env = workspace.getConfiguration("terminal.integrated.env.osx", doc.uri);
+      } else {
+        env = workspace.getConfiguration("terminal.integrated.env.linux", doc.uri);
+      }
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
         cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
+        env: Object.assign({}, env, process.env),
         encoding: "utf8",
         input: `functor(${wholePred}, N, A), write((name=N;arity=A)), nl.`
       });
@@ -222,9 +231,17 @@ export class Utils {
       }
       let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
 //      console.log("wholePred: " + wholePred);
-
+      let env;
+      if (process.platform === 'win32') {
+        env = workspace.getConfiguration("terminal.integrated.env.windows", doc.uri);
+      } else if (process.platform === 'darwin') {
+        env = workspace.getConfiguration("terminal.integrated.env.osx", doc.uri);
+      } else {
+        env = workspace.getConfiguration("terminal.integrated.env.linux", doc.uri);
+      }
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
         cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
+        env: Object.assign({}, env, process.env),
         encoding: "utf8",
         input: `(${wholePred} = (Obj::Pred) -> functor(Pred, N, A), write((arity=A;name=(Obj::N))); ${wholePred} = (::Pred) -> functor(Pred, N, A), write((arity=A;name=(::N))); ${wholePred} = (^^Pred) -> functor(Pred, N, A), write((arity=A;name=(^^N))); functor(${wholePred}, N, A), write((arity=A;name=N))), nl.`
       });

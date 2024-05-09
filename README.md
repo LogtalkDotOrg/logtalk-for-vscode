@@ -2,13 +2,13 @@
 
 A VSCode extension which provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Developed and tested in **Logtalk 3.78.0** and **VSCode 1.88.1** on **macOS 14.4** and **Windows 10** with **Node 21**.
+Requires Logtalk 3.79.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements).
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
 ---
 
-[Features](#features) | [Configuration](#configuration) | [Known Issues](#known-issues) | [Development](#development) | [Acknowledgements](#acknowledgements) | [Licence](#license)
+[Installation](#installation) | [Features](#features) | [Configuration](#configuration) | [Known Issues](#known-issues) | [Development](#development) | [Acknowledgements](#acknowledgements) | [Licence](#license)
 
 ---
 
@@ -93,6 +93,8 @@ Refer to the table below for other snippets:
 
 ### Commands
 
+Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
+
 #### Workspace commands
 
 Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. Alternatively, Ctrl+click (Windows, Linux, BSD, ...) or Cmd+click (macOS) in a Logtalk source file in the Explorer.
@@ -124,6 +126,8 @@ These commands can be triggered from editor/context and explorer/context menus v
 |   Generate Documentation | Generates documentation for the active source file directory      |
 |        Generate Diagrams | Generates diagrams for the active source file directory           |
 |         Open Parent File | Open the parent file of the active source file                    |
+
+The "Load Directory" command assumes that a `loader.lgt` or `loader.logtalk` file exists in the directory.
 
 ### Code Navigation
 
@@ -288,7 +292,9 @@ If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated
 
 ## Development
 
-This extension has been package and tested with Node 21. After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
+Developed and tested with **Logtalk 3.79.0** and **VSCode 1.89** on **macOS 14.4** and **Windows 10** with **Node 22**.
+
+After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
 See the [CHANGELOG.md](https://github.com/LogtalkDotOrg/logtalk-for-vscode/blob/master/CHANGELOG.md) file for the most recent changes. [Contributions](https://github.com/LogtalkDotOrg/logtalk-for-vscode/pulls) and [bug reports](https://github.com/LogtalkDotOrg/logtalk-for-vscode/issues) are most welcome.
 
