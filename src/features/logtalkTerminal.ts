@@ -739,7 +739,15 @@ export default class LogtalkTerminal {
     dir: string
   ): void {
     if (!LogtalkTerminal._context.workspaceState.get(dir, false)) {
-      vscode.window.showWarningMessage("No code loaded from selected directory...");
+      let found: boolean = false; 
+      for (const key of LogtalkTerminal._context.workspaceState.keys()) {
+        if (LogtalkTerminal._context.workspaceState.get(key, true) && dir.startsWith(key)) {
+          found = true;
+        }
+      }
+      if (!found) {
+        vscode.window.showWarningMessage("No code loaded from selected directory...");
+      }
     }
   }
 
