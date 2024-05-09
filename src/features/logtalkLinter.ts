@@ -79,12 +79,12 @@ export default class LogtalkLinter implements CodeActionProvider {
 
     if(match[9]) {
       lineFrom = parseInt(match[9])-1;
-      lineTo   = parseInt(match[9]);
+      lineTo   = parseInt(match[9])-1;
     } else if(match[14]) {
       lineFrom = parseInt(match[14])-1;
-      lineTo   = parseInt(match[14]);
+      lineTo   = parseInt(match[14])-1;
     } else {
-      lineFrom = parseInt(match[11])
+      lineFrom = parseInt(match[11])-1
       lineTo   = parseInt(match[12])-1
     }
 
