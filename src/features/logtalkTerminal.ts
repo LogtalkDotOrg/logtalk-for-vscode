@@ -52,11 +52,13 @@ export default class LogtalkTerminal {
     LogtalkTerminal._timeout       =   section.get<number>("scripts.timeout", 480000);
 
     return (<any>window).onDidCloseTerminal(terminal => {
-        LogtalkTerminal._terminal = null;
-        terminal.dispose();
+      for (const key of LogtalkTerminal._context.workspaceState.keys()) {
+        LogtalkTerminal._context.workspaceState.update(key, null);
+      }
+      LogtalkTerminal._terminal = null;
+      terminal.dispose();
     });
   }
-
 
   private static createLogtalkTerm() {
     if (LogtalkTerminal._terminal) {
@@ -195,6 +197,7 @@ export default class LogtalkTerminal {
         } 
       }
     }
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
   }
 
   public static async loadFile(uri: Uri, linter: LogtalkLinter) {
@@ -241,6 +244,7 @@ export default class LogtalkTerminal {
         } 
       }
     }
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
   }
 
   public static async makeReload(uri: Uri, linter: LogtalkLinter) {
@@ -355,6 +359,7 @@ export default class LogtalkTerminal {
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const xmlDir0 = path.join(dir, "xml_docs");
     const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
     LogtalkTerminal.sendString(`vscode::${predicate}('${dir}').\r`, false);
@@ -397,6 +402,7 @@ export default class LogtalkTerminal {
     }
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const project = path.basename(dir);
     LogtalkTerminal.sendString(`vscode::${predicate}('${project}','${dir}').\r`, false);
     const marker = path.join(dir0, ".vscode_dot_files_done");
@@ -444,6 +450,7 @@ export default class LogtalkTerminal {
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     let goals = `vscode::${predicate}('${dir}').\r`;
     LogtalkTerminal.sendString(goals);
     // Parse any compiler errors or warnings
@@ -490,6 +497,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_declaration('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
@@ -502,6 +510,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_definition('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
@@ -514,6 +523,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_type_definition('${dir}', ${entity}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
@@ -526,6 +536,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_references('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
@@ -538,6 +549,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
     const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     let goals = `vscode::find_implementations('${dir}', ${predicate}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
@@ -549,6 +561,7 @@ export default class LogtalkTerminal {
   public static async getCallers(file: string, position: Position, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const fileSlash = path.resolve(file).split(path.sep).join("/");
     let goals = `vscode::find_callers('${dir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
@@ -560,6 +573,7 @@ export default class LogtalkTerminal {
   public static async getCallees(file: string, position: Position, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const fileSlash = path.resolve(file).split(path.sep).join("/");
     let goals = `vscode::find_callees('${dir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
@@ -571,6 +585,7 @@ export default class LogtalkTerminal {
   public static async getAncestors(file: string, entity: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     let goals = `vscode::find_ancestors('${dir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_ancestors_done");
@@ -581,6 +596,7 @@ export default class LogtalkTerminal {
   public static async getDescendants(file: string, entity: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     let goals = `vscode::find_descendants('${dir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_descendants_done");
@@ -591,6 +607,7 @@ export default class LogtalkTerminal {
   public static async getType(file: string, entity: string): Promise<string> {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     let goals = `vscode::find_entity_type('${dir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_type_done");
@@ -608,6 +625,7 @@ export default class LogtalkTerminal {
     }
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir0);
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const file: string = path.resolve(uri.fsPath).split(path.sep).join("/");
     let goals = `vscode::find_parent_file('${dir}', '${file}').\r`;
@@ -709,6 +727,20 @@ export default class LogtalkTerminal {
     return vscode.workspace.workspaceFolders
       ?.map((folder) => folder.uri.fsPath)
       .filter((fsPath) => uri.path?.startsWith(fsPath))[0];
+  }
+
+  public static recordCodeLoadedFromDirectory(
+    dir: string
+  ): void {
+    LogtalkTerminal._context.workspaceState.update(dir, true);
+  }
+
+  public static checkCodeLoadedFromDirectory(
+    dir: string
+  ): void {
+    if (!LogtalkTerminal._context.workspaceState.get(dir, false)) {
+      vscode.window.showWarningMessage("No code loaded from selected directory...");
+    }
   }
 
 }

@@ -2,6 +2,7 @@
 
 ## [0.21.0]
 
+* Warn the user when no code is loaded for a command that requires it
 * Change commands that run the developer tools to require the code to be loaded first
 * Inform the user when commands that spawn processes complete
 * Add "Logtalk: Generate Documentation (workspace)" command
