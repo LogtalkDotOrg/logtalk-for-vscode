@@ -164,7 +164,7 @@ export class Utils {
       }
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
         cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
-        env: Object.assign({}, env, process.env),
+        env: Object.assign({}, process.env, env),
         encoding: "utf8",
         input: `functor(${wholePred}, N, A), write((name=N;arity=A)), nl.`
       });
@@ -241,7 +241,7 @@ export class Utils {
       }
       let pp = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
         cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
-        env: Object.assign({}, env, process.env),
+        env: Object.assign({}, process.env, env),
         encoding: "utf8",
         input: `(${wholePred} = (Obj::Pred) -> functor(Pred, N, A), write((arity=A;name=(Obj::N))); ${wholePred} = (::Pred) -> functor(Pred, N, A), write((arity=A;name=(::N))); ${wholePred} = (^^Pred) -> functor(Pred, N, A), write((arity=A;name=(^^N))); functor(${wholePred}, N, A), write((arity=A;name=N))), nl.`
       });
