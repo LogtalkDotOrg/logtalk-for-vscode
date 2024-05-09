@@ -746,7 +746,7 @@ export default class LogtalkTerminal {
         }
       }
       if (!found) {
-        vscode.window.showWarningMessage("No code loaded from selected directory...");
+        vscode.window.showWarningMessage("No code loaded from the selected directory as required by the command being run...");
       }
     }
   }
