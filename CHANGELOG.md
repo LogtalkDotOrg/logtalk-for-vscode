@@ -16,6 +16,7 @@
 * Update the "Known Issues" section in the readme file
 * Fix taking into account environment settings when spawning auxiliary Logtalk processes
 * Fix off-by-one error when parsing linter warnings lines
+* Fix deleting an atom or variable when typing an underscore before the first character
 
 ## [0.20.0]
 

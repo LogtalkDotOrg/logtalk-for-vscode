@@ -136,25 +136,7 @@ export function loadEditHelpers(subscriptions: Disposable[]) {
       let col = start.character;
       let editor = window.activeTextEditor;
       let lineTxt = e.document.lineAt(line).text;
-      if (lastChar === "_") {
-        let before = lineTxt.substring(0, col);
-        let after = lineTxt.substring(col + 1);
-        if (
-          before.lastIndexOf(")") < before.lastIndexOf("(") &&
-          /\W$/.test(before) &&
-          /^\w/.test(after)
-        ) {
-          let varLength = after.match("^(\\w+)\\b")[1].length;
-          editor.edit(edit => {
-            edit.delete(
-              new Range(
-                new Position(line, col + 1),
-                new Position(line, col + varLength + 1)
-              )
-            );
-          });
-        }
-      } else if (/^\s*\.$/.test(lineTxt)) {
+      if (/^\s*\.$/.test(lineTxt)) {
         let prevHead: string = getPreviousClauseHead(e.document, line - 1);
         if (isRecursive(e.document, line)) {
           prevHead = nextRecursiveParams(e.document, line - 1, prevHead);
