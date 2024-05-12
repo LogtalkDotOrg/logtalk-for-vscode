@@ -61,7 +61,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.load.file",               callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
     { command: "logtalk.make.reload",             callback: async (uri)  => LogtalkTerminal.makeReload(uri, linter)},
     { command: "logtalk.make.check",              callback: async (uri)  => LogtalkTerminal.makeCheck(uri, linter)},
-    { command: "logtalk.run.tests",               callback: uri  => LogtalkTerminal.runTests(uri)},
+    { command: "logtalk.run.tests",               callback: uri  => LogtalkTerminal.runTests(uri, linter)},
     { command: "logtalk.run.doclet",              callback: uri  => LogtalkTerminal.runDoclet(uri)},
     { command: "logtalk.scan.deadCode",           callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
     { command: "logtalk.generate.documentation",  callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},

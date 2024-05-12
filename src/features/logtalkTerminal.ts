@@ -300,17 +300,51 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static runTests(uri: Uri) {
+  public static async runTests(uri: Uri, linter: LogtalkLinter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
     LogtalkTerminal.createLogtalkTerm();
-    let dir: string;
-    dir = path.dirname(uri.fsPath);
-    const testfile0 = path.join(dir, "tester");
-    const testfile = path.resolve(testfile0).split(path.sep).join("/");
-    let goals = `logtalk_load('${testfile}').\r`;
-    LogtalkTerminal.sendString(goals);
+    // Declare Variables
+    const dir0 = path.dirname(uri.fsPath);
+    const tester0 = path.join(dir0, "tester");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const tester = path.resolve(tester0).split(path.sep).join("/");
+    let textDocument = null;
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+    // Open the Text Document
+    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    // Clear the Scratch Message File
+    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Create the Terminal
+    LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal.sendString(`vscode::tests('${dir}','${tester}').\r`, false);
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir0, ".vscode_loading_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      for (const line of lines) {
+        message = message + line + '\n';
+        if(line == '*     ' || line == '!     ') {
+          linter.lint(textDocument, message);
+          message = '';
+        } 
+      }
+    }
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
   }
 
   public static runDoclet(uri: Uri) {
