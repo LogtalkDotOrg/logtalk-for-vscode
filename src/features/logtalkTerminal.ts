@@ -304,7 +304,6 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
-    LogtalkTerminal.createLogtalkTerm();
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const tester0 = path.join(dir0, "tester");
@@ -347,17 +346,50 @@ export default class LogtalkTerminal {
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
   }
 
-  public static runDoclet(uri: Uri) {
+  public static async runDoclet(uri: Uri, linter: LogtalkLinter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    // Declare Variables
+    const dir0 = path.dirname(uri.fsPath);
+    const doclet0 = path.join(dir0, "doclet");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const doclet = path.resolve(doclet0).split(path.sep).join("/");
+    let textDocument = null;
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+    // Open the Text Document
+    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    // Clear the Scratch Message File
+    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    let dir: string;
-    dir = path.dirname(uri.fsPath);
-    const docfile0 = path.join(dir, "doclet");
-    const docfile = path.resolve(docfile0).split(path.sep).join("/");
-    let goals = `logtalk_load(doclet(loader)),logtalk_load('${docfile}').\r`;
-    LogtalkTerminal.sendString(goals);
+    LogtalkTerminal.sendString(`vscode::doclet('${dir}','${doclet}').\r`, false);
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir0, ".vscode_loading_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      for (const line of lines) {
+        message = message + line + '\n';
+        if(line == '*     ' || line == '!     ') {
+          linter.lint(textDocument, message);
+          message = '';
+        } 
+      }
+    }
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
   }
 
   public static async genDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {

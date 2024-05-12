@@ -12,6 +12,7 @@
 * Add `lgtdoc` tool warnings to the "Problems" pane
 * Add `make` tool warnings to the "Problems" pane
 * Add tests compilation warnings and errors to the "Problems" pane
+* Add doclet compilation warnings and errors to the "Problems" pane
 * Update the "Known Issues" section in the readme file
 * Fix taking into account environment settings when spawning auxiliary Logtalk processes
 * Fix off-by-one error when parsing linter warnings lines
