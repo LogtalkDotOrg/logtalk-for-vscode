@@ -24,11 +24,9 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
   private _onDidChangeCodeLenses: EventEmitter<void> = new EventEmitter<void>();
   public readonly onDidChangeCodeLenses: Event<void> = this._onDidChangeCodeLenses.event;
 
-  constructor() {
-  		workspace.onDidChangeConfiguration((_) => {
-  			this._onDidChangeCodeLenses.fire();
-  		});
-  	}
+  reload() {
+     this._onDidChangeCodeLenses.fire();
+  }
 
   public async provideCodeLenses(
     doc: TextDocument,
@@ -44,14 +42,11 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
       const results = path.join(dir, ".vscode_test_results");
 
       if (fs.existsSync(results)) {
-        console.log("file: " + file);
         let out = await fs.readFileSync(results).toString();
-//        fsp.rm(results, { force: true });
         const regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "g");
         let matches = out.matchAll(regex);
         var match = null;
         for (match of matches) {
-          console.log(match);
           codeLenses.push(
             new CodeLens(
               new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
@@ -64,8 +59,6 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
             )
           );
         }
-      } else {
-        console.log('test results not found');
       }
 
       return codeLenses;

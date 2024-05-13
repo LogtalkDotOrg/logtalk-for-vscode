@@ -67,7 +67,9 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.scan.deadCode",           callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
     { command: "logtalk.generate.documentation",  callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},
     { command: "logtalk.generate.diagrams",       callback: uri  => LogtalkTerminal.genDiagrams(uri)},
-    { command: "logtalk.open.parentFile",         callback: uri  => LogtalkTerminal.openParentFile(uri)}
+    { command: "logtalk.open.parentFile",         callback: uri  => LogtalkTerminal.openParentFile(uri)},
+    // other commands
+    { command: "logtalk.toggle.codeLens",         callback: uri  => LogtalkTerminal.toggleCodeLens(uri)}
   ];
 
   logtalkCommands.map(command => {
@@ -77,10 +79,7 @@ export function activate(context: ExtensionContext) {
   });
 
   context.subscriptions.push(
-    languages.registerDocumentHighlightProvider(
-      LOGTALK_MODE,
-      new LogtalkDocumentHighlightProvider()
-    )
+    languages.registerDocumentHighlightProvider(LOGTALK_MODE, new LogtalkDocumentHighlightProvider())
   );
   context.subscriptions.push(
     languages.registerHoverProvider(LOGTALK_MODE, new LogtalkHoverProvider())
@@ -110,10 +109,10 @@ export function activate(context: ExtensionContext) {
     languages.registerDocumentSymbolProvider(LOGTALK_MODE, new LogtalkDocumentSymbolProvider())
   );
   context.subscriptions.push(
-    languages.registerWorkspaceSymbolProvider(new LogtalkWorkspaceSymbolProvider( ))
+    languages.registerWorkspaceSymbolProvider(new LogtalkWorkspaceSymbolProvider())
   );
   context.subscriptions.push(
-    languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkCodeLensProvider( ))
+    languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkCodeLensProvider())
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }

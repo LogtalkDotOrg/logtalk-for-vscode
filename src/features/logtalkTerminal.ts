@@ -405,6 +405,7 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    // Declare Variables
     let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
@@ -496,6 +497,7 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    // Declare Variables
     let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
@@ -704,6 +706,23 @@ export default class LogtalkTerminal {
     workspace.openTextDocument(loader).then(doc => {
       vscode.window.showTextDocument(doc);
     });
+  }
+
+  public static async toggleCodeLens(uri: Uri) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
+    let section = workspace.getConfiguration("logtalk", uri);
+    if (section) {
+      let enabled: boolean = section.get<boolean>("enableCodeLens");
+      if (enabled) {
+        await section.update("enableCodeLens", false, false);
+      } else {
+        await section.update("enableCodeLens", true, false);
+      }
+    } else {
+      throw new Error("configuration settings error: logtalk");
+    }
   }
 
   private static spawnScript(dir: string, type: string[], path: string, args: string[], message: string) {

@@ -138,6 +138,10 @@
             {
                 "command": "logtalk.open.parentFile",
                 "title": "Logtalk: Open Parent File"
+            },
+            {
+                "command": "logtalk.toggle.codeLens",
+                "title": "Logtalk: Toggle Code Lens"
             }
         ],
         "keybindings": [],
@@ -181,6 +185,10 @@
                 },
                 {
                     "command": "logtalk.open.parentFile",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.toggle.codeLens",
                     "when": "resourceLangId == logtalk"
                 }
             ],
