@@ -24,9 +24,11 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
   private _onDidChangeCodeLenses: EventEmitter<void> = new EventEmitter<void>();
   public readonly onDidChangeCodeLenses: Event<void> = this._onDidChangeCodeLenses.event;
 
-  reload() {
-     this._onDidChangeCodeLenses.fire();
-  }
+  constructor() {
+		workspace.onDidChangeConfiguration((_) => {
+			this._onDidChangeCodeLenses.fire();
+		});
+	}
 
   public async provideCodeLenses(
     doc: TextDocument,
@@ -54,7 +56,7 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
                 title: match[2],
                 tooltip: "Re-run tests",
                 command: "logtalk.run.tests",
-                arguments: []
+                arguments: [doc.uri]
               }
             )
           );
