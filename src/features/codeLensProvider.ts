@@ -45,7 +45,7 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
 
       if (fs.existsSync(results)) {
         let out = await fs.readFileSync(results).toString();
-        const regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "g");
+        const regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "ig");
         let matches = out.matchAll(regex);
         var match = null;
         for (match of matches) {
