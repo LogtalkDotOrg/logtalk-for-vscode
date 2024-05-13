@@ -26,6 +26,7 @@ import { LogtalkDocumentSymbolProvider } from "./features/goToDocumentSymbolProv
 import { LogtalkWorkspaceSymbolProvider } from "./features/goToWorkspaceSymbolProvider";
 import { LogtalkCallHierarchyProvider } from "./features/callHierarchyProvider";
 import { LogtalkTypeHierarchyProvider } from "./features/typeHierarchyProvider";
+import { LogtalkCodeLensProvider } from "./features/codeLensProvider";
 
 const DEBUG = 1;
 
@@ -110,6 +111,9 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerWorkspaceSymbolProvider(new LogtalkWorkspaceSymbolProvider( ))
+  );
+  context.subscriptions.push(
+    languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkCodeLensProvider( ))
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }

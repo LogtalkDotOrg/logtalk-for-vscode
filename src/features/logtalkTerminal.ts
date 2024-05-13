@@ -153,7 +153,6 @@ export default class LogtalkTerminal {
     LogtalkTerminal._terminal.show(true);
   }
   
-
   public static async loadDirectory(uri: Uri, linter: LogtalkLinter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;

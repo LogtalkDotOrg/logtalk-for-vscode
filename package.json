@@ -315,6 +315,11 @@
                     "type": "number",
                     "description": "Timeout (in milliseconds) for waiting to run the scripts that convert documentation and diagram files to final formats when running the lgtdoc and diagrams tools. Also for waiting to populate the 'Problems' pane when compiling a file.",
                     "default": 480000
+                },
+                "logtalk.enableCodeLens": {
+                    "type": "boolean",
+                    "description": "Enables testing results code lens.",
+                    "default": true
                 }
             }
         },
