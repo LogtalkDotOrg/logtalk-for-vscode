@@ -19,7 +19,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 
-export class LogtalkCodeLensProvider implements CodeLensProvider {
+export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
 
   private _onDidChangeCodeLenses: EventEmitter<void> = new EventEmitter<void>();
   public readonly onDidChangeCodeLenses: Event<void> = this._onDidChangeCodeLenses.event;
@@ -40,12 +40,12 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
       const file = path.resolve(file0).split(path.sep).join("/");
       const dir0 = path.dirname(doc.uri.fsPath);
       const dir = path.resolve(dir0).split(path.sep).join("/");
-      const results = path.join(dir, ".vscode_test_results");
+      const results = path.join(dir, ".vscode_metrics_results");
       if (fs.existsSync(results)) {
         let out = await fs.readFileSync(results).toString();
         // use case-insensitive matching to workaround Prolog
         // backends down-casing file paths on Windows
-        const regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "ig");
+        const regex = new RegExp("File:" + file + ";Line:(\\d+);Score:(\\d+)", "ig");
         let matches = out.matchAll(regex);
         var match = null;
         for (match of matches) {
@@ -53,9 +53,9 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
             new CodeLens(
               new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
               {
-                title: match[2],
-                tooltip: "Re-run tests",
-                command: "logtalk.run.tests",
+                title: "Cyclomatic complexity: " + match[2],
+                tooltip: "Re-compute metrics",
+                command: "logtalk.compute.metrics",
                 arguments: [doc.uri]
               }
             )

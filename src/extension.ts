@@ -26,7 +26,8 @@ import { LogtalkDocumentSymbolProvider } from "./features/goToDocumentSymbolProv
 import { LogtalkWorkspaceSymbolProvider } from "./features/goToWorkspaceSymbolProvider";
 import { LogtalkCallHierarchyProvider } from "./features/callHierarchyProvider";
 import { LogtalkTypeHierarchyProvider } from "./features/typeHierarchyProvider";
-import { LogtalkCodeLensProvider } from "./features/codeLensProvider";
+import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvider";
+import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
 
 const DEBUG = 1;
 
@@ -68,6 +69,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.generate.documentation",  callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},
     { command: "logtalk.generate.diagrams",       callback: uri  => LogtalkTerminal.genDiagrams(uri)},
     { command: "logtalk.open.parentFile",         callback: uri  => LogtalkTerminal.openParentFile(uri)},
+    { command: "logtalk.compute.metrics",         callback: uri  => LogtalkTerminal.computeMetrics(uri)},
     // other commands
     { command: "logtalk.toggle.codeLens",         callback: uri  => LogtalkTerminal.toggleCodeLens(uri)}
   ];
@@ -112,7 +114,10 @@ export function activate(context: ExtensionContext) {
     languages.registerWorkspaceSymbolProvider(new LogtalkWorkspaceSymbolProvider())
   );
   context.subscriptions.push(
-    languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkCodeLensProvider())
+    languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkTestsCodeLensProvider())
+  );
+  context.subscriptions.push(
+    languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkMetricsCodeLensProvider())
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }

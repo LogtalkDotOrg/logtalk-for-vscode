@@ -146,6 +146,10 @@
             {
                 "command": "logtalk.toggle.codeLens",
                 "title": "Logtalk: Toggle Code Lens"
+            },
+            {
+                "command": "logtalk.compute.metrics",
+                "title": "Logtalk: Compute Metrics"
             }
         ],
         "keybindings": [],
@@ -193,6 +197,10 @@
                 },
                 {
                     "command": "logtalk.toggle.codeLens",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.compute.metrics",
                     "when": "resourceLangId == logtalk"
                 }
             ],

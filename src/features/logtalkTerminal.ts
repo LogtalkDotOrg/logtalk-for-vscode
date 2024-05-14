@@ -197,6 +197,7 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
+    vscode.window.showInformationMessage("Directory loading completed.");
   }
 
   public static async loadFile(uri: Uri, linter: LogtalkLinter) {
@@ -244,6 +245,7 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
+    vscode.window.showInformationMessage("File loading completed.");
   }
 
   public static async makeReload(uri: Uri, linter: LogtalkLinter) {
@@ -343,6 +345,20 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
+    vscode.window.showInformationMessage("Tests completed.");
+  }
+
+  public static async computeMetrics(uri: Uri) {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
+    let goals = `vscode::metrics('${dir}').\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(dir0, ".vscode_metrics_done");
+    await LogtalkTerminal.waitForFile(marker);
+    fsp.rm(marker, { force: true });
+    vscode.window.showInformationMessage("Metrics completed.");
   }
 
   public static async runDoclet(uri: Uri, linter: LogtalkLinter) {
@@ -389,6 +405,7 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
+    vscode.window.showInformationMessage("Doclet completed.");
   }
 
   public static async genDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
@@ -830,7 +847,7 @@ export default class LogtalkTerminal {
         }
       }
       if (!found) {
-        vscode.window.showWarningMessage("No code loaded from the selected directory as required by the command being run...");
+        vscode.window.showWarningMessage("No code loaded from selected directory as required by command.");
       }
     }
   }
