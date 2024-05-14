@@ -286,7 +286,7 @@ Enables displaying inline test results using code lens in both test object and t
 
 ## Known Issues
 
-On Windows systems, the file paths on the "Problems" pane are not relative to the workspace directory.
+On Windows systems, the file paths on the "Problems" pane may not be relative to the workspace directory depending on the Prolog backend. This is a consequence of some backends "normalizing" file paths in a way that breaks VSCode computing of the relative paths.
 
 On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues. Also, using GNU Prolog requires the following setting:
 
