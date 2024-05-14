@@ -125,7 +125,7 @@ These commands can be triggered from editor/context and explorer/context menus v
 |           Scan Dead Code | Scans the active source file directory for dead code              |
 |   Generate Documentation | Generates documentation for the active source file directory      |
 |        Generate Diagrams | Generates diagrams for the active source file directory           |
-|         Open Parent File | Open the parent file of the active source file                    |
+|         Open Parent File | Opens the file that loaded the active source file if any          |
 
 The "Load Directory" command assumes that a `loader.lgt` or `loader.logtalk` file exists in the directory.
 
