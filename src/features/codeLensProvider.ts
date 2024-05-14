@@ -36,13 +36,11 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
   ): Promise<CodeLens[]> {
     if (workspace.getConfiguration("logtalk").get("enableCodeLens", true)) {
       let codeLenses: CodeLens[] = [];
-
       const file0 = doc.uri.fsPath;
       const file = path.resolve(file0).split(path.sep).join("/");
       const dir0 = path.dirname(doc.uri.fsPath);
       const dir = path.resolve(dir0).split(path.sep).join("/");
       const results = path.join(dir, ".vscode_test_results");
-
       if (fs.existsSync(results)) {
         let out = await fs.readFileSync(results).toString();
         const regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "ig");
@@ -62,7 +60,6 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
           );
         }
       }
-
       return codeLenses;
     } else {
       return [];

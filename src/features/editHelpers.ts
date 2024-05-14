@@ -129,6 +129,9 @@ export function loadEditHelpers(subscriptions: Disposable[]) {
   workspace.onDidChangeTextDocument(
     e => {
       let lastChange = e.contentChanges[0];
+      if (lastChange === undefined) {
+        return;
+      }
       let lastChar = lastChange.text;
       let range = lastChange.range;
       let start = range.start;
