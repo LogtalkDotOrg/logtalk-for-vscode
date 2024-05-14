@@ -46,7 +46,7 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
         locations.push(new Location(Uri.file(match[1]), new Position(parseInt(match[2]) - 1, 0)));
       }
     } else {
-      console.log('resource not found');
+      console.log('implementations not found');
     }
 
     return locations;

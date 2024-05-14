@@ -43,6 +43,8 @@ export class LogtalkCodeLensProvider implements CodeLensProvider {
       const results = path.join(dir, ".vscode_test_results");
       if (fs.existsSync(results)) {
         let out = await fs.readFileSync(results).toString();
+        // use case-insensitive matching to workaround Prolog
+        // backends down-casing file paths on Windows
         const regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "ig");
         let matches = out.matchAll(regex);
         var match = null;

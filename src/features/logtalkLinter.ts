@@ -72,10 +72,10 @@ export default class LogtalkLinter implements CodeActionProvider {
     } 
 
     let fileName = path.resolve(match[6]);
-    console.log(fileName);
+//    console.log(fileName);
     let lineFrom = 0,
         lineTo   = 0;
-        console.log(match)
+//        console.log(match)
 
     if(match[9]) {
       lineFrom = parseInt(match[9])-1;

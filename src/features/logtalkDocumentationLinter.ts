@@ -62,7 +62,11 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     }
 
     let match = issue.match(this.msgRegex)
-    if (match == null) { return null; } else { console.log("match!"); }
+    if (match == null) {
+      return null;
+    } else {
+//      console.log("match!");
+    }
 
     let severity: DiagnosticSeverity;
     if(match[0][0] == '*') {
@@ -70,13 +74,13 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     } else {
       severity = DiagnosticSeverity.Error
     }
-    console.log(severity);
+//    console.log(severity);
 
     let fileName = path.resolve(match[6]);
-    console.log(fileName);
+//    console.log(fileName);
     let lineFrom = 0,
         lineTo   = 0;
-        console.log(match)
+//        console.log(match)
 
     if(match[8]) {
       lineFrom = parseInt(match[8])-1;
