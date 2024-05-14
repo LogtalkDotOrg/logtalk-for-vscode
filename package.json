@@ -16,6 +16,7 @@
     ],
     "keywords": [
         "logtalk",
+        "prolog",
         "linter",
         "snippet"
     ],
@@ -41,7 +42,10 @@
         "url": "https://github.com/LogtalkDotOrg/logtalk-for-vscode"
     },
     "bugs": {
-        "url": "https://github.com/LogtalkDotOrg/logtalk-for-vscode"
+        "url": "https://github.com/LogtalkDotOrg/logtalk-for-vscode/issues"
+    },
+    "sponsor": {
+        "url": "https://github.com/sponsors/pmoura"
     },
     "main": "./out/src/extension",
     "activationEvents": [
