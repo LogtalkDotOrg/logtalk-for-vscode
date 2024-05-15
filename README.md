@@ -135,7 +135,7 @@ The "Load Directory" command assumes that a `loader.lgt` or `loader.logtalk` fil
 Code navigation **experimental** features **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
 Additionally, code must be compiled with the `source_data` flag set to `on` (default) and the `context_switching_calls` set to `allow` (default).
 
-Code navigation support require Logtalk 3.78.0 or a later version.
+Code navigation support requires Logtalk 3.79.0 or a later version.
 
 #### Go to Declaration
 
