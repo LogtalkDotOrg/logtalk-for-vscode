@@ -283,7 +283,7 @@ The number of milliseconds to wait before running the scripts that convert `.xml
 
     "logtalk.enableCodeLens": true
 
-Enables displaying inline test results using code lens in both test object and tested entity source files opened in the editor.
+Enables displaying inline test results using code lens in both test object and tested entity source files opened in the editor. It also enables displaying inline entity cyclomatic complexity after computing code metrics.
 
 ## Known Issues
 

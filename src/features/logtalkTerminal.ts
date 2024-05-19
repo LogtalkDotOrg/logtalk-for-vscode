@@ -292,11 +292,15 @@ export default class LogtalkTerminal {
       const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
       for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          linter.lint(textDocument, message);
-          message = '';
-        } 
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if (line == '*     ' || line == '!     ') {
+            linter.lint(textDocument, message);
+            message = '';
+          }
+        }
       }
     }
   }

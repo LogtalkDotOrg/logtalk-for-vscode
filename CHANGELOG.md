@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.22.0]
+
+* Clear file diagnostics when recompiling a file
+
 ## [0.21.0]
 
 * Warn the user when no code is loaded for a command that requires it
