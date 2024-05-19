@@ -189,11 +189,15 @@ export default class LogtalkTerminal {
       const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
       for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          linter.lint(textDocument, message);
-          message = '';
-        } 
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(textDocument, message);
+            message = '';
+          }
+        }
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
@@ -237,11 +241,15 @@ export default class LogtalkTerminal {
       const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
       for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          linter.lint(textDocument, message);
-          message = '';
-        } 
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(textDocument, message);
+            message = '';
+          }
+        }
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
@@ -341,11 +349,15 @@ export default class LogtalkTerminal {
       const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
       for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          linter.lint(textDocument, message);
-          message = '';
-        } 
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(textDocument, message);
+            message = '';
+          } 
+        }
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
@@ -401,11 +413,15 @@ export default class LogtalkTerminal {
       const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
       for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          linter.lint(textDocument, message);
-          message = '';
-        } 
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(textDocument, message);
+            message = '';
+          }
+        }
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
@@ -457,11 +473,15 @@ export default class LogtalkTerminal {
       const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
       for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          documentationLinter.lint(textDocument, message);
-          message = '';
-        } 
+        if (line.startsWith('% [ compiling ')) {
+          documentationLinter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            documentationLinter.lint(textDocument, message);
+            message = '';
+          }
+        }
       }
     }
     LogtalkTerminal.spawnScript(
@@ -549,11 +569,15 @@ export default class LogtalkTerminal {
       const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
       for (const line of lines) {
-        message = message + line + '\n';
-        if(line == '*     ' || line == '!     ') {
-          deadCodeScanner.lint(textDocument, message);
-          message = '';
-        } 
+        if (line.startsWith('% [ compiling ')) {
+          deadCodeScanner.clear(line);
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            deadCodeScanner.lint(textDocument, message);
+            message = '';
+          }
+        }
       }
     }
     vscode.window.showInformationMessage("Dead code scanning completed.");

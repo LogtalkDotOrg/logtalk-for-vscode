@@ -33,6 +33,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
   public  diagnosticHash = [];
   private filePathIds: { [id: string]: string } = {};
   private sortedDiagIndex: { [docName: string]: number[] } = {};
+  private compilingFileRegex = /%\s\[\scompiling\s(.+)\s\.\.\.\s\]/;
   private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s(below line\s(\d+))/;
   private executable: string;
   private documentListener: Disposable;
@@ -132,6 +133,13 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       if (si.length > 0) {
         this.outputChannel.show(true);
       }
+    }
+  }
+
+  public clear(line: string) {
+    let match = line.match(this.compilingFileRegex)
+    if (match) {
+      this.diagnosticCollection.delete(Uri.file(match[1]));
     }
   }
 
