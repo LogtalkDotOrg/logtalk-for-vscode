@@ -2,7 +2,8 @@
 
 ## [0.22.0]
 
-* Clear file diagnostics when recompiling a file
+* Fix file recompilation to clear previous diagnostics for the file
+* Fix possible JavaScript error in the "Go to Symbol in Editor..." implementation
 
 ## [0.21.0]
 

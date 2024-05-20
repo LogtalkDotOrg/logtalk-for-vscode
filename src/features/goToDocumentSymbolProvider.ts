@@ -51,17 +51,17 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
           var j = LogtalkDocumentSymbolProvider.findEndEntityDirectivePosition(doc, i, end_category_re);
           entity = new DocumentSymbol(found[1], "category", SymbolKind.Struct, new Range(new Position(i,0), new Position(j,15)), new Range(line.range.start, line.range.end));
           symbols.push(entity)
-        } else if (found = line.text.match(public_predicate_re)) {
+        } else if (entity && (found = line.text.match(public_predicate_re))) {
           entity.children.push(new DocumentSymbol(found[1], "public predicate", SymbolKind.Function, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (found = line.text.match(protected_predicate_re)) {
+        } else if (entity && (found = line.text.match(protected_predicate_re))) {
           entity.children.push(new DocumentSymbol(found[1], "protected predicate", SymbolKind.Function, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (found = line.text.match(private_predicate_re)) {
+        } else if (entity && (found = line.text.match(private_predicate_re))) {
           entity.children.push(new DocumentSymbol(found[1], "private predicate", SymbolKind.Function, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (found = line.text.match(public_non_terminal_re)) {
+        } else if (entity && (found = line.text.match(public_non_terminal_re))) {
           entity.children.push(new DocumentSymbol(found[1], "public non-terminal", SymbolKind.Field, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (found = line.text.match(protected_non_terminal_re)) {
+        } else if (entity && (found = line.text.match(protected_non_terminal_re))) {
           entity.children.push(new DocumentSymbol(found[1], "protected non-terminal", SymbolKind.Field, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (found = line.text.match(private_non_terminal_re)) {
+        } else if (entity && (found = line.text.match(private_non_terminal_re))) {
           entity.children.push(new DocumentSymbol(found[1], "private non-terminal", SymbolKind.Field, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
         }
       }
