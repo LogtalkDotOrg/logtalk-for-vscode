@@ -109,8 +109,6 @@ export default class LogtalkLinter implements CodeActionProvider {
 
   public lint(textDocument: TextDocument, message) {
     this.parseIssue(message);
-    this.diagnosticCollection.delete(textDocument.uri);
-    
     for (let doc in this.diagnostics) {
       let index = this.diagnostics[doc]
         .map((diag, i) => {
@@ -166,26 +164,27 @@ export default class LogtalkLinter implements CodeActionProvider {
       this,
       subscriptions
     );
-    
+
+    workspace.onWillSaveTextDocument(
+      textDocumentWillSaveEvent => {
+        if (textDocumentWillSaveEvent.document.isDirty) {
+          this.diagnosticCollection.delete(textDocumentWillSaveEvent.document.uri);
+        }
+      },
+      this,
+      subscriptions
+    );
+
     if (this.outputChannel === null) {
       this.outputChannel = window.createOutputChannel("Logtalk Linter");
       this.outputChannel.clear();
     }
 
     this.loadConfiguration();
-
-    // workspace.onDidOpenTextDocument(this.doPlint, this, subscriptions);
-    workspace.onDidCloseTextDocument(
-      textDocument => {
-        this.diagnosticCollection.delete(textDocument.uri);
-      },
-      null,
-      subscriptions
-    );
   }
 
   private outputMsg(msg: string) {
-    this.outputChannel.append(msg + "\n");
+    this.outputChannel.appendLine(msg);
     this.outputChannel.show(true);
   }
 
