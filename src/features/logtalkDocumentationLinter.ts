@@ -140,6 +140,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     let match = line.match(this.compilingFileRegex)
     if (match) {
       this.diagnosticCollection.delete(Uri.file(match[1]));
+      this.diagnostics[match[1]] = [];
     }
   }
 
@@ -165,7 +166,17 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       this,
       subscriptions
     );
-    
+
+    workspace.onWillSaveTextDocument(
+      textDocumentWillSaveEvent => {
+        if (textDocumentWillSaveEvent.document.isDirty) {
+          this.diagnosticCollection.delete(textDocumentWillSaveEvent.document.uri);
+        }
+      },
+      this,
+      subscriptions
+    );
+
     if (this.outputChannel === null) {
       this.outputChannel = window.createOutputChannel("Logtalk Documentation Linter");
       this.outputChannel.clear();
