@@ -139,7 +139,10 @@ export default class LogtalkLinter implements CodeActionProvider {
     let match = line.match(this.compilingFileRegex)
     if (match) {
       this.diagnosticCollection.delete(Uri.file(match[1]));
-      this.diagnostics[match[1]] = [];
+      if (match[1] in this.diagnostics) {
+        this.diagnostics[match[1]] = [];
+        this.diagnosticHash = [];
+      }
     }
   }
 
