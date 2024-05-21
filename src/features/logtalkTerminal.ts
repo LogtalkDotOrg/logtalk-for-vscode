@@ -186,9 +186,10 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      console.log(lines);
       let message = '';
-      for (const line of lines) {
+      for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
         } else {
@@ -238,9 +239,9 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
-      for (const line of lines) {
+      for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
         } else {
@@ -297,9 +298,9 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
-      for (const line of lines) {
+      for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
         } else {
@@ -346,9 +347,9 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
-      for (const line of lines) {
+      for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
         } else {
@@ -410,9 +411,9 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
-      for (const line of lines) {
+      for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
         } else {
@@ -470,9 +471,9 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
-      for (const line of lines) {
+      for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           documentationLinter.clear(line);
         } else {
@@ -566,9 +567,9 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
-      const lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
-      for (const line of lines) {
+      for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           deadCodeScanner.clear(line);
         } else {
