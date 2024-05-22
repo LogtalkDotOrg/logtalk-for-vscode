@@ -2,7 +2,7 @@
 
 A VSCode extension which provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Requires Logtalk 3.79.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements).
+Requires Logtalk 3.80.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements).
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
@@ -135,7 +135,7 @@ The "Load Directory" command assumes that a `loader.lgt` or `loader.logtalk` fil
 Code navigation **experimental** features **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
 Additionally, code must be compiled with the `source_data` flag set to `on` (default) and the `context_switching_calls` set to `allow` (default).
 
-Code navigation support requires Logtalk 3.79.0 or a later version.
+Code navigation support requires Logtalk 3.80.0 or a later version.
 
 #### Go to Declaration
 
@@ -287,7 +287,7 @@ Enables displaying inline test results using code lens in both test object and t
 
 ## Known Issues
 
-On Windows systems, the file paths on the "Problems" pane may not be relative to the workspace directory depending on the Prolog backend. This is a consequence of some backends "normalizing" file paths in a way that breaks VSCode computing of the relative paths.
+On Windows systems, the file paths on the "Problems" pane may not be relative to the workspace directory depending on the Prolog backend. This is a consequence of some backends "normalizing" file paths in a way that seem to break VSCode computing of the relative paths. E.g. paths are relative when using GNU Prolog but absolute when using SWI-Prolog or SICStus Prolog.
 
 On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues. Also, using GNU Prolog requires the following setting:
 
@@ -299,7 +299,7 @@ If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated
 
 ## Development
 
-Developed and tested with **Logtalk 3.79.0** and **VSCode 1.89** on **macOS 14.4** and **Windows 10** with **Node 22**.
+Developed and tested with **Logtalk 3.80.0** and **VSCode 1.89** on **macOS 14.4** and **Windows 10** with **Node 22**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
