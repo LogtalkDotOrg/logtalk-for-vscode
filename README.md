@@ -108,7 +108,7 @@ Workspace commands can be triggered from command palette via entering 'Logtalk' 
 |             Run Testers (workspace) | Runs the `logtalk_tester` script on the workspace directory      |
 |             Run Doclets (workspace) | Runs the `logtalk_doclet` script on the workspace directory      |
 
-The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane.
+The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
 
 ### Directory and source file commands
 

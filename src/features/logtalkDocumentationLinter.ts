@@ -38,7 +38,6 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
   private executable: string;
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
-  public  outputChannel: OutputChannel = null;
 
   constructor(private context: ExtensionContext) {
     this.executable = null;
@@ -123,17 +122,6 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       });
       this.diagnosticCollection.set(Uri.file(doc), this.diagnostics[doc]);
     }
-    for (let doc in this.sortedDiagIndex) {
-      let si = this.sortedDiagIndex[doc];
-      for (let i = 0; i < si.length; i++) {
-        let diag = this.diagnostics[doc][si[i]];
-        let severity = diag.severity === DiagnosticSeverity.Error ? "ERROR" : "Warning";
-        this.outputChannel.append(message)
-      }
-      if (si.length > 0) {
-        this.outputChannel.show(true);
-      }
-    }
   }
 
   public clear(line: string) {
@@ -180,11 +168,6 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       subscriptions
     );
 
-    if (this.outputChannel === null) {
-      this.outputChannel = window.createOutputChannel("Logtalk Documentation Linter");
-      this.outputChannel.clear();
-    }
-
     this.loadConfiguration();
 
     // workspace.onDidOpenTextDocument(this.doPlint, this, subscriptions);
@@ -195,11 +178,6 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       null,
       subscriptions
     );
-  }
-
-  private outputMsg(msg: string) {
-    this.outputChannel.append(msg + "\n");
-    this.outputChannel.show(true);
   }
 
   public dispose(): void {
