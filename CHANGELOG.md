@@ -2,7 +2,8 @@
 
 ## [0.22.0]
 
-* Only show the terminal if hidden when advisable by the command 
+* Add file icons
+* Only show the terminal if hidden when advisable by the command
 * Change linters to no longer create and write to an "OUTPUT" pane channel
 * Fix file recompilation to clear previous diagnostics for the file
 * Fix possible JavaScript error in the "Go to Symbol in Editor..." implementation

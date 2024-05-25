@@ -62,7 +62,11 @@
                 "extensions": [
                     ".lgt",
                     ".logtalk"
-                ]
+                ],
+                "icon": {
+                    "light": "./images/logtalk-light.svg",
+                    "dark": "./images/logtalk-dark.svg"
+                }
             }
         ],
         "grammars": [
