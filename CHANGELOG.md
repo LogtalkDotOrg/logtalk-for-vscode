@@ -3,6 +3,12 @@
 ## [0.22.0]
 
 * Update minimum VSCode version required to 1.64.0
+* Add "Logtalk: Make - Circular" command
+* Add "Logtalk: Make - Optimal" command
+* Add "Logtalk: Make - Normal" command
+* Add "Logtalk: Make - Debug" command
+* Add "Logtalk: Make - Clean" command
+* Add "Logtalk: Make - Caches" command
 * Add Logtalk source file icons
 * Only show the terminal if hidden when advisable by the command
 * Change linters to no longer create and write to an "OUTPUT" pane channel

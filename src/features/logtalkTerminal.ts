@@ -259,13 +259,42 @@ export default class LogtalkTerminal {
     vscode.window.showInformationMessage("File loading completed.");
   }
 
+  public static async makeClean(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "clean", false);
+    vscode.window.showInformationMessage("Deleted intermediate compilation files.");
+  }
+
+  public static async makeCaches(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "caches", false);
+    vscode.window.showInformationMessage("Deleted dynamic binding caches.");
+  }
+
   public static async makeReload(uri: Uri, linter: LogtalkLinter) {
     LogtalkTerminal.make(uri, linter, "all", false);
     vscode.window.showInformationMessage("File reloading completed.");
   }
 
+  public static async makeOptimal(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "optimal", false);
+    vscode.window.showInformationMessage("Recompiled files in optimal mode.");
+  }
+
+  public static async makeNormal(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "normal", false);
+    vscode.window.showInformationMessage("Recompiled files in optimal mode.");
+  }
+
+  public static async makeDebug(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "debug", false);
+    vscode.window.showInformationMessage("Recompiled files in debug mode.");
+  }
+
   public static async makeCheck(uri: Uri, linter: LogtalkLinter) {
     LogtalkTerminal.make(uri, linter, "check", true);
+  }
+
+  public static async makeCircular(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "circular", true);
   }
 
   public static async make(uri: Uri, linter: LogtalkLinter, target: string, showTerminal: boolean) {

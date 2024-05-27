@@ -96,8 +96,32 @@
                 "title": "Logtalk: Make - Reload"
             },
             {
+                "command": "logtalk.make.optimal",
+                "title": "Logtalk: Make - Optimal"
+            },
+            {
+                "command": "logtalk.make.normal",
+                "title": "Logtalk: Make - Normal"
+            },
+            {
+                "command": "logtalk.make.debug",
+                "title": "Logtalk: Make - Debug"
+            },
+            {
                 "command": "logtalk.make.check",
                 "title": "Logtalk: Make - Check"
+            },
+            {
+                "command": "logtalk.make.circular",
+                "title": "Logtalk: Make - Circular"
+            },
+            {
+                "command": "logtalk.make.clean",
+                "title": "Logtalk: Make - Clean"
+            },
+            {
+                "command": "logtalk.make.caches",
+                "title": "Logtalk: Make - Caches"
             },
             {
                 "command": "logtalk.run.tests",
@@ -160,11 +184,7 @@
         "menus": {
             "editor/context": [
                 {
-                    "command": "logtalk.make.reload",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.make.check",
+                    "submenu": "makesubmenu",
                     "when": "resourceLangId == logtalk"
                 },
                 {
@@ -211,14 +231,6 @@
             "explorer/context": [
                 {
                     "command": "logtalk.open",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.make.reload",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.make.check",
                     "when": "resourceLangId == logtalk"
                 },
                 {
@@ -269,8 +281,46 @@
                     "command": "logtalk.scan.deadCode",
                     "when": "resourceLangId == logtalk"
                 }
+            ],
+            "makesubmenu":[
+                {
+                    "command": "logtalk.make.reload",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.optimal",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.normal",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.debug",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.check",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.circular",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.clean",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.make.caches",
+                    "when": "resourceLangId == logtalk"
+                }
             ]
         },
+        "submenus": [{
+            "label": "Logtalk: Make",
+            "id": "makesubmenu"
+        }],
         "debuggers": [],
         "configuration": {
             "title": "",
