@@ -24,15 +24,18 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
     token: CancellationToken
   ): Promise<Definition | LocationLink[]> {
     let locations: Location[] = [];
-    let predicate = Utils.getNonTerminalIndicatorUnderCursor(doc, position);
-    if (!predicate) {
-      predicate = Utils.getPredicateIndicatorUnderCursor(doc, position);
+    let resource = Utils.getNonTerminalIndicatorUnderCursor(doc, position);
+    if (!resource) {
+      resource = Utils.getPredicateIndicatorUnderCursor(doc, position);
     }
-    if (!predicate) {
+    if (!resource) {
+      resource = Utils.getCallUnderCursor(doc, position);
+    }
+    if (!resource) {
       return null;
     }
 
-    await LogtalkTerminal.getImplementations(doc, position, predicate);
+    await LogtalkTerminal.getImplementations(doc, position, resource);
 
     const dir = path.dirname(doc.uri.fsPath);
     const imps = path.join(dir, ".vscode_implementations");

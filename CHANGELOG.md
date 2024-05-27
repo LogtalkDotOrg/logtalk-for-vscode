@@ -9,6 +9,7 @@
 * Add "Logtalk: Make - Debug" command
 * Add "Logtalk: Make - Clean" command
 * Add "Logtalk: Make - Caches" command
+* Update the "Go to Implementations" command to also find protocol implementations
 * Add Logtalk source file icons
 * Only show the terminal if hidden when advisable by the command
 * Change linters to no longer create and write to an "OUTPUT" pane channel

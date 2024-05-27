@@ -165,6 +165,8 @@ Click in an entity name in its entity opening directive to find references to it
 
 Click in the middle of a predicate name in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items. Note that you can go to a predicate scope directive by clicking the predicate name in a goal and selecting the "Go to Declaration" menu or context menu item.
 
+Click in a protocol name in its entity opening directive to find implementations of the protocol. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
+
 #### Go to Symbol in Editor...
 
 Symbols include object, protocol, and category identifiers in entity opening directives plus predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded. Assumes that a single predicate (or non-terminal) is declared per scope directive.
