@@ -287,6 +287,8 @@ Enables displaying inline test results using code lens in both test object and t
 
 ## Known Issues
 
+Code issues detected when running the "Make - Check" command are not added to the "Problems" pane.
+
 On Windows systems, the file paths on the "Problems" pane may not be relative to the workspace directory depending on the Prolog backend. This is a consequence of some backends "normalizing" file paths in a way that seem to break VSCode computing of the relative paths. E.g. paths are relative when using GNU Prolog but absolute when using SWI-Prolog or SICStus Prolog.
 
 On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues. Also, using GNU Prolog requires the following setting:
