@@ -159,7 +159,7 @@ Entities (objects, protocols, and categories) are interpreted as types. Click in
 
 Click in a predicate name in a scope directive, goal, or `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, and predicate calls. Note that recursive calls are not counted as references.
 
-Click in an entity name in its entity opening directive to find references to it in other entity opening directives (i.e. entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
+Click in an entity name in an entity opening directive to find references to it in other entity opening directives (i.e. entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
 
 #### Go to Implementations
 
@@ -295,7 +295,7 @@ Enables displaying inline test results using code lens in both test object and t
 
 ## Known Issues
 
-Code issues detected when running the "Make - Check" command are not added to the "Problems" pane.
+Code issues detected when running the "Make - Check" or "Make - Circular" commands are displayed in the integrated terminal but not added to the "Problems" pane.
 
 On Windows systems, the file paths on the "Problems" pane may not be relative to the workspace directory depending on the Prolog backend. This is a consequence of some backends "normalizing" file paths in a way that seem to break VSCode computing of the relative paths. E.g. paths are relative when using GNU Prolog but absolute when using SWI-Prolog or SICStus Prolog.
 
