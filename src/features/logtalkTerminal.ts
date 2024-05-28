@@ -189,7 +189,6 @@ export default class LogtalkTerminal {
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
       let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
-      console.log(lines);
       let message = '';
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {

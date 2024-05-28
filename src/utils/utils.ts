@@ -176,7 +176,7 @@ export class Utils {
           [name, arity] = [match[1], parseInt(match[2])];
         }
       } else {
-        console.log(pp.stderr.toString());
+//        console.log(pp.stderr.toString());
       }
     } else {
       let m = text.match(re1);
@@ -256,7 +256,7 @@ export class Utils {
           [arity, name] = [parseInt(match[1]), match[2]];
         }
       } else {
-        console.log(pp.stderr.toString());
+//        console.log(pp.stderr.toString());
       }
     } else {
       let m = text.match(re1);
