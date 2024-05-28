@@ -41,7 +41,7 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
 
     if (fs.existsSync(refs)) {
       let out = await fs.readFileSync(refs).toString();
-      fsp.rm(refs, { force: true });
+      await fsp.rm(refs, { force: true });
       let matches = out.matchAll(/File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {

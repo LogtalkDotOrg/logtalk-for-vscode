@@ -42,7 +42,7 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
 
     if (fs.existsSync(imps)) {
       let out = await fs.readFileSync(imps).toString();
-      fsp.rm(imps, { force: true });
+      await fsp.rm(imps, { force: true });
       let matches = out.matchAll(/File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {

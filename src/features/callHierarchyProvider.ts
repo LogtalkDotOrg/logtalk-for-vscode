@@ -58,7 +58,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
 
     if (fs.existsSync(refs)) {
       let out = await fs.readFileSync(refs).toString();
-      fsp.rm(refs, { force: true });
+      await fsp.rm(refs, { force: true });
       let matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {
@@ -100,7 +100,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
 
     if (fs.existsSync(refs)) {
       let out = await fs.readFileSync(refs).toString();
-      fsp.rm(refs, { force: true });
+      await fsp.rm(refs, { force: true });
       let matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {

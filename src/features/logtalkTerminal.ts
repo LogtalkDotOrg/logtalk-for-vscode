@@ -406,7 +406,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".vscode_metrics_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
     vscode.window.showInformationMessage("Metrics completed.");
   }
 
@@ -648,7 +648,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".vscode_declaration_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getDefinition(doc: TextDocument, position: Position, call: string) {
@@ -661,7 +661,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".vscode_definition_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getTypeDefinition(doc: TextDocument, position: Position, entity: string) {
@@ -674,7 +674,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".vscode_type_definition_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getReferences(doc: TextDocument, position: Position, call: string) {
@@ -687,7 +687,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".vscode_references_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getImplementations(doc: TextDocument, position: Position, predicate: string) {
@@ -700,7 +700,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir0, ".vscode_implementations_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getCallers(file: string, position: Position, predicate: string) {
@@ -712,7 +712,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_callers_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getCallees(file: string, position: Position, predicate: string) {
@@ -724,7 +724,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_callees_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getAncestors(file: string, entity: string) {
@@ -735,7 +735,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_ancestors_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getDescendants(file: string, entity: string) {
@@ -746,7 +746,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_descendants_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
   }
 
   public static async getType(file: string, entity: string): Promise<string> {
@@ -757,10 +757,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_type_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
     const result = path.join(dir, ".vscode_type");
     let type = await fs.readFileSync(result).toString();
-    fsp.rm(result, { force: true });
+    await fsp.rm(result, { force: true });
     return type;
   }
 
@@ -777,10 +777,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(dir, ".vscode_find_parent_done");
     await LogtalkTerminal.waitForFile(marker);
-    fsp.rm(marker, { force: true });
+    await fsp.rm(marker, { force: true });
     const result = path.join(dir, ".vscode_find_parent");
     let loader = await fs.readFileSync(result).toString();
-    fsp.rm(result, { force: true });
+    await fsp.rm(result, { force: true });
     workspace.openTextDocument(loader).then(doc => {
       vscode.window.showTextDocument(doc);
     });

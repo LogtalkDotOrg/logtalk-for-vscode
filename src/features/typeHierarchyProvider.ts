@@ -59,7 +59,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
 
     if (fs.existsSync(refs)) {
       let out = await fs.readFileSync(refs).toString();
-      fsp.rm(refs, { force: true });
+      await fsp.rm(refs, { force: true });
       let matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       var symbol = null;
@@ -99,7 +99,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
 
     if (fs.existsSync(refs)) {
       let out = await fs.readFileSync(refs).toString();
-      fsp.rm(refs, { force: true });
+      await fsp.rm(refs, { force: true });
       let matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       var symbol = null;

@@ -33,7 +33,7 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
 
     if (fs.existsSync(tdef)) {
       let out = await fs.readFileSync(tdef).toString();
-      fsp.rm(tdef, { force: true });
+      await fsp.rm(tdef, { force: true });
       let match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
         let fileName: string = match[1];

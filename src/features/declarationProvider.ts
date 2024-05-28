@@ -33,7 +33,7 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
 
     if (fs.existsSync(dcl)) {
       let out = await fs.readFileSync(dcl).toString();
-      fsp.rm(dcl, { force: true });
+      await fsp.rm(dcl, { force: true });
       let match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
         let fileName: string = match[1];
