@@ -2,21 +2,22 @@
 
 ## [0.22.0]
 
-* Update minimum VSCode version required to 1.64.0
+* Change linters to no longer create and write to an "OUTPUT" pane channel
+* Add Logtalk source file icons
 * Add "Logtalk: Make - Circular" command
 * Add "Logtalk: Make - Optimal" command
 * Add "Logtalk: Make - Normal" command
 * Add "Logtalk: Make - Debug" command
 * Add "Logtalk: Make - Clean" command
 * Add "Logtalk: Make - Caches" command
+* Improve usability by only showing the terminal if hidden when advisable by the command
+* Update minimum VSCode version required to 1.64.0
 * Update the "Go to Implementations" command to also find protocol implementations
-* Add Logtalk source file icons
-* Only show the terminal if hidden when advisable by the command
-* Change linters to no longer create and write to an "OUTPUT" pane channel
 * Fix file recompilation to clear previous diagnostics for the file
 * Fix possible JavaScript error in the "Go to Symbol in Editor..." implementation
 * Fix occasional glitch where code navigation would return a previous result
 * Fix and simplify auto-indentation patterns
+* Fix parsing of predicate calls with double-quoted arguments
 
 ## [0.21.0]
 

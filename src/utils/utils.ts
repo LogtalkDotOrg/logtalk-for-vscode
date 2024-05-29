@@ -229,7 +229,7 @@ export class Utils {
         }
         i++;
       }
-      let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
+      let wholePred = text.slice(0, i);
 //      console.log("wholePred: " + wholePred);
       let env;
       if (process.platform === 'win32') {
