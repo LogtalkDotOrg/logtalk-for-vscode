@@ -16,6 +16,7 @@
 * Fix file recompilation to clear previous diagnostics for the file
 * Fix possible JavaScript error in the "Go to Symbol in Editor..." implementation
 * Fix occasional glitch where code navigation would return a previous result
+* Fix and simplify auto-indentation patterns
 
 ## [0.21.0]
 
