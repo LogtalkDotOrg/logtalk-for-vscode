@@ -5,7 +5,9 @@ import {
   Position,
   Range,
   ExtensionContext,
-  workspace
+  Uri,
+  workspace,
+  window
 } from "vscode";
 interface ISnippet {
   [predIndicator: string]: {
@@ -15,6 +17,7 @@ interface ISnippet {
   };
 }
 import * as fs from "fs";
+import * as fsp from "fs/promises";
 import * as cp from "child_process";
 import * as jsesc from "jsesc";
 import * as path from "path";
@@ -319,6 +322,24 @@ export class Utils {
     return vscode.workspace.workspaceFolders
       ?.map((folder) => folder.uri.fsPath)
       .filter((fsPath) => doc.fileName?.startsWith(fsPath))[0];
+  }
+
+  public static async openFileAt(uri: Uri) {
+    if (fs.existsSync(uri.fsPath)) {
+      let out = await fs.readFileSync(uri.fsPath).toString();
+      console.log("out: " + out);
+//      await fsp.rm(uri.fsPath, { force: true });
+      let match = out.match(/File:(.+);Line:(\d+)/);
+      if (match) {
+        let fileName: string = match[1];
+        let lineNum: number = parseInt(match[2]);
+        console.log("fileName: " + fileName);
+        console.log("lineNum: " + lineNum);
+        workspace.openTextDocument(fileName).then(doc => {
+          window.showTextDocument(doc, {selection: new Range(new Position(lineNum - 1, 0), new Position(lineNum - 1, 0)), preserveFocus: true});
+        });
+      }
+    }
   }
 
 }

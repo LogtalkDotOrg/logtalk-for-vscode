@@ -5,9 +5,12 @@ import {
   commands,
   DocumentFilter,
   ExtensionContext,
+  RelativePattern,
+  Uri,
   languages,
   workspace
 } from "vscode";
+import * as jsesc from "jsesc";
 
 import { loadEditHelpers } from "./features/editHelpers";
 import { Utils } from "./utils/utils";
@@ -45,6 +48,25 @@ export function activate(context: ExtensionContext) {
   deadCodeScanner.activate(subscriptions);
   const documentationLinter = new LogtalkDocumentationLinter(context);
   documentationLinter.activate(subscriptions);
+
+  let section = workspace.getConfiguration("logtalk");
+  let logtalkUser: string = '';
+  if (section) {
+    logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+  } else {
+    throw new Error("configuration settings error: logtalk"); 
+  }
+
+  const watcher = workspace.createFileSystemWatcher(new RelativePattern(Uri.file(logtalkUser), "scratch/.debug_info"), false, false, true);
+
+  watcher.onDidChange((uri) => {
+    console.log("onDidChange");
+    Utils.openFileAt(uri);
+  });
+  watcher.onDidCreate((uri) => {
+    console.log("onDidCreate");
+    Utils.openFileAt(uri);
+  });
 
   DEBUG ? console.log('Linters loaded') : null;
 

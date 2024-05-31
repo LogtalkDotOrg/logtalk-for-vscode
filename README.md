@@ -30,6 +30,7 @@ For details, see [Configuration](#configuration).
 - [Linter](#linter)
 - [Commands](#commands)
 - [Code Navigation](#code-navigation)
+- [Debugging support](#debugging-support)
 - [Hover contents](#hover-contents)
 
 ### Syntax highlighting
@@ -181,6 +182,10 @@ Click in the middle of a predicate name in a goal or in a clause head and select
 #### Show Type Hierarchy
 
 Click in the middle of an entity name and select the "Show Type Hierarchy" context menu item to browse ancestors and descendants of the selected entity. Here, ancestor is interpreted as any entity from which the selected entity inherits and descendant is interpreted as any entity that inherits from the selected entity.
+
+### Debugging support
+
+When debugging using the integrated terminal, the current clause (at unification ports) is show in the active editor window.
 
 ### Hover contents
 
