@@ -59,12 +59,8 @@ export function activate(context: ExtensionContext) {
   }
 
   const debugInfo = path.join("scratch", ".debug_info");
-  const watcher = workspace.createFileSystemWatcher(new RelativePattern(Uri.file(logtalkUser), debugInfo), false, false, true);
+  const watcher = workspace.createFileSystemWatcher(new RelativePattern(Uri.file(logtalkUser), debugInfo), false, true, true);
 
-  watcher.onDidChange((uri) => {
-    console.log("onDidChange");
-    Utils.openFileAt(uri);
-  });
   watcher.onDidCreate((uri) => {
     console.log("onDidCreate");
     Utils.openFileAt(uri);
