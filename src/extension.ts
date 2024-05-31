@@ -11,6 +11,7 @@ import {
   workspace
 } from "vscode";
 import * as jsesc from "jsesc";
+import * as path from "path";
 
 import { loadEditHelpers } from "./features/editHelpers";
 import { Utils } from "./utils/utils";
@@ -57,7 +58,8 @@ export function activate(context: ExtensionContext) {
     throw new Error("configuration settings error: logtalk"); 
   }
 
-  const watcher = workspace.createFileSystemWatcher(new RelativePattern(Uri.file(logtalkUser), "scratch/.debug_info"), false, false, true);
+  const debugInfo = path.join("scratch", ".debug_info");
+  const watcher = workspace.createFileSystemWatcher(new RelativePattern(Uri.file(logtalkUser), debugInfo), false, false, true);
 
   watcher.onDidChange((uri) => {
     console.log("onDidChange");
