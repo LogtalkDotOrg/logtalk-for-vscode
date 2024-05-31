@@ -58,11 +58,13 @@ export function activate(context: ExtensionContext) {
     throw new Error("configuration settings error: logtalk"); 
   }
 
-  const debugInfo = path.join("scratch", ".debug_info");
-  const watcher = workspace.createFileSystemWatcher(new RelativePattern(Uri.file(logtalkUser), debugInfo), false, true, true);
+  const watcher = workspace.createFileSystemWatcher(new RelativePattern(logtalkUser, "scratch/.debug_info"), false, false, true);
 
   watcher.onDidCreate((uri) => {
-    console.log("onDidCreate");
+    Utils.openFileAt(uri);
+  });
+  // Windows requires the onDidChange event
+  watcher.onDidChange((uri) => {
     Utils.openFileAt(uri);
   });
 

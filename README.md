@@ -185,7 +185,7 @@ Click in the middle of an entity name and select the "Show Type Hierarchy" conte
 
 ### Debugging support
 
-When debugging using the integrated terminal, the current clause (at unification ports) is show in the active editor window.
+When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is show in the active editor window.
 
 ### Hover contents
 
