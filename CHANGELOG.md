@@ -4,6 +4,7 @@
 
 * Change linters to no longer create and write to an "OUTPUT" pane channel
 * Show current clause in the active text editor when debugging
+* Add support for adding and removing line number and predicate spy points
 * Add Logtalk source file icons
 * Add "Logtalk: Make - Circular" command
 * Add "Logtalk: Make - Optimal" command

@@ -1,6 +1,20 @@
 "use strict";
 
-import { Terminal, window, workspace, TextDocument, Disposable, OutputChannel, Uri, ExtensionContext, TerminalLink, Position } from "vscode";
+import {
+  Terminal,
+  window,
+  workspace,
+  TextDocument,
+  Disposable,
+  OutputChannel,
+  Uri,
+  ExtensionContext,
+  TerminalLink,
+  Position,
+  BreakpointsChangeEvent,
+  SourceBreakpoint,
+  FunctionBreakpoint
+} from "vscode";
 import * as vscode from "vscode";
 import * as path from "path";
 import * as jsesc from "jsesc";
@@ -800,6 +814,56 @@ export default class LogtalkTerminal {
     } else {
       throw new Error("configuration settings error: logtalk");
     }
+  }
+
+  public static processBreakpoints(session: BreakpointsChangeEvent) {
+    LogtalkTerminal.createLogtalkTerm();
+    let file: string = '';
+    let line: number = 0;
+    let predicate: string = '';
+    session.added.forEach(breakpoint => {
+      if (breakpoint instanceof SourceBreakpoint) {
+        file = breakpoint.location.uri.fsPath;
+        line = breakpoint.location.range.start.line;
+        LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
+      } else if (breakpoint instanceof FunctionBreakpoint) {
+        predicate = breakpoint.functionName;
+        if (predicate != '') {
+          LogtalkTerminal.sendString(`vscode::spy(${predicate}).\r`);
+        }
+      }
+    });
+    session.removed.forEach(breakpoint => {
+      if (breakpoint instanceof SourceBreakpoint) {
+        file = breakpoint.location.uri.fsPath;
+        line = breakpoint.location.range.start.line;
+        LogtalkTerminal.sendString(`vscode::nospy('${file}', ${line+1}).\r`);
+      } else if (breakpoint instanceof FunctionBreakpoint) {
+        predicate = breakpoint.functionName;
+        LogtalkTerminal.sendString(`vscode::nospy(${predicate}).\r`);
+      }
+    });  
+    session.changed.forEach(breakpoint => {
+      if (breakpoint.enabled) {
+        if (breakpoint instanceof SourceBreakpoint) {
+          file = breakpoint.location.uri.fsPath;
+          line = breakpoint.location.range.start.line;
+          LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
+        } else if (breakpoint instanceof FunctionBreakpoint) {
+          predicate = breakpoint.functionName;
+          LogtalkTerminal.sendString(`vscode::spy(${predicate}).\r`);
+        }
+      } else {
+        if (breakpoint instanceof SourceBreakpoint) {
+          file = breakpoint.location.uri.fsPath;
+          line = breakpoint.location.range.start.line;
+          LogtalkTerminal.sendString(`vscode::nospy('${file}', ${line+1}).\r`);
+        } else if (breakpoint instanceof FunctionBreakpoint) {
+          predicate = breakpoint.functionName;
+          LogtalkTerminal.sendString(`vscode::nospy(${predicate}).\r`);
+        }
+      }
+    });  
   }
 
   private static spawnScript(dir: string, type: string[], path: string, args: string[], message: string) {

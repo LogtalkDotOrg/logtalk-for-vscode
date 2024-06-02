@@ -8,7 +8,8 @@ import {
   RelativePattern,
   Uri,
   languages,
-  workspace
+  workspace,
+  debug
 } from "vscode";
 import * as jsesc from "jsesc";
 import * as path from "path";
@@ -107,6 +108,13 @@ export function activate(context: ExtensionContext) {
       commands.registerCommand(command.command, command.callback)
     );
   });
+
+  context.subscriptions.push(
+    debug.onDidChangeBreakpoints(
+      session => {
+        LogtalkTerminal.processBreakpoints(session);
+      }
+  ));
 
   context.subscriptions.push(
     languages.registerDocumentHighlightProvider(LOGTALK_MODE, new LogtalkDocumentHighlightProvider())

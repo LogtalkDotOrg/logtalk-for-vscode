@@ -49,7 +49,8 @@
     },
     "main": "./out/src/extension",
     "activationEvents": [
-        "onLanguage:logtalk"
+        "onLanguage:logtalk",
+        "onDebug"
     ],
     "contributes": {
         "languages": [
@@ -321,7 +322,14 @@
             "label": "Logtalk: Make",
             "id": "makesubmenu"
         }],
-        "debuggers": [],
+        "breakpoints": [{
+            "language": "logtalk"
+        }],
+        "debuggers": [{
+            "type": "logtalk",
+            "label": "Logtalk Debug",
+            "languages": "logtalk"
+        }],
         "configuration": {
             "title": "",
             "properties": {
