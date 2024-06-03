@@ -187,7 +187,7 @@ Click in the middle of an entity name and select the "Show Type Hierarchy" conte
 
 When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is show in the active editor window.
 
-Both line number (breakpoints) and predicate spy points can be added and removed using the "Run" menu breakpoint items. Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator). Inline breakpoints are interpreted as line numbers spy points. They can only be set for clause heads. Context spy points can only be set at the integrated terminal. VSCode conditional breakpoints, triggered breakpoints, and logpoints are not supported.
+Both line number (breakpoints) and predicate spy points can be added and removed using the "Run" menu breakpoint items. Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator) or as context spy points by entering a `(Sender, This, Self, Goal)` tuple. Inline breakpoints are interpreted as line numbers spy points (note that they can only be set for clause heads). VSCode conditional breakpoints, triggered breakpoints, and logpoints are not supported.
 
 ### Hover contents
 
