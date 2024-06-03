@@ -826,6 +826,7 @@ export default class LogtalkTerminal {
       if (breakpoint instanceof SourceBreakpoint) {
         file = breakpoint.location.uri.fsPath;
         line = breakpoint.location.range.start.line;
+        LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
         if (breakpoint.logMessage != '') {
           message = breakpoint.logMessage;
           LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
@@ -843,6 +844,7 @@ export default class LogtalkTerminal {
       if (breakpoint instanceof SourceBreakpoint) {
         file = breakpoint.location.uri.fsPath;
         line = breakpoint.location.range.start.line;
+        LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
         LogtalkTerminal.sendString(`vscode::nolog('${file}', ${line+1}).\r`);
         LogtalkTerminal.sendString(`vscode::nospy('${file}', ${line+1}).\r`);
       } else if (breakpoint instanceof FunctionBreakpoint) {
@@ -855,6 +857,7 @@ export default class LogtalkTerminal {
         if (breakpoint instanceof SourceBreakpoint) {
           file = breakpoint.location.uri.fsPath;
           line = breakpoint.location.range.start.line;
+          LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
           if (breakpoint.logMessage != '') {
             message = breakpoint.logMessage;
             LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
@@ -869,6 +872,7 @@ export default class LogtalkTerminal {
         if (breakpoint instanceof SourceBreakpoint) {
           file = breakpoint.location.uri.fsPath;
           line = breakpoint.location.range.start.line;
+          LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
           LogtalkTerminal.sendString(`vscode::nospy('${file}', ${line+1}).\r`);
           LogtalkTerminal.sendString(`vscode::nolog('${file}', ${line+1}).\r`);
         } else if (breakpoint instanceof FunctionBreakpoint) {
