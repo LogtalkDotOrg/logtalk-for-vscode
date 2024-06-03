@@ -820,14 +820,18 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     let file: string = '';
     let line: number = 0;
+    let message: string = '';
     let predicate: string = '';
     session.added.forEach(breakpoint => {
-      if (breakpoint.hitCondition != '' || breakpoint.logMessage != '' || breakpoint.condition != '') {
-        window.showWarningMessage("Conditional and log breakpoints are not supported!");
-      } else if (breakpoint instanceof SourceBreakpoint) {
+      if (breakpoint instanceof SourceBreakpoint) {
         file = breakpoint.location.uri.fsPath;
         line = breakpoint.location.range.start.line;
-        LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
+        if (breakpoint.logMessage != '') {
+          message = breakpoint.logMessage;
+          LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
+        } else {
+          LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
+        }
       } else if (breakpoint instanceof FunctionBreakpoint) {
         predicate = breakpoint.functionName;
         if (predicate != '') {
@@ -847,12 +851,15 @@ export default class LogtalkTerminal {
     });  
     session.changed.forEach(breakpoint => {
       if (breakpoint.enabled) {
-        if (breakpoint.hitCondition != '' || breakpoint.logMessage != '' || breakpoint.condition != '') {
-          window.showWarningMessage("Conditional and log breakpoints are not supported!");
-        } else if (breakpoint instanceof SourceBreakpoint) {
+        if (breakpoint instanceof SourceBreakpoint) {
           file = breakpoint.location.uri.fsPath;
           line = breakpoint.location.range.start.line;
-          LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
+          if (breakpoint.logMessage != '') {
+            message = breakpoint.logMessage;
+            LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
+          } else {
+            LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
+          }
         } else if (breakpoint instanceof FunctionBreakpoint) {
           predicate = breakpoint.functionName;
           LogtalkTerminal.sendString(`vscode::spy(${predicate}).\r`);
@@ -862,6 +869,7 @@ export default class LogtalkTerminal {
           file = breakpoint.location.uri.fsPath;
           line = breakpoint.location.range.start.line;
           LogtalkTerminal.sendString(`vscode::nospy('${file}', ${line+1}).\r`);
+          LogtalkTerminal.sendString(`vscode::nolog('${file}', ${line+1}).\r`);
         } else if (breakpoint instanceof FunctionBreakpoint) {
           predicate = breakpoint.functionName;
           LogtalkTerminal.sendString(`vscode::nospy(${predicate}).\r`);
