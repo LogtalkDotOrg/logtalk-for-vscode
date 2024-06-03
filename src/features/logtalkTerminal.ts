@@ -827,7 +827,7 @@ export default class LogtalkTerminal {
         file = breakpoint.location.uri.fsPath;
         line = breakpoint.location.range.start.line;
         LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
-        if (breakpoint.logMessage != '') {
+        if (breakpoint.logMessage != undefined) {
           message = breakpoint.logMessage;
           LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
         } else {
@@ -858,7 +858,7 @@ export default class LogtalkTerminal {
           file = breakpoint.location.uri.fsPath;
           line = breakpoint.location.range.start.line;
           LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
-          if (breakpoint.logMessage != '') {
+          if (breakpoint.logMessage != undefined) {
             message = breakpoint.logMessage;
             LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
           } else {
