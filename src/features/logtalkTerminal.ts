@@ -217,7 +217,7 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
-    vscode.window.showInformationMessage("Directory loading completed.");
+    window.showInformationMessage("Directory loading completed.");
   }
 
   public static async loadFile(uri: Uri, linter: LogtalkLinter) {
@@ -269,37 +269,37 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
-    vscode.window.showInformationMessage("File loading completed.");
+    window.showInformationMessage("File loading completed.");
   }
 
   public static async makeClean(uri: Uri, linter: LogtalkLinter) {
     LogtalkTerminal.make(uri, linter, "clean", false);
-    vscode.window.showInformationMessage("Deleted intermediate compilation files.");
+    window.showInformationMessage("Deleted intermediate compilation files.");
   }
 
   public static async makeCaches(uri: Uri, linter: LogtalkLinter) {
     LogtalkTerminal.make(uri, linter, "caches", false);
-    vscode.window.showInformationMessage("Deleted dynamic binding caches.");
+    window.showInformationMessage("Deleted dynamic binding caches.");
   }
 
   public static async makeReload(uri: Uri, linter: LogtalkLinter) {
     LogtalkTerminal.make(uri, linter, "all", false);
-    vscode.window.showInformationMessage("File reloading completed.");
+    window.showInformationMessage("File reloading completed.");
   }
 
   public static async makeOptimal(uri: Uri, linter: LogtalkLinter) {
     LogtalkTerminal.make(uri, linter, "optimal", false);
-    vscode.window.showInformationMessage("Recompiled files in optimal mode.");
+    window.showInformationMessage("Recompiled files in optimal mode.");
   }
 
   public static async makeNormal(uri: Uri, linter: LogtalkLinter) {
     LogtalkTerminal.make(uri, linter, "normal", false);
-    vscode.window.showInformationMessage("Recompiled files in optimal mode.");
+    window.showInformationMessage("Recompiled files in optimal mode.");
   }
 
   public static async makeDebug(uri: Uri, linter: LogtalkLinter) {
     LogtalkTerminal.make(uri, linter, "debug", false);
-    vscode.window.showInformationMessage("Recompiled files in debug mode.");
+    window.showInformationMessage("Recompiled files in debug mode.");
   }
 
   public static async makeCheck(uri: Uri, linter: LogtalkLinter) {
@@ -407,7 +407,7 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
-    vscode.window.showInformationMessage("Tests completed.");
+    window.showInformationMessage("Tests completed.");
   }
 
   public static async computeMetrics(uri: Uri) {
@@ -420,7 +420,7 @@ export default class LogtalkTerminal {
     const marker = path.join(dir0, ".vscode_metrics_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    vscode.window.showInformationMessage("Metrics completed.");
+    window.showInformationMessage("Metrics completed.");
   }
 
   public static async runDoclet(uri: Uri, linter: LogtalkLinter) {
@@ -471,7 +471,7 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
-    vscode.window.showInformationMessage("Doclet completed.");
+    window.showInformationMessage("Doclet completed.");
   }
 
   public static async genDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
@@ -626,7 +626,7 @@ export default class LogtalkTerminal {
         }
       }
     }
-    vscode.window.showInformationMessage("Dead code scanning completed.");
+    window.showInformationMessage("Dead code scanning completed.");
   }
 
   public static runTesters(uri: Uri) {
@@ -822,7 +822,9 @@ export default class LogtalkTerminal {
     let line: number = 0;
     let predicate: string = '';
     session.added.forEach(breakpoint => {
-      if (breakpoint instanceof SourceBreakpoint) {
+      if (breakpoint.hitCondition != '' || breakpoint.logMessage != '' || breakpoint.condition != '') {
+        window.showWarningMessage("Conditional and log breakpoints are not supported!");
+      } else if (breakpoint instanceof SourceBreakpoint) {
         file = breakpoint.location.uri.fsPath;
         line = breakpoint.location.range.start.line;
         LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
@@ -845,7 +847,9 @@ export default class LogtalkTerminal {
     });  
     session.changed.forEach(breakpoint => {
       if (breakpoint.enabled) {
-        if (breakpoint instanceof SourceBreakpoint) {
+        if (breakpoint.hitCondition != '' || breakpoint.logMessage != '' || breakpoint.condition != '') {
+          window.showWarningMessage("Conditional and log breakpoints are not supported!");
+        } else if (breakpoint instanceof SourceBreakpoint) {
           file = breakpoint.location.uri.fsPath;
           line = breakpoint.location.range.start.line;
           LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
@@ -889,7 +893,7 @@ export default class LogtalkTerminal {
       this._outputChannel.show(true);
     });
     pp.on('close', (code) => {
-      vscode.window.showInformationMessage(message);
+      window.showInformationMessage(message);
     })
   }
 
