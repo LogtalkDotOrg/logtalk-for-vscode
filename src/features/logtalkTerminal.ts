@@ -824,7 +824,7 @@ export default class LogtalkTerminal {
     let predicate: string = '';
     session.added.forEach(breakpoint => {
       if (breakpoint instanceof SourceBreakpoint) {
-        file = breakpoint.location.uri.fsPath;
+        file = path.resolve(breakpoint.location.uri.fsPath).split(path.sep).join("/");
         line = breakpoint.location.range.start.line;
         LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
         if (breakpoint.logMessage != undefined) {
@@ -842,7 +842,7 @@ export default class LogtalkTerminal {
     });
     session.removed.forEach(breakpoint => {
       if (breakpoint instanceof SourceBreakpoint) {
-        file = breakpoint.location.uri.fsPath;
+        file = path.resolve(breakpoint.location.uri.fsPath).split(path.sep).join("/");
         line = breakpoint.location.range.start.line;
         LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
         LogtalkTerminal.sendString(`vscode::nolog('${file}', ${line+1}).\r`);
@@ -855,7 +855,7 @@ export default class LogtalkTerminal {
     session.changed.forEach(breakpoint => {
       if (breakpoint.enabled) {
         if (breakpoint instanceof SourceBreakpoint) {
-          file = breakpoint.location.uri.fsPath;
+          file = path.resolve(breakpoint.location.uri.fsPath).split(path.sep).join("/");
           line = breakpoint.location.range.start.line;
           LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
           if (breakpoint.logMessage != undefined) {
@@ -870,7 +870,7 @@ export default class LogtalkTerminal {
         }
       } else {
         if (breakpoint instanceof SourceBreakpoint) {
-          file = breakpoint.location.uri.fsPath;
+          file = path.resolve(breakpoint.location.uri.fsPath).split(path.sep).join("/");
           line = breakpoint.location.range.start.line;
           LogtalkTerminal.checkCodeLoadedFromDirectory(path.dirname(file));
           LogtalkTerminal.sendString(`vscode::nospy('${file}', ${line+1}).\r`);
