@@ -273,32 +273,32 @@ export default class LogtalkTerminal {
   }
 
   public static async makeClean(uri: Uri, linter: LogtalkLinter) {
-    LogtalkTerminal.make(uri, linter, "clean", false);
+    await LogtalkTerminal.make(uri, linter, "clean", false);
     window.showInformationMessage("Deleted intermediate compilation files.");
   }
 
   public static async makeCaches(uri: Uri, linter: LogtalkLinter) {
-    LogtalkTerminal.make(uri, linter, "caches", false);
+    await LogtalkTerminal.make(uri, linter, "caches", false);
     window.showInformationMessage("Deleted dynamic binding caches.");
   }
 
   public static async makeReload(uri: Uri, linter: LogtalkLinter) {
-    LogtalkTerminal.make(uri, linter, "all", false);
+    await LogtalkTerminal.make(uri, linter, "all", false);
     window.showInformationMessage("File reloading completed.");
   }
 
   public static async makeOptimal(uri: Uri, linter: LogtalkLinter) {
-    LogtalkTerminal.make(uri, linter, "optimal", false);
+    await LogtalkTerminal.make(uri, linter, "optimal", false);
     window.showInformationMessage("Recompiled files in optimal mode.");
   }
 
   public static async makeNormal(uri: Uri, linter: LogtalkLinter) {
-    LogtalkTerminal.make(uri, linter, "normal", false);
+    await LogtalkTerminal.make(uri, linter, "normal", false);
     window.showInformationMessage("Recompiled files in optimal mode.");
   }
 
   public static async makeDebug(uri: Uri, linter: LogtalkLinter) {
-    LogtalkTerminal.make(uri, linter, "debug", false);
+    await LogtalkTerminal.make(uri, linter, "debug", false);
     window.showInformationMessage("Recompiled files in debug mode.");
   }
 
