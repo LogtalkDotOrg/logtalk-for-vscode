@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.22.1]
+
+* More informative error message when a script is not found
+
 ## [0.22.0]
 
 * Change linters to no longer create and write to an "OUTPUT" pane channel

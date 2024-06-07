@@ -896,7 +896,7 @@ export default class LogtalkTerminal {
     pp.on('error', (err) => {
       let message: string = null;
       if ((<any>err).code === "ENOENT") {
-        message = `Cannot run the ${type[0]} script. The script was not found. Use the '${type[1]}' setting to configure`;
+        message = `Cannot run the ${type[0]} script: ${type[2]}. The script was not found. Use the '${type[1]}' setting to configure.`;
       } else {
         message = err.message
           ? err.message
