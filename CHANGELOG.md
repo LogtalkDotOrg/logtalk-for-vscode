@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.22.1]
+## [0.23.0]
 
 * Add (non-QuickCheck) failed tests to the "Problems" pane
 * More informative error message when a script is not found

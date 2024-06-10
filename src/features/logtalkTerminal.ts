@@ -24,7 +24,6 @@ import LogtalkLinter from "./logtalkLinter";
 import LogtalkTestsReporter from "./logtalkTestsReporter";
 import LogtalkDeadCodeScanner from "./logtalkDeadCodeScanner";
 import LogtalkDocumentationLinter from "./logtalkDocumentationLinter";
-import { isFunction } from "util";
 import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
 

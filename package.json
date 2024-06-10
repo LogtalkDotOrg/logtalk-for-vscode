@@ -2,7 +2,7 @@
     "name": "logtalk-for-vscode",
     "displayName": "Logtalk for VSCode",
     "description": "Logtalk programming support",
-    "version": "0.22.1",
+    "version": "0.23.0",
     "publisher": "LogtalkDotOrg",
     "icon": "images/logtalk.png",
     "license": "MIT",
@@ -418,7 +418,7 @@
         "compile": "tsc -watch -p ./",
         "test": "tsc ./tests/runTest.ts",
         "vsix:make": "vsce package --baseImagesUrl https://raw.githubusercontent.com/llvm/llvm-project/master/clang-tools-extra/clangd/clients/clangd-vscode/",
-        "vsix:install": "code --install-extension logtalk-for-vscode-0.22.1.vsix"
+        "vsix:install": "code --install-extension logtalk-for-vscode-0.23.0.vsix"
     },
     "devDependencies": {
         "@types/bluebird": "^3.5.38",

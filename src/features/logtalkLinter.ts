@@ -10,13 +10,11 @@ import {
   DiagnosticSeverity,
   Disposable,
   ExtensionContext,
-  languages,
-  OutputChannel,
   Position,
   Range,
-  Selection,
   TextDocument,
   Uri,
+  languages,
   workspace
 } from "vscode";
 import * as path from "path";
