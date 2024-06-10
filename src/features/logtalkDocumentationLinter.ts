@@ -16,15 +16,10 @@ import {
   Range,
   Selection,
   TextDocument,
-  TextEditorRevealType,
   Uri,
-  window,
-  workspace,
-  WorkspaceEdit
+  workspace
 } from "vscode";
 import * as path from "path";
-
-import LogtalkTerminal from "./logtalkTerminal"; 
 
 export default class LogtalkDocumentationLinter implements CodeActionProvider {
 

@@ -21,7 +21,7 @@ import {
 } from "vscode";
 import * as path from "path";
 
-export default class LogtalkLinter implements CodeActionProvider {
+export default class LogtalkTestsReporter implements CodeActionProvider {
 
   public  diagnosticCollection: DiagnosticCollection;
   public  diagnostics: { [docName: string]: Diagnostic[] } = {};
@@ -67,8 +67,10 @@ export default class LogtalkLinter implements CodeActionProvider {
     } 
 
     let fileName = path.resolve(match[6]);
+//    console.log(fileName);
     let lineFrom = 0,
         lineTo   = 0;
+//        console.log(match)
 
     if(match[9]) {
       lineFrom = parseInt(match[9])-1;
@@ -101,6 +103,8 @@ export default class LogtalkLinter implements CodeActionProvider {
 
   public lint(textDocument: TextDocument, message) {
     this.parseIssue(message);
+    this.diagnosticCollection.delete(textDocument.uri);
+    
     for (let doc in this.diagnostics) {
       let index = this.diagnostics[doc]
         .map((diag, i) => {
@@ -142,7 +146,7 @@ export default class LogtalkLinter implements CodeActionProvider {
 
   public activate(subscriptions): void {
 
-    this.diagnosticCollection = languages.createDiagnosticCollection('Logtalk Linter');
+    this.diagnosticCollection = languages.createDiagnosticCollection('Logtalk Testing');
 
     workspace.onDidChangeConfiguration(
       this.loadConfiguration,
@@ -161,6 +165,15 @@ export default class LogtalkLinter implements CodeActionProvider {
     );
 
     this.loadConfiguration();
+
+    // workspace.onDidOpenTextDocument(this.doPlint, this, subscriptions);
+    workspace.onDidCloseTextDocument(
+      textDocument => {
+        this.diagnosticCollection.delete(textDocument.uri);
+      },
+      null,
+      subscriptions
+    );
   }
 
   public dispose(): void {

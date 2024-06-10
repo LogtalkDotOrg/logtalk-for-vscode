@@ -21,6 +21,7 @@ import LogtalkTerminal from "./features/logtalkTerminal";
 import LogtalkLinter from "./features/logtalkLinter";
 import LogtalkDeadCodeScanner from "./features/logtalkDeadCodeScanner";
 import LogtalkDocumentationLinter from "./features/logtalkDocumentationLinter";
+import LogtalkTestsReporter from "./features/logtalkTestsReporter";
 import LogtalkHoverProvider from "./features/hoverProvider";
 import { LogtalkDeclarationProvider } from "./features/declarationProvider";
 import { LogtalkDefinitionProvider } from "./features/definitionProvider";
@@ -46,6 +47,8 @@ export function activate(context: ExtensionContext) {
   loadEditHelpers(subscriptions);
   const linter = new LogtalkLinter(context);
   linter.activate(subscriptions);
+  const testsReporter = new LogtalkTestsReporter(context);
+  testsReporter.activate(subscriptions);
   const deadCodeScanner = new LogtalkDeadCodeScanner(context);
   deadCodeScanner.activate(subscriptions);
   const documentationLinter = new LogtalkDocumentationLinter(context);
@@ -92,7 +95,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.make.circular",           callback: uri  => LogtalkTerminal.makeCircular(uri, linter)},
     { command: "logtalk.make.clean",              callback: uri  => LogtalkTerminal.makeClean(uri, linter)},
     { command: "logtalk.make.caches",             callback: uri  => LogtalkTerminal.makeCaches(uri, linter)},
-    { command: "logtalk.run.tests",               callback: uri  => LogtalkTerminal.runTests(uri, linter)},
+    { command: "logtalk.run.tests",               callback: uri  => LogtalkTerminal.runTests(uri, linter, testsReporter)},
     { command: "logtalk.run.doclet",              callback: uri  => LogtalkTerminal.runDoclet(uri, linter)},
     { command: "logtalk.scan.deadCode",           callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
     { command: "logtalk.generate.documentation",  callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},

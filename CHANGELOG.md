@@ -2,6 +2,7 @@
 
 ## [0.22.1]
 
+* Add (non-QuickCheck) failed tests to the "Problems" pane
 * More informative error message when a script is not found
 
 ## [0.22.0]

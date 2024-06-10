@@ -21,6 +21,7 @@ import * as jsesc from "jsesc";
 import * as fs from "fs";
 import { spawn } from "child_process";
 import LogtalkLinter from "./logtalkLinter";
+import LogtalkTestsReporter from "./logtalkTestsReporter";
 import LogtalkDeadCodeScanner from "./logtalkDeadCodeScanner";
 import LogtalkDocumentationLinter from "./logtalkDocumentationLinter";
 import { isFunction } from "util";
@@ -359,7 +360,7 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static async runTests(uri: Uri, linter: LogtalkLinter) {
+  public static async runTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -394,9 +395,18 @@ export default class LogtalkTerminal {
     if(fs.existsSync(`${compilerMessagesFile}`)) {
       let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
+      let test = false;
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
+        } else if (test || line.includes('cpu/wall seconds')) {
+          test = true;
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            testsReporter.lint(textDocument, message);
+            message = '';
+            test = false;
+          } 
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
