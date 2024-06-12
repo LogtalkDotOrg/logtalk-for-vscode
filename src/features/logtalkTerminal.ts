@@ -830,6 +830,7 @@ export default class LogtalkTerminal {
     let file: string = '';
     let line: number = 0;
     let message: string = '';
+    let condition: string = '';
     let predicate: string = '';
     session.added.forEach(breakpoint => {
       if (breakpoint instanceof SourceBreakpoint) {
@@ -839,6 +840,9 @@ export default class LogtalkTerminal {
         if (breakpoint.logMessage != undefined) {
           message = breakpoint.logMessage;
           LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
+        } else if (breakpoint.condition != undefined) {
+          condition = breakpoint.condition;
+          LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}, ${condition}).\r`);
         } else {
           LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
         }
@@ -870,6 +874,9 @@ export default class LogtalkTerminal {
           if (breakpoint.logMessage != undefined) {
             message = breakpoint.logMessage;
             LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
+          } else if (breakpoint.condition != undefined) {
+            condition = breakpoint.condition;
+            LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}, ${condition}).\r`);
           } else {
             LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
           }

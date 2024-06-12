@@ -2,7 +2,8 @@
 
 ## [0.23.0]
 
-* Add (non-QuickCheck) failed tests to the "Problems" pane
+* Add support for conditional breakpoints
+* Add failed tests to the "Problems" pane
 * More informative error message when a script is not found
 
 ## [0.22.0]
