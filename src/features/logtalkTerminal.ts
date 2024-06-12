@@ -843,6 +843,9 @@ export default class LogtalkTerminal {
         } else if (breakpoint.condition != undefined) {
           condition = breakpoint.condition;
           LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}, ${condition}).\r`);
+        } else if (breakpoint.hitCondition != undefined) {
+          condition = breakpoint.hitCondition;
+          LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}, ${condition}).\r`);
         } else {
           LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
         }
@@ -876,6 +879,9 @@ export default class LogtalkTerminal {
             LogtalkTerminal.sendString(`vscode::log('${file}', ${line+1}, '${message}').\r`);
           } else if (breakpoint.condition != undefined) {
             condition = breakpoint.condition;
+            LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}, ${condition}).\r`);
+          } else if (breakpoint.hitCondition != undefined) {
+            condition = breakpoint.hitCondition;
             LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}, ${condition}).\r`);
           } else {
             LogtalkTerminal.sendString(`vscode::spy('${file}', ${line+1}).\r`);
