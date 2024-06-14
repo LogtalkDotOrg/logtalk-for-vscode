@@ -315,6 +315,14 @@ On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable 
 
 If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated context menu items even after uninstalling it. If that happens, delete any extension leftovers in the `%USERPROFILE%\.vscode\extensions` (for Windows) or `~/.vscode/extensions` (for Linux and macOS) directory.
 
+### VSCode notable usability issues
+
+VSCode provides a "Toggle Activate Breakpoints" button in the "Run and Debug" pane but doesn't generate an event that can be handled by extensions.
+
+When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
+
+VSCode triggers the "Go to Definition" computations if the cursor happens to be over some text when typing the command (macOS) or control (Windows, Linux) keys to type any keyboard command without waiting for or requiring cursor movement.
+
 ## Development
 
 Developed and tested with **Logtalk 3.81.0** and **VSCode 1.89** on **macOS 14.4** and **Windows 10** with **Node 22**.
