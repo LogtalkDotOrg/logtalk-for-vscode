@@ -319,6 +319,8 @@ If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated
 
 VSCode provides a "Toggle Activate Breakpoints" button in the "Run and Debug" pane but doesn't generate an event that can be handled by extensions.
 
+VSCode doesn't support disabling menu items that are not supported by language extensions (e.g. the "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item).
+
 When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
 
 VSCode triggers the "Go to Definition" computations if the cursor happens to be over some text when typing the command (macOS) or control (Windows, Linux) keys to type any keyboard command without waiting for or requiring cursor movement.
