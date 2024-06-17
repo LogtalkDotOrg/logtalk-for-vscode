@@ -189,7 +189,11 @@ Click in the middle of an entity name and select the "Show Type Hierarchy" conte
 
 When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is show in the active editor window.
 
-Spy points, log points, and conditional breakpoints can be added and removed using the "Run" menu breakpoint items. Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator) or as context spy points by entering a `(Sender, This, Self, Goal)` tuple. Inline breakpoints are interpreted as line numbers spy points (note that they can only be set for clause heads). VSCode hit count breakpoints are interpreted as clause head successful unification count expressions. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. VSCode triggered breakpoints are not supported. See the documentation of the `debugger` tool for details. Currently, changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints.
+Spy points, log points, and conditional breakpoints can be added and removed using the "Run" menu breakpoint items. Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator) or as context spy points by entering a `(Sender, This, Self, Goal)` tuple. Inline breakpoints are interpreted as line numbers spy points (note that they can only be set for clause heads). VSCode hit count breakpoints are interpreted as clause head successful unification count expressions. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. See the documentation of the `debugger` tool for details.
+
+VSCode triggered breakpoints are not supported. Moreover, although VSCode support its, a breakpoint cannot be a combination of log point, conditional breakpoint, and hit count breakpoint. If you edit a breakpoint, you must keep its singular type.
+
+Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints".
 
 ### Hover contents
 
@@ -327,7 +331,7 @@ VSCode triggers the "Go to Definition" computations if the cursor happens to be 
 
 ## Development
 
-Developed and tested with **Logtalk 3.81.0** and **VSCode 1.89** on **macOS 14.4** and **Windows 10** with **Node 22**.
+Developed and tested with **Logtalk 3.81.0** and **VSCode 1.90** on **macOS 14.4** and **Windows 10** with **Node 22**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
