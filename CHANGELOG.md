@@ -3,7 +3,7 @@
 ## [0.23.0]
 
 * Add failed tests to the "Problems" pane
-* Add support for conditional breakpoints
+* Add support for conditional and triggered breakpoints
 * Escape log point messages to ensure they are valid quoted atoms
 * More informative error message when a script is not found
 
