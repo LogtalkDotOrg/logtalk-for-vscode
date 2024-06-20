@@ -112,6 +112,18 @@ export function activate(context: ExtensionContext) {
     );
   });
 
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openSettings', () => {
+    commands.executeCommand('workbench.action.openSettings', 'logtalk');
+	}));
+
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openFolder', () => {
+    commands.executeCommand('workbench.action.files.openFolder');
+	}));
+
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openFolder', () => {
+    return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#load' };
+	}));
+
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(
       session => {

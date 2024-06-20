@@ -411,7 +411,36 @@
                 "editor.insertSpaces": false,
                 "editor.wordWrap": "on"
             }
-        }
+        },
+        "walkthroughs": [
+            {
+                "id": "logtalk-walkthrough",
+                "title": "Logtalk for VSCode walkthrough",
+                "description": "Get started with Logtalk development",
+                "steps": [
+                    {
+                        "id": "configure",
+                        "title": "Extension configuration",
+                        "description": "The extension **must** be configured before it can be used.\n[Open Settings](command:logtalk-for-vscode.openSettings)",
+                        "media": { "markdown": "media/settings.md" },
+                        "completionEvents": [
+                            "onSettingChanged:logtalk-for-vscode.logtalk.home.path",
+                            "onSettingChanged:logtalk-for-vscode.logtalk.user.path",
+                            "onCommand:logtalk-for-vscode.openSettings"
+                        ]
+                    },
+                    {
+                        "id": "load",
+                        "title": "Load a Logtalk example",
+                        "description": "To check that the extension is configured correctly, load one of the examples from the Logtalk distribution.\n[Open Example](command:logtalk-for-vscode.openFolder)",
+                        "media": { "markdown": "media/load.md" },
+                        "completionEvents": [
+                            "onCommand:logtalk-for-vscode.openFolder"
+                         ]
+                    }
+                ]
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "tsc -p ./",

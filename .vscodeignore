@@ -5,6 +5,7 @@
 !snippets/*.json
 !syntaxes/*.tmLanguage
 !images/**/*
+!media/**/*
 !README.md
 !package.json
 !CHANGELOG.md

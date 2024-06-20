@@ -2,6 +2,7 @@
 
 ## [0.23.0]
 
+* Add getting started walkthrough
 * Add failed tests to the "Problems" pane
 * Add support for conditional and triggered breakpoints
 * Escape log point messages to ensure they are valid quoted atoms
