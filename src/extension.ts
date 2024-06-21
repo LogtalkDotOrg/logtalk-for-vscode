@@ -114,14 +114,27 @@ export function activate(context: ExtensionContext) {
 
 	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openSettings', () => {
     commands.executeCommand('workbench.action.openSettings', 'logtalk');
+    return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#configure' };
 	}));
 
-	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openFolder', () => {
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openReadme', () => {
+    commands.executeCommand('extension.open', 'LogtalkDotOrg.logtalk-for-vscode');
+    return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#configure' };
+	}));
+
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openExample', () => {
     commands.executeCommand('workbench.action.files.openFolder');
+    return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#open' };
 	}));
 
-	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openFolder', () => {
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.loadExample', () => {
+    commands.executeCommand('logtalk.load.directory');
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#load' };
+	}));
+
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.testExample', () => {
+    commands.executeCommand('logtalk.run.testers');
+    return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#test' };
 	}));
 
   context.subscriptions.push(

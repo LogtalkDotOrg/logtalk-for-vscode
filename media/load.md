@@ -1,1 +1,1 @@
-Open a Logtalk example.
+Load the Logtalk example.

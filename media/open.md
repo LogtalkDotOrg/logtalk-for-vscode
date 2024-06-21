@@ -1,0 +1,1 @@
+Open a Logtalk example (e.g. `planets`) by navigating to your `LOGTALKUSER` directory and opening the example directory.

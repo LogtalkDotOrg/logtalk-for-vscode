@@ -421,21 +421,38 @@
                     {
                         "id": "configure",
                         "title": "Extension configuration",
-                        "description": "The extension **must** be configured before it can be used.\n[Open Settings](command:logtalk-for-vscode.openSettings)",
+                        "description": "The extension **must** be configured before it can be used. Open the settings to enter your configuration by following the instructions in the \"Configuration\" section in the readme file.\n[Open Settings](command:logtalk-for-vscode.openSettings)\n[Open Readme](command:logtalk-for-vscode.openReadme)",
                         "media": { "markdown": "media/settings.md" },
                         "completionEvents": [
                             "onSettingChanged:logtalk-for-vscode.logtalk.home.path",
                             "onSettingChanged:logtalk-for-vscode.logtalk.user.path",
-                            "onCommand:logtalk-for-vscode.openSettings"
+                            "onCommand:logtalk-for-vscode.openSettings",
+                            "onCommand:logtalk-for-vscode.openReadme"
                         ]
                     },
                     {
-                        "id": "load",
-                        "title": "Load a Logtalk example",
-                        "description": "To check that the extension is configured correctly, load one of the examples from the Logtalk distribution.\n[Open Example](command:logtalk-for-vscode.openFolder)",
-                        "media": { "markdown": "media/load.md" },
+                        "id": "open",
+                        "title": "Open an example",
+                        "description": "To check that the extension is configured correctly, start by opening one of the examples from the Logtalk distribution.\n[Open Example](command:logtalk-for-vscode.openExample)",
+                        "media": { "markdown": "media/open.md" },
                         "completionEvents": [
-                            "onCommand:logtalk-for-vscode.openFolder"
+                            "onCommand:logtalk-for-vscode.openExample"
+                         ]
+                    },
+                    {
+                        "id": "load",
+                        "title": "Compile and load the example",
+                        "description": "Next, compile and load the example by opening its loader file and selecting the \"Logtalk: Load File\" command from the context menu or by opening one of the example source files selecting the \"Logtalk: Load Directory\" command from the context menu.",
+                        "media": { "image": "media/load_file.png" },
+                        "completionEvents": [
+                         ]
+                    },
+                    {
+                        "id": "test",
+                        "title": "Run the example tests by selecting the \"Logtalk: Run Tests\" command from the context menu.",
+                        "description": "Run the example tests.",
+                        "media": { "image": "media/run_tests.png" },
+                        "completionEvents": [
                          ]
                     }
                 ]
