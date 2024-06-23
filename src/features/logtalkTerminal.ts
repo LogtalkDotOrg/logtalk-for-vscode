@@ -459,6 +459,10 @@ export default class LogtalkTerminal {
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    if (!fs.existsSync(doclet + ".lgt") && !fs.existsSync(doclet + ".logtalk")) {
+      window.showWarningMessage("Doclet file not found.");
+      return;
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::doclet('${dir}','${doclet}').\r`, true);

@@ -8,6 +8,7 @@
 * Escape log point messages to ensure they are valid quoted atoms
 * More informative error message when a script is not found
 * Fix the "Logtalk: Run Tests" command to print a warning if the tester file doesn't exist
+* Fix the "Logtalk: Run Doclet" command to print a warning if the doclet file doesn't exist
 
 ## [0.22.0]
 
