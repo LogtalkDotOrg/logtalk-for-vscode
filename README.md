@@ -103,6 +103,7 @@ Workspace commands can be triggered from command palette via entering 'Logtalk' 
 |                             Command | Description                                                      |
 | ----------------------------------: | :--------------------------------------------------------------- |
 |                        Open Logtalk | Opens Logtalk in an integrated terminal                          |
+|            Load Project (workspace) | Loads the loader file found in the workspace directory           |
 |          Scan Dead Code (workspace) | Recursively scans the workspace directory for dead code          |
 |  Generate Documentation (workspace) | Recursively generates documentation for the workspace directory  |
 |       Generate Diagrams (workspace) | Recursively generates diagrams for the workspace directory       |

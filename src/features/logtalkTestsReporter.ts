@@ -101,7 +101,7 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
 
   }
 
-  public lint(textDocument: TextDocument, message) {
+  public lint(textDocument: TextDocument, message: string) {
     this.parseIssue(message);
     this.diagnosticCollection.delete(textDocument.uri);
     

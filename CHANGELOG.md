@@ -2,6 +2,7 @@
 
 ## [0.23.0]
 
+* Add "Logtalk: Load Project (workspace)" command
 * Add getting started walkthrough
 * Add failed tests to the "Problems" pane
 * Add support for conditional and triggered breakpoints

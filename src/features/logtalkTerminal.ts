@@ -169,16 +169,12 @@ export default class LogtalkTerminal {
     LogtalkTerminal._terminal.show(true);
   }
   
-  public static async loadDirectory(uri: Uri, linter: LogtalkLinter) {
-    if (typeof uri === 'undefined') {
-      uri = window.activeTextEditor.document.uri;
-    }
+  public static async loadProject(uri: Uri, linter: LogtalkLinter) {
     // Declare Variables
-    const dir0 = path.dirname(uri.fsPath);
+    const dir0 = LogtalkTerminal.getWorkspaceFolder(uri);
     const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const loader = path.resolve(loader0).split(path.sep).join("/");
-    let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -189,8 +185,59 @@ export default class LogtalkTerminal {
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
-    // Open the Text Document
-    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    // Clear the Scratch Message File
+    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Check that the loader file exists
+    if (!fs.existsSync(loader + ".lgt") && !fs.existsSync(loader + ".logtalk")) {
+      window.showWarningMessage("Loader file not found.");
+      return;
+    }
+    // Create the Terminal
+    LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal.sendString(`vscode::load('${dir}','${loader}').\r`);
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir0, ".vscode_loading_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      for (let line of lines) {
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(message);
+            message = '';
+          }
+        }
+      }
+    }
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
+    window.showInformationMessage("Project loading completed.");
+  }
+
+  public static async loadDirectory(uri: Uri, linter: LogtalkLinter) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
+    // Declare Variables
+    const dir0 = path.dirname(uri.fsPath);
+    const loader0 = path.join(dir0, "loader");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const loader = path.resolve(loader0).split(path.sep).join("/");
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
@@ -210,7 +257,7 @@ export default class LogtalkTerminal {
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
-            linter.lint(textDocument, message);
+            linter.lint(message);
             message = '';
           }
         }
@@ -230,7 +277,6 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const file0: string = await LogtalkTerminal.ensureFile(uri);
     const file = path.resolve(file0).split(path.sep).join("/");
-    let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -241,8 +287,6 @@ export default class LogtalkTerminal {
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
-    // Open the Text Document
-    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
@@ -262,7 +306,7 @@ export default class LogtalkTerminal {
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
-            linter.lint(textDocument, message);
+            linter.lint(message);
             message = '';
           }
         }
@@ -317,7 +361,6 @@ export default class LogtalkTerminal {
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -328,8 +371,6 @@ export default class LogtalkTerminal {
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
-    // Open the Text Document
-    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
@@ -349,7 +390,7 @@ export default class LogtalkTerminal {
         } else {
           message = message + line + '\n';
           if (line == '*     ' || line == '!     ') {
-            linter.lint(textDocument, message);
+            linter.lint(message);
             message = '';
           }
         }
@@ -382,6 +423,7 @@ export default class LogtalkTerminal {
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Check that the tester file exists
     if (!fs.existsSync(tester + ".lgt") && !fs.existsSync(tester + ".logtalk")) {
       window.showWarningMessage("Tester file not found.");
       return;
@@ -411,7 +453,7 @@ export default class LogtalkTerminal {
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
-            linter.lint(textDocument, message);
+            linter.lint(message);
             message = '';
           } 
         }
@@ -459,6 +501,7 @@ export default class LogtalkTerminal {
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Check that the doclet file exists
     if (!fs.existsSync(doclet + ".lgt") && !fs.existsSync(doclet + ".logtalk")) {
       window.showWarningMessage("Doclet file not found.");
       return;
@@ -479,7 +522,7 @@ export default class LogtalkTerminal {
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
-            linter.lint(textDocument, message);
+            linter.lint(message);
             message = '';
           }
         }

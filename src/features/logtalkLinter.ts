@@ -97,7 +97,7 @@ export default class LogtalkLinter implements CodeActionProvider {
 
   }
 
-  public lint(textDocument: TextDocument, message) {
+  public lint(message: string) {
     this.parseIssue(message);
     for (let doc in this.diagnostics) {
       let index = this.diagnostics[doc]

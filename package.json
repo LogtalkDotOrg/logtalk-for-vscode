@@ -145,6 +145,10 @@
                 "title": "Logtalk: Generate Diagrams"
             },
             {
+                "command": "logtalk.load.project",
+                "title": "Logtalk: Load Project (workspace)"
+            },
+            {
                 "command": "logtalk.open",
                 "title": "Logtalk: Open Logtalk"
             },
@@ -230,6 +234,10 @@
                 }
             ],
             "explorer/context": [
+                {
+                    "command": "logtalk.load.project",
+                    "when": "resourceLangId == logtalk"
+                },
                 {
                     "command": "logtalk.open",
                     "when": "resourceLangId == logtalk"
