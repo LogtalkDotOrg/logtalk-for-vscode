@@ -316,9 +316,7 @@ export default class LogtalkTerminal {
     }
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
-    const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
     let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
@@ -384,6 +382,10 @@ export default class LogtalkTerminal {
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    if (!fs.existsSync(tester + ".lgt") && !fs.existsSync(tester + ".logtalk")) {
+      window.showWarningMessage("Tester file not found.");
+      return;
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::tests('${dir}','${tester}').\r`, true);
