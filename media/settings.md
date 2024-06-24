@@ -10,7 +10,7 @@ On Windows, use a PowerShell terminal to run the commands:
 	Get-Item Env:LOGTALKHOME
 	Get-Item Env:LOGTALKUSER
 
-The identifier of the Prolog backend that you intend to use:
+Some of the settings are for scripts, e.g. the `logtalk_tester` automation script, that take as argument the Prolog backend you intend to use, specified using its identifier:
 
 * B-Prolog: `b`
 * Ciao Prolog: `ciao`
@@ -26,3 +26,5 @@ The identifier of the Prolog backend that you intend to use:
 * Trealla Prolog: `trealla`
 * XSB: `xsb`
 * YAP: `yap`
+
+See the scripts [man pages](https://logtalk.org/documentation.html#man-pages) for their available options.

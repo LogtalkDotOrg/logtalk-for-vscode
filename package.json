@@ -372,7 +372,7 @@
                 "logtalk.tester.script": {
                     "type": "string",
                     "default": "/usr/local/bin/logtalk_tester",
-                    "description": "Automation script for running tests."
+                    "description": "Automation script for running tests. Must include the backend identifier."
                 },
                 "logtalk.tester.arguments": {
                     "type": "array",
@@ -386,7 +386,7 @@
                 },
                 "logtalk.doclet.arguments": {
                     "type": "array",
-                    "description": "Arguments for the automation script for running doclets.",
+                    "description": "Arguments for the automation script for running doclets. Must include the backend identifier.",
                     "default": []
                 },
                 "logtalk.documentation.script": {

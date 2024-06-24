@@ -21,7 +21,7 @@ This extension **must** be configured before it can be used. Notably, the follow
 - Logtalk home and user paths
 - Logtalk executable or integration script.
 
-For details, see [Configuration](#configuration).
+For details, see [Configuration](#configuration). This extension includes a walkthrough that can be accessed from the VSCode "Welcome" page after installing the extension. The walkthrough can also be accessed from the command palette using the command "Welcome: Open Walkthrough...".
 
 ## Features
 
