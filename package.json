@@ -424,7 +424,7 @@
             {
                 "id": "logtalk-walkthrough",
                 "title": "Get started with Logtalk development",
-                "description": "Your first steps customizing your environment for Logtalk development",
+                "description": "Your first steps customizing your development environment and creating your first project.",
                 "steps": [
                     {
                         "id": "configure",
@@ -462,6 +462,14 @@
                         "media": { "image": "media/run_tests.png" },
                         "completionEvents": [
                             "onCommand:logtalk.run.tests"
+                         ]
+                    },
+                    {
+                        "id": "create",
+                        "title": "Create a project.",
+                        "description": "Create a project using template files.",
+                        "media": { "markdown": "media/create.md" },
+                        "completionEvents": [
                          ]
                     }
                 ]
