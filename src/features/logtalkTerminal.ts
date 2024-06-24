@@ -241,6 +241,11 @@ export default class LogtalkTerminal {
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Check that the loader file exists
+    if (!fs.existsSync(loader + ".lgt") && !fs.existsSync(loader + ".logtalk")) {
+      window.showWarningMessage("Loader file not found.");
+      return;
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::load('${dir}','${loader}').\r`);
