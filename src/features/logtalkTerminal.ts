@@ -4,6 +4,7 @@ import {
   Terminal,
   window,
   workspace,
+  commands,
   TextDocument,
   Disposable,
   OutputChannel,
@@ -168,7 +169,36 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._terminal.show(true);
   }
-  
+
+  public static async createProject() {
+    // Declare Variables
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+    // Create project
+    vscode.window.showOpenDialog({
+      canSelectFolders: true,
+      canSelectFiles: false
+    }).then(folders => {
+      if (folders != null && folders.length > 0) {
+        fs.copyFile(logtalkHome + "/coding/editorconfig/editorconfig", folders[0].fsPath + "/.editorconfig", (err) => {});
+        fs.copyFile(logtalkHome + "/coding/git/Logtalk.gitignore", folders[0].fsPath + "/.gitignore", (err) => {});
+        fs.copyFile(logtalkUser + "/loader-sample.lgt", folders[0].fsPath + "/loader.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/settings-sample.lgt", folders[0].fsPath + "/settings.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/tester-sample.lgt", folders[0].fsPath + "/tester.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/tests-sample.lgt", folders[0].fsPath + "/tests.lgt", (err) => {});
+        vscode.commands.executeCommand("vscode.openFolder", folders[0]);
+      }
+    });
+  }
+
   public static async loadProject(uri: Uri, linter: LogtalkLinter) {
     // Declare Variables
     const dir0 = LogtalkTerminal.getWorkspaceFolder(uri);

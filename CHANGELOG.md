@@ -2,6 +2,7 @@
 
 ## [0.23.0]
 
+* Add "Logtalk: Create Project (workspace)" command
 * Add "Logtalk: Load Project (workspace)" command
 * Add getting started walkthrough
 * Add failed tests to the "Problems" pane

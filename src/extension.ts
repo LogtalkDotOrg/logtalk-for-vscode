@@ -78,6 +78,7 @@ export function activate(context: ExtensionContext) {
 
   let logtalkCommands = [
     // workspace commands
+    { command: "logtalk.create.project",          callback: ()   => LogtalkTerminal.createProject()},
     { command: "logtalk.load.project",            callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
     { command: "logtalk.open",                    callback: ()   => LogtalkTerminal.openLogtalk()},
     { command: "logtalk.rscan.deadCode",          callback: uri  => LogtalkTerminal.rscanForDeadCode(uri, deadCodeScanner)},

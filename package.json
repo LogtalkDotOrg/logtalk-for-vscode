@@ -145,6 +145,10 @@
                 "title": "Logtalk: Generate Diagrams"
             },
             {
+                "command": "logtalk.create.project",
+                "title": "Logtalk: Create Project (workspace)"
+            },
+            {
                 "command": "logtalk.load.project",
                 "title": "Logtalk: Load Project (workspace)"
             },
@@ -234,6 +238,10 @@
                 }
             ],
             "explorer/context": [
+                {
+                    "command": "logtalk.create.project",
+                    "when": "resourceLangId == logtalk"
+                },
                 {
                     "command": "logtalk.load.project",
                     "when": "resourceLangId == logtalk"
@@ -467,9 +475,10 @@
                     {
                         "id": "create",
                         "title": "Create a project.",
-                        "description": "Create a project using template files.",
+                        "description": "Create a project using the template files.\n[Create Project](command:logtalk.create.project)",
                         "media": { "markdown": "media/create.md" },
                         "completionEvents": [
+                            "onCommand:logtalk.create.project"
                          ]
                     }
                 ]
