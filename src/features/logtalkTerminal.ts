@@ -355,44 +355,42 @@ export default class LogtalkTerminal {
   }
 
   public static async makeClean(uri: Uri, linter: LogtalkLinter) {
-    await LogtalkTerminal.make(uri, linter, "clean", false);
-    window.showInformationMessage("Deleted intermediate compilation files.");
+    await LogtalkTerminal.make(uri, linter, "clean", false, "Deleted intermediate compilation files.");
   }
 
   public static async makeCaches(uri: Uri, linter: LogtalkLinter) {
-    await LogtalkTerminal.make(uri, linter, "caches", false);
-    window.showInformationMessage("Deleted dynamic binding caches.");
+    await LogtalkTerminal.make(uri, linter, "caches", false, "Deleted dynamic binding caches.");
   }
 
   public static async makeReload(uri: Uri, linter: LogtalkLinter) {
-    await LogtalkTerminal.make(uri, linter, "all", false);
-    window.showInformationMessage("File reloading completed.");
+    await LogtalkTerminal.make(uri, linter, "all", false, "File reloading completed.");
   }
 
   public static async makeOptimal(uri: Uri, linter: LogtalkLinter) {
-    await LogtalkTerminal.make(uri, linter, "optimal", false);
-    window.showInformationMessage("Recompiled files in optimal mode.");
+    await LogtalkTerminal.make(uri, linter, "optimal", false, "Recompiled files in optimal mode.");
   }
 
   public static async makeNormal(uri: Uri, linter: LogtalkLinter) {
-    await LogtalkTerminal.make(uri, linter, "normal", false);
-    window.showInformationMessage("Recompiled files in optimal mode.");
+    await LogtalkTerminal.make(uri, linter, "normal", false, "Recompiled files in optimal mode.");
   }
 
   public static async makeDebug(uri: Uri, linter: LogtalkLinter) {
-    await LogtalkTerminal.make(uri, linter, "debug", false);
-    window.showInformationMessage("Recompiled files in debug mode.");
+    await LogtalkTerminal.make(uri, linter, "debug", false, "Recompiled files in debug mode.");
   }
 
   public static async makeCheck(uri: Uri, linter: LogtalkLinter) {
-    LogtalkTerminal.make(uri, linter, "check", true);
+    LogtalkTerminal.make(uri, linter, "check", true, "");
   }
 
   public static async makeCircular(uri: Uri, linter: LogtalkLinter) {
-    LogtalkTerminal.make(uri, linter, "circular", true);
+    LogtalkTerminal.make(uri, linter, "circular", true, "");
   }
 
-  public static async make(uri: Uri, linter: LogtalkLinter, target: string, showTerminal: boolean) {
+  public static async make(uri: Uri, linter: LogtalkLinter, target: string, showTerminal: boolean, info: string) {
+    if (!LogtalkTerminal._terminal) {
+      window.showWarningMessage("No Logtalk process is running.");
+      return;
+    }
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -412,14 +410,13 @@ export default class LogtalkTerminal {
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
-    // Create the Terminal
-    LogtalkTerminal.createLogtalkTerm();
+    // Call the make tool
     LogtalkTerminal.sendString(`vscode::make('${dir}','${target}').\r`, showTerminal);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_make_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
+    if (fs.existsSync(`${compilerMessagesFile}`)) {
       let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
       for (let line of lines) {
@@ -433,6 +430,9 @@ export default class LogtalkTerminal {
           }
         }
       }
+    }
+    if (info != "") {
+      window.showInformationMessage(info);
     }
   }
 
