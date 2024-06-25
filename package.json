@@ -251,18 +251,6 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
-                    "command": "logtalk.load.directory",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.load.file",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.run.tests",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
                     "command": "logtalk.rscan.deadCode",
                     "when": "resourceLangId == logtalk"
                 },
@@ -280,22 +268,6 @@
                 },
                 {
                     "command": "logtalk.run.doclets",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.run.doclet",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.generate.documentation",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.generate.diagrams",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.scan.deadCode",
                     "when": "resourceLangId == logtalk"
                 }
             ],

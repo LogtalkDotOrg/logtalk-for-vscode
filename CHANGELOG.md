@@ -3,6 +3,7 @@
 ## [0.23.0]
 
 * Rename workspace commands to include instead the word "Project"
+* Show only project (workspace) commands in the explorer context menu
 * Add "Logtalk: Create Project" command
 * Add "Logtalk: Load Project" command
 * Add getting started walkthrough
