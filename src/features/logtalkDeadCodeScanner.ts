@@ -101,10 +101,8 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
 
   }
 
-  public lint(textDocument: TextDocument, message) {
+  public lint(message: string) {
     this.parseIssue(message);
-    this.diagnosticCollection.delete(textDocument.uri);
-    
     for (let doc in this.diagnostics) {
       let index = this.diagnostics[doc]
         .map((diag, i) => {

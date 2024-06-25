@@ -200,6 +200,9 @@ export default class LogtalkTerminal {
   }
 
   public static async loadProject(uri: Uri, linter: LogtalkLinter) {
+    if (typeof uri === 'undefined') {
+      uri = workspace.workspaceFolders[0].uri;
+    }
     // Declare Variables
     const dir0 = LogtalkTerminal.getWorkspaceFolder(uri);
     const loader0 = path.join(dir0, "loader");
@@ -568,19 +571,22 @@ export default class LogtalkTerminal {
   }
 
   public static async genDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
-    const dir0: string = LogtalkTerminal.ensureDir(uri);
-    LogtalkTerminal.genDocumentationHelper(uri, documentationLinter, dir0, "documentation");
-  }
-
-  public static async rgenDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
-    LogtalkTerminal.genDocumentationHelper(uri, documentationLinter, dir0, "documentation_recursive");
-  }
-
-  public static async genDocumentationHelper(uri: Uri, documentationLinter: LogtalkDocumentationLinter, dir0: string, predicate: string) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
+    LogtalkTerminal.genDocumentationHelper(documentationLinter, dir0, "documentation");
+  }
+
+  public static async rgenDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
+    if (typeof uri === 'undefined') {
+      uri = workspace.workspaceFolders[0].uri;
+    }
+    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    LogtalkTerminal.genDocumentationHelper(documentationLinter, dir0, "documentation_recursive");
+  }
+
+  public static async genDocumentationHelper(documentationLinter: LogtalkDocumentationLinter, dir0: string, predicate: string) {
     // Declare Variables
     let textDocument = null;
     let logtalkHome: string = '';
@@ -593,8 +599,6 @@ export default class LogtalkTerminal {
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
-    // Open the Text Document
-    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
@@ -617,7 +621,7 @@ export default class LogtalkTerminal {
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
-            documentationLinter.lint(textDocument, message);
+            documentationLinter.lint(message);
             message = '';
           }
         }
@@ -633,19 +637,22 @@ export default class LogtalkTerminal {
   }
 
   public static async genDiagrams(uri: Uri) {
-    const dir0: string = LogtalkTerminal.ensureDir(uri);
-    LogtalkTerminal.rgenDiagramsHelper(uri, dir0, "diagrams");
-  }
-
-  public static async rgenDiagrams(uri: Uri) {
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
-    LogtalkTerminal.rgenDiagramsHelper(uri, dir0, "diagrams_recursive");
-  }
-
-  public static async rgenDiagramsHelper(uri: Uri, dir0: string, predicate: string) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
+    LogtalkTerminal.rgenDiagramsHelper(dir0, "diagrams");
+  }
+
+  public static async rgenDiagrams(uri: Uri) {
+    if (typeof uri === 'undefined') {
+      uri = workspace.workspaceFolders[0].uri;
+    }
+    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    LogtalkTerminal.rgenDiagramsHelper(dir0, "diagrams_recursive");
+  }
+
+  public static async rgenDiagramsHelper(dir0: string, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(dir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
@@ -664,19 +671,22 @@ export default class LogtalkTerminal {
   }
 
   public static async scanForDeadCode(uri: Uri, deadCodeScanner: LogtalkDeadCodeScanner) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     const dir0: string = LogtalkTerminal.ensureDir(uri);
     LogtalkTerminal.scanForDeadCodeHelper(uri, deadCodeScanner, dir0, "dead_code")
   }
 
   public static async rscanForDeadCode(uri: Uri, deadCodeScanner: LogtalkDeadCodeScanner) {
+    if (typeof uri === 'undefined') {
+      uri = workspace.workspaceFolders[0].uri;
+    }
     const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
     LogtalkTerminal.scanForDeadCodeHelper(uri, deadCodeScanner, dir0, "dead_code_recursive")
   }
 
   public static async scanForDeadCodeHelper(uri: Uri, deadCodeScanner: LogtalkDeadCodeScanner, dir0: string, predicate: string) {
-    if (typeof uri === 'undefined') {
-      uri = window.activeTextEditor.document.uri;
-    }
     // Declare Variables
     let textDocument = null;
     let logtalkHome: string = '';
@@ -689,8 +699,6 @@ export default class LogtalkTerminal {
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
-    // Open the Text Document
-    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
@@ -713,7 +721,7 @@ export default class LogtalkTerminal {
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
-            deadCodeScanner.lint(textDocument, message);
+            deadCodeScanner.lint(message);
             message = '';
           }
         }
@@ -1072,7 +1080,7 @@ export default class LogtalkTerminal {
   };
 
   private static getWorkspaceFolder(uri: Uri): string {
-    return vscode.workspace.workspaceFolders
+    return workspace.workspaceFolders
       ?.map((folder) => folder.uri.fsPath)
       .filter((fsPath) => uri.path?.startsWith(fsPath))[0];
   }

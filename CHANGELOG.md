@@ -9,6 +9,7 @@
 * Add support for conditional and triggered breakpoints
 * Escape log point messages to ensure they are valid quoted atoms
 * More informative error message when a script is not found
+* Fix workspace commands when run from the command palette by using the first workspace folder
 * Fix the "Logtalk: Load Directory" command to print a warning if the loader file doesn't exist
 * Fix the "Logtalk: Run Tests" command to print a warning if the tester file doesn't exist
 * Fix the "Logtalk: Run Doclet" command to print a warning if the doclet file doesn't exist

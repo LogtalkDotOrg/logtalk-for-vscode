@@ -100,18 +100,22 @@ Most commands, notably those that run the developer tools, **require** the code 
 
 Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. Alternatively, Ctrl+click (Windows, Linux, BSD, ...) or Cmd+click (macOS) in a Logtalk source file in the Explorer.
 
-|                             Command | Description                                                      |
-| ----------------------------------: | :--------------------------------------------------------------- |
-|                        Open Logtalk | Opens Logtalk in an integrated terminal                          |
-|          Create Project (workspace) | Creates a new project with renamed copies of the sample files    |
-|            Load Project (workspace) | Loads the loader file found in the workspace directory           |
-|          Scan Dead Code (workspace) | Recursively scans the workspace directory for dead code          |
-|  Generate Documentation (workspace) | Recursively generates documentation for the workspace directory  |
-|       Generate Diagrams (workspace) | Recursively generates diagrams for the workspace directory       |
-|             Run Testers (workspace) | Runs the `logtalk_tester` script on the workspace directory      |
-|             Run Doclets (workspace) | Runs the `logtalk_doclet` script on the workspace directory      |
+|                             Command | Description                                                    |
+| ----------------------------------: | :------------------------------------------------------------- |
+|                        Open Logtalk | Opens Logtalk in an integrated terminal                        |
+|          Create Project (workspace) | Creates a new project with renamed copies of the sample files  |
+|            Load Project (workspace) | Loads the loader file found in the workspace folder            |
+|          Scan Dead Code (workspace) | Recursively scans the workspace folder for dead code           |
+|  Generate Documentation (workspace) | Recursively generates documentation for the workspace folder   |
+|       Generate Diagrams (workspace) | Recursively generates diagrams for the workspace folder        |
+|             Run Testers (workspace) | Runs the `logtalk_tester` script on the workspace folder       |
+|             Run Doclets (workspace) | Runs the `logtalk_doclet` script on the workspace folder       |
+
+The "Load Project (workspace)" command looks for a `loader.lgt` or `loader.logtalk` file in the folder of the selected file when using the explorer context menu or in first workspace folder if using the command palette, printing a warning if not found.
 
 The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
+
+When running the workspace commands from the command palette (instead of using the explorer context menu on a folder or file), the commands resort to the first workspace folder.
 
 ### Directory and source file commands
 
@@ -138,7 +142,7 @@ These commands can be triggered from editor/context and explorer/context menus v
 |        Generate Diagrams | Generates diagrams for the active source file directory             |
 |         Open Parent File | Opens the file that loaded the active source file if any            |
 
-The "Load Directory" command assumes that a `loader.lgt` or `loader.logtalk` file exists in the directory of the selected file.
+The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Tests" command looks for a `tester.lgt` or `tester.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Doclet" command looks for a `doclet.lgt` or `doclet.logtalk` file in the directory of the selected file, printing a warning if not found.
 
 The "Run Tests" command adds failed tests to the "PROBLEMS" pane.
 
