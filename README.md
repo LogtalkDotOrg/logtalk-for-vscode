@@ -119,7 +119,7 @@ When running the workspace commands from the command palette (instead of using t
 
 #### Directory and source file commands
 
-These commands can be triggered from the editor/context menu via right click editor area. These commands can also be triggered from command palette assuming there's an active editor window.
+These commands can be triggered from the editor/context menu via right click in the editor area. These commands can also be triggered from command palette assuming there's an active editor window.
 
 |                  Command | Description                                                         |
 | -----------------------: | :------------------------------------------------------------------ |
@@ -140,7 +140,7 @@ The "Run Tests" command adds failed tests to the "PROBLEMS" pane.
 
 #### Logtalk (integrated terminal) process commands
 
-These commands don't depend on the directory of a file selected by right clicking in a workspace file or in an active editor window but only on the Logtalk process running in the integrated terminal. They can be triggered from the editor/context menu via right click editor area or from the command palette.
+These commands don't depend on the directory of a file selected by right clicking in a workspace file or in an active editor window but only on the Logtalk process running in the integrated terminal. They can be triggered from the editor/context menu via right click in the editor area or from the command palette.
 
 |          Command | Description                                                |
 | ---------------: | :--------------------------------------------------------- |
@@ -213,7 +213,9 @@ Hover contents is provided for built-in directives, built-in predicates, and bui
 
 ## Configuration
 
-The user can configure settings via VSCode menu `Settings`. Entering `Logtalk` in the input box will show up Logtalk settings. Follows a description of all the settings in this extension with their default values (if any). On Windows, use forward slashes in settings that require paths. Also on Windows, PowerShell 7.3.x or later is required for settings that call scripts., On a POSIX system (e.g. macOS, Linux, or BSD), if you're running Logtalk from a clone of its git repo, you may need to add the `.sh` extension to all scripts in the settings.
+The user can configure settings via VSCode menu `Settings`. Entering `Logtalk` in the input box will show up the Logtalk settings. Follows a description of all the settings in this extension with their default values (if any). On Windows, use forward slashes in settings that require paths. Also on Windows, PowerShell 7.3.x or later is required for settings that call scripts. On a POSIX system (e.g. macOS, Linux, or BSD), if you're running Logtalk from a clone of its git repo, you may need to add the `.sh` extension to all scripts in the settings.
+
+For settings that specify Logtalk scripts, see the script [man pages](https://logtalk.org/documentation.html#man-pages) for their available options.
 
 ### Logtalk home and user paths
 
