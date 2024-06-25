@@ -146,11 +146,11 @@
             },
             {
                 "command": "logtalk.create.project",
-                "title": "Logtalk: Create Project (workspace)"
+                "title": "Logtalk: Create Project"
             },
             {
                 "command": "logtalk.load.project",
-                "title": "Logtalk: Load Project (workspace)"
+                "title": "Logtalk: Load Project"
             },
             {
                 "command": "logtalk.open",
@@ -158,23 +158,23 @@
             },
             {
                 "command": "logtalk.rscan.deadCode",
-                "title": "Logtalk: Scan Dead Code (workspace)"
+                "title": "Logtalk: Scan Project Dead Code"
             },
             {
                 "command": "logtalk.rgenerate.documentation",
-                "title": "Logtalk: Generate Documentation (workspace)"
+                "title": "Logtalk: Generate Project Documentation"
             },
             {
                 "command": "logtalk.rgenerate.diagrams",
-                "title": "Logtalk: Generate Diagrams (workspace)"
+                "title": "Logtalk: Generate Project Diagrams"
             },
             {
                 "command": "logtalk.run.testers",
-                "title": "Logtalk: Run Testers (workspace)"
+                "title": "Logtalk: Run Project Testers"
             },
             {
                 "command": "logtalk.run.doclets",
-                "title": "Logtalk: Run Doclets (workspace)"
+                "title": "Logtalk: Run Project Doclets"
             },
             {
                 "command": "logtalk.open.parentFile",

@@ -2,8 +2,9 @@
 
 ## [0.23.0]
 
-* Add "Logtalk: Create Project (workspace)" command
-* Add "Logtalk: Load Project (workspace)" command
+* Rename workspace commands to include instead the word "Project"
+* Add "Logtalk: Create Project" command
+* Add "Logtalk: Load Project" command
 * Add getting started walkthrough
 * Add failed tests to the "Problems" pane
 * Add support for conditional and triggered breakpoints

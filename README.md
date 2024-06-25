@@ -96,28 +96,28 @@ Refer to the table below for other snippets:
 
 Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
 
-#### Workspace commands
+#### Project commands
 
-Workspace commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. Alternatively, Ctrl+click (Windows, Linux, BSD, ...) or Cmd+click (macOS) in a Logtalk source file in the Explorer.
+Project (or workspace) commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. Alternatively, Ctrl+click (Windows, Linux, BSD, ...) or Cmd+click (macOS) in a Logtalk source file in the Explorer.
 
-|                             Command | Description                                                    |
-| ----------------------------------: | :------------------------------------------------------------- |
-|                        Open Logtalk | Opens Logtalk in an integrated terminal                        |
-|          Create Project (workspace) | Creates a new project with renamed copies of the sample files  |
-|            Load Project (workspace) | Loads the loader file found in the workspace folder            |
-|          Scan Dead Code (workspace) | Recursively scans the workspace folder for dead code           |
-|  Generate Documentation (workspace) | Recursively generates documentation for the workspace folder   |
-|       Generate Diagrams (workspace) | Recursively generates diagrams for the workspace folder        |
-|             Run Testers (workspace) | Runs the `logtalk_tester` script on the workspace folder       |
-|             Run Doclets (workspace) | Runs the `logtalk_doclet` script on the workspace folder       |
+|                             Command | Description                                                |
+| ------------------------------: | :------------------------------------------------------------- |
+|                    Open Logtalk | Opens Logtalk in an integrated terminal                        |
+|                  Create Project | Creates a new project with renamed copies of the sample files  |
+|                    Load Project | Loads the loader file found in the workspace folder            |
+|          Scan Project Dead Code | Recursively scans the workspace folder for dead code           |
+|  Generate Project Documentation | Recursively generates documentation for the workspace folder   |
+|       Generate Project Diagrams | Recursively generates diagrams for the workspace folder        |
+|             Run Project Testers | Runs the `logtalk_tester` script on the workspace folder       |
+|             Run Project Doclets | Runs the `logtalk_doclet` script on the workspace folder       |
 
-The "Load Project (workspace)" command looks for a `loader.lgt` or `loader.logtalk` file in the folder of the selected file when using the explorer context menu or in first workspace folder if using the command palette, printing a warning if not found.
+The "Load Project" command looks for a `loader.lgt` or `loader.logtalk` file in the folder of the selected file when using the explorer context menu or in first workspace folder if using the command palette, printing a warning if not found.
 
 The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
 
 When running the workspace commands from the command palette (instead of using the explorer context menu on a folder or file), the commands resort to the first workspace folder.
 
-### Directory and source file commands
+#### Directory and source file commands
 
 These commands can be triggered from editor/context and explorer/context menus via right click editor area or Logtalk files in explorer area respectively. In explorer context, the file name at which right click occurs will be passed in the command as argument. File specified commands can also be triggered from command palette so that active file name in the editor will be passed in the command.
 
