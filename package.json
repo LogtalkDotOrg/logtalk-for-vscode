@@ -448,7 +448,7 @@
                         "id": "open",
                         "title": "Open an example",
                         "description": "To check that the extension is configured correctly, start by opening one of the examples from the Logtalk distribution by navigating to your ``LOGTALKUSER`` directory.\n[Open Example](command:logtalk-for-vscode.openExample)",
-                        "media": { "image": "media/open_example.png" },
+                        "media": { "image": "media/open_example.png", "altText": "File/folder open dialog." },
                         "completionEvents": [
                             "onCommand:logtalk-for-vscode.openExample"
                          ]
@@ -457,7 +457,7 @@
                         "id": "load",
                         "title": "Compile and load the example",
                         "description": "Next, compile and load the example by opening its loader file and selecting the \"Logtalk: Load File\" command from the context menu or by opening one of the example source files selecting the \"Logtalk: Load Directory\" command from the context menu.",
-                        "media": { "image": "media/load_file.png" },
+                        "media": { "image": "media/load_file.png", "altText": "Context menu with the load file command selected." },
                         "completionEvents": [
                             "onCommand:logtalk.load.directory",
                             "onCommand:logtalk.load.file"
@@ -467,7 +467,7 @@
                         "id": "test",
                         "title": "Run the example tests.",
                         "description": "Run the example tests by selecting the \"Logtalk: Run Tests\" command from the context menu.",
-                        "media": { "image": "media/run_tests.png" },
+                        "media": { "image": "media/run_tests.png", "altText": "Context menu with the run tests command selected." },
                         "completionEvents": [
                             "onCommand:logtalk.run.tests"
                          ]
