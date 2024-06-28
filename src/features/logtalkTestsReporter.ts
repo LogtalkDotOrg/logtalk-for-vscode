@@ -102,6 +102,8 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
   }
 
   public lint(textDocument: TextDocument, message: string) {
+    message = message.replace(/ \(in.*cpu\/wall seconds\)/, "");
+    console.log(message)
     this.parseIssue(message);
     this.diagnosticCollection.delete(textDocument.uri);
     
