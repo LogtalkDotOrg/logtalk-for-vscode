@@ -8,7 +8,7 @@
 * Add "Logtalk: Create Project" command
 * Add "Logtalk: Load Project" command
 * Add getting started walkthrough
-* Add failed tests to the "Problems" pane
+* Add failed tests to the "Problems" pane (when using the "Logtalk: Run Tests" command)
 * Add support for conditional and triggered breakpoints
 * Escape log point messages to ensure they are valid quoted atoms
 * More informative error message when a script is not found

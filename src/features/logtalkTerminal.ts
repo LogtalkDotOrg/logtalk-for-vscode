@@ -219,7 +219,7 @@ export default class LogtalkTerminal {
       throw new Error("configuration settings error: logtalk"); 
     }
     // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Check that the loader file exists
     if (!fs.existsSync(loader + ".lgt") && !fs.existsSync(loader + ".logtalk")) {
@@ -272,7 +272,7 @@ export default class LogtalkTerminal {
       throw new Error("configuration settings error: logtalk"); 
     }
     // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Check that the loader file exists
     if (!fs.existsSync(loader + ".lgt") && !fs.existsSync(loader + ".logtalk")) {
@@ -326,7 +326,7 @@ export default class LogtalkTerminal {
       throw new Error("configuration settings error: logtalk"); 
     }
     // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
@@ -408,7 +408,7 @@ export default class LogtalkTerminal {
       throw new Error("configuration settings error: logtalk"); 
     }
     // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Call the make tool
     LogtalkTerminal.sendString(`vscode::make('${dir}','${target}').\r`, showTerminal);
@@ -459,7 +459,7 @@ export default class LogtalkTerminal {
     // Open the Text Document
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Check that the tester file exists
     if (!fs.existsSync(tester + ".lgt") && !fs.existsSync(tester + ".logtalk")) {
@@ -537,7 +537,7 @@ export default class LogtalkTerminal {
     // Open the Text Document
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Check that the doclet file exists
     if (!fs.existsSync(doclet + ".lgt") && !fs.existsSync(doclet + ".logtalk")) {
@@ -600,7 +600,7 @@ export default class LogtalkTerminal {
       throw new Error("configuration settings error: logtalk"); 
     }
     // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
@@ -700,7 +700,7 @@ export default class LogtalkTerminal {
       throw new Error("configuration settings error: logtalk"); 
     }
     // Clear the Scratch Message File
-    let compilerMessagesFile  = `${logtalkUser}/scratch/.messages`;
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();

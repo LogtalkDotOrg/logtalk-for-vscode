@@ -18,7 +18,7 @@ Some of the settings are for scripts, e.g. the `logtalk_tester` automation scrip
 * ECLiPSe: `eclipse`
 * GNU Prolog: `gnu`
 * JIProlog: `ji`
-* LVM: `lvm`
+* XVM: `xvm`
 * Quintus Prolog: `quintus`
 * SICStus Prolog: `sicstus`
 * SWI-Prolog: `swi`
