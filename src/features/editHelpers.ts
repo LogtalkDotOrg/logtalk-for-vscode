@@ -3,7 +3,7 @@
 import {
   /* CommentRule, OnEnterRule, */
   Disposable, IndentAction, languages,
-  Position, Range, Selection, 
+  Position, Range, Selection,
   TextDocument, window, workspace
 } from "vscode";
 
@@ -137,11 +137,19 @@ export function loadEditHelpers(subscriptions: Disposable[]) {
     });
     return match[1] + "(" + newList.join(", ") + ")";
   }
-  
+
+  let recursiveCompletion = workspace.getConfiguration("logtalk").get<boolean>("completion.recursive.enabled", true);
+
   workspace.onDidChangeTextDocument(
     e => {
+      if (!recursiveCompletion) {
+        return;
+      }
       let lastChange = e.contentChanges[0];
       if (lastChange === undefined) {
+        return;
+      }
+      if (!['logtalk', 'prolog'].includes(e.document.languageId)) {
         return;
       }
       let lastChar = lastChange.text;
