@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.24.0]
+
+* Add syntax highlighting of the new `consistency_error/3` built-in method
+
 ## [0.23.0]
 
 * Rename workspace commands to include instead the word "Project"

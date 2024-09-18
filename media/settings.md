@@ -18,13 +18,13 @@ Some of the settings are for scripts, e.g. the `logtalk_tester` automation scrip
 * ECLiPSe: `eclipse`
 * GNU Prolog: `gnu`
 * JIProlog: `ji`
-* XVM: `xvm`
 * Quintus Prolog: `quintus`
 * SICStus Prolog: `sicstus`
 * SWI-Prolog: `swi`
 * Tau Prolog: `tau`
 * Trealla Prolog: `trealla`
 * XSB: `xsb`
+* XVM: `xvm`
 * YAP: `yap`
 
 See the scripts [man pages](https://logtalk.org/documentation.html#man-pages) for their available options.
