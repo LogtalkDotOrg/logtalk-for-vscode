@@ -1,4 +1,4 @@
-The configure the extension, you need:
+To configure the extension, you need:
 
 The value of the `LOGTALKHOME` and `LOGTALKUSER` environment variables as absolute paths. On macOS or Linux, you can use a terminal to run the commands:
 
@@ -27,4 +27,4 @@ Some of the settings are for scripts, e.g. the `logtalk_tester` automation scrip
 * XVM: `xvm`
 * YAP: `yap`
 
-See the scripts [man pages](https://logtalk.org/documentation.html#man-pages) for their available options.
+See the scripts [man pages](https://logtalk.org/documentation.html#man-pages) for their available options. To find the absolute path to the scripts, use the `which` command on macOS or Linux systems and the `where.exe` command on Windows.

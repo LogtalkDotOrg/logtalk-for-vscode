@@ -203,7 +203,7 @@ When debugging in the integrated terminal using the `debugger` tool, the current
 
 Spy points, log points, and conditional breakpoints can be added and removed using the "Run" menu breakpoint items. Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator) or as context spy points by entering a `(Sender, This, Self, Goal)` tuple. Inline breakpoints are interpreted as line numbers spy points (note that they can only be set for clause heads). VSCode hit count breakpoints are interpreted as clause head successful unification count expressions. VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item is not supported (as VSCode doesn't currently make available the necessary data). But triggered breakpoints can be set as conditional breakpoints where the condition is a `Entity-Line` term. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. See the documentation of the `debugger` tool for details.
 
-Although VSCode support its, a breakpoint cannot be a combination of log point, conditional breakpoint, and hit count breakpoint. If you edit a breakpoint, you must keep its singular type.
+Although VSCode support it, a breakpoint cannot be a combination of log point, conditional breakpoint, and hit count breakpoint. If you edit a breakpoint, you must keep its singular type.
 
 Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints".
 
@@ -247,7 +247,7 @@ On Windows systems, use the absolute path to the Prolog backend executable **and
     "logtalk.tester.script": "/usr/local/bin/logtalk_tester"
     "logtalk.tester.arguments": [ ]
 
-Automation script for running tests and its arguments. The arguments **must** included at least the Prolog backend. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD) and using SWI-Prolog as the backend:
+Automation script for running tests and its arguments. The arguments **must** included at least the `-p` option specifying the Prolog backend. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD) and using SWI-Prolog as the backend:
 
     "logtalk.tester.script": "/usr/local/bin/logtalk_tester"
     "logtalk.tester.arguments": [ "-p", "swi" ]
@@ -264,7 +264,7 @@ On Windows systems, these settings must be set differently. For example (assumin
     "logtalk.doclet.script": "/usr/local/bin/logtalk_doclet"
     "logtalk.doclet.arguments": [ ]
 
-Automation script for running doclets and its arguments. The arguments **must** included at least the Prolog backend. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD) and using SWI-Prolog as the backend:
+Automation script for running doclets and its arguments. The arguments **must** included at least the `-p` option specifying the Prolog backend. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD) and using SWI-Prolog as the backend:
 
     "logtalk.doclet.script": "/usr/local/bin/logtalk_doclet"
     "logtalk.doclet.arguments": [ "-p", "swi" ]
