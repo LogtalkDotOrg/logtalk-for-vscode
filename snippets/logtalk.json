@@ -1746,6 +1746,16 @@
     "prefix":"domain_error",
     "scope":"source.logtalk"
   },
+  "predicates:consistency_error/3": {
+    "body":"consistency_error(${1:Expected}, ${2:Argument1}, ${3:Argument2})$0",
+    "description": [
+        "Throws a consistency error. Used when two directive or predicate arguments are individually correct but together are not consistent. For example, a predicate and its alias having different arity in a uses/2 directive.\n",
+        "Template and modes",
+        "consistency_error(@atom, @nonvar, @nonvar)"
+    ],
+    "prefix":"consistency_error",
+    "scope":"source.logtalk"
+  },
   "predicates:existence_error/2": {
     "body":"existence_error(${1:Thing}, ${2:Culprit})$0",
     "description": [
