@@ -42,7 +42,6 @@ For details, see [Configuration](#configuration). This extension includes a walk
 
 - Indentation after new line
 - Built-in directive, method, and predicate template auto-completion
-- Auto-complete recursive parameters: When `.` (dot) occurs as first non-space character, this extension will repeat the nearest above head of clause and automatically change the parameters if possible.
 
 Note: Relations between entities use choice snippets: `orel` triggers object relation choices and `crel` for category. There is only one relation between protocols, 'extends', so `ext` will trigger the snippet.
 

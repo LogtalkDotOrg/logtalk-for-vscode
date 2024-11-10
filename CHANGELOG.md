@@ -2,7 +2,8 @@
 
 ## [0.24.0]
 
-* Add syntax highlighting of the new `consistency_error/3` built-in method
+* Remove edit helper for repeating the last clause head when writing recursive predicates
+* Add syntax highlighting and snippet for the new `consistency_error/3` built-in method
 
 ## [0.23.0]
 
