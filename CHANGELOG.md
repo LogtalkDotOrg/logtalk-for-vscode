@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.25.0]
+
+* Improve settings descriptions.
+
 ## [0.24.0]
 
 * Remove edit helper for repeating the last clause head when writing recursive predicates
