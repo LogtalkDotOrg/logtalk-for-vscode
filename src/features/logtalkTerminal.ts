@@ -53,18 +53,66 @@ export default class LogtalkTerminal {
 
     let section = workspace.getConfiguration("logtalk");
 
+    let logtalkHome = section.get<string>("home.path");
+    let logtalkUser = section.get<string>("user.path");
+    let logtalkBackend = section.get<string>("backend");
+
     LogtalkTerminal._execArgs      =   section.get<string[]>("executable.arguments");
-    LogtalkTerminal._testerExec    =   section.get<string>("tester.script", "logtalk_tester");
+    LogtalkTerminal._testerExec    =   section.get<string>("tester.script");
     LogtalkTerminal._outputChannel =   window.createOutputChannel("Logtalk Testers & Doclets");
     LogtalkTerminal._testerArgs    =   section.get<string[]>("tester.arguments");
-    LogtalkTerminal._docletExec    =   section.get<string>("doclet.script", "logtalk_doclet" );
+    LogtalkTerminal._docletExec    =   section.get<string>("doclet.script");
     LogtalkTerminal._docletArgs    =   section.get<string[]>("doclet.arguments");
 
-    LogtalkTerminal._docExec       =   section.get<string>("documentation.script", "lgt2html");
+    LogtalkTerminal._docExec       =   section.get<string>("documentation.script");
     LogtalkTerminal._docArgs       =   section.get<string[]>("documentation.arguments");
-    LogtalkTerminal._diaExec       =   section.get<string>("diagrams.script", "lgt2svg");
+    LogtalkTerminal._diaExec       =   section.get<string>("diagrams.script");
     LogtalkTerminal._diaArgs       =   section.get<string[]>("diagrams.arguments");
     LogtalkTerminal._timeout       =   section.get<number>("scripts.timeout", 480000);
+
+    if (LogtalkTerminal._testerExec == "") {
+      if (process.platform === 'win32') {
+        LogtalkTerminal._testerExec = "C:/Program Files/PowerShell/7/pwsh.exe";
+        LogtalkTerminal._testerArgs = ["-file", "C:/Windows/logtalk_tester.ps1", "-p", logtalkBackend, "-f", "xunit"];
+      } else {
+        LogtalkTerminal._testerExec = path.join(path.join(logtalkHome, "scripts"), "logtalk_tester.sh");
+        LogtalkTerminal._testerExec = path.resolve(LogtalkTerminal._testerExec).split(path.sep).join("/");
+        LogtalkTerminal._testerArgs = ["-p", logtalkBackend, "-f", "xunit"];
+      }
+    }
+
+    if (LogtalkTerminal._docletExec == "") {
+      if (process.platform === 'win32') {
+        LogtalkTerminal._docletExec = "C:/Program Files/PowerShell/7/pwsh.exe";
+        LogtalkTerminal._docletArgs = ["-file", "C:/Windows/logtalk_doclet.ps1", "-p", logtalkBackend];
+      } else {
+        LogtalkTerminal._docletExec = path.join(path.join(logtalkHome, "scripts"), "logtalk_doclet.sh");
+        LogtalkTerminal._docletExec = path.resolve(LogtalkTerminal._docletExec).split(path.sep).join("/");
+        LogtalkTerminal._docletArgs = ["-p", logtalkBackend];
+      }
+    }
+
+    if (LogtalkTerminal._docExec == "") {
+      if (process.platform === 'win32') {
+        LogtalkTerminal._docExec = "C:/Program Files/PowerShell/7/pwsh.exe";
+        LogtalkTerminal._docArgs = ["-file", "C:/Windows/lgt2html.ps1", "-t", "APIs documentation"];
+      } else {
+        LogtalkTerminal._docExec = path.join(logtalkHome, "tools/lgtdoc/xml/lgt2html.sh");
+        LogtalkTerminal._docExec = path.resolve(LogtalkTerminal._docExec).split(path.sep).join("/");
+        LogtalkTerminal._docArgs = ["-t", "APIs documentation"];
+      }
+    }
+
+    if (LogtalkTerminal._diaExec == "") {
+      if (process.platform === 'win32') {
+        LogtalkTerminal._diaExec = "C:/Program Files/PowerShell/7/pwsh.exe";
+        LogtalkTerminal._diaArgs = ["-file", "C:/Windows/lgt2svg.ps1"];
+      } else {
+        LogtalkTerminal._diaExec = path.join(logtalkHome, "tools/diagrams/lgt2svg.sh");
+        LogtalkTerminal._diaExec = path.resolve(LogtalkTerminal._diaExec).split(path.sep).join("/");
+        LogtalkTerminal._diaArgs = [];
+      }
+    }
 
     return (<any>window).onDidCloseTerminal(terminal => {
       for (const key of LogtalkTerminal._context.workspaceState.keys()) {
@@ -84,8 +132,62 @@ export default class LogtalkTerminal {
     if (section) {
       let logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
       let logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+      let logtalkBackend = jsesc(section.get<string>("backend", "logtalk"));
       let executable = jsesc(section.get<string>("executable.path", "logtalk"));
       let args = section.get<string[]>("executable.arguments");
+
+      let script = "";
+      if (executable == "") {
+        switch(logtalkBackend) {
+          case "b":
+            script = "bplgt"
+            break;
+          case "ciao":
+            script = "ciaolgt"
+            break;
+          case "cx":
+            script = "cxlgt"
+            break;
+          case "eclipse":
+            script = "eclipselgt"
+            break;
+          case "gnu":
+            script = "gplgt"
+            break;
+          case "ji":
+            script = "jilgt"
+            break;
+          case "sicstus":
+            script = "sicstuslgt"
+            break;
+          case "swi":
+            script = "swilgt"
+            break;
+          case "tau":
+            script = "taulgt"
+            break;
+          case "trealla":
+            script = "tplgt"
+            break;
+          case "xsb":
+            script = "xsblgt"
+            break;
+          case "xvm":
+            script = "xvmlgt"
+            break;
+          case "yap":
+            script = "yaplgt"
+            break;
+        }
+        if (process.platform === 'win32') {
+          executable = "C:/Program Files/PowerShell/7/pwsh.exe";
+          args = ["-file", "C:/Windows/" + script + ".ps1"]
+        } else {
+          executable = path.join(logtalkHome, path.join("integration", script + ".sh"));
+          executable = path.resolve(executable).split(path.sep).join("/");
+         }
+      }
+
       LogtalkTerminal._terminal = (<any>window).createTerminal({
         name: "Logtalk",
         shellPath: executable,

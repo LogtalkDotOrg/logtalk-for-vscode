@@ -1,8 +1,14 @@
 # Changelog
 
+## [0.26.0]
+
+* Add backend setting
+* Change required settings to be only the LOGTALKHOME and LOGTALKUSER environment variable full paths plus the backend
+* Fix settings order so that required settings are listed first
+
 ## [0.25.0]
 
-* Improve settings descriptions.
+* Improve settings descriptions
 
 ## [0.24.0]
 
