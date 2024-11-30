@@ -18,10 +18,11 @@ This extension can be installed directly from [VSCode](https://code.visualstudio
 
 This extension **must** be configured before it can be used. Notably, the following settings are required:
 
-- Logtalk home and user paths
-- Logtalk executable or integration script.
+- Logtalk home path
+- Logtalk user path
+- Prolog backend
 
-For details, see [Configuration](#configuration). This extension includes a walkthrough that can be accessed from the VSCode "Welcome" page after installing the extension. The walkthrough can also be accessed from the command palette using the command "Welcome: Open Walkthrough...".
+For details, see [Configuration](#configuration). This extension includes a walkthrough that can be accessed from the VSCode "Welcome" page after installing the extension. It can also be accessed from the command palette using the command "Welcome: Open Walkthrough...". The walkthrough guides you in configuring the extension and checking that basic functionality is working.
 
 ## Features
 

@@ -9,4 +9,4 @@ The Logtalk distribution includes several sample files to help you get started i
 
 The `coding` directory also contains an EditorConfig file and "ignore" files for several source code management systems such as git.
 
-The "Logtalk: Create Project (workspace)" command can be used to create a new project with copies of the sample files already renamed and ready to be customized.
+The "Logtalk: Create Project" command can be used to create a new project with copies of the sample files already renamed and ready to be customized.
