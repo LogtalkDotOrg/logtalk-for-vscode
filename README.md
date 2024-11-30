@@ -212,13 +212,7 @@ Hover contents is provided for built-in directives, built-in predicates, and bui
 
 ## Configuration
 
-The user can configure settings via VSCode menu `Settings`. Entering `Logtalk` in the input box will show up the Logtalk settings. Follows a description of all the settings in this extension with their default values (if any).
-
-On Windows, use forward slashes in settings that require paths. PowerShell 7.3.x or later is required for settings that call scripts. Use the `where.exe` command to find the absolute path for the required scripts.
-
-On a POSIX system (e.g. macOS, Linux, or BSD), use the `which` command to find the absolute path for the integration and tool scripts. If you're running Logtalk from a clone of its git repo, you may need to add the `.sh` extension to all scripts in the settings.
-
-For settings that specify scripts, see their [man pages](https://logtalk.org/documentation.html#man-pages) for their available options.
+The user can configure settings via VSCode menu `Settings`. Entering `Logtalk` in the input box will show up the Logtalk settings. Follows a description of all the settings in this extension with their default values (if any). On Windows, PowerShell 7.3.x or later must also be installed.
 
 ### Required settings
 
@@ -239,12 +233,18 @@ No default. Possible values are `b`, `ciao`, `cx`, `eclipse`, `gnu`, `ji`, `sics
 
 In most cases, the required settings are enough for full extension functionality. But they assume default installations for Logtalk and the Prolog backends. On Windows, they also assume the default installation of PowerShell 7. When that's not the case, the optional settings listed below allow overriding the defaults that are derived from the required settings.
 
+On Windows, use forward slashes in settings that require paths. Use the `where.exe` command to find the absolute path for the required scripts.
+
+On a POSIX system (e.g. macOS, Linux, or BSD), use the `which` command to find the absolute path for the integration and tool scripts. If you're running Logtalk from a clone of its git repo, you may need to add the `.sh` extension to all scripts in the settings.
+
+For settings that specify scripts, see their [man pages](https://logtalk.org/documentation.html#man-pages) for their available options.
+
 #### Logtalk executable
 
-    "logtalk.executable.path": "/usr/local/bin/logtalk"
+    "logtalk.executable.path": ""
     "logtalk.executable.arguments": [ ]
 
-Logtalk executable or integration script plus its arguments. On POSIX systems (e.g. macOS, Linux, or BSD), the `logtalk` executable can be created by running the `logtalk_backend_select` script. In alternative, use the integration script you want to use. Absolute paths **must** be used. For example, assuming a POSIX system, using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`:
+Absolute path to the Logtalk executable or integration script and its arguments. On POSIX systems (e.g. macOS, Linux, or BSD), the `logtalk` executable can be created by running the `logtalk_backend_select` script. In alternative, set the integration script you want to use. For example, assuming a POSIX system, using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`:
 
     "logtalk.executable.path": "/usr/local/bin/swilgt"
     "logtalk.executable.arguments": [ "-q" ]
@@ -259,10 +259,10 @@ On Windows systems, use the absolute path to the Prolog backend executable **and
 
 #### Logtalk project testers
 
-    "logtalk.tester.script": "/usr/local/bin/logtalk_tester"
+    "logtalk.tester.script": ""
     "logtalk.tester.arguments": [ ]
 
-Automation script for running tests and its arguments. The arguments **must** included at least the `-p` option specifying the Prolog backend. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD), using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`:
+Absolute path to the `logtalk_tester` automation script and its arguments, which **must** include at least the `-p` option specifying the Prolog backend. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD), using SWI-Prolog as the backend, with the scripts installed at `/usr/local/bin`:
 
     "logtalk.tester.script": "/usr/local/bin/logtalk_tester"
     "logtalk.tester.arguments": [ "-p", "swi" ]
@@ -276,10 +276,10 @@ On Windows systems, these settings must be set differently. For example (assumin
 
 #### Logtalk project doclets
 
-    "logtalk.doclet.script": "/usr/local/bin/logtalk_doclet"
+    "logtalk.doclet.script": ""
     "logtalk.doclet.arguments": [ ]
 
-Automation script for running doclets and its arguments. The arguments **must** included at least the `-p` option specifying the Prolog backend. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD), using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`:
+Absolute path to the `logtalk_doclet` automation script and its arguments, which **must** include at least the `-p` option specifying the Prolog backend. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD), using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`:
 
     "logtalk.doclet.script": "/usr/local/bin/logtalk_doclet"
     "logtalk.doclet.arguments": [ "-p", "swi" ]
@@ -293,13 +293,13 @@ On Windows systems, these settings must be set differently. For example (assumin
 
 #### Logtalk project documentation
 
-    "logtalk.documentation.script": "/usr/local/bin/lgt2html"
+    "logtalk.documentation.script": ""
     "logtalk.documentation.arguments": [ ]
 
-Documentation script and its arguments for converting the XML files generated by the Logtalk `lgtdoc` tool to their final format. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD) with the scripts available from `/usr/local/bin`:
+Absolute path to the documentation script and its arguments for converting the XML files generated by the Logtalk `lgtdoc` tool to their final format. For example, assuming a POSIX system (e.g. macOS, Linux, or BSD) with the scripts available from `/usr/local/bin`:
 
     "logtalk.documentation.script": "/usr/local/bin/lgt2html"
-    "logtalk.documentation.arguments":[ "-t", "APIs documentation" ]
+    "logtalk.documentation.arguments": [ "-t", "APIs documentation" ]
 
 On Windows systems, these settings must be set differently. For example (assuming the default Logtalk installation):
 
@@ -310,17 +310,20 @@ On Windows systems, these settings must be set differently. For example (assumin
 
 #### Logtalk project diagrams
 
-    "logtalk.diagrams.script": "/usr/local/bin/lgt2svg"
+    "logtalk.diagrams.script": ""
     "logtalk.diagrams.arguments": [ ]
 
-Script and its arguments for converting the `.dot` files generated (by default) by the Logtalk `diagrams` tool to their final format (by default, SVG). The default above assumes a POSIX system (e.g. macOS, Linux, or BSD) with the scripts available from `/usr/local/bin`.
+Absolute path to the script for converting the `.d2` and `.dot` files generated (by default) by the Logtalk `diagrams` tool to their final format (by default, SVG). For example, assuming a POSIX system (e.g. macOS, Linux, or BSD) with the scripts available from `/usr/local/bin`:
+
+    "logtalk.documentation.script": "/usr/local/bin/lgt2svg"
+    "logtalk.documentation.arguments": [ ]
 
 On Windows systems, these settings must be set differently. For example (assuming the default Logtalk installation):
 
     "logtalk.diagrams.script": "C:/Program Files/PowerShell/7/pwsh.exe"
     "logtalk.diagrams.arguments": [ "-file", "C:/Windows/lgt2svg.ps1" ]
 
-Diagrams script for converting the `.dot` files generated by the Logtalk `diagrams` tool. Requires Graphviz.
+Diagrams script for converting the `.d2` and `.dot` files generated by the Logtalk `diagrams` tool. Requires d2 and Graphviz.
 
 #### Timeout for waiting to run conversion scripts
 
@@ -360,7 +363,7 @@ VSCode triggers the "Go to Definition" computations if the cursor happens to be 
 
 ## Development
 
-Developed and tested with **Logtalk 3.81.0** and **VSCode 1.90** on **macOS 14.4** and **Windows 10** with **Node 22**.
+Developed and tested with **Logtalk 3.85.0** and **VSCode 1.95** on **macOS 14.7** and **Windows 10** with **Node 22**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
