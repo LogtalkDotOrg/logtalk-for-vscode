@@ -316,7 +316,7 @@ export default class LogtalkTerminal {
       uri = workspace.workspaceFolders[0].uri;
     }
     // Declare Variables
-    const dir0 = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir0 = LogtalkTerminal.ensureDir(uri);
     const loader0 = path.join(dir0, "loader");
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const loader = path.resolve(loader0).split(path.sep).join("/");
@@ -694,7 +694,7 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = workspace.workspaceFolders[0].uri;
     }
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
     LogtalkTerminal.genDocumentationHelper(documentationLinter, dir0, "documentation_recursive");
   }
 
@@ -760,7 +760,7 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = workspace.workspaceFolders[0].uri;
     }
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
     LogtalkTerminal.rgenDiagramsHelper(dir0, "diagrams_recursive");
   }
 
@@ -794,7 +794,7 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = workspace.workspaceFolders[0].uri;
     }
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
     LogtalkTerminal.scanForDeadCodeHelper(uri, deadCodeScanner, dir0, "dead_code_recursive")
   }
 
@@ -1138,7 +1138,7 @@ export default class LogtalkTerminal {
 
   private static spawnScriptWorkspace(uri: Uri, type: string[], path: string, args: string[], message: string) {
     let dir: string;
-    dir = LogtalkTerminal.getWorkspaceFolder(uri);
+    dir = LogtalkTerminal.ensureDir(uri);
     LogtalkTerminal.spawnScript(dir, type, path, args, message);
   }
 
