@@ -5,6 +5,7 @@
 * Add backend setting
 * Change required settings to be only the LOGTALKHOME and LOGTALKUSER environment variable full paths plus the backend
 * Fix settings order so that required settings are listed first
+* Fix spurious empty lines in the output of the `logtalk_tester` and `logtalk_doclet` scripts
 
 ## [0.25.0]
 

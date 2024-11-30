@@ -1112,11 +1112,11 @@ export default class LogtalkTerminal {
   private static spawnScript(dir: string, type: string[], path: string, args: string[], message: string) {
     let pp = spawn(path, args, { cwd: dir });
     pp.stdout.on('data', (data) => {
-      LogtalkTerminal._outputChannel.append(data + "\n");
+      LogtalkTerminal._outputChannel.append(data.toString());
       LogtalkTerminal._outputChannel.show(true);
     });
     pp.stderr.on('data', (data) => {
-      LogtalkTerminal._outputChannel.append(data + "\n");
+      LogtalkTerminal._outputChannel.append(data.toString());
       LogtalkTerminal._outputChannel.show(true);
     });
     pp.on('error', (err) => {
