@@ -57,6 +57,14 @@ export default class LogtalkTerminal {
     let logtalkUser = section.get<string>("user.path");
     let logtalkBackend = section.get<string>("backend");
 
+    if (logtalkHome == "") {
+      vscode.window.showErrorMessage("Configuration error: missing required logtalk.home.path setting!");
+    } else if (logtalkUser == "") {
+      vscode.window.showErrorMessage("Configuration error: missing required logtalk.user.path setting!");
+    } else if (logtalkBackend == "") {
+      vscode.window.showErrorMessage("Configuration error: missing required logtalk.backend setting!");
+    }
+
     LogtalkTerminal._execArgs      =   section.get<string[]>("executable.arguments");
     LogtalkTerminal._testerExec    =   section.get<string>("tester.script");
     LogtalkTerminal._outputChannel =   window.createOutputChannel("Logtalk Testers & Doclets");
@@ -178,6 +186,8 @@ export default class LogtalkTerminal {
           case "yap":
             script = "yaplgt"
             break;
+          default:
+            vscode.window.showErrorMessage("Configuration error: unknown logtalk.backend setting value!");
         }
         if (process.platform === 'win32') {
           executable = "C:/Program Files/PowerShell/7/pwsh.exe";
