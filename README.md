@@ -250,13 +250,10 @@ Absolute path to the Logtalk executable or integration script and its arguments.
     "logtalk.executable.path": "/usr/local/bin/swilgt"
     "logtalk.executable.arguments": [ "-q" ]
 
-On Windows systems, use the absolute path to the Prolog backend executable **and** then set the arguments to load Logtalk (look into the properties of the Logtalk integration shortcuts that are available from the Start Menu after installing Logtalk). For example (assuming the default Logtalk installation) and using SWI-Prolog as the backend:
+On Windows systems, use the absolute path to the PowerShell 7 executable and set the arguments to load the Logtalk integration script. For example (assuming the default Logtalk installation) and using SWI-Prolog as the backend:
 
-    "logtalk.executable.path": "C:/Program Files/swipl/bin/swipl.exe"
-    "logtalk.executable.arguments": [
-        "-s",
-        "C:/Program Files (x86)/Logtalk/integration/logtalk_swi.pl"
-    ]
+    "logtalk.executable.path": "C:/Program Files/PowerShell/7/pwsh.exe"
+    "logtalk.executable.arguments": [ "-file", "C:/Windows/swilgt.ps1" ]
 
 #### Logtalk project testers
 
