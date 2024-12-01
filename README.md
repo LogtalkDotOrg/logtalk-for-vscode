@@ -98,7 +98,7 @@ Most commands, notably those that run the developer tools, **require** the code 
 
 #### Project commands
 
-Project (or workspace) commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. Alternatively, these commands can be triggered from the explorer/context menu via right click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in a Logtalk source file in the Explorer.
+Project (or workspace) commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. In this case, the commands resort to the first workspace folder if multiple workspaces are open. Alternatively, these commands can be triggered from the explorer/context menu via right click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in a Logtalk source file in the Explorer.
 
 |                             Command | Description                                                |
 | ------------------------------: | :------------------------------------------------------------- |
@@ -111,11 +111,13 @@ Project (or workspace) commands can be triggered from command palette via enteri
 |             Run Project Testers | Runs the `logtalk_tester` script on the workspace folder       |
 |             Run Project Doclets | Runs the `logtalk_doclet` script on the workspace folder       |
 
-The "Load Project" command looks for a `loader.lgt` or `loader.logtalk` file in the folder of the selected file when using the explorer context menu or in first workspace folder if using the command palette, printing a warning if not found.
+The "Create Project" command is usually called from the command palette. It asks for the folder where to copy the renamed sample files.
 
-The output of the `logtalk_tester` and `logtalk_doclet` scripts is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
+The "Load Project" command looks for a `loader.lgt` or `loader.logtalk` file in the workspace root folder, printing a warning if no loader file is found.
 
-When running the workspace commands from the command palette (instead of using the explorer context menu on a folder or file), the commands resort to the first workspace folder.
+The "Scan Project Dead Code", "Generate Project Documentation", and "Generate Project Diagrams" requires that the project code is already loaded.
+
+The output of the "Run Project Testers" and "Run Project Doclets" commands is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
 
 #### Directory and source file commands
 
