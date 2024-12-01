@@ -80,8 +80,8 @@ export default class LogtalkTerminal {
 
     if (LogtalkTerminal._testerExec == "") {
       if (process.platform === 'win32') {
-        LogtalkTerminal._testerExec = "C:/Program Files/PowerShell/7/pwsh.exe";
-        LogtalkTerminal._testerArgs = ["-file", "C:/Windows/logtalk_tester.ps1", "-p", logtalkBackend, "-f", "xunit"];
+        LogtalkTerminal._testerExec = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
+        LogtalkTerminal._testerArgs = ["-file", "${env:SystemRoot}/logtalk_tester.ps1", "-p", logtalkBackend, "-f", "xunit"];
       } else {
         LogtalkTerminal._testerExec = path.join(path.join(logtalkHome, "scripts"), "logtalk_tester.sh");
         LogtalkTerminal._testerExec = path.resolve(LogtalkTerminal._testerExec).split(path.sep).join("/");
@@ -91,8 +91,8 @@ export default class LogtalkTerminal {
 
     if (LogtalkTerminal._docletExec == "") {
       if (process.platform === 'win32') {
-        LogtalkTerminal._docletExec = "C:/Program Files/PowerShell/7/pwsh.exe";
-        LogtalkTerminal._docletArgs = ["-file", "C:/Windows/logtalk_doclet.ps1", "-p", logtalkBackend];
+        LogtalkTerminal._docletExec = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
+        LogtalkTerminal._docletArgs = ["-file", "${env:SystemRoot}/logtalk_doclet.ps1", "-p", logtalkBackend];
       } else {
         LogtalkTerminal._docletExec = path.join(path.join(logtalkHome, "scripts"), "logtalk_doclet.sh");
         LogtalkTerminal._docletExec = path.resolve(LogtalkTerminal._docletExec).split(path.sep).join("/");
@@ -102,8 +102,8 @@ export default class LogtalkTerminal {
 
     if (LogtalkTerminal._docExec == "") {
       if (process.platform === 'win32') {
-        LogtalkTerminal._docExec = "C:/Program Files/PowerShell/7/pwsh.exe";
-        LogtalkTerminal._docArgs = ["-file", "C:/Windows/lgt2html.ps1", "-t", "APIs documentation"];
+        LogtalkTerminal._docExec = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
+        LogtalkTerminal._docArgs = ["-file", "${env:SystemRoot}/lgt2html.ps1", "-t", "APIs documentation"];
       } else {
         LogtalkTerminal._docExec = path.join(logtalkHome, "tools/lgtdoc/xml/lgt2html.sh");
         LogtalkTerminal._docExec = path.resolve(LogtalkTerminal._docExec).split(path.sep).join("/");
@@ -113,8 +113,8 @@ export default class LogtalkTerminal {
 
     if (LogtalkTerminal._diaExec == "") {
       if (process.platform === 'win32') {
-        LogtalkTerminal._diaExec = "C:/Program Files/PowerShell/7/pwsh.exe";
-        LogtalkTerminal._diaArgs = ["-file", "C:/Windows/lgt2svg.ps1"];
+        LogtalkTerminal._diaExec = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
+        LogtalkTerminal._diaArgs = ["-file", "${env:SystemRoot}/lgt2svg.ps1"];
       } else {
         LogtalkTerminal._diaExec = path.join(logtalkHome, "tools/diagrams/lgt2svg.sh");
         LogtalkTerminal._diaExec = path.resolve(LogtalkTerminal._diaExec).split(path.sep).join("/");
@@ -190,8 +190,8 @@ export default class LogtalkTerminal {
             vscode.window.showErrorMessage("Configuration error: unknown logtalk.backend setting value!");
         }
         if (process.platform === 'win32') {
-          executable = "C:/Program Files/PowerShell/7/pwsh.exe";
-          args = ["-file", "C:/Windows/" + script + ".ps1"]
+          executable = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
+          args = ["-file", "${env:SystemRoot}/" + script + ".ps1"]
         } else {
           executable = path.join(logtalkHome, path.join("integration", script + ".sh"));
           executable = path.resolve(executable).split(path.sep).join("/");
