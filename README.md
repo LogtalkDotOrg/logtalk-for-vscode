@@ -343,11 +343,7 @@ Code issues detected when running the "Make - Check" or "Make - Circular" comman
 
 On Windows systems, the file paths on the "PROBLEMS" pane may not be relative to the workspace directory depending on the Prolog backend. This is a consequence of some backends "normalizing" file paths in a way that seem to break VSCode computing of the relative paths. E.g. paths are relative when using GNU Prolog but absolute when using SWI-Prolog or SICStus Prolog.
 
-On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues. Also, using GNU Prolog requires the following setting:
-
-    "terminal.integrated.env.windows": {
-        "LINEDIT": "gui=no"
-    }
+On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues.
 
 If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated context menu items even after uninstalling it. If that happens, delete any extension leftovers in the `%USERPROFILE%\.vscode\extensions` (for Windows) or `~/.vscode/extensions` (for Linux and macOS) directory.
 
