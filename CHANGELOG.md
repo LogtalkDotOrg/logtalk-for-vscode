@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.27.0]
+
+* Improve description of project (workspace) commands
+
 ## [0.26.0]
 
 * Add backend setting

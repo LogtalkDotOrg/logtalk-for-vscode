@@ -98,18 +98,18 @@ Most commands, notably those that run the developer tools, **require** the code 
 
 #### Project commands
 
-Project (or workspace) commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. In this case, the commands resort to the first workspace folder if multiple workspaces are open. Alternatively, these commands can be triggered from the explorer/context menu via right click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in a Logtalk source file in the Explorer.
+Project (workspace) commands can be triggered from command palette via entering 'Logtalk' to pop up the list of all commands of this extension. In this case, the commands resort to the first workspace root folder if the case of [multi-root workspaces](https://code.visualstudio.com/docs/editor/workspaces). Alternatively, these commands can be triggered from the explorer/context menu via right click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in a Logtalk source file in the Explorer.
 
-|                             Command | Description                                                |
-| ------------------------------: | :------------------------------------------------------------- |
-|                    Open Logtalk | Opens Logtalk in an integrated terminal                        |
-|                  Create Project | Creates a new project with renamed copies of the sample files  |
-|                    Load Project | Loads the loader file found in the workspace folder            |
-|          Scan Project Dead Code | Recursively scans the workspace folder for dead code           |
-|  Generate Project Documentation | Recursively generates documentation for the workspace folder   |
-|       Generate Project Diagrams | Recursively generates diagrams for the workspace folder        |
-|             Run Project Testers | Runs the `logtalk_tester` script on the workspace folder       |
-|             Run Project Doclets | Runs the `logtalk_doclet` script on the workspace folder       |
+|                             Command | Description                                                   |
+| ------------------------------: | :---------------------------------------------------------------- |
+|                    Open Logtalk | Opens Logtalk in an integrated terminal                           |
+|                  Create Project | Creates a new project with renamed copies of the sample files     |
+|                    Load Project | Loads the loader file found in the workspace root folder          |
+|          Scan Project Dead Code | Recursively scans the workspace root folder for dead code         |
+|  Generate Project Documentation | Recursively generates documentation for the workspace root folder |
+|       Generate Project Diagrams | Recursively generates diagrams for the workspace root folder      |
+|             Run Project Testers | Runs the `logtalk_tester` script from the workspace root folder   |
+|             Run Project Doclets | Runs the `logtalk_doclet` script from the workspace root folder   |
 
 The "Create Project" command is usually called from the command palette. It asks for the folder where to copy the renamed sample files.
 
