@@ -3,6 +3,7 @@
 ## [0.27.0]
 
 * Improve description of project (workspace) commands
+* Fix code navigation issues when defining only the required settings
 
 ## [0.26.0]
 

@@ -24,6 +24,9 @@ import * as path from "path";
 import * as vscode from "vscode";
 
 export class Utils {
+  private static logtalkHome: string;
+  private static backend: string;
+  private static script: string;
   private static snippets: ISnippet = null;
   public static CONTEXT: ExtensionContext | null = null;
   public static RUNTIMEPATH: string = "logtalk";
@@ -42,6 +45,68 @@ export class Utils {
       .getConfiguration("logtalk")
       .get<string[]>("executable.arguments");
     Utils.loadSnippets(context);
+
+    Utils.logtalkHome = workspace
+      .getConfiguration("logtalk")
+      .get<string>("home.path", process.env.LOGTALKHOME)
+
+    Utils.backend = workspace
+      .getConfiguration("logtalk")
+      .get<string>("backend", process.env.LOGTALKHOME)
+
+    if (Utils.RUNTIMEPATH == "") {
+      switch(Utils.backend) {
+        case "b":
+          Utils.script = "bplgt"
+          break;
+        case "ciao":
+          Utils.script = "ciaolgt"
+          break;
+        case "cx":
+          Utils.script = "cxlgt"
+          break;
+        case "eclipse":
+          Utils.script = "eclipselgt"
+          break;
+        case "gnu":
+          Utils.script = "gplgt"
+          break;
+        case "ji":
+          Utils.script = "jilgt"
+          break;
+        case "sicstus":
+          Utils.script = "sicstuslgt"
+          break;
+        case "swi":
+          Utils.script = "swilgt"
+          break;
+        case "tau":
+          Utils.script = "taulgt"
+          break;
+        case "trealla":
+          Utils.script = "tplgt"
+          break;
+        case "xsb":
+          Utils.script = "xsblgt"
+          break;
+        case "xvm":
+          Utils.script = "xvmlgt"
+          break;
+        case "yap":
+          Utils.script = "yaplgt"
+          break;
+        default:
+          vscode.window.showErrorMessage("Configuration error: unknown logtalk.backend setting value!");
+      }
+      if (process.platform === 'win32') {
+        Utils.RUNTIMEPATH = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
+        Utils.RUNTIMEARGS = ["-file", "${env:SystemRoot}/" + Utils.script + ".ps1"]
+      } else {
+        Utils.RUNTIMEPATH = path.join(Utils.logtalkHome, path.join("integration", Utils.script + ".sh"));
+        Utils.RUNTIMEPATH = path.resolve(Utils.RUNTIMEPATH).split(path.sep).join("/");
+       }
+    }
+
   }
 
   private static loadSnippets(context: ExtensionContext) {
