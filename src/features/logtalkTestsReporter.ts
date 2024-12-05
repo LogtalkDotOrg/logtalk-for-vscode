@@ -30,12 +30,10 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
   private sortedDiagIndex: { [docName: string]: number[] } = {};
   private compilingFileRegex = /%\s\[\scompiling\s(.+)\s\.\.\.\s\]/;
   private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/;
-  private executable: string;
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
 
   constructor(private context: ExtensionContext) {
-    this.executable = null;
     this.loadConfiguration();
   }
 
@@ -136,7 +134,6 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
   private loadConfiguration(): void {
     let section = workspace.getConfiguration("logtalk");
     if (section) {
-      this.executable = section.get<string>("executable.path", "logtalk");
       if (this.documentListener) {
         this.documentListener.dispose();
       }

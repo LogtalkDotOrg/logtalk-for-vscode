@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.28.0]
+
+* Code cleanup
+
 ## [0.27.0]
 
 * Improve description of project (workspace) commands
