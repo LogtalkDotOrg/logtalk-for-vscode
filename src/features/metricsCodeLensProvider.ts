@@ -25,10 +25,18 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
   public readonly onDidChangeCodeLenses: Event<void> = this._onDidChangeCodeLenses.event;
 
   constructor() {
-		workspace.onDidChangeConfiguration((_) => {
-			this._onDidChangeCodeLenses.fire();
-		});
-	}
+    workspace.onDidChangeConfiguration((_) => {
+      this._onDidChangeCodeLenses.fire();
+    });
+
+    workspace.onDidChangeTextDocument(
+      textDocumentChangeEvent => {
+        const results = path.join(path.dirname(textDocumentChangeEvent.document.uri.fsPath), ".vscode_metrics_results");
+        if (fs.existsSync(results)) {
+          fs.unlinkSync(results);
+        }
+    });
+  }
 
   public async provideCodeLenses(
     doc: TextDocument,

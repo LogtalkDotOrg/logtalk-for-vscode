@@ -2,6 +2,7 @@
 
 ## [0.28.0]
 
+* Delete previous tests and metrics data (displayed using CodeLens) when a file is changed
 * Code cleanup
 
 ## [0.27.0]
