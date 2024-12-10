@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.29.0]
+
+* Add boolean setting to load the `tutor` tool at startup (default is `true`)
+
 ## [0.28.0]
 
 * Delete previous tests and metrics data (displayed using CodeLens) when a file is changed

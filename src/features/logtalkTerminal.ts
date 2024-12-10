@@ -260,8 +260,12 @@ export default class LogtalkTerminal {
         }
       });
 
-      let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
-//      console.log(goals);
+      let goals = ``;
+      if (workspace.getConfiguration("logtalk").get("load.tutor", true)) {
+        goals = `logtalk_load(['${logtalkHome}/coding/vscode/vscode.lgt',tutor(loader)], [scratch_directory('${logtalkUser}/scratch/')]).\r`;
+      } else {
+        goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
+      }
       LogtalkTerminal.sendString(goals, true);
 
     } else {
