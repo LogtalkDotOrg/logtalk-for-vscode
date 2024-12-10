@@ -337,7 +337,15 @@ The number of milliseconds to wait before running the scripts that convert `.xml
 
 Enables displaying inline test results (including code coverage when collected) using code lens in both the test object and the tested entity source files opened in the editor. It also enables displaying inline entity cyclomatic complexity after computing code metrics. The tests and metrics data is persistent and can be updated by re-running tests and re-computing metrics (e.g. by simply clicking in the inline data). This setting can be toggled using the "Toggle Code Lens" command.
 
+#### Tutor tool integration
+
+    "logtalk.load.tutor": true
+
+Loads the `tutor` tool when starting a terminal Logtalk session.
+
 ## Known Issues
+
+The `tutor` tool must be loaded at startup using the "logtalk.load.tutor" boolean setting (default is `true`) instead of loaded from a Logtalk settings file.
 
 Code issues detected when running the "Make - Check" or "Make - Circular" commands are displayed in the integrated terminal but not added to the "PROBLEMS" pane. But when an issue is reported in a source file, you can right click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in the file path to navigate to the issue location.
 

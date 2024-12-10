@@ -27,7 +27,7 @@ export default class LogtalkLinter implements CodeActionProvider {
   private filePathIds: { [id: string]: string } = {};
   private sortedDiagIndex: { [docName: string]: number[] } = {};
   private compilingFileRegex = /%\s\[\scompiling\s(.+)\s\.\.\.\s\]/;
-  private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/;
+  private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))([\s\S]*?(?=(\*|\!)\s{5}$))/m;
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
 
@@ -52,7 +52,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       this.diagnosticHash.push(issue)
     }
 
-    let match = issue.match(this.msgRegex)
+    let match = issue.match(this.msgRegex);
     if (match == null) { return null; }
 
     let severity: DiagnosticSeverity;
@@ -73,8 +73,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       lineFrom = parseInt(match[14])-1;
       lineTo   = parseInt(match[14])-1;
     } else {
-      lineFrom = parseInt(match[11])-1
-      lineTo   = parseInt(match[12])-1
+      lineFrom = parseInt(match[11])-1;
+      lineTo   = parseInt(match[12])-1;
     }
 
     let fromCol = 0;
@@ -82,7 +82,8 @@ export default class LogtalkLinter implements CodeActionProvider {
     let fromPos = new Position(lineFrom, fromCol);
     let toPos = new Position(lineTo, toCol);
     let range = new Range(fromPos, toPos);
-    let errMsg = match[1].replace(new RegExp(/\*     /,'g'), '').replace(new RegExp(/\!     /,'g'), '');
+    let errMsg = "";
+    errMsg = (match[1] + match[15]).replace(new RegExp(/\*     /,'g'), '').replace(new RegExp(/\!     /,'g'), '').trim();
     let diag = new Diagnostic(range, errMsg, severity);
 
     if (diag) {

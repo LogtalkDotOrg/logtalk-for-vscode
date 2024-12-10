@@ -3,6 +3,7 @@
 ## [0.29.0]
 
 * Add boolean setting to load the `tutor` tool at startup (default is `true`)
+* Display `tutor` tool explanations in the "PROBLEMS" pane
 
 ## [0.28.0]
 
