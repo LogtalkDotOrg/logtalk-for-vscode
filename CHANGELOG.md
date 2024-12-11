@@ -4,6 +4,7 @@
 
 * Add boolean setting to load the `tutor` tool at startup (default is `true`)
 * Display `tutor` tool explanations in the "PROBLEMS" pane
+* Fix reporting of failed tests when re-running tests
 
 ## [0.28.0]
 

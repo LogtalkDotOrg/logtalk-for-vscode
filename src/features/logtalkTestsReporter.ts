@@ -46,8 +46,8 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
     let codeActions: Command[] = [];
     return codeActions;
   }
-  private parseIssue(issue: string) {
 
+  private parseIssue(issue: string) {
     if(this.diagnosticHash.includes(issue)) {
       return true
     } else {
@@ -101,7 +101,7 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
 
   public lint(textDocument: TextDocument, message: string) {
     message = message.replace(/ \(in.*cpu\/wall seconds\)/, "");
-    console.log(message)
+//    console.log(message)
     this.parseIssue(message);
     this.diagnosticCollection.delete(textDocument.uri);
     

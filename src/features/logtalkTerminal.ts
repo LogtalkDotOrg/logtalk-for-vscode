@@ -596,6 +596,7 @@ export default class LogtalkTerminal {
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
+          testsReporter.clear(line);
         } else if (test || line.includes('cpu/wall seconds')) {
           test = true;
           message = message + line + '\n';
