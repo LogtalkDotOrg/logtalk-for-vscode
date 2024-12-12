@@ -2,7 +2,7 @@
 
 A VSCode extension which provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Requires Logtalk 3.81.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements).
+Requires Logtalk 3.86.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements).
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
@@ -337,15 +337,7 @@ The number of milliseconds to wait before running the scripts that convert `.xml
 
 Enables displaying inline test results (including code coverage when collected) using code lens in both the test object and the tested entity source files opened in the editor. It also enables displaying inline entity cyclomatic complexity after computing code metrics. The tests and metrics data is persistent and can be updated by re-running tests and re-computing metrics (e.g. by simply clicking in the inline data). This setting can be toggled using the "Toggle Code Lens" command.
 
-#### Tutor tool integration
-
-    "logtalk.load.tutor": true
-
-Loads the `tutor` tool when starting a terminal Logtalk session.
-
 ## Known Issues
-
-The `tutor` tool must be loaded at startup using the "logtalk.load.tutor" boolean setting (default is `true`) instead of loaded from a Logtalk settings file.
 
 Code issues detected when running the "Make - Check" or "Make - Circular" commands are displayed in the integrated terminal but not added to the "PROBLEMS" pane. But when an issue is reported in a source file, you can right click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in the file path to navigate to the issue location.
 
@@ -367,7 +359,7 @@ VSCode triggers the "Go to Definition" computations if the cursor happens to be 
 
 ## Development
 
-Developed and tested with **Logtalk 3.85.0** and **VSCode 1.95** on **macOS 14.7** and **Windows 10** with **Node 22**.
+Developed and tested with **Logtalk 3.86.0** and **VSCode 1.96** on **macOS 14.7** and **Windows 10** with **Node 22**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 

@@ -3,7 +3,6 @@
 ## [0.29.0]
 
 * Label file tests and metrics data displayed using CodeLens as possibly outdated when editing the file
-* Add boolean setting to load the `tutor` tool at startup (default is `true`)
 * Display `tutor` tool explanations in the "PROBLEMS" pane
 * Fix reporting of failed tests when re-running tests
 
