@@ -23,18 +23,16 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
 
   private _onDidChangeCodeLenses: EventEmitter<void> = new EventEmitter<void>();
   public readonly onDidChangeCodeLenses: Event<void> = this._onDidChangeCodeLenses.event;
+  public static outdated: boolean = false;
 
   constructor() {
     workspace.onDidChangeConfiguration((_) => {
+      LogtalkTestsCodeLensProvider.outdated = true;
       this._onDidChangeCodeLenses.fire();
     });
 
-    workspace.onDidChangeTextDocument(
-      textDocumentChangeEvent => {
-        const results = path.join(path.dirname(textDocumentChangeEvent.document.uri.fsPath), ".vscode_test_results");
-        if (fs.existsSync(results)) {
-          fs.unlinkSync(results);
-        }
+    workspace.onWillSaveTextDocument((_) => {
+      LogtalkTestsCodeLensProvider.outdated = true;
     });
   }
 
@@ -57,17 +55,31 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
         let matches = out.matchAll(regex);
         var match = null;
         for (match of matches) {
-          codeLenses.push(
-            new CodeLens(
-              new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
-              {
-                title: match[2],
-                tooltip: "Re-run tests",
-                command: "logtalk.run.tests",
-                arguments: [doc.uri]
-              }
-            )
-          );
+          if (doc.isDirty || LogtalkTestsCodeLensProvider.outdated) {
+            codeLenses.push(
+              new CodeLens(
+                new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
+                {
+                  title: match[2] + " (may be outdated)",
+                  tooltip: "Re-run tests",
+                  command: "logtalk.run.tests",
+                  arguments: [doc.uri]
+                }
+              )
+            );
+          } else {
+            codeLenses.push(
+              new CodeLens(
+                new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
+                {
+                  title: match[2],
+                  tooltip: "Re-run tests",
+                  command: "logtalk.run.tests",
+                  arguments: [doc.uri]
+                }
+              )
+            );
+          }
         }
       }
       return codeLenses;

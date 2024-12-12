@@ -23,18 +23,16 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
 
   private _onDidChangeCodeLenses: EventEmitter<void> = new EventEmitter<void>();
   public readonly onDidChangeCodeLenses: Event<void> = this._onDidChangeCodeLenses.event;
+  public static outdated: boolean = false;
 
   constructor() {
     workspace.onDidChangeConfiguration((_) => {
+      LogtalkMetricsCodeLensProvider.outdated = true;
       this._onDidChangeCodeLenses.fire();
     });
 
-    workspace.onDidChangeTextDocument(
-      textDocumentChangeEvent => {
-        const results = path.join(path.dirname(textDocumentChangeEvent.document.uri.fsPath), ".vscode_metrics_results");
-        if (fs.existsSync(results)) {
-          fs.unlinkSync(results);
-        }
+    workspace.onWillSaveTextDocument((_) => {
+      LogtalkMetricsCodeLensProvider.outdated = true;
     });
   }
 
@@ -57,17 +55,31 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
         let matches = out.matchAll(regex);
         var match = null;
         for (match of matches) {
-          codeLenses.push(
-            new CodeLens(
-              new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
-              {
-                title: "Cyclomatic complexity: " + match[2],
-                tooltip: "Re-compute metrics",
-                command: "logtalk.compute.metrics",
-                arguments: [doc.uri]
-              }
-            )
-          );
+          if (doc.isDirty || LogtalkMetricsCodeLensProvider.outdated) {
+            codeLenses.push(
+              new CodeLens(
+                new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
+                {
+                  title: "Cyclomatic complexity: " + match[2] + " (may be outdated)",
+                  tooltip: "Re-compute metrics",
+                  command: "logtalk.compute.metrics",
+                  arguments: [doc.uri]
+                }
+              )
+            );
+          } else {
+            codeLenses.push(
+              new CodeLens(
+                new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
+                {
+                  title: "Cyclomatic complexity: " + match[2],
+                  tooltip: "Re-compute metrics",
+                  command: "logtalk.compute.metrics",
+                  arguments: [doc.uri]
+                }
+              )
+            );
+          }
         }
       }
       return codeLenses;

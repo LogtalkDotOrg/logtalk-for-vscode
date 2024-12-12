@@ -25,6 +25,8 @@ import LogtalkLinter from "./logtalkLinter";
 import LogtalkTestsReporter from "./logtalkTestsReporter";
 import LogtalkDeadCodeScanner from "./logtalkDeadCodeScanner";
 import LogtalkDocumentationLinter from "./logtalkDocumentationLinter";
+import { LogtalkMetricsCodeLensProvider } from "./metricsCodeLensProvider";
+import { LogtalkTestsCodeLensProvider } from "./testsCodeLensProvider"
 import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
 
@@ -616,6 +618,7 @@ export default class LogtalkTerminal {
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Tests completed.");
+    LogtalkTestsCodeLensProvider.outdated = false;
   }
 
   public static async computeMetrics(uri: Uri) {
@@ -629,6 +632,7 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     window.showInformationMessage("Metrics completed.");
+    LogtalkMetricsCodeLensProvider.outdated = false;
   }
 
   public static async runDoclet(uri: Uri, linter: LogtalkLinter) {

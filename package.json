@@ -413,14 +413,14 @@
                 },
                 "logtalk.enableCodeLens": {
                     "type": "boolean",
-                    "description": "Enables testing results code lens.",
+                    "description": "Enables testing and code metrics results to be displayed using CodeLens.",
                     "default": true,
                     "order": 16
                 },
                 "logtalk.load.tutor": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Load the tutor tool at startup.",
+                    "description": "Load the tutor tool at startup to provide explanations and suggestions for warnings and errors.",
                     "order": 17
                 }
             }
