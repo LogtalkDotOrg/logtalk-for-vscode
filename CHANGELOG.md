@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.30.0]
+
+
+
 ## [0.29.0]
 
 * Label file tests and metrics data displayed using CodeLens as possibly outdated when editing the file
