@@ -99,8 +99,8 @@ export class Utils {
           vscode.window.showErrorMessage("Configuration error: unknown logtalk.backend setting value!");
       }
       if (process.platform === 'win32') {
-        Utils.RUNTIMEPATH = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
-        Utils.RUNTIMEARGS = ["-file", "${env:SystemRoot}/" + Utils.script + ".ps1"]
+        Utils.RUNTIMEPATH = path.join(process.env.PROGRAMFILES, "/PowerShell/7/pwsh.exe");
+        Utils.RUNTIMEARGS = ["-file", path.join(process.env.SystemRoot, Utils.script + ".ps1")];
       } else {
         Utils.RUNTIMEPATH = path.join(Utils.logtalkHome, path.join("integration", Utils.script + ".sh"));
         Utils.RUNTIMEPATH = path.resolve(Utils.RUNTIMEPATH).split(path.sep).join("/");
