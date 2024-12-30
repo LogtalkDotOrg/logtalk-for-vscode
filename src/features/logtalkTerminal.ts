@@ -1204,16 +1204,16 @@ export default class LogtalkTerminal {
   public static recordCodeLoadedFromDirectory(
     dir: string
   ): void {
-    LogtalkTerminal._context.workspaceState.update(dir, true);
+    LogtalkTerminal._context.workspaceState.update(dir.toLowerCase(), true);
   }
 
   public static checkCodeLoadedFromDirectory(
     dir: string
   ): void {
-    if (!LogtalkTerminal._context.workspaceState.get(dir, false)) {
+    if (!LogtalkTerminal._context.workspaceState.get(dir.toLowerCase(), false)) {
       let found: boolean = false; 
       for (const key of LogtalkTerminal._context.workspaceState.keys()) {
-        if (LogtalkTerminal._context.workspaceState.get(key, true) && dir.startsWith(key)) {
+        if (LogtalkTerminal._context.workspaceState.get(key, true) && dir.toLowerCase().startsWith(key)) {
           found = true;
         }
       }

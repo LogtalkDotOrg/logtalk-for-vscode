@@ -3,6 +3,7 @@
 ## [0.30.0]
 
 * Fix code navigation issues on Windows
+* Fix code navigation false warnings of code not loaded on Windows
 
 ## [0.29.0]
 
