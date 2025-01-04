@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.31.0]
+
+* Fix "Logtalk: Toggle Code Lens" command to preserve code lens outdated status
+
 ## [0.30.0]
 
 * Fix code navigation issues on Windows

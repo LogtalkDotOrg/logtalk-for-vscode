@@ -1023,10 +1023,16 @@ export default class LogtalkTerminal {
     let section = workspace.getConfiguration("logtalk", uri);
     if (section) {
       let enabled: boolean = section.get<boolean>("enableCodeLens");
+      let metricsCodeLensOutdated: boolean = LogtalkMetricsCodeLensProvider.outdated;
+      let testsCodeLensOutdated: boolean = LogtalkTestsCodeLensProvider.outdated;
       if (enabled) {
         await section.update("enableCodeLens", false, false);
+        LogtalkMetricsCodeLensProvider.outdated = metricsCodeLensOutdated;
+        LogtalkTestsCodeLensProvider.outdated = testsCodeLensOutdated;
       } else {
         await section.update("enableCodeLens", true, false);
+        LogtalkMetricsCodeLensProvider.outdated = metricsCodeLensOutdated;
+        LogtalkTestsCodeLensProvider.outdated = testsCodeLensOutdated;
       }
     } else {
       throw new Error("configuration settings error: logtalk");
