@@ -679,7 +679,7 @@ export default class LogtalkTerminal {
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
-    window.showInformationMessage("Tests completed.");
+    window.showInformationMessage("Test completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
   }
 
