@@ -2,7 +2,7 @@
 
 A VSCode extension that provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Requires Logtalk 3.86.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements).
+Requires Logtalk 3.87.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements).
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
@@ -173,7 +173,7 @@ Entities (objects, protocols, and categories) are interpreted as types. Click in
 
 #### Go to References
 
-Click in a predicate name in a scope directive, goal, or `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. Note that recursive calls and predicate definitions are not counted as references.
+Click in a predicate name in a scope directive, goal, or `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls and predicate definitions are not counted as references.
 
 Click in an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
 
@@ -359,7 +359,7 @@ VSCode triggers the "Go to Definition" computations if the cursor happens to be 
 
 ## Development
 
-Developed and tested with **Logtalk 3.86.0** and **VSCode 1.96** on **macOS 14.7** and **Windows 10** with **Node 22**.
+Developed and tested with **Logtalk 3.87.0** and **VSCode 1.96** on **macOS 14.7** and **Windows 10** with **Node 22**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 

@@ -616,6 +616,73 @@ export default class LogtalkTerminal {
     LogtalkTestsCodeLensProvider.outdated = false;
   }
 
+  public static async runTest(uri: Uri, object: string, test: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
+    // Declare Variables
+    const dir0 = path.dirname(uri.fsPath);
+    const tester0 = path.join(dir0, "tester");
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const tester = path.resolve(tester0).split(path.sep).join("/");
+    let textDocument = null;
+    let logtalkHome: string = '';
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+    // Open the Text Document
+    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    // Clear the Scratch Message File
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Check that the tester file exists
+    if (!fs.existsSync(tester + ".lgt") && !fs.existsSync(tester + ".logtalk")) {
+      window.showWarningMessage("Tester file not found.");
+      return;
+    }
+    // Create the Terminal
+    LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal.sendString(`vscode::test('${dir}',${object}, ${test}).\r`, true);
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir0, ".vscode_loading_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      let test = false;
+      for (let line of lines) {
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+          testsReporter.clear(line);
+        } else if (test || line.includes('cpu/wall seconds')) {
+          test = true;
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            testsReporter.lint(textDocument, message);
+            message = '';
+            test = false;
+          } 
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(message);
+            message = '';
+          } 
+        }
+      }
+    }
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
+    window.showInformationMessage("Tests completed.");
+    LogtalkTestsCodeLensProvider.outdated = false;
+  }
+
   public static async computeMetrics(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);

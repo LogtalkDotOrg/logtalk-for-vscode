@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.32.0]
+
+* Add support for re-running a single test using CodeLens
+
 ## [0.31.0]
 
 * Fix "Logtalk: Toggle Code Lens" command to preserve code lens outdated status

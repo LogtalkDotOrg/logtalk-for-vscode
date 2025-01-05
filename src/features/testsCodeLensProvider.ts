@@ -51,29 +51,47 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
         let out = await fs.readFileSync(results).toString();
         // use case-insensitive matching to workaround Prolog
         // backends down-casing file paths on Windows
-        const regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "ig");
+        let regex = new RegExp("File:" + file + ";Line:(\\d+);Object:(.*);Test:(.*);Status:(.*)", "ig");
         let matches = out.matchAll(regex);
         var match = null;
+        var outdated = ""
+        var index = -1;
+        if (doc.isDirty || LogtalkTestsCodeLensProvider.outdated) {
+          outdated = " (may be outdated)"
+        }
+        // individual test results
         for (match of matches) {
-          if (doc.isDirty || LogtalkTestsCodeLensProvider.outdated) {
-            codeLenses.push(
-              new CodeLens(
-                new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
-                {
-                  title: match[2] + " (may be outdated)",
-                  tooltip: "Re-run tests",
-                  command: "logtalk.run.tests",
-                  arguments: [doc.uri]
-                }
-              )
-            );
+          index = codeLenses.findIndex((element) => element.command.arguments[2] == match[3]);
+          if (index != -1) {
+            codeLenses.splice(index, 1);
+          }
+          codeLenses.push(
+            new CodeLens(
+              new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
+              {
+                title: match[4] + outdated,
+                tooltip: "Re-run test",
+                command: "logtalk.run.test",
+                arguments: [doc.uri, match[2], match[3]]
+              }
+            )
+          );
+        }
+        // clause coverage and test results summary
+        regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "ig");
+        matches = out.matchAll(regex);
+        match = null;
+        for (match of matches) {
+          index = codeLenses.findIndex((element) => (element.command.tooltip == "Re-run all tests") && (element.range.start.line == parseInt(match[1]) - 1));
+          if (index != -1) {
+            codeLenses[index].command.title = codeLenses[index].command.title + " (outdated)";
           } else {
             codeLenses.push(
               new CodeLens(
                 new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
                 {
-                  title: match[2],
-                  tooltip: "Re-run tests",
+                  title: match[2] + outdated,
+                  tooltip: "Re-run all tests",
                   command: "logtalk.run.tests",
                   arguments: [doc.uri]
                 }

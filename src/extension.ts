@@ -98,6 +98,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.make.clean",              callback: uri  => LogtalkTerminal.makeClean(uri, linter)},
     { command: "logtalk.make.caches",             callback: uri  => LogtalkTerminal.makeCaches(uri, linter)},
     { command: "logtalk.run.tests",               callback: uri  => LogtalkTerminal.runTests(uri, linter, testsReporter)},
+    { command: "logtalk.run.test",                callback: (uri, object, test) => LogtalkTerminal.runTest(uri, object, test, linter, testsReporter)},
     { command: "logtalk.run.doclet",              callback: uri  => LogtalkTerminal.runDoclet(uri, linter)},
     { command: "logtalk.scan.deadCode",           callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
     { command: "logtalk.generate.documentation",  callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},
