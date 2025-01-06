@@ -44,6 +44,7 @@ export default class LogtalkLinter implements CodeActionProvider {
     let codeActions: Command[] = [];
     return codeActions;
   }
+
   private parseIssue(issue: string) {
 
     if(this.diagnosticHash.includes(issue)) {
@@ -90,7 +91,10 @@ export default class LogtalkLinter implements CodeActionProvider {
       if (!this.diagnostics[fileName]) {
         this.diagnostics[fileName] = [diag];
       } else {
+        let index = this.diagnostics[fileName].findIndex((element) => (element.message == errMsg) && (element.range.start.line == lineFrom));
+        if (index == -1) {
           this.diagnostics[fileName].push(diag);
+        }
       }
     }
 

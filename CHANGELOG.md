@@ -3,6 +3,7 @@
 ## [0.32.0]
 
 * Add support for re-running a single test using CodeLens
+* Fix case where duplicated items could be created in the "PROBLEMS" pane
 
 ## [0.31.0]
 
