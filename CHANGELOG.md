@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.33.0]
+
+* Provide a menu with the valid choices for the backend setting instead of requiring typing it
+
 ## [0.32.0]
 
 * Add support for re-running a single test using CodeLens
