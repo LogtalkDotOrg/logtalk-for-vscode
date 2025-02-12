@@ -145,6 +145,10 @@
                 "title": "Logtalk: Generate Diagrams"
             },
             {
+                "command": "logtalk.open.notebook",
+                "title": "Logtalk: Open as a Jupyter Notebook"
+            },
+            {
                 "command": "logtalk.create.project",
                 "title": "Logtalk: Create Project"
             },
@@ -235,6 +239,10 @@
                 {
                     "command": "logtalk.compute.metrics",
                     "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.open.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
                 }
             ],
             "explorer/context": [
@@ -269,6 +277,10 @@
                 {
                     "command": "logtalk.run.doclets",
                     "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.open.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
                 }
             ],
             "makesubmenu": [
@@ -417,6 +429,12 @@
                     "description": "Enables testing and code metrics results to be displayed using CodeLens.",
                     "default": true,
                     "order": 16
+                },
+                "logtalk.jupytext.path": {
+                    "type": "string",
+                    "description": "Absolute path to the jupytext executable. Optional.",
+                    "default": "",
+                    "order": 17
                 }
             }
         },
@@ -525,6 +543,7 @@
         "mocha": "^10.2.0",
         "path": "^0.12.7",
         "process-promises": "^1.0.0",
+        "semver": "^7.7.1",
         "split": "^1.0.1",
         "stack-trace": "0.0.10",
         "xpath": "0.0.24"

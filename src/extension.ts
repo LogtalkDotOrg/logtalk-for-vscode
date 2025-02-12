@@ -22,6 +22,7 @@ import LogtalkLinter from "./features/logtalkLinter";
 import LogtalkDeadCodeScanner from "./features/logtalkDeadCodeScanner";
 import LogtalkDocumentationLinter from "./features/logtalkDocumentationLinter";
 import LogtalkTestsReporter from "./features/logtalkTestsReporter";
+import LogtalkJupyter from "./features/logtalkJupyter";
 import LogtalkHoverProvider from "./features/hoverProvider";
 import { LogtalkDeclarationProvider } from "./features/declarationProvider";
 import { LogtalkDefinitionProvider } from "./features/definitionProvider";
@@ -74,6 +75,7 @@ export function activate(context: ExtensionContext) {
 
   DEBUG ? console.log('Linters loaded') : null;
 
+  LogtalkJupyter.init(context);
   Utils.init(context);
 
   let logtalkCommands = [
@@ -106,7 +108,8 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.open.parentFile",         callback: uri  => LogtalkTerminal.openParentFile(uri)},
     { command: "logtalk.compute.metrics",         callback: uri  => LogtalkTerminal.computeMetrics(uri)},
     // other commands
-    { command: "logtalk.toggle.codeLens",         callback: uri  => LogtalkTerminal.toggleCodeLens(uri)}
+    { command: "logtalk.toggle.codeLens",         callback: uri  => LogtalkTerminal.toggleCodeLens(uri)},
+    { command: "logtalk.open.notebook",           callback: uri  => LogtalkJupyter.openNotebook(uri)},
   ];
 
   logtalkCommands.map(command => {
