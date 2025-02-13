@@ -109,7 +109,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.compute.metrics",         callback: uri  => LogtalkTerminal.computeMetrics(uri)},
     // other commands
     { command: "logtalk.toggle.codeLens",         callback: uri  => LogtalkTerminal.toggleCodeLens(uri)},
-    { command: "logtalk.open.notebook",           callback: uri  => LogtalkJupyter.openNotebook(uri)},
+    { command: "logtalk.open.notebook",           callback: uri  => LogtalkJupyter.openAsNotebook(uri)},
   ];
 
   logtalkCommands.map(command => {

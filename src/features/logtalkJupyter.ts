@@ -62,7 +62,23 @@ export default class LogtalkJupyter {
     vscode.commands.executeCommand('setContext', 'logtalk.jupytext.available', LogtalkJupyter.jupytextAvailable);    
   }
 
-  public static async openNotebook(uri: Uri): Promise<void> {
+  public static async openAsNotebook(uri: Uri): Promise<void> {
+    const cmd = LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath;
+    const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
+    try {
+        const { stdout, stderr } = await exec(cmd);
+        await commands.executeCommand(
+            'vscode.openWith',
+            Uri.file(notebook),
+            'jupyter-notebook'
+        );
+    } catch (error) {
+        window.showErrorMessage('Failed to open the file as a Jupyter notebook');
+        const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
+        if (selection === "Show Output") {
+            jupytextConsole.show();
+        }
+    };
   }
 
   private static async checkJupytextAvailability(): Promise<boolean> {
@@ -71,6 +87,7 @@ export default class LogtalkJupyter {
         const { stdout, stderr } = await exec(cmd);
         return semver.satisfies(stdout, ">=1.16.7");
     } catch (error) {
+        window.showErrorMessage('Failed to finnd supported jupytext command');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
         if (selection === "Show Output") {
             jupytextConsole.show();

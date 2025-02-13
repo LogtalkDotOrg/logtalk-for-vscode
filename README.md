@@ -120,6 +120,8 @@ The "Scan Project Dead Code", "Generate Project Documentation", and "Generate Pr
 
 The output of the "Run Project Testers" and "Run Project Doclets" commands is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
 
+The "Open as a Jupyter Notebook" command is only available when Jupytext 1.16.7 or a later version is available.
+
 #### Directory and source file commands
 
 These commands can be triggered from the editor/context menu via right-click in the editor area. These commands can also be triggered from the command palette assuming there's an active editor window.
