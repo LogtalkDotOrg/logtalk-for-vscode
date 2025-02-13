@@ -579,7 +579,7 @@
         "@types/mocha": "^2.2.48",
         "@types/node": "^20.4.2",
         "@vscode/test-electron": "^1.6.2",
-        "@vscode/vsce": "^2.32.0",
+        "@vscode/vsce": "^3.2.2",
         "@xmldom/xmldom": "^0.8.9",
         "glob": "^7.1.7",
         "html2commonmark": "^0.6.1",
