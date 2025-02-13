@@ -354,7 +354,7 @@ Enables displaying inline test results (including code coverage when collected) 
 
     "logtalk.jupytext.path": ""
 	
-Absolute path to the `jupytext` command if not available from the system path. Jupytext 1.16.7 or later version required (available from [PyPI](https://pypi.org/project/jupytext/) and [Conda](https://anaconda.org/conda-forge/jupytext)).
+Absolute path to the `jupytext` command if not available from the system path. Alternatively, it can also be a call to a Python interpreter run of the `jupytext` module. For example, `python3.10 -m jupytext`. Jupytext 1.16.7 or later version required (available from [PyPI](https://pypi.org/project/jupytext/) and [Conda](https://anaconda.org/conda-forge/jupytext)).
 
 ## Known Issues
 

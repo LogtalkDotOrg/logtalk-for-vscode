@@ -58,7 +58,7 @@ export default class LogtalkJupyter {
     }
 
     LogtalkJupyter.jupytextAvailable = await LogtalkJupyter.checkJupytextAvailability();
-    console.log("LogtalkJupyter.jupytextAvailable: " + LogtalkJupyter.jupytextAvailable);
+//    console.log("LogtalkJupyter.jupytextAvailable: " + LogtalkJupyter.jupytextAvailable);
     vscode.commands.executeCommand('setContext', 'logtalk.jupytext.available', LogtalkJupyter.jupytextAvailable);    
   }
 
@@ -114,7 +114,6 @@ export default class LogtalkJupyter {
     const cmd =
         LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath + " && " +
         LogtalkJupyter.jupytextPath + " --set-formats ipynb," + path.extname(uri.fsPath).slice(1) + " " + notebook;
-        console.log("openAsPairedNotebook: " + cmd);
     try {
         const { stdout, stderr } = await exec(cmd);
         await commands.executeCommand(
@@ -135,7 +134,6 @@ export default class LogtalkJupyter {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
-    const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
     const cmd = LogtalkJupyter.jupytextPath + " --sync " + uri.fsPath;
     try {
         const { stdout, stderr } = await exec(cmd);
@@ -154,7 +152,7 @@ export default class LogtalkJupyter {
         const { stdout, stderr } = await exec(cmd);
         return semver.satisfies(stdout, ">=1.16.7");
     } catch (error) {
-        window.showErrorMessage('Failed to finnd supported jupytext command');
+        window.showErrorMessage('Failed to find supported jupytext command');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
         if (selection === "Show Output") {
             jupytextConsole.show();
