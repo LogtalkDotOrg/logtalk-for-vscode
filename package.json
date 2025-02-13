@@ -149,6 +149,18 @@
                 "title": "Logtalk: Open as a Jupyter Notebook"
             },
             {
+                "command": "logtalk.open.run.notebook",
+                "title": "Logtalk: Open and run as a Jupyter Notebook"
+            },
+            {
+                "command": "logtalk.open.paired.notebook",
+                "title": "Logtalk: Open as a paired Jupyter Notebook"
+            },
+            {
+                "command": "logtalk.sync.notebook",
+                "title": "Logtalk: Sync paired Jupyter Notebook"
+            },
+            {
                 "command": "logtalk.create.project",
                 "title": "Logtalk: Create Project"
             },
@@ -201,6 +213,10 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
+                    "submenu": "jupytersubmenu",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true"
+                },
+                {
                     "command": "logtalk.load.directory",
                     "when": "resourceLangId == logtalk"
                 },
@@ -239,13 +255,13 @@
                 {
                     "command": "logtalk.compute.metrics",
                     "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.open.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
                 }
             ],
             "explorer/context": [
+                {
+                    "submenu": "jupytersubmenu",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true"
+                },
                 {
                     "command": "logtalk.create.project",
                     "when": "resourceLangId == logtalk"
@@ -277,10 +293,6 @@
                 {
                     "command": "logtalk.run.doclets",
                     "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.open.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
                 }
             ],
             "makesubmenu": [
@@ -316,12 +328,34 @@
                     "command": "logtalk.make.caches",
                     "when": "resourceLangId == logtalk"
                 }
+            ],
+            "jupytersubmenu": [
+                {
+                    "command": "logtalk.open.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
+                },
+                {
+                    "command": "logtalk.open.run.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
+                },
+                {
+                    "command": "logtalk.open.paired.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
+                },
+                {
+                    "command": "logtalk.sync.notebook",
+                    "when": "resourceExtname == .ipynb && logtalk.jupytext.available == true"
+                }
             ]
         },
         "submenus": [
             {
                 "label": "Logtalk: Make",
                 "id": "makesubmenu"
+            },
+            {
+                "label": "Logtalk: Jupyter",
+                "id": "jupytersubmenu"
             }
         ],
         "breakpoints": [
@@ -354,7 +388,21 @@
                 "logtalk.backend": {
                     "type": "string",
                     "default": "",
-                    "enum": ["b", "ciao", "cx", "eclipse", "gnu", "ji", "sicstus", "swi", "tau", "trealla", "xsb", "xvm", "yap"],
+                    "enum": [
+                        "b",
+                        "ciao",
+                        "cx",
+                        "eclipse",
+                        "gnu",
+                        "ji",
+                        "sicstus",
+                        "swi",
+                        "tau",
+                        "trealla",
+                        "xsb",
+                        "xvm",
+                        "yap"
+                    ],
                     "description": "Logtalk backend. Required.",
                     "order": 3
                 },

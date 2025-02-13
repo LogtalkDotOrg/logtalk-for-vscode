@@ -110,7 +110,6 @@ Project (workspace) commands can be triggered from the command palette by typing
 |       Generate Project Diagrams | Recursively generates diagrams for the workspace root folder           |
 |             Run Project Testers | Runs the `logtalk_tester` script from the workspace root folder        |
 |             Run Project Doclets | Runs the `logtalk_doclet` script from the workspace root folder        |
-|      Open as a Jupyter Notebook | Opens the selected source file or Markdown file as a Jupyter notebook  |
 
 The "Create Project" command is usually called from the command palette. It asks for the folder where to copy the renamed sample files.
 
@@ -120,8 +119,6 @@ The "Scan Project Dead Code", "Generate Project Documentation", and "Generate Pr
 
 The output of the "Run Project Testers" and "Run Project Doclets" commands is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
 
-The "Open as a Jupyter Notebook" command is only available when Jupytext 1.16.7 or a later version is available.
-
 #### Directory and source file commands
 
 These commands can be triggered from the editor/context menu via right-click in the editor area. These commands can also be triggered from the command palette assuming there's an active editor window.
@@ -130,7 +127,6 @@ These commands can be triggered from the editor/context menu via right-click in 
 | --------------------------: | :--------------------------------------------------------------------- |
 |              Load Directory | Loads the current directory loader file into the Logtalk process       |
 |                   Load File | Loads the active source file into the Logtalk process                  |
-|  Open as a Jupyter Notebook | Opens the selected source file or Markdown file as a Jupyter notebook  |
 |             Compute Metrics | Computes metrics for all files in the active source file directory     |
 |                   Run Tests | Loads the tester file under the active source file directory           |
 |            Toggle Code Lens | Toggles code lens of test results and cyclomatic complexity            |
@@ -143,6 +139,19 @@ These commands can be triggered from the editor/context menu via right-click in 
 The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Tests" command looks for a `tester.lgt` or `tester.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Doclet" command looks for a `doclet.lgt` or `doclet.logtalk` file in the directory of the selected file, printing a warning if not found.
 
 The "Run Tests" command adds failed tests to the "PROBLEMS" pane.
+
+#### Logtalk Jupyter commands
+
+These commands allow opening source files and Markdown files as Jupyter notebooks, plus pairing and syncing notebook representations.
+
+|          Command | Description                                                                                        |
+| ----------------------------------: | :------------------------------------------------------------------------------ |
+|          Open as a Jupyter Notebook | Opens the selected source file or Markdown file as a Jupyter notebook           |
+|  Open and run as a Jupyter Notebook | Opens and runs the selected source file or Markdown file as a Jupyter notebook  |
+|   Open as a paired Jupyter Notebook | Opens the selected source file or Markdown file as a paired Jupyter notebook    |
+|        Sync paired Jupyter Notebook | Sync the paired Jupyter notebook and its text representation                    |
+
+These commands are only available when Jupytext 1.16.7 or a later version is available. The "logtalk.jupytext.path" setting can be used to set the path to the `jupytext` command when not available from the system path.
 
 #### Logtalk (integrated terminal) process commands
 

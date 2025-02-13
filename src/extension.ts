@@ -107,9 +107,13 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.generate.diagrams",       callback: uri  => LogtalkTerminal.genDiagrams(uri)},
     { command: "logtalk.open.parentFile",         callback: uri  => LogtalkTerminal.openParentFile(uri)},
     { command: "logtalk.compute.metrics",         callback: uri  => LogtalkTerminal.computeMetrics(uri)},
-    // other commands
+    // CodeLens commands
     { command: "logtalk.toggle.codeLens",         callback: uri  => LogtalkTerminal.toggleCodeLens(uri)},
+    // Jupytext commands
     { command: "logtalk.open.notebook",           callback: uri  => LogtalkJupyter.openAsNotebook(uri)},
+    { command: "logtalk.open.run.notebook",       callback: uri  => LogtalkJupyter.openAsNotebookAndRun(uri)},
+    { command: "logtalk.open.paired.notebook",    callback: uri  => LogtalkJupyter.openAsPairedNotebook(uri)},
+    { command: "logtalk.sync.notebook",           callback: uri  => LogtalkJupyter.syncNotebook(uri)}
   ];
 
   logtalkCommands.map(command => {

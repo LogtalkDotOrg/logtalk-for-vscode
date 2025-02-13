@@ -63,8 +63,8 @@ export default class LogtalkJupyter {
   }
 
   public static async openAsNotebook(uri: Uri): Promise<void> {
-    const cmd = LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath;
     const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
+    const cmd = LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath;
     try {
         const { stdout, stderr } = await exec(cmd);
         await commands.executeCommand(
@@ -74,6 +74,61 @@ export default class LogtalkJupyter {
         );
     } catch (error) {
         window.showErrorMessage('Failed to open the file as a Jupyter notebook');
+        const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
+        if (selection === "Show Output") {
+            jupytextConsole.show();
+        }
+    };
+  }
+
+  public static async openAsNotebookAndRun(uri: Uri): Promise<void> {
+    const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
+    const cmd = LogtalkJupyter.jupytextPath + " --to notebook --execute " + uri.fsPath;
+    try {
+        const { stdout, stderr } = await exec(cmd);
+        await commands.executeCommand(
+            'vscode.openWith',
+            Uri.file(notebook),
+            'jupyter-notebook'
+        );
+    } catch (error) {
+        window.showErrorMessage('Failed to open and run the file as a Jupyter notebook');
+        const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
+        if (selection === "Show Output") {
+            jupytextConsole.show();
+        }
+    };
+  }
+
+  public static async openAsPairedNotebook(uri: Uri): Promise<void> {
+    const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
+    const cmd =
+        LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath + " && " +
+        LogtalkJupyter.jupytextPath + " --set-formats ipynb," + path.extname(uri.fsPath).slice(1) + " " + notebook;
+        console.log("openAsPairedNotebook: " + cmd);
+    try {
+        const { stdout, stderr } = await exec(cmd);
+        await commands.executeCommand(
+            'vscode.openWith',
+            Uri.file(notebook),
+            'jupyter-notebook'
+        );
+    } catch (error) {
+        window.showErrorMessage('Failed to open the file as a paired Jupyter notebook');
+        const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
+        if (selection === "Show Output") {
+            jupytextConsole.show();
+        }
+    };
+  }
+
+  public static async syncNotebook(uri: Uri): Promise<void> {
+    const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
+    const cmd = LogtalkJupyter.jupytextPath + " --sync " + uri.fsPath;
+    try {
+        const { stdout, stderr } = await exec(cmd);
+    } catch (error) {
+        window.showErrorMessage('Failed to sync Jupyter notebook');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
         if (selection === "Show Output") {
             jupytextConsole.show();
