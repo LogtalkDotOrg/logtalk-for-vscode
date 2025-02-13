@@ -63,6 +63,9 @@ export default class LogtalkJupyter {
   }
 
   public static async openAsNotebook(uri: Uri): Promise<void> {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
     const cmd = LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath;
     try {
@@ -73,7 +76,7 @@ export default class LogtalkJupyter {
             'jupyter-notebook'
         );
     } catch (error) {
-        window.showErrorMessage('Failed to open the file as a Jupyter notebook');
+        window.showErrorMessage('Failed to open the file as a notebook');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
         if (selection === "Show Output") {
             jupytextConsole.show();
@@ -82,6 +85,9 @@ export default class LogtalkJupyter {
   }
 
   public static async openAsNotebookAndRun(uri: Uri): Promise<void> {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
     const cmd = LogtalkJupyter.jupytextPath + " --to notebook --execute " + uri.fsPath;
     try {
@@ -92,7 +98,7 @@ export default class LogtalkJupyter {
             'jupyter-notebook'
         );
     } catch (error) {
-        window.showErrorMessage('Failed to open and run the file as a Jupyter notebook');
+        window.showErrorMessage('Failed to open and run the file as a notebook');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
         if (selection === "Show Output") {
             jupytextConsole.show();
@@ -101,6 +107,9 @@ export default class LogtalkJupyter {
   }
 
   public static async openAsPairedNotebook(uri: Uri): Promise<void> {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
     const cmd =
         LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath + " && " +
@@ -114,7 +123,7 @@ export default class LogtalkJupyter {
             'jupyter-notebook'
         );
     } catch (error) {
-        window.showErrorMessage('Failed to open the file as a paired Jupyter notebook');
+        window.showErrorMessage('Failed to open the file as a paired notebook');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
         if (selection === "Show Output") {
             jupytextConsole.show();
@@ -123,12 +132,15 @@ export default class LogtalkJupyter {
   }
 
   public static async syncNotebook(uri: Uri): Promise<void> {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
     const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
     const cmd = LogtalkJupyter.jupytextPath + " --sync " + uri.fsPath;
     try {
         const { stdout, stderr } = await exec(cmd);
     } catch (error) {
-        window.showErrorMessage('Failed to sync Jupyter notebook');
+        window.showErrorMessage('Failed to sync notebook');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
         if (selection === "Show Output") {
             jupytextConsole.show();

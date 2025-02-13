@@ -100,7 +100,7 @@ Most commands, notably those that run the developer tools, **require** the code 
 
 Project (workspace) commands can be triggered from the command palette by typing 'Logtalk' in the input box to pop up the list of all commands of this extension. In this case, the commands resort to the first workspace root folder in the case of [multi-root workspaces](https://code.visualstudio.com/docs/editor/workspaces). Alternatively, these commands can be triggered from the explorer/context menu via right-click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in a Logtalk source file in the Explorer.
 
-|                             Command | Description                                                        |
+|                         Command | Description                                                            |
 | ------------------------------: | :--------------------------------------------------------------------- |
 |                    Open Logtalk | Opens Logtalk in an integrated terminal                                |
 |                  Create Project | Creates a new project with renamed copies of the sample files          |
@@ -123,7 +123,7 @@ The output of the "Run Project Testers" and "Run Project Doclets" commands is di
 
 These commands can be triggered from the editor/context menu via right-click in the editor area. These commands can also be triggered from the command palette assuming there's an active editor window.
 
-|                  Command | Description                                                               |
+|                     Command | Description                                                            |
 | --------------------------: | :--------------------------------------------------------------------- |
 |              Load Directory | Loads the current directory loader file into the Logtalk process       |
 |                   Load File | Loads the active source file into the Logtalk process                  |
@@ -144,12 +144,12 @@ The "Run Tests" command adds failed tests to the "PROBLEMS" pane.
 
 These commands allow opening source files and Markdown files as Jupyter notebooks, plus pairing and syncing notebook representations.
 
-|          Command | Description                                                                                        |
-| ----------------------------------: | :------------------------------------------------------------------------------ |
-|          Open as a Jupyter Notebook | Opens the selected source file or Markdown file as a Jupyter notebook           |
-|  Open and run as a Jupyter Notebook | Opens and runs the selected source file or Markdown file as a Jupyter notebook  |
-|   Open as a paired Jupyter Notebook | Opens the selected source file or Markdown file as a paired Jupyter notebook    |
-|        Sync paired Jupyter Notebook | Sync the paired Jupyter notebook and its text representation                    |
+|                               Command | Description                                                             |
+| ------------------------------------: | :---------------------------------------------------------------------- |
+|                    Open as a Notebook | Opens the selected source file or Markdown file as a notebook           |
+|             Open as a Paired Notebook | Opens the selected source file or Markdown file as a paired notebook    |
+|            Open and Run as a Notebook | Opens and runs the selected source file or Markdown file as a notebook  |
+|  Sync paired Notebook Representations | Sync the paired notebook and its text representation                    |
 
 These commands are only available when Jupytext 1.16.7 or a later version is available. See also the "logtalk.jupytext.path" setting below.
 
