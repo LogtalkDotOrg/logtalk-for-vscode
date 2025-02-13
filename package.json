@@ -332,19 +332,23 @@
             "jupytersubmenu": [
                 {
                     "command": "logtalk.open.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
-                },
-                {
-                    "command": "logtalk.open.run.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
+                    "group": "jupyter@1"
                 },
                 {
                     "command": "logtalk.open.paired.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true"
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
+                    "group": "jupyter@2"
+                },
+                {
+                    "command": "logtalk.open.run.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
+                    "group": "jupyter@3"
                 },
                 {
                     "command": "logtalk.sync.notebook",
-                    "when": "resourceExtname == .ipynb && logtalk.jupytext.available == true"
+                    "when": "resourceExtname == .ipynb && logtalk.jupytext.available == true",
+                    "group": "jupyter@4"
                 }
             ]
         },

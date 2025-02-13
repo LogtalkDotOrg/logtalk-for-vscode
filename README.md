@@ -151,7 +151,7 @@ These commands allow opening source files and Markdown files as Jupyter notebook
 |   Open as a paired Jupyter Notebook | Opens the selected source file or Markdown file as a paired Jupyter notebook    |
 |        Sync paired Jupyter Notebook | Sync the paired Jupyter notebook and its text representation                    |
 
-These commands are only available when Jupytext 1.16.7 or a later version is available. The "logtalk.jupytext.path" setting can be used to set the path to the `jupytext` command when not available from the system path.
+These commands are only available when Jupytext 1.16.7 or a later version is available. See also the "logtalk.jupytext.path" setting below.
 
 #### Logtalk (integrated terminal) process commands
 
@@ -350,11 +350,11 @@ The number of milliseconds to wait before running the scripts that convert `.xml
 
 Enables displaying inline test results (including code coverage when collected) using code lens in both the test object and the tested entity source files opened in the editor. It also enables displaying inline entity cyclomatic complexity after computing code metrics. The tests and metrics data is persistent and can be updated by re-running tests and re-computing metrics (e.g., by simply clicking in the inline data). This setting can be toggled using the "Toggle Code Lens" command.
 
-#### Jupytext absolute path
+#### Jupytext path
 
     "logtalk.jupytext.path": ""
 	
-Path to the `jupytext` command if not available from the system path. Jupytext 1.16.7 or later version required.
+Absolute path to the `jupytext` command if not available from the system path. Jupytext 1.16.7 or later version required (available from [PyPI](https://pypi.org/project/jupytext/) and [Conda](https://anaconda.org/conda-forge/jupytext)).
 
 ## Known Issues
 
