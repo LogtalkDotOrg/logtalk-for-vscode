@@ -32,6 +32,8 @@ import * as timers from "timers/promises";
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
 
+var semver = require('semver');
+
 let jupytextConsole: OutputChannel;
 
 export default class LogtalkJupyter {
@@ -148,7 +150,7 @@ export default class LogtalkJupyter {
     const cmd = LogtalkJupyter.jupytextPath + " --version";
     try {
         const { stdout, stderr } = await exec(cmd);
-        return stdout >= "1.16.7";
+        return semver.satisfies(stdout, ">=1.16.7");
     } catch (error) {
         window.showErrorMessage('Failed to find supported jupytext command');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
