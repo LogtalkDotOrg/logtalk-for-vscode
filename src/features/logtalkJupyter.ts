@@ -84,28 +84,6 @@ export default class LogtalkJupyter {
     };
   }
 
-  public static async openAsNotebookAndRun(uri: Uri): Promise<void> {
-    if (typeof uri === 'undefined') {
-      uri = window.activeTextEditor.document.uri;
-    }
-    const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
-    const cmd = LogtalkJupyter.jupytextPath + " --to notebook --execute \"" + uri.fsPath + "\"";
-    try {
-        const { stdout, stderr } = await exec(cmd);
-        await commands.executeCommand(
-            'vscode.openWith',
-            Uri.file(notebook),
-            'jupyter-notebook'
-        );
-    } catch (error) {
-        window.showErrorMessage('Failed to open and run the file as a notebook');
-        const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");
-        if (selection === "Show Output") {
-            jupytextConsole.show();
-        }
-    };
-  }
-
   public static async openAsPairedNotebook(uri: Uri): Promise<void> {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
@@ -159,6 +137,10 @@ export default class LogtalkJupyter {
         }
         return false;
     };
+  }
+
+  public dispose(): void {
+    jupytextConsole.dispose();
   }
 
 }

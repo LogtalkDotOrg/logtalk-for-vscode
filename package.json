@@ -153,10 +153,6 @@
                 "title": "Logtalk: Open as a Paired Notebook"
             },
             {
-                "command": "logtalk.open.run.notebook",
-                "title": "Logtalk: Open and Run as a Notebook"
-            },
-            {
                 "command": "logtalk.sync.notebook",
                 "title": "Logtalk: Sync paired Notebook Representations"
             },
@@ -341,14 +337,9 @@
                     "group": "jupyter@2"
                 },
                 {
-                    "command": "logtalk.open.run.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
-                    "group": "jupyter@3"
-                },
-                {
                     "command": "logtalk.sync.notebook",
                     "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true",
-                    "group": "jupyter@4"
+                    "group": "jupyter@3"
                 }
             ]
         },
