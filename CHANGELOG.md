@@ -2,6 +2,7 @@
 
 ## [0.33.0]
 
+* Add "Logtalk: Jupyter" commands (requires Juyptext 1.16.7 or later version)
 * Provide a menu with the valid choices for the backend setting instead of requiring typing it
 
 ## [0.32.0]

@@ -145,6 +145,18 @@
                 "title": "Logtalk: Generate Diagrams"
             },
             {
+                "command": "logtalk.open.notebook",
+                "title": "Logtalk: Open as a Notebook"
+            },
+            {
+                "command": "logtalk.open.paired.notebook",
+                "title": "Logtalk: Open as a Paired Notebook"
+            },
+            {
+                "command": "logtalk.sync.notebook",
+                "title": "Logtalk: Sync paired Notebook Representations"
+            },
+            {
                 "command": "logtalk.create.project",
                 "title": "Logtalk: Create Project"
             },
@@ -197,6 +209,10 @@
                     "when": "resourceLangId == logtalk"
                 },
                 {
+                    "submenu": "jupytersubmenu",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true"
+                },
+                {
                     "command": "logtalk.load.directory",
                     "when": "resourceLangId == logtalk"
                 },
@@ -238,6 +254,10 @@
                 }
             ],
             "explorer/context": [
+                {
+                    "submenu": "jupytersubmenu",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true"
+                },
                 {
                     "command": "logtalk.create.project",
                     "when": "resourceLangId == logtalk"
@@ -304,12 +324,33 @@
                     "command": "logtalk.make.caches",
                     "when": "resourceLangId == logtalk"
                 }
+            ],
+            "jupytersubmenu": [
+                {
+                    "command": "logtalk.open.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
+                    "group": "jupyter@1"
+                },
+                {
+                    "command": "logtalk.open.paired.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
+                    "group": "jupyter@2"
+                },
+                {
+                    "command": "logtalk.sync.notebook",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true",
+                    "group": "jupyter@3"
+                }
             ]
         },
         "submenus": [
             {
                 "label": "Logtalk: Make",
                 "id": "makesubmenu"
+            },
+            {
+                "label": "Logtalk: Jupyter",
+                "id": "jupytersubmenu"
             }
         ],
         "breakpoints": [
@@ -342,7 +383,21 @@
                 "logtalk.backend": {
                     "type": "string",
                     "default": "",
-                    "enum": ["b", "ciao", "cx", "eclipse", "gnu", "ji", "sicstus", "swi", "tau", "trealla", "xsb", "xvm", "yap"],
+                    "enum": [
+                        "b",
+                        "ciao",
+                        "cx",
+                        "eclipse",
+                        "gnu",
+                        "ji",
+                        "sicstus",
+                        "swi",
+                        "tau",
+                        "trealla",
+                        "xsb",
+                        "xvm",
+                        "yap"
+                    ],
                     "description": "Logtalk backend. Required.",
                     "order": 3
                 },
@@ -417,6 +472,12 @@
                     "description": "Enables testing and code metrics results to be displayed using CodeLens.",
                     "default": true,
                     "order": 16
+                },
+                "logtalk.jupytext.path": {
+                    "type": "string",
+                    "description": "Absolute path to the jupytext executable. Optional.",
+                    "default": "",
+                    "order": 17
                 }
             }
         },
@@ -509,7 +570,7 @@
         "@types/mocha": "^2.2.48",
         "@types/node": "^20.4.2",
         "@vscode/test-electron": "^1.6.2",
-        "@vscode/vsce": "^2.32.0",
+        "@vscode/vsce": "^3.2.2",
         "@xmldom/xmldom": "^0.8.9",
         "glob": "^7.1.7",
         "html2commonmark": "^0.6.1",
@@ -525,6 +586,7 @@
         "mocha": "^10.2.0",
         "path": "^0.12.7",
         "process-promises": "^1.0.0",
+        "semver": "^7.7.1",
         "split": "^1.0.1",
         "stack-trace": "0.0.10",
         "xpath": "0.0.24"

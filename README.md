@@ -100,16 +100,16 @@ Most commands, notably those that run the developer tools, **require** the code 
 
 Project (workspace) commands can be triggered from the command palette by typing 'Logtalk' in the input box to pop up the list of all commands of this extension. In this case, the commands resort to the first workspace root folder in the case of [multi-root workspaces](https://code.visualstudio.com/docs/editor/workspaces). Alternatively, these commands can be triggered from the explorer/context menu via right-click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in a Logtalk source file in the Explorer.
 
-|                             Command | Description                                                   |
-| ------------------------------: | :---------------------------------------------------------------- |
-|                    Open Logtalk | Opens Logtalk in an integrated terminal                           |
-|                  Create Project | Creates a new project with renamed copies of the sample files     |
-|                    Load Project | Loads the loader file found in the workspace root folder          |
-|          Scan Project Dead Code | Recursively scans the workspace root folder for dead code         |
-|  Generate Project Documentation | Recursively generates documentation for the workspace root folder |
-|       Generate Project Diagrams | Recursively generates diagrams for the workspace root folder      |
-|             Run Project Testers | Runs the `logtalk_tester` script from the workspace root folder   |
-|             Run Project Doclets | Runs the `logtalk_doclet` script from the workspace root folder   |
+|                         Command | Description                                                        |
+| ------------------------------: | :----------------------------------------------------------------- |
+|                    Open Logtalk | Opens Logtalk in an integrated terminal                            |
+|                  Create Project | Creates a new project with renamed copies of the sample files      |
+|                    Load Project | Loads the loader file found in the workspace root folder           |
+|          Scan Project Dead Code | Recursively scans the workspace root folder for dead code          |
+|  Generate Project Documentation | Recursively generates documentation for the workspace root folder  |
+|       Generate Project Diagrams | Recursively generates diagrams for the workspace root folder       |
+|             Run Project Testers | Runs the `logtalk_tester` script from the workspace root folder    |
+|             Run Project Doclets | Runs the `logtalk_doclet` script from the workspace root folder    |
 
 The "Create Project" command is usually called from the command palette. It asks for the folder where to copy the renamed sample files.
 
@@ -123,22 +123,34 @@ The output of the "Run Project Testers" and "Run Project Doclets" commands is di
 
 These commands can be triggered from the editor/context menu via right-click in the editor area. These commands can also be triggered from the command palette assuming there's an active editor window.
 
-|                  Command | Description                                                         |
-| -----------------------: | :------------------------------------------------------------------ |
-|           Load Directory | Loads the current directory loader file into the Logtalk process    |
-|                Load File | Loads the active source file into the Logtalk process               |
-|          Compute Metrics | Computes metrics for all files in the active source file directory  |
-|                Run Tests | Loads the tester file under the active source file directory        |
-|         Toggle Code Lens | Toggles code lens of test results and cyclomatic complexity         |
-|               Run Doclet | Loads the doclet file under the active source file directory        |
-|           Scan Dead Code | Scans the active source file directory for dead code                |
-|   Generate Documentation | Generates documentation for the active source file directory        |
-|        Generate Diagrams | Generates diagrams for the active source file directory             |
-|         Open Parent File | Opens the file that loaded the active source file if any            |
+|                 Command | Description                                                         |
+| ----------------------: | :------------------------------------------------------------------ |
+|          Load Directory | Loads the current directory loader file into the Logtalk process    |
+|               Load File | Loads the active source file into the Logtalk process               |
+|         Compute Metrics | Computes metrics for all files in the active source file directory  |
+|               Run Tests | Loads the tester file under the active source file directory        |
+|        Toggle Code Lens | Toggles code lens of test results and cyclomatic complexity         |
+|              Run Doclet | Loads the doclet file under the active source file directory        |
+|          Scan Dead Code | Scans the active source file directory for dead code                |
+|  Generate Documentation | Generates documentation for the active source file directory        |
+|       Generate Diagrams | Generates diagrams for the active source file directory             |
+|        Open Parent File | Opens the file that loaded the active source file if any            |
 
 The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Tests" command looks for a `tester.lgt` or `tester.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Doclet" command looks for a `doclet.lgt` or `doclet.logtalk` file in the directory of the selected file, printing a warning if not found.
 
 The "Run Tests" command adds failed tests to the "PROBLEMS" pane.
+
+#### Logtalk Jupyter commands
+
+These commands allow opening source files and Markdown files as Jupyter notebooks, plus pairing and syncing notebook representations.
+
+|                               Command | Description                                                           |
+| ------------------------------------: | :-------------------------------------------------------------------- |
+|                    Open as a Notebook | Opens the selected source file or Markdown file as a notebook         |
+|             Open as a Paired Notebook | Opens the selected source file or Markdown file as a paired notebook  |
+|  Sync paired Notebook Representations | Sync the paired notebook and its text representation                  |
+
+These commands are only available when Jupytext 1.16.7 or a later version is available. See also the "logtalk.jupytext.path" setting below.
 
 #### Logtalk (integrated terminal) process commands
 
@@ -336,6 +348,12 @@ The number of milliseconds to wait before running the scripts that convert `.xml
     "logtalk.enableCodeLens": true
 
 Enables displaying inline test results (including code coverage when collected) using code lens in both the test object and the tested entity source files opened in the editor. It also enables displaying inline entity cyclomatic complexity after computing code metrics. The tests and metrics data is persistent and can be updated by re-running tests and re-computing metrics (e.g., by simply clicking in the inline data). This setting can be toggled using the "Toggle Code Lens" command.
+
+#### Jupytext path
+
+    "logtalk.jupytext.path": ""
+	
+Absolute path to the `jupytext` command if not available from the system path. Alternatively, it can also be a call to a Python interpreter run of the `jupytext` module. For example, `python3.10 -m jupytext`. Jupytext 1.16.7 or later version required (available from [PyPI](https://pypi.org/project/jupytext/) and [Conda](https://anaconda.org/conda-forge/jupytext)).
 
 ## Known Issues
 

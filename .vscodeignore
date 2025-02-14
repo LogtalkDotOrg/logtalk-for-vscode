@@ -17,6 +17,7 @@
 !node_modules/path/**/*
 !node_modules/process-promises/**/*
 !node_modules/resolve/**/*
+!node_modules/semver/**/*
 !node_modules/split/**/*
 !node_modules/stack-trace/**/*
 !node_modules/through/**/*
