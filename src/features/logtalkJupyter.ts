@@ -32,8 +32,6 @@ import * as timers from "timers/promises";
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
 
-var semver = require('semver');
-
 let jupytextConsole: OutputChannel;
 
 export default class LogtalkJupyter {
@@ -67,7 +65,7 @@ export default class LogtalkJupyter {
       uri = window.activeTextEditor.document.uri;
     }
     const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
-    const cmd = LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath;
+    const cmd = LogtalkJupyter.jupytextPath + " --to notebook \"" + uri.fsPath + "\"";
     try {
         const { stdout, stderr } = await exec(cmd);
         await commands.executeCommand(
@@ -89,7 +87,7 @@ export default class LogtalkJupyter {
       uri = window.activeTextEditor.document.uri;
     }
     const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
-    const cmd = LogtalkJupyter.jupytextPath + " --to notebook --execute " + uri.fsPath;
+    const cmd = LogtalkJupyter.jupytextPath + " --to notebook --execute \"" + uri.fsPath + "\"";
     try {
         const { stdout, stderr } = await exec(cmd);
         await commands.executeCommand(
@@ -112,8 +110,8 @@ export default class LogtalkJupyter {
     }
     const notebook = path.dirname(uri.fsPath) + path.sep + path.parse(uri.fsPath).name + ".ipynb";
     const cmd =
-        LogtalkJupyter.jupytextPath + " --to notebook " + uri.fsPath + " && " +
-        LogtalkJupyter.jupytextPath + " --set-formats ipynb," + path.extname(uri.fsPath).slice(1) + " " + notebook;
+        LogtalkJupyter.jupytextPath + " --to notebook \"" + uri.fsPath + "\" && " +
+        LogtalkJupyter.jupytextPath + " --set-formats ipynb," + path.extname(uri.fsPath).slice(1) + " \"" + notebook + "\"";
     try {
         const { stdout, stderr } = await exec(cmd);
         await commands.executeCommand(
@@ -134,7 +132,7 @@ export default class LogtalkJupyter {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
-    const cmd = LogtalkJupyter.jupytextPath + " --sync " + uri.fsPath;
+    const cmd = LogtalkJupyter.jupytextPath + " --sync \"" + uri.fsPath + "\"";
     try {
         const { stdout, stderr } = await exec(cmd);
     } catch (error) {
@@ -150,7 +148,7 @@ export default class LogtalkJupyter {
     const cmd = LogtalkJupyter.jupytextPath + " --version";
     try {
         const { stdout, stderr } = await exec(cmd);
-        return semver.satisfies(stdout, ">=1.16.7");
+        return stdout >= "1.16.7";
     } catch (error) {
         window.showErrorMessage('Failed to find supported jupytext command');
         const selection = await window.showErrorMessage(`Calling \`${cmd}\` failed.`, "Show Output");

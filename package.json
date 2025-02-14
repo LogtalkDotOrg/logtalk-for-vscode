@@ -595,7 +595,6 @@
         "mocha": "^10.2.0",
         "path": "^0.12.7",
         "process-promises": "^1.0.0",
-        "semver": "^7.7.1",
         "split": "^1.0.1",
         "stack-trace": "0.0.10",
         "xpath": "0.0.24"
