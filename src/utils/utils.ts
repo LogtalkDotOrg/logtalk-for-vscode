@@ -277,9 +277,6 @@ export class Utils {
     }
     let arity = 0;
     let name = doc.getText(wordRange);
-    if (name[0] === name[0].toUpperCase()) {
-      return null;
-    }
 //    console.log("name: " + name);
     let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let re = new RegExp("^(?:" + name_escaped + ")\\(");
