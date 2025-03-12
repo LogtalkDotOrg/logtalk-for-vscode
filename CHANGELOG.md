@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.34.0]
+
+* Fix spurious find definition queries when the text under the cursor is a variable
+
 ## [0.33.0]
 
 * Add "Logtalk: Jupyter" commands (requires Juyptext 1.16.7 or later version)

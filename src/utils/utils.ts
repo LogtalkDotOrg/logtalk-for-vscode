@@ -163,6 +163,9 @@ export class Utils {
     let doctext = doc.getText(wordRange);
     let match = doctext.match(/(\w+)[/](\d+)/);
     let name: string = match[1];
+    if (name[0] === name[0].toUpperCase()) {
+      return null;
+    }
     let arity: number = parseInt(match[2]);
     return name + "/" + arity;
   }
@@ -181,6 +184,9 @@ export class Utils {
     let doctext = doc.getText(wordRange);
     let match = doctext.match(/(\w+)[/][/](\d+)/);
     let name: string = match[1];
+    if (name[0] === name[0].toUpperCase()) {
+      return null;
+    }
     let arity: number = parseInt(match[2]);
     return name + "//" + arity;
   }
@@ -195,6 +201,9 @@ export class Utils {
     }
     let arity = 0;
     let name = doc.getText(wordRange);
+    if (name[0] === name[0].toUpperCase()) {
+      return null;
+    }
     let re = new RegExp("^" + name + "\\(");
     let re1 = new RegExp("^" + name + "/(\\d+)");
     let doctext = doc.getText();
@@ -268,6 +277,9 @@ export class Utils {
     }
     let arity = 0;
     let name = doc.getText(wordRange);
+    if (name[0] === name[0].toUpperCase()) {
+      return null;
+    }
 //    console.log("name: " + name);
     let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let re = new RegExp("^(?:" + name_escaped + ")\\(");
@@ -348,6 +360,9 @@ export class Utils {
       return null;
     }
     let name = doc.getText(wordRange);
+    if (name[0] === name[0].toUpperCase()) {
+      return null;
+    }
     let fullName = name;
 //    console.log("name: " + name);
     let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
