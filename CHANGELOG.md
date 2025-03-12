@@ -2,6 +2,7 @@
 
 ## [0.34.0]
 
+* Update readme section on "Go To References" support
 * Fix spurious find definition queries when the text under the cursor is a variable
 
 ## [0.33.0]

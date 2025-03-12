@@ -150,7 +150,7 @@ These commands allow opening source files and Markdown files as Jupyter notebook
 |             Open as a Paired Notebook | Opens the selected source file or Markdown file as a paired notebook  |
 |  Sync paired Notebook Representations | Sync the paired notebook and its text representation                  |
 
-These commands are only available when Jupytext 1.16.7 or a later version is available. See also the "logtalk.jupytext.path" setting below.
+These commands are only available when Jupytext 1.16.7 or a later version is installed. See also the "logtalk.jupytext.path" setting below.
 
 #### Logtalk (integrated terminal) process commands
 
@@ -185,7 +185,7 @@ Entities (objects, protocols, and categories) are interpreted as types. Click in
 
 #### Go to References
 
-Click in a predicate name in a scope directive, goal, or `uses/2` directive and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls and predicate definitions are not counted as references.
+Click in a predicate name in a scope directive, `uses/2` directive, fact, rule head, or goal and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls and predicate definitions are not counted as references.
 
 Click in an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
 
