@@ -18,21 +18,21 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
     return new Promise((resolve, reject) => {
       var symbols = [];
 
-      let object_re   = /^(?:\:- object\()([^(),.]+(\(.*\))?)/;
-      let protocol_re = /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
-      let category_re = /^(?:\:- category\()([^(),.]+(\(.*\))?)/;
+      const object_re   = /^(?:\:- object\()([^(),.]+(\(.*\))?)/;
+      const protocol_re = /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
+      const category_re = /^(?:\:- category\()([^(),.]+(\(.*\))?)/;
 
-      let end_object_re   = /^(?:\:- end_object\.)/;
-      let end_protocol_re = /^(?:\:- end_protocol\.)/;
-      let end_category_re = /^(?:\:- end_category\.)/;
+      const end_object_re   = /^(?:\:- end_object\.)/;
+      const end_protocol_re = /^(?:\:- end_protocol\.)/;
+      const end_category_re = /^(?:\:- end_category\.)/;
 
-      let public_predicate_re    = /(?:\s*\:- public\()(\w+[/]\d+)/;
-      let protected_predicate_re = /(?:\s*\:- protected\()(\w+[/]\d+)/;
-      let private_predicate_re   = /(?:\s*\:- private\()(\w+[/]\d+)/;
+      const public_predicate_re    = /(?:\s*\:- public\()(\w+[/]\d+)/;
+      const protected_predicate_re = /(?:\s*\:- protected\()(\w+[/]\d+)/;
+      const private_predicate_re   = /(?:\s*\:- private\()(\w+[/]\d+)/;
 
-      let public_non_terminal_re    = /(?:\s*\:- public\()(\w+[/][/]\d+)/;
-      let protected_non_terminal_re = /(?:\s*\:- protected\()(\w+[/][/]\d+)/;
-      let private_non_terminal_re   = /(?:\s*\:- private\()(\w+[/][/]\d+)/;
+      const public_non_terminal_re    = /(?:\s*\:- public\()(\w+[/][/]\d+)/;
+      const protected_non_terminal_re = /(?:\s*\:- protected\()(\w+[/][/]\d+)/;
+      const private_non_terminal_re   = /(?:\s*\:- private\()(\w+[/][/]\d+)/;
 
       let found;
       let entity;

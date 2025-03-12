@@ -58,7 +58,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     const refs = path.join(dir, ".vscode_ancestors");
 
     if (fs.existsSync(refs)) {
-      let out = await fs.readFileSync(refs).toString();
+      const out = fs.readFileSync(refs).toString();
       await fsp.rm(refs, { force: true });
       let matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
@@ -98,9 +98,9 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     const refs = path.join(dir, ".vscode_descendants");
 
     if (fs.existsSync(refs)) {
-      let out = await fs.readFileSync(refs).toString();
+      const out = fs.readFileSync(refs).toString();
       await fsp.rm(refs, { force: true });
-      let matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
+      const matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       var symbol = null;
       for (match of matches) {

@@ -19,9 +19,10 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
     doc: TextDocument,
     position: Position,
     token: CancellationToken
-  ): Promise<Location> {
+  ): Promise<Location | null> {
     let location: Location = null;
-    let call = Utils.getCallUnderCursor(doc, position);
+    const call = Utils.getCallUnderCursor(doc, position);
+
     if (!call) {
       return null;
     }
@@ -32,12 +33,12 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
     const dcl = path.join(dir, ".vscode_declaration");
 
     if (fs.existsSync(dcl)) {
-      let out = await fs.readFileSync(dcl).toString();
+      const out = fs.readFileSync(dcl).toString();
       await fsp.rm(dcl, { force: true });
-      let match = out.match(/File:(.+);Line:(\d+)/);
+      const match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
-        let fileName: string = match[1];
-        let lineNum: number = parseInt(match[2]);
+        const fileName: string = match[1];
+        const lineNum: number = parseInt(match[2]);
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }
     } else {

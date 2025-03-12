@@ -57,7 +57,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     const refs = path.join(dir, ".vscode_callers");
 
     if (fs.existsSync(refs)) {
-      let out = await fs.readFileSync(refs).toString();
+      const out = fs.readFileSync(refs).toString();
       await fsp.rm(refs, { force: true });
       let matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
@@ -99,9 +99,9 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     const refs = path.join(dir, ".vscode_callees");
 
     if (fs.existsSync(refs)) {
-      let out = await fs.readFileSync(refs).toString();
+      const out = fs.readFileSync(refs).toString();
       await fsp.rm(refs, { force: true });
-      let matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
+      const matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {
         callees.push(

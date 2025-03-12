@@ -19,9 +19,10 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
     doc: TextDocument,
     position: Position,
     token: CancellationToken
-  ): Promise<Location> {
+  ): Promise<Location | null> {
     let location: Location = null;
-    let entity = Utils.getIndicatorUnderCursor(doc, position);
+    const entity = Utils.getIndicatorUnderCursor(doc, position);
+
     if (!entity) {
       return null;
     }
@@ -32,12 +33,12 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
     const tdef = path.join(dir, ".vscode_type_definition");
 
     if (fs.existsSync(tdef)) {
-      let out = await fs.readFileSync(tdef).toString();
+      const out = fs.readFileSync(tdef).toString();
       await fsp.rm(tdef, { force: true });
-      let match = out.match(/File:(.+);Line:(\d+)/);
+      const match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
-        let fileName: string = match[1];
-        let lineNum: number = parseInt(match[2]);
+        const fileName: string = match[1];
+        const lineNum: number = parseInt(match[2]);
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }
     } else {

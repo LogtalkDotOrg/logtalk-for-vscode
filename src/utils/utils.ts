@@ -403,7 +403,7 @@ export class Utils {
 
   public static async openFileAt(uri: Uri) {
     if (fs.existsSync(uri.fsPath)) {
-      let out = await fs.readFileSync(uri.fsPath).toString();
+      let out = fs.readFileSync(uri.fsPath).toString();
       await fsp.rm(uri.fsPath, { force: true });
       let match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {

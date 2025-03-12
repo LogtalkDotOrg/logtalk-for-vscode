@@ -32,12 +32,12 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     const def = path.join(dir, ".vscode_definition");
 
     if (fs.existsSync(def)) {
-      let out = await fs.readFileSync(def).toString();
+      const out = fs.readFileSync(def).toString();
       await fsp.rm(def, { force: true });
-      let match = out.match(/File:(.+);Line:(\d+)/);
+      const match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
-        let fileName: string = match[1];
-        let lineNum: number = parseInt(match[2]);
+        const fileName: string = match[1];
+        const lineNum: number = parseInt(match[2]);
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }
     } else {

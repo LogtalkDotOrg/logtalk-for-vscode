@@ -24,13 +24,11 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
     token: CancellationToken
   ): Promise<Definition | LocationLink[]> {
     let locations: Location[] = [];
-    let resource = Utils.getNonTerminalIndicatorUnderCursor(doc, position);
-    if (!resource) {
-      resource = Utils.getPredicateIndicatorUnderCursor(doc, position);
-    }
-    if (!resource) {
-      resource = Utils.getCallUnderCursor(doc, position);
-    }
+    const resource =
+      Utils.getNonTerminalIndicatorUnderCursor(doc, position) ||
+      Utils.getPredicateIndicatorUnderCursor(doc, position) ||
+      Utils.getCallUnderCursor(doc, position);
+
     if (!resource) {
       return null;
     }
@@ -41,9 +39,9 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
     const imps = path.join(dir, ".vscode_implementations");
 
     if (fs.existsSync(imps)) {
-      let out = await fs.readFileSync(imps).toString();
+      let out = fs.readFileSync(imps).toString();
       await fsp.rm(imps, { force: true });
-      let matches = out.matchAll(/File:(.+);Line:(\d+)/g);
+      const matches = out.matchAll(/File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {
         locations.push(new Location(Uri.file(match[1]), new Position(parseInt(match[2]) - 1, 0)));

@@ -1056,7 +1056,7 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     const result = path.join(dir, ".vscode_type");
-    let type = await fs.readFileSync(result).toString();
+    let type = fs.readFileSync(result).toString();
     await fsp.rm(result, { force: true });
     return type;
   }
@@ -1076,7 +1076,7 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     const result = path.join(dir, ".vscode_find_parent");
-    let loader = await fs.readFileSync(result).toString();
+    let loader = fs.readFileSync(result).toString();
     await fsp.rm(result, { force: true });
     workspace.openTextDocument(loader).then(doc => {
       vscode.window.showTextDocument(doc);
