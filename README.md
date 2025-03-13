@@ -373,7 +373,7 @@ VSCode doesn't support disabling menu items that are not supported by language e
 
 When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
 
-VSCode triggers the "Go to Definition" computations if the cursor happens to be over some text when typing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow overriding using the command/control keys as a keyboard shortcut for going to a definition. As a consequence, when no Logtalk terminal session exists, one is automatically created as code navigation features, including "Go to Definition", require compiling and loading the source code.
+VSCode triggers the "Go to Definition" computations if the cursor happens to be over some text when typing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow overriding using the command/control keys as a keyboard shortcut for going to a definition. As a consequence, when some random text is selected and no Logtalk terminal session exists, one may be automatically created as code navigation features, including "Go to Definition", require compiling and loading the source code.
 
 ## Development
 

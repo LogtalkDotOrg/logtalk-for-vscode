@@ -4,6 +4,7 @@
 
 * Update readme section on "Go To References" support
 * Fix spurious find definition queries when the text under the cursor is a variable
+* Fix most spurious find definition queries when pressing the Command (macOS) or Control (Windows, Linux) keys with the cursor over some random (but not selected) text
 
 ## [0.33.0]
 

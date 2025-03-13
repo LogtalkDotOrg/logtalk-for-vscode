@@ -6,7 +6,8 @@ import {
   Location,
   Position,
   TextDocument,
-  Uri
+  Uri,
+  window
 } from "vscode";
 import LogtalkTerminal from "./logtalkTerminal";
 import { Utils } from "../utils/utils";
@@ -23,6 +24,11 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     let location: Location = null;
     let call = Utils.getCallUnderCursor(doc, position);
     if (!call) {
+      return null;
+    }
+
+    const text = window.activeTextEditor.document.getText(window.activeTextEditor.selection);
+    if (text.length === 0) {
       return null;
     }
 
