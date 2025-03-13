@@ -173,27 +173,27 @@ Code navigation features **require** the code to be loaded, typically by using t
 
 #### Go to Declaration
 
-Click in a predicate name and select the "Go to Declaration" menu or context menu item to go to the predicate scope directive.
+Double-click to select a predicate name and then right-click and select the "Go to Declaration" menu or context menu item to go to the predicate scope directive.
 
 #### Go to Definition
 
-Click in a predicate name in a goal or predicate directive and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate. Note that definitions may only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used). When a definition is not found, try in alternative to go to the declaration and then to the references.
+Double-click to select a predicate name in a goal or predicate directive and then right-click and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate. Note that definitions may only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used). When a definition is not found, try in alternative to go to the declaration and then to the references.
 
 #### Go to Type Definition
 
-Entities (objects, protocols, and categories) are interpreted as types. Click in an entity name and select the "Go to Type Definition" menu or context menu item to go to the entity opening directive.
+Entities (objects, protocols, and categories) are interpreted as types. Double-click to select an entity name and then right-click and select the "Go to Type Definition" menu or context menu item to go to the entity opening directive.
 
 #### Go to References
 
-Click in a predicate name in a scope directive, `uses/2` directive, fact, rule head, or goal and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls and predicate definitions are not counted as references.
+Double-click to select a predicate name in a scope directive, `uses/2` directive, fact, rule head, or goal and then right-click and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls and predicate definitions are not counted as references.
 
-Click in an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
+Double-click to select an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by double-clicking to select an entity name and then right-clicking and selecting the "Go to Type Definition" menu or context menu item.
 
 #### Go to Implementations
 
-Click in the middle of a predicate name in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items. Note that you can go to a predicate scope directive by clicking the predicate name in a goal and selecting the "Go to Declaration" menu or context menu item.
+Double-click to select a predicate name in a scope directive and then right-click and select the "Go to Implementations" or "Find All Implementations" menu or context menu items. Note that you can go to a predicate scope directive by selecting the predicate name in a goal and right-clicking and selecting the "Go to Declaration" menu or context menu item.
 
-Click in a protocol name in its entity opening directive to find implementations of the protocol. Note that you can go to an entity opening directive by clicking in an entity name and selecting the "Go to Type Definition" menu or context menu item.
+Double-click to select a protocol name in its entity opening directive to find implementations of the protocol. Note that you can go to an entity opening directive by clicking in an entity name and then right-clicking and selecting the "Go to Type Definition" menu or context menu item.
 
 #### Go to Symbol in Editor...
 
@@ -205,11 +205,11 @@ Symbols include object, protocol, and category identifiers in entity opening dir
 
 #### Show Call Hierarchy
 
-Click in the middle of a predicate name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate. Note that callers and callees that can only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used) may not be returned.
+Double-click to select a predicate name in a goal or in a clause head and then right-click and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate. Note that callers and callees that can only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used) may not be returned.
 
 #### Show Type Hierarchy
 
-Click in the middle of an entity name and select the "Show Type Hierarchy" context menu item to browse ancestors and descendants of the selected entity. Here, ancestor is interpreted as any entity from which the selected entity inherits, and descendant is interpreted as any entity that inherits from the selected entity.
+Double-click to select an entity name and then right-click and select the "Show Type Hierarchy" context menu item to browse ancestors and descendants of the selected entity. Here, ancestor is interpreted as any entity from which the selected entity inherits, and descendant is interpreted as any entity that inherits from the selected entity.
 
 ### Debugging support
 

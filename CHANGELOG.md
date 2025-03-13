@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.35.0]
+
+* Update the documentation on the code navigation features
+
 ## [0.34.0]
 
 * Update readme section on "Go To References" support
