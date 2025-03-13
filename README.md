@@ -244,7 +244,7 @@ No defaults (VSCode doesn't support using environment variables to define settin
 
     "logtalk.backend": ""
 
-No default. Possible values are `b`, `ciao`, `cx`, `eclipse`, `gnu`, `ji`, `sicstus`, `swi`, `tau`, `trealla`, `xsb`, `xvm`, and `yap`.
+No default. Possible values are `b`, `ciao`, `cx`, `eclipse`, `gnu`, `ji`, `sicstus`, `swi`, `tau`, `trealla`, `xsb`, `xvm`, and `yap`. Ensure that the backend you want to use is installed.
 
 ### Optional settings
 

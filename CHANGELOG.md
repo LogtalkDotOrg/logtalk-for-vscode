@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.36.0]
+
+* Improve implementation of the Jupyter commands
+* Update the documentation on the code navigation features
+
 ## [0.35.0]
 
 * Update the documentation on the code navigation features
