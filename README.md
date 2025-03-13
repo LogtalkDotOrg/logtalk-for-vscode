@@ -171,6 +171,8 @@ These commands don't depend on the directory of a file selected by right-clickin
 
 Code navigation features **require** the code to be loaded, typically by using the "Load Project" command or by opening the project loader file and using the "Load File" command from the editor/context menu. Additionally, code must be compiled with the `source_data` flag set to `on` (default) and the `context_switching_calls` set to `allow` (default).
 
+For all code navigation features except "Go to Definition", you can simply right-click in a (predicate or entity) name without first selecting it. See below the section on "VSCode notable usability issues" for an explanation of the exception.
+
 #### Go to Declaration
 
 Double-click to select a predicate name and then right-click and select the "Go to Declaration" menu or context menu item to go to the predicate scope directive.
@@ -373,7 +375,7 @@ VSCode doesn't support disabling menu items that are not supported by language e
 
 When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
 
-VSCode triggers the "Go to Definition" computations if the cursor happens to be over some text when typing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow overriding using the command/control keys as a keyboard shortcut for going to a definition. As a consequence, when some random text is selected and no Logtalk terminal session exists, one may be automatically created as code navigation features, including "Go to Definition", require compiling and loading the source code.
+VSCode triggers the "Go to Definition" computations if the cursor happens to be over some text pressing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow disabling this "feature" or using the command or control keys as a keyboard shortcut. To avoid automatically creating a Logtalk terminal session if none exists (as required by the code navigation features), you must first select the text to go to a definition.
 
 ## Development
 
