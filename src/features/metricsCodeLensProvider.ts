@@ -6,18 +6,13 @@ import {
   CodeLens,
   Range,
   Position,
-  Command,
   TextDocument,
-  Uri,
   EventEmitter,
   Event,
   workspace
 } from "vscode";
-import LogtalkTerminal from "./logtalkTerminal";
-import { Utils } from "../utils/utils";
 import * as path from "path";
 import * as fs from "fs";
-import * as fsp from "fs/promises";
 
 export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
 

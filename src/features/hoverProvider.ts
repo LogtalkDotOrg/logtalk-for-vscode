@@ -9,12 +9,7 @@ import {
   Range
 } from "vscode";
 import { Utils } from "../utils/utils";
-import * as fs from "fs";
-import * as path from "path";
-import * as xpath from "xpath";
 import * as vscode from "vscode";
-import { DOMParser } from "@xmldom/xmldom";
-
 export default class LogtalkHoverProvider implements HoverProvider {
 
   public provideHover(

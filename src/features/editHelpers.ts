@@ -2,9 +2,7 @@
 
 import {
   /* CommentRule, OnEnterRule, */
-  Disposable, IndentAction, languages,
-  Position, Range, Selection, 
-  TextDocument, window, workspace
+  Disposable, IndentAction, languages
 } from "vscode";
 
 export function loadEditHelpers(subscriptions: Disposable[]) {

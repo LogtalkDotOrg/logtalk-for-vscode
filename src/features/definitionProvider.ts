@@ -19,7 +19,7 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     doc: TextDocument,
     position: Position,
     token: CancellationToken
-  ): Promise<Location> {
+  ): Promise<Location | null> {
     let location: Location = null;
     let call = Utils.getCallUnderCursor(doc, position);
     if (!call) {

@@ -10,7 +10,6 @@ import {
   OutputChannel,
   Uri,
   ExtensionContext,
-  TerminalLink,
   Position,
   BreakpointsChangeEvent,
   SourceBreakpoint,
@@ -307,7 +306,7 @@ export default class LogtalkTerminal {
         fs.copyFile(logtalkUser + "/settings-sample.lgt", folders[0].fsPath + "/settings.lgt", (err) => {});
         fs.copyFile(logtalkUser + "/tester-sample.lgt", folders[0].fsPath + "/tester.lgt", (err) => {});
         fs.copyFile(logtalkUser + "/tests-sample.lgt", folders[0].fsPath + "/tests.lgt", (err) => {});
-        vscode.commands.executeCommand("vscode.openFolder", folders[0]);
+        commands.executeCommand("vscode.openFolder", folders[0]);
       }
     });
   }

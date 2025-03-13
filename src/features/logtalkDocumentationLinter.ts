@@ -11,10 +11,8 @@ import {
   Disposable,
   ExtensionContext,
   languages,
-  OutputChannel,
   Position,
   Range,
-  Selection,
   TextDocument,
   Uri,
   workspace

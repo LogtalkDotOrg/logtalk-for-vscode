@@ -3,7 +3,6 @@
 import {
   CancellationToken,
   ImplementationProvider,
-  ProviderResult,
   Definition,
   LocationLink,
   Location,

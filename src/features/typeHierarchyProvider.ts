@@ -1,13 +1,9 @@
 "use strict";
 
 import {
-  ProviderResult,
   CancellationToken,
   TypeHierarchyProvider,
   TypeHierarchyItem,
-  CallHierarchyIncomingCall,
-  CallHierarchyOutgoingCall,
-  Location,
   Position,
   TextDocument,
   Uri,

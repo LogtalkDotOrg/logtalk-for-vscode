@@ -4,11 +4,8 @@ import {
   CancellationToken,
   WorkspaceSymbolProvider,
   Location,
-  TextDocument,
   SymbolInformation,
   SymbolKind,
-  Uri,
-  RelativePattern,
   workspace
 } from "vscode";
 

@@ -1,33 +1,15 @@
 "use strict";
 
 import {
-  Terminal,
   window,
   workspace,
   commands,
-  TextDocument,
-  Disposable,
   OutputChannel,
   Uri,
   ExtensionContext,
-  TerminalLink,
-  Position,
-  BreakpointsChangeEvent,
-  SourceBreakpoint,
-  FunctionBreakpoint
 } from "vscode";
 import * as vscode from "vscode";
 import * as path from "path";
-import * as jsesc from "jsesc";
-import * as fs from "fs";
-import LogtalkLinter from "./logtalkLinter";
-import LogtalkTestsReporter from "./logtalkTestsReporter";
-import LogtalkDeadCodeScanner from "./logtalkDeadCodeScanner";
-import LogtalkDocumentationLinter from "./logtalkDocumentationLinter";
-import { LogtalkMetricsCodeLensProvider } from "./metricsCodeLensProvider";
-import { LogtalkTestsCodeLensProvider } from "./testsCodeLensProvider"
-import * as fsp from "fs/promises";
-import * as timers from "timers/promises";
 
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);

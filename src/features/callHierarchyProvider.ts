@@ -7,7 +7,6 @@ import {
   CallHierarchyItem,
   CallHierarchyIncomingCall,
   CallHierarchyOutgoingCall,
-  Location,
   Position,
   TextDocument,
   Uri,
