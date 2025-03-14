@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.37.0]
+
+* Update author information in the license file
+
 ## [0.36.0]
 
 * Improve implementation of the Jupyter commands
