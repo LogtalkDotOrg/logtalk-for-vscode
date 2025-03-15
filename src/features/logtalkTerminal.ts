@@ -32,7 +32,6 @@ import * as timers from "timers/promises";
 export default class LogtalkTerminal {
   private static _context:        ExtensionContext;
   private static _terminal:       Terminal;
-  private static _execArgs:       string[];
   private static _testerExec:     string;
   private static _testerArgs:     string[];
   private static _docletExec:     string;
@@ -66,7 +65,6 @@ export default class LogtalkTerminal {
       vscode.window.showErrorMessage("Configuration error: missing required logtalk.backend setting!");
     }
 
-    LogtalkTerminal._execArgs      =   section.get<string[]>("executable.arguments");
     LogtalkTerminal._testerExec    =   section.get<string>("tester.script");
     LogtalkTerminal._outputChannel =   window.createOutputChannel("Logtalk Testers & Doclets");
     LogtalkTerminal._testerArgs    =   section.get<string[]>("tester.arguments");

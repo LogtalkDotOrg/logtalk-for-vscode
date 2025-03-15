@@ -171,7 +171,7 @@ These commands don't depend on the directory of a file selected by right-clickin
 
 Code navigation features **require** the code to be loaded, typically by using the "Load Project" command or by opening the project loader file and using the "Load File" command from the editor/context menu. Additionally, code must be compiled with the `source_data` flag set to `on` (default) and the `context_switching_calls` set to `allow` (default).
 
-For all code navigation features except "Go to Definition", you can simply right-click in a (predicate or entity) name without first selecting it. See below the section on "VSCode notable usability issues" for an explanation of the exception.
+For all code navigation features except "Go to Definition", you can in alternative simply right-click in a (predicate or entity) name without first selecting it. See below the section on "VSCode notable usability issues" for an explanation of the exception.
 
 #### Go to Declaration
 

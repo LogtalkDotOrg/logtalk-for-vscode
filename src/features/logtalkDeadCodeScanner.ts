@@ -24,7 +24,6 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
   public  diagnosticCollection: DiagnosticCollection;
   public  diagnostics: { [docName: string]: Diagnostic[] } = {};
   public  diagnosticHash = [];
-  private filePathIds: { [id: string]: string } = {};
   private sortedDiagIndex: { [docName: string]: number[] } = {};
   private compilingFileRegex = /%\s\[\scompiling\s(.+)\s\.\.\.\s\]/;
   private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/;
@@ -159,7 +158,6 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
 
     this.loadConfiguration();
 
-    // workspace.onDidOpenTextDocument(this.doPlint, this, subscriptions);
     workspace.onDidCloseTextDocument(
       textDocument => {
         this.diagnosticCollection.delete(textDocument.uri);
