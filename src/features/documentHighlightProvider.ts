@@ -16,7 +16,7 @@ export default class LogtalkDocumentHighlightProvider
     position: Position,
     token: CancellationToken
   ): Thenable<DocumentHighlight[]> | DocumentHighlight[] {
-    let docHilite: DocumentHighlight[] = [];
+    let docHighlight: DocumentHighlight[] = [];
     let wordRange = doc.getWordRangeAtPosition(position);
     if (!wordRange) {
       return;
@@ -30,7 +30,7 @@ export default class LogtalkDocumentHighlightProvider
       let lineTxt = doc.lineAt(line).text;
       let match = re.exec(lineTxt);
       while (match) {
-        docHilite.push(
+        docHighlight.push(
           new DocumentHighlight(
             new Range(line, match["index"], line, match["index"] + symbolLen)
           )
@@ -39,6 +39,6 @@ export default class LogtalkDocumentHighlightProvider
       }
       line++;
     }
-    return docHilite;
+    return docHighlight;
   }
 }
