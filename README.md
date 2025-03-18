@@ -231,6 +231,8 @@ Hover contents is provided for built-in directives, built-in predicates, and bui
 
 The user can configure settings via the VSCode menu `Settings`. Entering `Logtalk` in the input box will show the Logtalk settings. Follows a description of all the settings in this extension with their default values (if any). On Windows, PowerShell 7.3.x or later must also be installed.
 
+Settings are divided between _required_ and _optional_ settings. If you're migrating from an old version of this extension, you may need to delete the old settings (from the `settings.json` file) if you want to use only the defaults provided by the required settings.
+
 ### Required settings
 
 #### Logtalk home and user paths
@@ -248,7 +250,7 @@ No default. Possible values are `b`, `ciao`, `cx`, `eclipse`, `gnu`, `ji`, `sics
 
 ### Optional settings
 
-In most cases, the required settings are enough for full extension functionality. But they assume default installations for Logtalk and the Prolog backends. On Windows, they also assume the default installation of PowerShell 7. When that's not the case, the optional settings listed below allow overriding the defaults that are derived from the required settings.
+In most cases, the required settings are enough for full extension functionality. But they assume default installations for Logtalk and the Prolog backends. On Windows, they also assume the default installation of PowerShell 7. When that's not the case, the optional settings listed below allow **overriding** the defaults that are derived from the required settings.
 
 On Windows, use forward slashes in settings that require paths. Use the `where.exe` command to find the absolute path for the required scripts.
 

@@ -2,6 +2,7 @@
 
 ## [0.37.0]
 
+* Improve readme section on settings
 * Update author information in the license file
 
 ## [0.36.0]
