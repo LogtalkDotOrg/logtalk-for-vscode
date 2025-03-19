@@ -3,6 +3,7 @@
 ## [0.38.0]
 
 * Add source information to diagnostics
+* Improve rejection of spurious find definition queries when the text under the cursor is parsed as a variable
 
 ## [0.37.0]
 
