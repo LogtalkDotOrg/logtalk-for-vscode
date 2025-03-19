@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.38.0]
+
+* Add source information to diagnostics
+
 ## [0.37.0]
 
 * Improve readme section on settings
