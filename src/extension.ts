@@ -6,13 +6,11 @@ import {
   DocumentFilter,
   ExtensionContext,
   RelativePattern,
-  Uri,
   languages,
   workspace,
   debug
 } from "vscode";
 import * as jsesc from "jsesc";
-import * as path from "path";
 
 import { loadEditHelpers } from "./features/editHelpers";
 import { Utils } from "./utils/utils";
