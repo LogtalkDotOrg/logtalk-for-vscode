@@ -3,6 +3,7 @@
 ## [0.39.0]
 
 * Improve rejection of spurious find definition queries when the text under the cursor is parsed as a variable
+* Fix code navigation regression
 
 ## [0.38.0]
 
