@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.39.0]
+
+* Improve rejection of spurious find definition queries when the text under the cursor is parsed as a variable
+
 ## [0.38.0]
 
 * Add source information to diagnostics

@@ -341,6 +341,9 @@ export class Utils {
         arity = parseInt(m[1]);
       }
     }
+    if (name[0].match(/[_A-Z]/)) {
+      return null;
+    }
 //    console.log("call: " + name + "/" + arity);
     return name + "/" + arity;
   }
