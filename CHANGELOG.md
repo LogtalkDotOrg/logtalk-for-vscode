@@ -2,6 +2,7 @@
 
 ## [0.40.0]
 
+* Add default value for the "logtalk.jupytext.path" setting
 * Improve descriptions of the "logtalk.diagrams.arguments" and "logtalk.jupytext.path" settings
 
 ## [0.39.0]

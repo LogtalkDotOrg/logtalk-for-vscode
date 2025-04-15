@@ -478,7 +478,7 @@
                 "logtalk.jupytext.path": {
                     "type": "string",
                     "description": "Absolute path to the jupytext executable. Can also be a Python interpreter call running the jupytext module. Optional.",
-                    "default": "",
+                    "default": "python3 -m jupytext",
                     "order": 17
                 }
             }
