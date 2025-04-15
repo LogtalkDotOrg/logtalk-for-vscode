@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.40.0]
+
+* Improve descriptions of the "logtalk.diagrams.arguments" and "logtalk.jupytext.path" settings
+
 ## [0.39.0]
 
 * Improve rejection of spurious find definition queries when the text under the cursor is parsed as a variable
