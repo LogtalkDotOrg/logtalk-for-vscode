@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.41.0]
+
+* Fix description of the "logtalk.jupytext.path" setting
+
 ## [0.40.0]
 
 * Add default value for the "logtalk.jupytext.path" setting
