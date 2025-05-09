@@ -2,6 +2,7 @@
 
 ## [0.41.0]
 
+* Update the "Create Project" command to account for the new location of sample files in upcoming Logtalk versions
 * Fix description of the "logtalk.jupytext.path" setting
 
 ## [0.40.0]
