@@ -12,6 +12,7 @@ import * as path from "path";
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 import * as semver from 'semver';
+import { getLogger } from "../utils/logger";
 
 const exec = promisify(execCallback);
 
@@ -19,6 +20,7 @@ export default class LogtalkJupyter {
   public static jupytextAvailable: boolean = false;
   private static jupytextPath: string = "";
   private static outputChannel: OutputChannel;
+  private static logger = getLogger();
 
   public static async init(context: ExtensionContext): Promise<void> {
     LogtalkJupyter.outputChannel = window.createOutputChannel("Logtalk Jupytext");
@@ -125,7 +127,7 @@ export default class LogtalkJupyter {
     error: any, 
     showOutputOption: boolean = true
   ): void {
-    console.error(`${message}: ${error}`);
+    LogtalkJupyter.logger.error(`${message}: ${error}`);
     LogtalkJupyter.outputChannel.appendLine(`Command: ${cmd}`);
     LogtalkJupyter.outputChannel.appendLine(`Error: ${error.message || error}`);
     

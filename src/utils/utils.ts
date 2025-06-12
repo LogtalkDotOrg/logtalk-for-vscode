@@ -22,6 +22,7 @@ import * as cp from "child_process";
 import * as jsesc from "jsesc";
 import * as path from "path";
 import * as vscode from "vscode";
+import { getLogger } from "./logger";
 
 export class Utils {
   private static logtalkHome: string;
@@ -32,6 +33,7 @@ export class Utils {
   public static RUNTIMEPATH: string = "logtalk";
   public static RUNTIMEARGS: string[] = [];
   public static REFMANPATH: string;
+  private static logger = getLogger();
 
   constructor() {}
   public static init(context: ExtensionContext) {
@@ -230,7 +232,7 @@ export class Utils {
         i++;
       }
       let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
-      //      console.log("wholePred: " + wholePred);
+      Utils.logger.debug("wholePred: " + wholePred);
       let env;
       if (process.platform === 'win32') {
         env = workspace.getConfiguration("terminal.integrated.env.windows", doc.uri);
@@ -253,7 +255,7 @@ export class Utils {
           [name, arity] = [match[1], parseInt(match[2])];
         }
       } else {
-//        console.log(pp.stderr.toString());
+        Utils.logger.debug(pp.stderr.toString());
       }
     } else {
       let m = text.match(re1);
@@ -277,7 +279,7 @@ export class Utils {
     }
     let arity = 0;
     let name = doc.getText(wordRange);
-//    console.log("name: " + name);
+    Utils.logger.debug("name: " + name);
     let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let re = new RegExp("^(?:" + name_escaped + ")\\(");
     let re1 = new RegExp("^(?:" + name_escaped + ")/[/]?(\\d+)");
@@ -288,9 +290,9 @@ export class Utils {
       .join("")
       .slice(wordRange.start.character)
       .replace(/\s+/g, " ");
-//    console.log("text: " + text);
+    Utils.logger.debug("text: " + text);
     if (re.test(text)) {
-//      console.log("match");
+      Utils.logger.debug("match");
       let i = wordRange.end.character - wordRange.start.character + 2;
       let matched = 1;
       while (matched > 0) {
@@ -307,7 +309,7 @@ export class Utils {
         i++;
       }
       let wholePred = text.slice(0, i);
-//      console.log("wholePred: " + wholePred);
+      Utils.logger.debug("wholePred: " + wholePred);
       let env;
       if (process.platform === 'win32') {
         env = workspace.getConfiguration("terminal.integrated.env.windows", doc.uri);
@@ -325,15 +327,15 @@ export class Utils {
 
       if (pp.status === 0) {
         let out = pp.stdout.toString();
-//        console.log("out: " + out);
+        Utils.logger.debug("out: " + out);
         let match = out.match(/arity=(\d+);name=(.*)/);
         if (match) {
-//          console.log("m1: " + match[1]);
-//          console.log("m2: " + match[2]);
+          Utils.logger.debug("m1: " + match[1]);
+          Utils.logger.debug("m2: " + match[2]);
           [arity, name] = [parseInt(match[1]), match[2]];
         }
       } else {
-//        console.log(pp.stderr.toString());
+        Utils.logger.debug(pp.stderr.toString());
       }
     } else {
       let m = text.match(re1);
@@ -344,7 +346,7 @@ export class Utils {
     if (name[0].match(/[_A-Z]/)) {
       return null;
     }
-//    console.log("call: " + name + "/" + arity);
+    Utils.logger.debug("call: " + name + "/" + arity);
     return name + "/" + arity;
   }
 
@@ -364,7 +366,7 @@ export class Utils {
       return null;
     }
     let fullName = name;
-//    console.log("name: " + name);
+    Utils.logger.debug("name: " + name);
     let name_escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     let re = new RegExp("^(?:" + name_escaped + ")\\(");
     let doctext = doc.getText();
@@ -374,9 +376,9 @@ export class Utils {
       .join("")
       .slice(wordRange.start.character)
       .replace(/\s+/g, " ");
-//    console.log("text: " + text);
+    Utils.logger.debug("text: " + text);
     if (re.test(text)) {
-//      console.log("match");
+      Utils.logger.debug("match");
       let i = wordRange.end.character - wordRange.start.character + 2;
       let matched = 1;
       while (matched > 0) {
@@ -393,7 +395,7 @@ export class Utils {
         i++;
       }
       fullName = jsesc(text.slice(0, i), { quotes: "double" });
-//      console.log("fullName: " + fullName);
+      Utils.logger.debug("fullName: " + fullName);
     }
     return fullName;
   }

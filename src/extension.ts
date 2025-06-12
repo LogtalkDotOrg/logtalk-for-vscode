@@ -8,7 +8,8 @@ import {
   RelativePattern,
   languages,
   workspace,
-  debug
+  debug,
+  window
 } from "vscode";
 import * as jsesc from "jsesc";
 
@@ -33,13 +34,31 @@ import { LogtalkCallHierarchyProvider } from "./features/callHierarchyProvider";
 import { LogtalkTypeHierarchyProvider } from "./features/typeHierarchyProvider";
 import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
+import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
+import { getLogger } from "./utils/logger";
 
 const DEBUG = 1;
+
+function getLogLevelDescription(level: string): string {
+  switch (level) {
+    case 'off': return 'No logging output';
+    case 'error': return 'Only error messages';
+    case 'warn': return 'Error and warning messages';
+    case 'info': return 'Error, warning, and informational messages';
+    case 'debug': return 'All messages including detailed debug information';
+    default: return '';
+  }
+}
 
 export function activate(context: ExtensionContext) {
 
   let subscriptions = context.subscriptions;
-  DEBUG ? console.log('Congratulations, your extension "logtalk-for-vscode" is now active!') : null;
+
+  // Initialize logger early
+  const logger = getLogger();
+  subscriptions.push({ dispose: () => logger.dispose() });
+
+  DEBUG ? logger.debug('Congratulations, your extension "logtalk-for-vscode" is now active!') : null;
 
   const LOGTALK_MODE: DocumentFilter = { language: "logtalk", scheme: "file" };
 
@@ -71,10 +90,97 @@ export function activate(context: ExtensionContext) {
     Utils.openFileAt(uri);
   });
 
-  DEBUG ? console.log('Linters loaded') : null;
+  DEBUG ? logger.debug('Linters loaded') : null;
 
   LogtalkJupyter.init(context);
   Utils.init(context);
+
+  // Initialize chat participant
+  new LogtalkChatParticipant(context);
+
+  // Add logging commands
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.logging.show', () => {
+      logger.show();
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.logging.setLevel', async () => {
+      const levels = ['off', 'error', 'warn', 'info', 'debug'];
+      const currentLevel = logger.getCurrentLevelString();
+
+      const selected = await window.showQuickPick(
+        levels.map(level => ({
+          label: level,
+          description: level === currentLevel ? '(current)' : '',
+          detail: getLogLevelDescription(level)
+        })),
+        {
+          placeHolder: `Select extension logging level (current: ${currentLevel})`,
+          title: 'Logtalk Extension Logging Level'
+        }
+      );
+
+      if (selected) {
+        const config = workspace.getConfiguration('logtalk');
+        await config.update('logging.level', selected.label, true);
+        window.showInformationMessage(`Logtalk extension logging level set to: ${selected.label}`);
+      }
+    })
+  );
+
+  // Add a test command for the documentation cache
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.test.documentation', async () => {
+      try {
+        const { DocumentationCache } = await import('./utils/documentationCache');
+        const cache = DocumentationCache.getInstance(context);
+
+        // Check for version updates first
+        const versionInfo = await cache.checkForVersionUpdate();
+        logger.info('Version check:', versionInfo);
+
+        const docs = await cache.getDocumentation();
+        logger.info(`Documentation loaded: Handbook ${docs.handbook.length} chars, APIs ${docs.apis.length} chars, Version: ${docs.version}, Last updated: ${docs.lastUpdated}`);
+
+        let message = `Logtalk documentation loaded successfully!\nVersion: ${docs.version}`;
+        if (versionInfo.hasUpdate && versionInfo.cachedVersion) {
+          message += `\n(Updated from version ${versionInfo.cachedVersion})`;
+        } else if (!versionInfo.hasUpdate) {
+          message += `\n(Using cached documentation)`;
+        }
+
+        window.showInformationMessage(message);
+      } catch (error) {
+        logger.error('Error testing documentation:', error);
+        window.showErrorMessage(`Error loading documentation: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    })
+  );
+
+  // Add a command to refresh the documentation cache
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refresh.documentation', async () => {
+      try {
+        const { DocumentationCache } = await import('./utils/documentationCache');
+        const cache = DocumentationCache.getInstance(context);
+
+        window.showInformationMessage('Refreshing Logtalk documentation cache...');
+        const docs = await cache.refreshCache();
+        logger.info(`Documentation refreshed: Version ${docs.version}, Last updated: ${docs.lastUpdated}`);
+
+        window.showInformationMessage(`Logtalk documentation cache refreshed successfully!\nVersion: ${docs.version}`);
+      } catch (error) {
+        logger.error('Error refreshing documentation:', error);
+        window.showWarningMessage(
+          `Failed to refresh Logtalk documentation cache. ` +
+          `Please check your internet connection and Logtalk configuration. ` +
+          `Error: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    })
+  );
 
   let logtalkCommands = [
     // workspace commands

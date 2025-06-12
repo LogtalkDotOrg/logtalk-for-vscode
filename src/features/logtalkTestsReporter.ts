@@ -18,6 +18,7 @@ import {
   workspace
 } from "vscode";
 import * as path from "path";
+import { getLogger } from "../utils/logger";
 
 export default class LogtalkTestsReporter implements CodeActionProvider {
 
@@ -29,6 +30,7 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
   private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/;
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
+  private logger = getLogger();
 
   constructor(private context: ExtensionContext) {
     this.loadConfiguration();
@@ -62,10 +64,10 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
     } 
 
     let fileName = path.resolve(match[6]);
-//    console.log(fileName);
+    this.logger.debug(fileName);
     let lineFrom = 0,
         lineTo   = 0;
-//        console.log(match)
+    this.logger.debug("match:", match);
 
     if(match[9]) {
       lineFrom = parseInt(match[9])-1;
@@ -99,7 +101,7 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
 
   public lint(textDocument: TextDocument, message: string) {
     message = message.replace(/ \(in.*cpu\/wall seconds\)/, "");
-//    console.log(message)
+    this.logger.debug(message);
     this.parseIssue(message);
     this.diagnosticCollection.delete(textDocument.uri);
     

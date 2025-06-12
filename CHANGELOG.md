@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.42.0]
+
+* Add Copilot chat participant `@logtalk` for answering questions about the Logtalk programming language
+* Add chat participant `/handbook` slash command to search the Logtalk Handbook documentation
+* Add chat participant `/apis` slash command to search the Logtalk APIs documentation
+* Add chat participant `/examples` slash command to get help with Logtalk code examples and patterns
+* Add intelligent documentation caching system that automatically updates when Logtalk version changes
+* Add RAG (Retrieval-Augmented Generation) integration with VSCode's Language Model API
+* Integrate Context7 MCP server for enhanced examples retrieval in `/examples` slash command
+* Add "Logtalk: Test Documentation Cache" command for testing documentation functionality
+* Add "Logtalk: Refresh Documentation Cache" command for manually refreshing cached documentation
+* Update minimum VSCode version requirement to 1.90.0 (required for Chat API support)
+* Add centralized configurable logging system for extension debugging and troubleshooting
+* Add "logtalk.logging.level" setting with 5 levels: `off`, `error`, `warn`, `info`, `debug` (default: `warn`)
+* Add "Logtalk: Set Extension Logging Level" command for interactive log level configuration
+* Add "Logtalk: Show Extension Log" command to display the extension's output channel
+
 ## [0.41.0]
 
 * Update the "Create Project" command to account for the new location of sample files in upcoming Logtalk versions

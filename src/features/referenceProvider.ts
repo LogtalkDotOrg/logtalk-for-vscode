@@ -14,8 +14,11 @@ import { Utils } from "../utils/utils";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
+import { getLogger } from "../utils/logger";
 
 export class LogtalkReferenceProvider implements ReferenceProvider {
+  private logger = getLogger();
+
   public async provideReferences(
     doc: TextDocument,
     position: Position,
@@ -46,7 +49,7 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
         locations.push(new Location(Uri.file(match[1]), new Position(parseInt(match[2]) - 1, 0)));
       }
     } else {
-      console.log('references not found');
+      this.logger.debug('references not found');
     }
 
     return locations;

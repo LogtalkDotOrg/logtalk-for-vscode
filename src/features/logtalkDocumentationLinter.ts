@@ -18,6 +18,7 @@ import {
   workspace
 } from "vscode";
 import * as path from "path";
+import { getLogger } from "../utils/logger";
 
 export default class LogtalkDocumentationLinter implements CodeActionProvider {
 
@@ -29,6 +30,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
   private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s(below line\s(\d+))/;
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
+  private logger = getLogger();
 
   constructor(private context: ExtensionContext) {
     this.loadConfiguration();
@@ -55,7 +57,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     if (match == null) {
       return null;
     } else {
-//      console.log("match!");
+      this.logger.debug("match!");
     }
 
     let severity: DiagnosticSeverity;
@@ -64,13 +66,13 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     } else {
       severity = DiagnosticSeverity.Error
     }
-//    console.log(severity);
+    this.logger.debug("severity:", severity);
 
     let fileName = path.resolve(match[6]);
-//    console.log(fileName);
+    this.logger.debug(fileName);
     let lineFrom = 0,
         lineTo   = 0;
-//        console.log(match)
+    this.logger.debug("match:", match);
 
     if(match[8]) {
       lineFrom = parseInt(match[8])-1;
