@@ -49,7 +49,6 @@
     },
     "main": "./out/src/extension",
     "activationEvents": [
-        "onLanguage:logtalk",
         "onDebug"
     ],
     "contributes": {
