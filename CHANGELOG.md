@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.44.0]
+
+* Improve automatic indentation support
+
 ## [0.43.0]
 
 * Improve automatic indentation support

@@ -32,18 +32,18 @@ export function loadEditHelpers(subscriptions: Disposable[]) {
           action: { indentAction: IndentAction.Outdent, removeText: 1 }
         },
         {
-          // Disjunctions and if-then-else: keep indentation after ;
-          beforeText: /\s*;\s*.*$/,
+          // Disjunctions and if-then-else: increase indentation after ; if at start
+          beforeText: /^\s*;\s*.*$/,
           action: { indentAction: IndentAction.Indent }
         },
         {
-          // if-then-else: keep indentation after -> if at start
-          beforeText: /\s*->\s*.*$/,
+          // if-then-else: increase indentation after -> if at start
+          beforeText: /^\s*->\s*.*$/,
           action: { indentAction: IndentAction.Indent }
         },
         {
-          // soft-cut: keep indentation after *-> if at start
-          beforeText: /\s*\*->\s*.*$/,
+          // soft-cut: increase indentation after *-> if at start
+          beforeText: /^\s*\*->\s*.*$/,
           action: { indentAction: IndentAction.Indent }
         },
         {
