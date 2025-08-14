@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.43.0]
+
+* Improve automatic indentation support
+
 ## [0.42.0]
 
 * Add Copilot chat participant `@logtalk` for answering questions about the Logtalk programming language
