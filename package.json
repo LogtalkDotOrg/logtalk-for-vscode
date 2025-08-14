@@ -623,7 +623,7 @@
         "compile": "tsc -watch -p ./",
         "test": "tsc ./tests/runTest.ts",
         "vsix:make": "vsce package --baseImagesUrl https://raw.githubusercontent.com/llvm/llvm-project/master/clang-tools-extra/clangd/clients/clangd-vscode/",
-        "vsix:install": "code --install-extension logtalk-for-vscode-0.42.0.vsix"
+        "vsix:install": "code --install-extension logtalk-for-vscode-0.43.0.vsix"
     },
     "devDependencies": {
         "@types/bluebird": "^3.5.38",
