@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.45.0]
+
+* Remove code lens data for a source file when edited
+
 ## [0.44.0]
 
 * Improve automatic indentation support

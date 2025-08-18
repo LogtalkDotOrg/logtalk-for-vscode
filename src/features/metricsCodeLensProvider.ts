@@ -26,8 +26,26 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
       this._onDidChangeCodeLenses.fire();
     });
 
-    workspace.onWillSaveTextDocument((_) => {
+    workspace.onDidChangeTextDocument((e) => {
+      // Remove metrics results only for the edited file
+      const editedFile = path.resolve(e.document.uri.fsPath).split(path.sep).join("/");
+      const dir = path.dirname(e.document.uri.fsPath);
+      const metricsFile = path.join(dir, ".vscode_metrics_results");
+      if (fs.existsSync(metricsFile)) {
+        const content = fs.readFileSync(metricsFile, 'utf8');
+        const lines = content.split('\n');
+        const updatedLines = lines.filter(line => 
+          !line.toLowerCase().startsWith('file:' + editedFile.toLowerCase() + ';'));
+        if (updatedLines.length < lines.length) {
+          if (updatedLines.length > 0) {
+            fs.writeFileSync(metricsFile, updatedLines.join('\n'));
+          } else {
+            fs.unlinkSync(metricsFile);
+          }
+        }
+      }
       LogtalkMetricsCodeLensProvider.outdated = true;
+      this._onDidChangeCodeLenses.fire();
     });
   }
 
@@ -50,7 +68,10 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
         let matches = out.matchAll(regex);
         var match = null;
         for (match of matches) {
-          if (doc.isDirty || LogtalkMetricsCodeLensProvider.outdated) {
+          const showOutdated = (doc.isDirty || LogtalkMetricsCodeLensProvider.outdated) && 
+            fs.existsSync(results) && 
+            fs.readFileSync(results).toString().toLowerCase().includes('file:' + file.toLowerCase() + ';');
+          if (showOutdated) {
             codeLenses.push(
               new CodeLens(
                 new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),

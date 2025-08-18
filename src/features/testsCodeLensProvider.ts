@@ -26,8 +26,26 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
       this._onDidChangeCodeLenses.fire();
     });
 
-    workspace.onWillSaveTextDocument((_) => {
+    workspace.onDidChangeTextDocument((e) => {
+      // Remove test results only for the edited file
+      const editedFile = path.resolve(e.document.uri.fsPath).split(path.sep).join("/");
+      const dir = path.dirname(e.document.uri.fsPath);
+      const testsFile = path.join(dir, ".vscode_test_results");
+      if (fs.existsSync(testsFile)) {
+        const content = fs.readFileSync(testsFile, 'utf8');
+        const lines = content.split('\n');
+        const updatedLines = lines.filter(line => 
+          !line.toLowerCase().startsWith('file:' + editedFile.toLowerCase() + ';'));
+        if (updatedLines.length < lines.length) {
+          if (updatedLines.length > 0) {
+            fs.writeFileSync(testsFile, updatedLines.join('\n'));
+          } else {
+            fs.unlinkSync(testsFile);
+          }
+        }
+      }
       LogtalkTestsCodeLensProvider.outdated = true;
+      this._onDidChangeCodeLenses.fire();
     });
   }
 
@@ -49,10 +67,14 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
         let regex = new RegExp("File:" + file + ";Line:(\\d+);Object:(.*);Test:(.*);Status:(.*)", "ig");
         let matches = out.matchAll(regex);
         var match = null;
-        var outdated = ""
+        var outdated = "";
         var index = -1;
-        if (doc.isDirty || LogtalkTestsCodeLensProvider.outdated) {
-          outdated = " (may be outdated)"
+        // Only show outdated message for files that weren't just edited
+        if ((doc.isDirty || LogtalkTestsCodeLensProvider.outdated) && fs.existsSync(results)) {
+          const content = fs.readFileSync(results).toString();
+          if (content.toLowerCase().includes('file:' + file.toLowerCase() + ';')) {
+            outdated = " (may be outdated)";
+          }
         }
         // individual test results
         for (match of matches) {
