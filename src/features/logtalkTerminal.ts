@@ -121,6 +121,9 @@ export default class LogtalkTerminal {
       }
     }
 
+    // Create initial Logtalk terminal without showing it
+    LogtalkTerminal.createLogtalkTerm();
+
     return (<any>window).onDidCloseTerminal(terminal => {
       for (const key of LogtalkTerminal._context.workspaceState.keys()) {
         LogtalkTerminal._context.workspaceState.update(key, null);
@@ -260,7 +263,7 @@ export default class LogtalkTerminal {
       });
 
       let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
-      LogtalkTerminal.sendString(goals, true);
+      LogtalkTerminal.sendString(goals, false);
 
     } else {
       throw new Error("configuration settings error: logtalk");

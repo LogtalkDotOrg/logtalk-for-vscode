@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.47.0]
+
+* Create a Logtalk terminal when the extension is first actiavated
+
 ## [0.46.0]
 
 * Fix cases where the "Problems" pane would show duplicated diagnostics
