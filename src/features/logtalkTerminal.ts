@@ -348,7 +348,7 @@ export default class LogtalkTerminal {
     }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    LogtalkTerminal.sendString(`vscode::load('${dir}','${loader}').\r`);
+    LogtalkTerminal.sendString(`vscode::load('${dir}','${loader}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -401,7 +401,7 @@ export default class LogtalkTerminal {
     }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    LogtalkTerminal.sendString(`vscode::load('${dir}','${loader}').\r`);
+    LogtalkTerminal.sendString(`vscode::load('${dir}','${loader}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -450,7 +450,7 @@ export default class LogtalkTerminal {
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    LogtalkTerminal.sendString(`vscode::load('${dir}','${file}').\r`);
+    LogtalkTerminal.sendString(`vscode::load('${dir}','${file}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -696,7 +696,7 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     let goals = `vscode::metrics('${dir}').\r`;
-    LogtalkTerminal.sendString(goals);
+    LogtalkTerminal.sendString(goals, true);
     const marker = path.join(dir0, ".vscode_metrics_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });

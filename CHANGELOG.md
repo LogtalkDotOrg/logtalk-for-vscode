@@ -3,6 +3,7 @@
 ## [0.47.0]
 
 * Create a Logtalk terminal when the extension is first actiavated
+* Show the Logtalk terminal also when loading a project, loading a directory, loading a file, and computing metrics
 
 ## [0.46.0]
 
