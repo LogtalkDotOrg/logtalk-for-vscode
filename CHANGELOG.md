@@ -1,8 +1,12 @@
 # Changelog
 
+## [0.48.0]
+
+* Fix goal error when cancelling the creation of a function breakpoint
+
 ## [0.47.0]
 
-* Create a Logtalk terminal when the extension is first actiavated
+* Create a Logtalk terminal when the extension is first activated
 * Show the Logtalk terminal also when loading a project, loading a directory, loading a file, and computing metrics
 
 ## [0.46.0]

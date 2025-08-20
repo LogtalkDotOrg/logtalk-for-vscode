@@ -1153,7 +1153,9 @@ export default class LogtalkTerminal {
         LogtalkTerminal.sendString(`vscode::nospy('${file}', ${line+1}).\r`);
       } else if (breakpoint instanceof FunctionBreakpoint) {
         predicate = breakpoint.functionName;
-        LogtalkTerminal.sendString(`vscode::nospy(${predicate}).\r`);
+        if (predicate != '') {
+          LogtalkTerminal.sendString(`vscode::nospy(${predicate}).\r`);
+        }
       }
     });  
     session.changed.forEach(breakpoint => {
@@ -1176,7 +1178,9 @@ export default class LogtalkTerminal {
           }
         } else if (breakpoint instanceof FunctionBreakpoint) {
           predicate = breakpoint.functionName;
-          LogtalkTerminal.sendString(`vscode::spy(${predicate}).\r`);
+          if (predicate != '') {
+            LogtalkTerminal.sendString(`vscode::spy(${predicate}).\r`);
+          }
         }
       } else {
         if (breakpoint instanceof SourceBreakpoint) {
@@ -1187,7 +1191,9 @@ export default class LogtalkTerminal {
           LogtalkTerminal.sendString(`vscode::nolog('${file}', ${line+1}).\r`);
         } else if (breakpoint instanceof FunctionBreakpoint) {
           predicate = breakpoint.functionName;
-          LogtalkTerminal.sendString(`vscode::nospy(${predicate}).\r`);
+          if (predicate != '') {
+            LogtalkTerminal.sendString(`vscode::nospy(${predicate}).\r`);
+          }
         }
       }
     });  
