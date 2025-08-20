@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.46.0]
+
+* Fix cases where the "Problems" pane would show duplicated diagnostics
+
 ## [0.45.0]
 
 * Remove code lens data for a source file when edited

@@ -45,15 +45,12 @@ export default class LogtalkLinter implements CodeActionProvider {
   }
 
   private parseIssue(issue: string) {
-
     if(this.diagnosticHash.includes(issue)) {
-      return true
-    } else {
-      this.diagnosticHash.push(issue)
+      return;  // Skip duplicate issues
     }
-
+    
     let match = issue.match(this.msgRegex);
-    if (match == null) { return null; }
+    if (match == null) { return; }
 
     let severity: DiagnosticSeverity;
     if(match[0][0] == '*') {
@@ -91,11 +88,9 @@ export default class LogtalkLinter implements CodeActionProvider {
       if (!this.diagnostics[fileName]) {
         this.diagnostics[fileName] = [diag];
       } else {
-        let index = this.diagnostics[fileName].findIndex((element) => (element.message == errMsg) && (element.range.start.line == lineFrom));
-        if (index == -1) {
-          this.diagnostics[fileName].push(diag);
-        }
+        this.diagnostics[fileName].push(diag);
       }
+      this.diagnostics[fileName] = this.removeDuplicateDiagnostics(this.diagnostics[fileName]);
     }
 
   }
@@ -120,12 +115,26 @@ export default class LogtalkLinter implements CodeActionProvider {
   public clear(line: string) {
     let match = line.match(this.compilingFileRegex)
     if (match) {
-      this.diagnosticCollection.delete(Uri.file(match[1]));
-      if (match[1] in this.diagnostics) {
-        this.diagnostics[match[1]] = [];
-        this.diagnosticHash = [];
+      const filePath = path.resolve(match[1]);
+      this.diagnosticCollection.delete(Uri.file(filePath));
+      if (filePath in this.diagnostics) {
+        this.diagnostics[filePath] = [];
       }
+      // Clear the diagnostic hash as we're starting a new compilation
+      this.diagnosticHash = [];
     }
+  }
+
+  private removeDuplicateDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
+    const seen = new Set<string>();
+    return diagnostics.filter(diag => {
+      const key = `${diag.range.start.line},${diag.range.start.character},${diag.range.end.line},${diag.range.end.character},${diag.message},${diag.severity}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }
 
   private loadConfiguration(): void {
@@ -157,6 +166,21 @@ export default class LogtalkLinter implements CodeActionProvider {
         }
       },
       this,
+      subscriptions
+    );
+
+    workspace.onDidCloseTextDocument(
+      textDocument => {
+        // Only delete diagnostics if the document was modified but not saved
+        if (textDocument.isDirty) {
+          this.diagnosticCollection.delete(textDocument.uri);
+          const filePath = textDocument.uri.fsPath;
+          if (filePath in this.diagnostics) {
+            this.diagnostics[filePath] = [];
+          }
+        }
+      },
+      null,
       subscriptions
     );
 

@@ -48,13 +48,13 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
 
   private parseIssue(issue: string) {
     if(this.diagnosticHash.includes(issue)) {
-      return true
-    } else {
-      this.diagnosticHash.push(issue)
+      return;  // Skip duplicate issues
     }
-
+    
     let match = issue.match(this.msgRegex)
-    if (match == null) { return null; }
+    if (match == null) { return; }
+    
+    this.diagnosticHash.push(issue);
 
     let severity: DiagnosticSeverity;
     if(match[0][0] == '*') {
@@ -102,10 +102,18 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
   public lint(textDocument: TextDocument, message: string) {
     message = message.replace(/ \(in.*cpu\/wall seconds\)/, "");
     this.logger.debug(message);
-    this.parseIssue(message);
-    this.diagnosticCollection.delete(textDocument.uri);
     
+    this.parseIssue(message);
+    
+    // Update the diagnostics collection with all accumulated diagnostics
     for (let doc in this.diagnostics) {
+      if (this.diagnostics[doc].length === 0) {
+        continue;
+      }
+      
+      // Remove any duplicate diagnostics within the same file
+      this.diagnostics[doc] = this.removeDuplicateDiagnostics(this.diagnostics[doc]);
+      
       let index = this.diagnostics[doc]
         .map((diag, i) => {
           return [diag.range.start.line, i];
@@ -123,12 +131,26 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
   public clear(line: string) {
     let match = line.match(this.compilingFileRegex)
     if (match) {
-      this.diagnosticCollection.delete(Uri.file(match[1]));
-      if (match[1] in this.diagnostics) {
-        this.diagnostics[match[1]] = [];
-        this.diagnosticHash = [];
+      const filePath = path.resolve(match[1]);
+      this.diagnosticCollection.delete(Uri.file(filePath));
+      if (filePath in this.diagnostics) {
+        this.diagnostics[filePath] = [];
       }
+      // Clear the diagnostic hash as we're starting a new compilation
+      this.diagnosticHash = [];
     }
+  }
+
+  private removeDuplicateDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
+    const seen = new Set<string>();
+    return diagnostics.filter(diag => {
+      const key = `${diag.range.start.line},${diag.range.start.character},${diag.range.end.line},${diag.range.end.character},${diag.message},${diag.severity}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }
 
   private loadConfiguration(): void {
@@ -167,7 +189,14 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
 
     workspace.onDidCloseTextDocument(
       textDocument => {
-        this.diagnosticCollection.delete(textDocument.uri);
+        // Only delete diagnostics if the document was modified but not saved
+        if (textDocument.isDirty) {
+          this.diagnosticCollection.delete(textDocument.uri);
+          const filePath = textDocument.uri.fsPath;
+          if (filePath in this.diagnostics) {
+            this.diagnostics[filePath] = [];
+          }
+        }
       },
       null,
       subscriptions
