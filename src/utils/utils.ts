@@ -165,7 +165,7 @@ export class Utils {
     let doctext = doc.getText(wordRange);
     let match = doctext.match(/(\w+)[/](\d+)/);
     let name: string = match[1];
-    if (name[0].match(/[_A-Z]/)) {
+    if (name[0].match(/[_A-Z0-9]/)) {
       return null;
     }
     let arity: number = parseInt(match[2]);
@@ -186,7 +186,7 @@ export class Utils {
     let doctext = doc.getText(wordRange);
     let match = doctext.match(/(\w+)[/][/](\d+)/);
     let name: string = match[1];
-    if (name[0].match(/[_A-Z]/)) {
+    if (name[0].match(/[_A-Z0-9]/)) {
       return null;
     }
     let arity: number = parseInt(match[2]);
@@ -203,7 +203,7 @@ export class Utils {
     }
     let arity = 0;
     let name = doc.getText(wordRange);
-    if (name[0].match(/[_A-Z]/)) {
+    if (name[0].match(/[_A-Z0-9]/)) {
       return null;
     }
     let re = new RegExp("^" + name + "\\(");
@@ -343,7 +343,7 @@ export class Utils {
         arity = parseInt(m[1]);
       }
     }
-    if (name[0].match(/[_A-Z]/)) {
+    if (name[0].match(/[_A-Z0-9]/)) {
       return null;
     }
     Utils.logger.debug("call: " + name + "/" + arity);
@@ -362,7 +362,7 @@ export class Utils {
       return null;
     }
     let name = doc.getText(wordRange);
-    if (name[0].match(/[_A-Z]/)) {
+    if (name[0].match(/[_A-Z0-9]/)) {
       return null;
     }
     let fullName = name;
