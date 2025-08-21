@@ -21,6 +21,9 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     position: Position,
     token: CancellationToken
   ): Promise<Location | null> {
+    if (window.activeTextEditor?.document === doc && window.activeTextEditor.selection.active.line !== position.line) {
+      return null;
+    }
     const lineText = doc.lineAt(position.line).text.trim();
     if (lineText.startsWith("%")) {
       return null;
@@ -30,9 +33,7 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     if (!call) {
       return null;
     }
-
-    const text = window.activeTextEditor.document.getText(window.activeTextEditor.selection);
-    if (text.length === 0) {
+    if (token.isCancellationRequested) {
       return null;
     }
 
