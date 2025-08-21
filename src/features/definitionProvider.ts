@@ -21,6 +21,10 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     position: Position,
     token: CancellationToken
   ): Promise<Location | null> {
+    const lineText = doc.lineAt(position.line).text.trim();
+    if (lineText.startsWith("%")) {
+      return null;
+    }
     let location: Location = null;
     let call = Utils.getCallUnderCursor(doc, position);
     if (!call) {
