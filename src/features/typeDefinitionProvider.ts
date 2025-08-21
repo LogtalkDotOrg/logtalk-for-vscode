@@ -29,7 +29,7 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
 
     await LogtalkTerminal.getTypeDefinition(doc, position, entity);
 
-    const dir = path.dirname(doc.uri.fsPath);
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const tdef = path.join(dir, ".vscode_type_definition");
 
     if (fs.existsSync(tdef)) {

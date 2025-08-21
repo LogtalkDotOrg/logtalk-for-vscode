@@ -948,9 +948,10 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
-    let goals = `vscode::find_declaration('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_declaration('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".vscode_declaration_done");
+    const marker = path.join(wdir, ".vscode_declaration_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -961,9 +962,10 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
-    let goals = `vscode::find_definition('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_definition('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".vscode_definition_done");
+    const marker = path.join(wdir, ".vscode_definition_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -974,9 +976,10 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
-    let goals = `vscode::find_type_definition('${dir}', ${entity}, '${file}', ${position.line+1}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_type_definition('${wdir}', ${entity}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".vscode_type_definition_done");
+    const marker = path.join(wdir, ".vscode_type_definition_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -987,9 +990,10 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
-    let goals = `vscode::find_references('${dir}', ${call}, '${file}', ${position.line+1}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_references('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".vscode_references_done");
+    const marker = path.join(wdir, ".vscode_references_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -1000,9 +1004,10 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
-    let goals = `vscode::find_implementations('${dir}', ${predicate}, '${file}', ${position.line+1}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_implementations('${wdir}', ${predicate}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir0, ".vscode_implementations_done");
+    const marker = path.join(wdir, ".vscode_implementations_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -1012,9 +1017,10 @@ export default class LogtalkTerminal {
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const fileSlash = path.resolve(file).split(path.sep).join("/");
-    let goals = `vscode::find_callers('${dir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_callers('${wdir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir, ".vscode_callers_done");
+    const marker = path.join(wdir, ".vscode_callers_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -1024,9 +1030,10 @@ export default class LogtalkTerminal {
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const fileSlash = path.resolve(file).split(path.sep).join("/");
-    let goals = `vscode::find_callees('${dir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_callees('${wdir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir, ".vscode_callees_done");
+    const marker = path.join(wdir, ".vscode_callees_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -1035,9 +1042,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    let goals = `vscode::find_ancestors('${dir}', ${entity}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_ancestors('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir, ".vscode_ancestors_done");
+    const marker = path.join(wdir, ".vscode_ancestors_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -1046,9 +1054,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    let goals = `vscode::find_descendants('${dir}', ${entity}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_descendants('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir, ".vscode_descendants_done");
+    const marker = path.join(wdir, ".vscode_descendants_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }
@@ -1057,12 +1066,13 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    let goals = `vscode::find_entity_type('${dir}', ${entity}).\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_entity_type('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir, ".vscode_type_done");
+    const marker = path.join(wdir, ".vscode_type_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    const result = path.join(dir, ".vscode_type");
+    const result = path.join(wdir, ".vscode_type");
     let type = fs.readFileSync(result).toString();
     await fsp.rm(result, { force: true });
     return type;
@@ -1077,12 +1087,13 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir0);
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const file: string = path.resolve(uri.fsPath).split(path.sep).join("/");
-    let goals = `vscode::find_parent_file('${dir}', '${file}').\r`;
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    let goals = `vscode::find_parent_file('${wdir}', '${file}').\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(dir, ".vscode_find_parent_done");
+    const marker = path.join(wdir, ".vscode_find_parent_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
-    const result = path.join(dir, ".vscode_find_parent");
+    const result = path.join(wdir, ".vscode_find_parent");
     let loader = fs.readFileSync(result).toString();
     await fsp.rm(result, { force: true });
     workspace.openTextDocument(loader).then(doc => {
@@ -1280,6 +1291,10 @@ export default class LogtalkTerminal {
       await timers.setTimeout(delay);
     }
   };
+
+  public static getFirstWorkspaceFolder(): string {
+    return vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+  }
 
   private static getWorkspaceFolder(uri: Uri): string {
     return workspace.workspaceFolders

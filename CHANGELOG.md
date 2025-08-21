@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.49.0]
+
+* Fix possible file write permission errors when using the code navigation features
+
 ## [0.48.0]
 
 * Fix goal error when cancelling the creation of a function breakpoint

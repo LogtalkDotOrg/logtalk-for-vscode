@@ -37,7 +37,7 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
 
     await LogtalkTerminal.getReferences(doc, position, resource);
 
-    const dir = path.dirname(doc.uri.fsPath);
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const refs = path.join(dir, ".vscode_references");
 
     if (fs.existsSync(refs)) {

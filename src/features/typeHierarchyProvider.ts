@@ -50,7 +50,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
 
     await LogtalkTerminal.getAncestors(file, entity);
 
-    const dir = path.dirname(file);
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const refs = path.join(dir, ".vscode_ancestors");
 
     if (fs.existsSync(refs)) {
@@ -90,7 +90,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
 
     await LogtalkTerminal.getDescendants(file, entity);
 
-    const dir = path.dirname(file);
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const refs = path.join(dir, ".vscode_descendants");
 
     if (fs.existsSync(refs)) {

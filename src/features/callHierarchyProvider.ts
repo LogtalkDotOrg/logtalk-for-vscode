@@ -52,7 +52,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
 
     await LogtalkTerminal.getCallers(file, position, predicate);
 
-    const dir = path.dirname(file);
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const refs = path.join(dir, ".vscode_callers");
 
     if (fs.existsSync(refs)) {
@@ -94,7 +94,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
 
     await LogtalkTerminal.getCallees(file, position, predicate);
 
-    const dir = path.dirname(file);
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const refs = path.join(dir, ".vscode_callees");
 
     if (fs.existsSync(refs)) {

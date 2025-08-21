@@ -34,7 +34,7 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
 
     await LogtalkTerminal.getDefinition(doc, position, call);
 
-    const dir = path.dirname(doc.uri.fsPath);
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const def = path.join(dir, ".vscode_definition");
 
     if (fs.existsSync(def)) {

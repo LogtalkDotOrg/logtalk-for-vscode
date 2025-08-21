@@ -37,7 +37,7 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
 
     await LogtalkTerminal.getImplementations(doc, position, resource);
 
-    const dir = path.dirname(doc.uri.fsPath);
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const imps = path.join(dir, ".vscode_implementations");
 
     if (fs.existsSync(imps)) {
