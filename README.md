@@ -183,8 +183,6 @@ These commands are only available from the command palette. They are meant for h
 
 Code navigation features **require** the code to be loaded, typically by using the "Load Project" command or by opening the project loader file and using the "Load File" command from the editor/context menu. Additionally, code must be compiled with the `source_data` flag set to `on` (default) and the `context_switching_calls` set to `allow` (default).
 
-For all code navigation features except "Go to Definition", you can in alternative simply right-click in a (predicate or entity) name without first selecting it. See below the section on "VSCode notable usability issues" for an explanation of the exception.
-
 #### Go to Declaration
 
 Right-click on a predicate name and select the "Go to Declaration" menu or context menu item to go to the predicate scope directive.
