@@ -1,7 +1,9 @@
 # Changelog
 
-## [0.49.0]
+## [0.51.0]
 
+* Remove workaround of requiring selecting a predicate or entity name to enable the "Got to Definition" command
+* Filter accidental code navigation calls with invalid predicate or entity indicators
 * Fix possible file write permission errors when using the code navigation features
 
 ## [0.48.0]
