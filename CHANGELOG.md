@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.52.0]
+
+* Improve readme section on requirements
+
 ## [0.51.0]
 
 * Remove workaround of requiring selecting a predicate or entity name to enable the "Got to Definition" command
