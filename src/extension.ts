@@ -9,7 +9,10 @@ import {
   languages,
   workspace,
   debug,
-  window
+  window,
+  SourceBreakpoint,
+  FunctionBreakpoint,
+  Breakpoint
 } from "vscode";
 import * as jsesc from "jsesc";
 
@@ -182,7 +185,50 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  // Track Logtalk debugging state
+  let logtalkDebuggingEnabled = true;
+
   let logtalkCommands = [
+    // debugging commands
+    { command: "logtalk.toggleDebugging", callback: () => {
+      logtalkDebuggingEnabled = !logtalkDebuggingEnabled;
+      
+      // Update all breakpoints through VS Code's API
+      const allBreakpoints = debug.breakpoints;
+      debug.removeBreakpoints(allBreakpoints);
+      
+      // Re-add breakpoints with new enabled state
+      const updatedBreakpoints = allBreakpoints.map(bp => {
+        if (bp instanceof SourceBreakpoint) {
+          return new SourceBreakpoint(
+            bp.location,
+            logtalkDebuggingEnabled,
+            bp.condition,
+            bp.hitCondition,
+            bp.logMessage
+          );
+        } else if (bp instanceof FunctionBreakpoint) {
+          return new FunctionBreakpoint(
+            bp.functionName,
+            logtalkDebuggingEnabled,
+            bp.condition,
+            bp.hitCondition,
+            bp.logMessage
+          );
+        }
+        return bp;
+      });
+      debug.addBreakpoints(updatedBreakpoints);
+
+      // Send appropriate Logtalk command
+      if (logtalkDebuggingEnabled) {
+        LogtalkTerminal.sendString('vscode::debug.\r');
+        commands.executeCommand('setContext', 'logtalk.debuggingEnabled', true);
+      } else {
+        LogtalkTerminal.sendString('vscode::nodebug.\r');
+        commands.executeCommand('setContext', 'logtalk.debuggingEnabled', false);
+      }
+    }},
     // workspace commands
     { command: "logtalk.create.project",          callback: ()   => LogtalkTerminal.createProject()},
     { command: "logtalk.load.project",            callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
@@ -250,12 +296,19 @@ export function activate(context: ExtensionContext) {
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#test' };
 	}));
 
+  // Listen for breakpoint changes
+  // Watch for breakpoint changes
   context.subscriptions.push(
-    debug.onDidChangeBreakpoints(
-      session => {
-        LogtalkTerminal.processBreakpoints(session);
-      }
-  ));
+    debug.onDidChangeBreakpoints(session => {
+      LogtalkTerminal.processBreakpoints(session);
+    })
+  );
+
+  // Track if debugging is currently enabled
+  let debuggingEnabled = true;
+
+  // If you need to listen for debug adapter events, use the debug API or implement a custom mechanism.
+  // The following block is removed because workspace.onDidReceiveMessage does not exist.
 
   context.subscriptions.push(
     languages.registerDocumentHighlightProvider(LOGTALK_MODE, new LogtalkDocumentHighlightProvider())

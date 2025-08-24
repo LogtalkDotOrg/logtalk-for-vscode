@@ -2,6 +2,7 @@
 
 ## [0.52.0]
 
+* Add support for toggling debugging using a Logtalk icon in the top-right corner
 * Improve readme section on requirements
 
 ## [0.51.0]

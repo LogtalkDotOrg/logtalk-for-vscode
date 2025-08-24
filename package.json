@@ -156,6 +156,16 @@
                 "title": "Logtalk: Sync paired Notebook Representations"
             },
             {
+                "command": "logtalk.toggleDebugging",
+                "title": "Logtalk: Toggle Debugging",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-light.svg",
+                    "dark": "images/debug-dark.svg"
+                },
+                "description": "Enable or disable Logtalk's debugging features. When enabled, breakpoints are active and debugging commands like spy/1 and debug/0 take effect. When disabled, breakpoints are inactive and nodebug/0 is in effect."
+            },
+            {
                 "command": "logtalk.create.project",
                 "title": "Logtalk: Create Project"
             },
@@ -218,6 +228,13 @@
         ],
         "keybindings": [],
         "menus": {
+            "editor/title": [
+                {
+                    "when": "editorLangId == logtalk",
+                    "command": "logtalk.toggleDebugging",
+                    "group": "navigation"
+                }
+            ],
             "editor/context": [
                 {
                     "submenu": "makesubmenu",

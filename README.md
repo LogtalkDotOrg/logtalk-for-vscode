@@ -231,7 +231,7 @@ Spy points, log points, and conditional breakpoints can be added and removed usi
 
 Although VSCode supports it, a breakpoint cannot be a combination of log point, conditional breakpoint, and hit count breakpoint. If you edit a breakpoint, you must keep its singular type.
 
-Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints".
+Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints". Use the Logtalk icon in the top-right corner to toggle debugging with affecting the defined breakpoints (equivalent to the `debugger` messages `debug/0` and `nodebug/0`).
 
 ### Hover contents
 
@@ -420,13 +420,13 @@ If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated
 
 ### VSCode notable usability issues
 
-VSCode provides a "Toggle Activate Breakpoints" button in the "Run and Debug" pane but doesn't generate an event that can be handled by extensions.
+VSCode provides a "Toggle Activate Breakpoints" button in the "Run and Debug" pane but doesn't generate an event that can be handled by extensions. Use instead the Logtalk icon in the top-right corner to toggle debugging.
 
 VSCode doesn't support disabling menu items that are not supported by language extensions (e.g., the "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item).
 
 When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
 
-VSCode triggers the "Go to Definition" computations if the cursor happens to be in the middle of some text when pressing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow disabling this "feature" or using the command or control keys as a keyboard shortcut.
+VSCode triggers the "Go to Definition" computations if the cursor happens to be in the middle of some text when pressing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow disabling this "feature". This extension implements mitigation measures to avoid most accidental "Go to Definition" computations.
 
 ## Development
 
