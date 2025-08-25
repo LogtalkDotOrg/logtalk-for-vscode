@@ -227,11 +227,17 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is shown in the active editor window.
 
-Spy points, log points, and conditional breakpoints can be added and removed using the "Run" menu breakpoint items. Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator) or as context spy points by entering a `(Sender, This, Self, Goal)` tuple. Inline breakpoints are interpreted as line number spy points (note that they can only be set for clause heads). VSCode hit count breakpoints are interpreted as clause head successful unification count expressions. VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item is not supported (as VSCode doesn't currently make available the necessary data). But triggered breakpoints can be set as conditional breakpoints where the condition is a `Entity-Line` term. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. See the documentation of the `debugger` tool for details.
+Spy points, log points, and conditional breakpoints can be added and removed using the "Run" menu breakpoint items. Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator) or as context spy points by entering a `(Sender, This, Self, Goal)` tuple. Inline breakpoints are interpreted as line number spy points (note that they can only be set for clause heads). VSCode hit count breakpoints are interpreted as clause head successful unification count expressions. VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item is not supported (as VSCode doesn't make available the data to extensions). But triggered breakpoints can still be set as conditional breakpoints where the condition is a `Entity-Line` term. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. See the documentation of the `debugger` tool for details.
 
 Although VSCode supports it, a breakpoint cannot be a combination of log point, conditional breakpoint, and hit count breakpoint. If you edit a breakpoint, you must keep its singular type.
 
-Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints". Use the Logtalk icon in the top-right corner to toggle debugging with affecting the defined breakpoints (equivalent to the `debugger` messages `debug/0` and `nodebug/0`).
+Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints". Although VSCode provides a "Toggle Activate Breakpoints" button in the "Run and Debug" pane, pressing this button doesn't generate an event that can be handled by extensions. Use instead the Logtalk icon in the top-right corner to toggle debugging without affecting the defined breakpoints (equivalent to the `debugger` messages `debug/0` and `nodebug/0`).
+
+VSCode usability issues that affect debugging support:
+
+- VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item doesn't make the data available to language extensions.
+- VSCode doesn't support disabling menu items that are not supported by language extensions.
+- When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
 
 ### Hover contents
 
@@ -417,14 +423,6 @@ On Windows systems, the file paths on the "PROBLEMS" pane may not be relative to
 On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues.
 
 If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated context menu items even after uninstalling it. If that happens, delete any extension leftovers in the `%USERPROFILE%\.vscode\extensions` (for Windows) or `~/.vscode/extensions` (for Linux and macOS) directory.
-
-### VSCode notable usability issues
-
-VSCode provides a "Toggle Activate Breakpoints" button in the "Run and Debug" pane but doesn't generate an event that can be handled by extensions. Use instead the Logtalk icon in the top-right corner to toggle debugging.
-
-VSCode doesn't support disabling menu items that are not supported by language extensions (e.g., the "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item).
-
-When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
 
 VSCode triggers the "Go to Definition" computations if the cursor happens to be in the middle of some text when pressing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow disabling this "feature". This extension implements mitigation measures to avoid most accidental "Go to Definition" computations.
 
