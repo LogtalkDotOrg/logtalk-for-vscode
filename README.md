@@ -225,17 +225,20 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Debugging support
 
-When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is shown in the active editor window.
+When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is shown in the active editor window. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. See the documentation of the `debugger` tool for details.
 
-Spy points, log points, and conditional breakpoints can be added and removed using the "Run" menu breakpoint items. Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator) or as context spy points by entering a `(Sender, This, Self, Goal)` tuple. Inline breakpoints are interpreted as line number spy points (note that they can only be set for clause heads). VSCode hit count breakpoints are interpreted as clause head successful unification count expressions. VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item is not supported (as VSCode doesn't make available the data to extensions). But triggered breakpoints can still be set as conditional breakpoints where the condition is a `Entity-Line` term. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. See the documentation of the `debugger` tool for details.
+This extension provides a button with a Logtalk icon at the top-right corner to toggle debugging without affecting the defined breakpoints (equivalent to the `debugger` messages `debug/0` and `nodebug/0`).
 
-Although VSCode supports it, a breakpoint cannot be a combination of log point, conditional breakpoint, and hit count breakpoint. If you edit a breakpoint, you must keep its singular type.
+Breakpoints and log points can be added and removed using the "Run" menu breakpoint items. Clicking at the left of a line number in an editor window, in the same line as a clause head, creates a clause breakpoint represented by a red dot. Control-clicking in this red dot allows the breakpoint to be removed, edited, or disabled. But, although VSCode supports it, a Logtalk breakpoint cannot be a combination of log point and different types of breakpoints. If you edit a breakpoint, you must keep its singular type.
 
-Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints". Although VSCode provides a "Toggle Activate Breakpoints" button in the "Run and Debug" pane, pressing this button doesn't generate an event that can be handled by extensions. Use instead the Logtalk icon in the top-right corner to toggle debugging without affecting the defined breakpoints (equivalent to the `debugger` messages `debug/0` and `nodebug/0`).
+Function breakpoints are interpreted as predicate (or non-terminal) spy points by entering a predicate indicator (or a non-terminal indicator) or as context spy points by entering a `(Sender, This, Self, Goal)` tuple. Inline breakpoints are interpreted as clause breakpoints (note that they can only be set for clause heads). VSCode hit count breakpoints are interpreted as clause head successful unification count expressions. VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item is not supported (as VSCode doesn't make available the data to extensions). But triggered breakpoints can still be set by creating conditional breakpoints where the expression is a `Entity-Line` term. For details on hit count expressions and conditional expressions, see the Logtalk Handbook section on debugging.
+
+Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints".
 
 VSCode usability issues that affect debugging support:
 
-- VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item doesn't make the data available to language extensions.
+- VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item doesn't make the data available to language extensions. See above for the workaround.
+- VScode "Toggle Activate Breakpoints" button in the "Run and Debug" pane doesn't generate an event that can be handled by extensions. Use instead the Logtalk icon in the top-right corner to toggle debugging.
 - VSCode doesn't support disabling menu items that are not supported by language extensions.
 - When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
 
@@ -248,6 +251,7 @@ Hover contents is provided for built-in directives, built-in predicates, and bui
 **Experimental.** The `@logtalk` chat participant provides intelligent assistance for Logtalk programming questions using VSCode's integrated Chat view. It combines documentation search with LLM-powered responses to help you learn and use Logtalk effectively. It uses the currently selected language model from the Copilot chat interface. It works best with recent models. Be aware that LLMs can and will generate incorrect or nonsensical answers.
 
 **Requirements:**
+
 - VSCode 1.90.0 or later
 - GitHub Copilot extension installed and authenticated
 - Configured Logtalk installation (for documentation access)
@@ -411,7 +415,7 @@ Enables displaying inline test results (including code coverage when collected) 
 #### Jupytext path
 
     "logtalk.jupytext.path": "python3 -m jupytext"
-	
+
 Absolute path to the `jupytext` command if not available from the system path. Alternatively, it can also be a call to a Python interpreter run of the `jupytext` module (the default value). Jupytext 1.16.7 or later version required (available from [PyPI](https://pypi.org/project/jupytext/) and [Conda](https://anaconda.org/conda-forge/jupytext)).
 
 ## Known Issues
