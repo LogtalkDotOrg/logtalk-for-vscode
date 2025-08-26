@@ -359,6 +359,13 @@ export default class LogtalkTerminal {
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
+          // Extract the directory from the compilation message
+          const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
+          if (match) {
+            const filePath = match[1];
+            const compiledDir = path.dirname(filePath);
+            LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
+          }
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
@@ -368,7 +375,6 @@ export default class LogtalkTerminal {
         }
       }
     }
-    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Project loading completed.");
   }
 
@@ -412,6 +418,13 @@ export default class LogtalkTerminal {
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
+          // Extract the directory from the compilation message
+          const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
+          if (match) {
+            const filePath = match[1];
+            const compiledDir = path.dirname(filePath);
+            LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
+          }
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
@@ -421,7 +434,6 @@ export default class LogtalkTerminal {
         }
       }
     }
-    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Directory loading completed.");
   }
 
@@ -461,6 +473,13 @@ export default class LogtalkTerminal {
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
           linter.clear(line);
+          // Extract the directory from the compilation message
+          const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
+          if (match) {
+            const filePath = match[1];
+            const compiledDir = path.dirname(filePath);
+            LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
+          }
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
@@ -470,7 +489,6 @@ export default class LogtalkTerminal {
         }
       }
     }
-    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("File loading completed.");
   }
 
