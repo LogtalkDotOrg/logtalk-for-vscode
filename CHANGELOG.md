@@ -5,6 +5,7 @@
 * Add support for toggling debugging using a Logtalk icon in the top-right corner
 * Improve readme section on requirements
 * Fix spurious "No code loaded from selected directory as required by command." warning for the Logtalk built-in entities directory
+* Fix cases where the number of arguments in a predicate call or entity identifier would be miscounted
 
 ## [0.51.0]
 

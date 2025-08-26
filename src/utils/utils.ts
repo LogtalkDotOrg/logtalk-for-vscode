@@ -217,17 +217,12 @@ export class Utils {
       .replace(/\s+/g, " ");
     if (re.test(text)) {
       let i = text.indexOf("(") + 1;
-      let matched = 1;
-      while (matched > 0) {
+      let parenDepth = 1;
+      while (parenDepth > 0 && i < text.length) {
         if (text.charAt(i) === "(") {
-          matched++;
-          i++;
-          continue;
-        }
-        if (text.charAt(i) === ")") {
-          matched--;
-          i++;
-          continue;
+          parenDepth++;
+        } else if (text.charAt(i) === ")") {
+          parenDepth--;
         }
         i++;
       }
@@ -293,18 +288,14 @@ export class Utils {
     Utils.logger.debug("text: " + text);
     if (re.test(text)) {
       Utils.logger.debug("match");
-      let i = wordRange.end.character - wordRange.start.character + 2;
-      let matched = 1;
-      while (matched > 0) {
+      let i = wordRange.end.character - wordRange.start.character + 1;
+      let parenDepth = 1;
+      // Just find the end of the term by matching parentheses
+      while (parenDepth > 0 && i < text.length) {
         if (text.charAt(i) === "(") {
-          matched++;
-          i++;
-          continue;
-        }
-        if (text.charAt(i) === ")") {
-          matched--;
-          i++;
-          continue;
+          parenDepth++;
+        } else if (text.charAt(i) === ")") {
+          parenDepth--;
         }
         i++;
       }
