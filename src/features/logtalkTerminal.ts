@@ -1305,16 +1305,23 @@ export default class LogtalkTerminal {
   public static recordCodeLoadedFromDirectory(
     dir: string
   ): void {
-    LogtalkTerminal._context.workspaceState.update(dir.toLowerCase(), true);
+    const normalizedDir = fs.realpathSync(dir).split(path.sep).join("/").toLowerCase();
+    LogtalkTerminal._context.workspaceState.update(normalizedDir, true);
   }
 
   public static checkCodeLoadedFromDirectory(
     dir: string
   ): void {
-    if (!LogtalkTerminal._context.workspaceState.get(dir.toLowerCase(), false)) {
+    let section = workspace.getConfiguration("logtalk");
+    let logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
+    const normalizedDir = fs.realpathSync(dir).split(path.sep).join("/").toLowerCase();
+    const normalizedCore = fs.realpathSync(path.join(logtalkHome, "core")).split(path.sep).join("/").toLowerCase();
+    console.log("normalizedDir: " + normalizedDir);
+    console.log("normalizedCore: " + normalizedCore);
+    if (normalizedDir !== normalizedCore && !LogtalkTerminal._context.workspaceState.get(normalizedDir, false)) {
       let found: boolean = false; 
       for (const key of LogtalkTerminal._context.workspaceState.keys()) {
-        if (LogtalkTerminal._context.workspaceState.get(key, true) && dir.toLowerCase().startsWith(key)) {
+        if (LogtalkTerminal._context.workspaceState.get(key, true) && normalizedDir.startsWith(key)) {
           found = true;
         }
       }
