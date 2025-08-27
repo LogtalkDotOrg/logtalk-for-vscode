@@ -11,8 +11,7 @@ import {
   debug,
   window,
   SourceBreakpoint,
-  FunctionBreakpoint,
-  Breakpoint
+  FunctionBreakpoint
 } from "vscode";
 import * as jsesc from "jsesc";
 
