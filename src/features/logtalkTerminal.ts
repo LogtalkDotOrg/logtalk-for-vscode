@@ -1311,7 +1311,7 @@ export default class LogtalkTerminal {
   };
 
   public static getFirstWorkspaceFolder(): string {
-    return vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+    return path.resolve(vscode.workspace.workspaceFolders?.[0].uri.fsPath).split(path.sep).join("/");
   }
 
   private static getWorkspaceFolder(uri: Uri): string {
