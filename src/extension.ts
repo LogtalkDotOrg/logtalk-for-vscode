@@ -188,46 +188,62 @@ export function activate(context: ExtensionContext) {
   // Track Logtalk debugging state
   let logtalkDebuggingEnabled = true;
 
+  // Function to update breakpoint states
+  function updateBreakpointStates(enabled: boolean) {
+    // Update all breakpoints through VS Code's API
+    const allBreakpoints = debug.breakpoints;
+    debug.removeBreakpoints(allBreakpoints);
+    
+    // Re-add breakpoints with new enabled state
+    const updatedBreakpoints = allBreakpoints.map(bp => {
+      if (bp instanceof SourceBreakpoint) {
+        return new SourceBreakpoint(
+          bp.location,
+          enabled,
+          bp.condition,
+          bp.hitCondition,
+          bp.logMessage
+        );
+      } else if (bp instanceof FunctionBreakpoint) {
+        return new FunctionBreakpoint(
+          bp.functionName,
+          enabled,
+          bp.condition,
+          bp.hitCondition,
+          bp.logMessage
+        );
+      }
+      return bp;
+    });
+    debug.addBreakpoints(updatedBreakpoints);
+  }
+
+  // Register debug session start/stop handlers
+  context.subscriptions.push(
+    commands.registerCommand('workbench.action.debug.start', () => {
+      LogtalkTerminal.sendString('vscode::debug.\r');
+      commands.executeCommand('setContext', 'logtalk.debuggingEnabled', true);
+      updateBreakpointStates(true);
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('workbench.action.debug.run', () => {
+      LogtalkTerminal.sendString('vscode::nodebug.\r');
+      commands.executeCommand('setContext', 'logtalk.debuggingEnabled', false);
+      updateBreakpointStates(false);
+    })
+  );
+
   let logtalkCommands = [
     // debugging commands
     { command: "logtalk.toggleDebugging", callback: () => {
       logtalkDebuggingEnabled = !logtalkDebuggingEnabled;
+      updateBreakpointStates(logtalkDebuggingEnabled);
       
-      // Update all breakpoints through VS Code's API
-      const allBreakpoints = debug.breakpoints;
-      debug.removeBreakpoints(allBreakpoints);
-      
-      // Re-add breakpoints with new enabled state
-      const updatedBreakpoints = allBreakpoints.map(bp => {
-        if (bp instanceof SourceBreakpoint) {
-          return new SourceBreakpoint(
-            bp.location,
-            logtalkDebuggingEnabled,
-            bp.condition,
-            bp.hitCondition,
-            bp.logMessage
-          );
-        } else if (bp instanceof FunctionBreakpoint) {
-          return new FunctionBreakpoint(
-            bp.functionName,
-            logtalkDebuggingEnabled,
-            bp.condition,
-            bp.hitCondition,
-            bp.logMessage
-          );
-        }
-        return bp;
-      });
-      debug.addBreakpoints(updatedBreakpoints);
-
       // Send appropriate Logtalk command
-      if (logtalkDebuggingEnabled) {
-        LogtalkTerminal.sendString('vscode::debug.\r');
-        commands.executeCommand('setContext', 'logtalk.debuggingEnabled', true);
-      } else {
-        LogtalkTerminal.sendString('vscode::nodebug.\r');
-        commands.executeCommand('setContext', 'logtalk.debuggingEnabled', false);
-      }
+      LogtalkTerminal.sendString(logtalkDebuggingEnabled ? 'vscode::debug.\r' : 'vscode::nodebug.\r');
+      commands.executeCommand('setContext', 'logtalk.debuggingEnabled', logtalkDebuggingEnabled);
     }},
     // workspace commands
     { command: "logtalk.create.project",          callback: ()   => LogtalkTerminal.createProject()},
