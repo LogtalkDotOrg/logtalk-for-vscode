@@ -438,6 +438,11 @@ After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm
 
 See the [CHANGELOG.md](https://github.com/LogtalkDotOrg/logtalk-for-vscode/blob/master/CHANGELOG.md) file for the most recent changes. [Contributions](https://github.com/LogtalkDotOrg/logtalk-for-vscode/pulls) and [bug reports](https://github.com/LogtalkDotOrg/logtalk-for-vscode/issues) are most welcome.
 
+## Publishing
+
+- VSCode Marketplace: run the `vsce package && vsce publish` command.
+- Open VSX Registry (VSCodium): run the `npx ovsx publish logtalk-for-vscode-VERSION.vsix -p TOKEN` command, replacing `VERSION` and `TOKEN`.
+
 ## Acknowledgements
 
 Due to Arthur's current unavailability and since-deprecated modules, this extension has been adopted by new maintainers.
