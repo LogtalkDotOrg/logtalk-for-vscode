@@ -432,7 +432,7 @@ VSCode triggers the "Go to Definition" computations if the cursor happens to be 
 
 ## Development
 
-Developed and tested with **Logtalk 3.88.0** and **VSCode 1.96** on **macOS 14.7** and **Windows 10** with **Node 22**.
+Developed and tested with **Logtalk 3.93.0** and **VSCode 1.103** on **macOS 14.7** and **Windows 10** with **Node 24.6**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
