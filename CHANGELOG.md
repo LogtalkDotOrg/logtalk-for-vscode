@@ -2,6 +2,7 @@
 
 ## [0.52.0]
 
+* Update "Go to Symbol in Editor..." support to also include predicate clauses and non-terminal rules
 * Add support for the "Run > Start Debugging" and "Run > Run Without Debugging" commands
 * Add support for toggling debugging using a Logtalk icon in the top-right corner
 * Improve readme section on requirements
