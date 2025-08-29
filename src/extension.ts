@@ -235,7 +235,7 @@ export function activate(context: ExtensionContext) {
   );
 
   let logtalkCommands = [
-    // debugging commands
+    // Debugging commands
     { command: "logtalk.toggleDebugging", callback: () => {
       logtalkDebuggingEnabled = !logtalkDebuggingEnabled;
       updateBreakpointStates(logtalkDebuggingEnabled);
@@ -244,7 +244,7 @@ export function activate(context: ExtensionContext) {
       LogtalkTerminal.sendString(logtalkDebuggingEnabled ? 'vscode::debug.\r' : 'vscode::nodebug.\r');
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', logtalkDebuggingEnabled);
     }},
-    // workspace commands
+    // Workspace commands
     { command: "logtalk.create.project",          callback: ()   => LogtalkTerminal.createProject()},
     { command: "logtalk.load.project",            callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
     { command: "logtalk.open",                    callback: ()   => LogtalkTerminal.openLogtalk()},
@@ -253,7 +253,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.rgenerate.diagrams",      callback: uri  => LogtalkTerminal.rgenDiagrams(uri)},
     { command: "logtalk.run.testers",             callback: uri  => LogtalkTerminal.runTesters(uri)},
     { command: "logtalk.run.doclets",             callback: uri  => LogtalkTerminal.runDoclets(uri)},
-    // directory and file commands
+    // Directory and file commands
     { command: "logtalk.load.directory",          callback: uri  => LogtalkTerminal.loadDirectory(uri, linter)},
     { command: "logtalk.load.file",               callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
     { command: "logtalk.make.reload",             callback: uri  => LogtalkTerminal.makeReload(uri, linter)},
@@ -312,7 +312,6 @@ export function activate(context: ExtensionContext) {
 	}));
 
   // Listen for breakpoint changes
-  // Watch for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {
       LogtalkTerminal.processBreakpoints(session);
@@ -321,9 +320,6 @@ export function activate(context: ExtensionContext) {
 
   // Track if debugging is currently enabled
   let debuggingEnabled = true;
-
-  // If you need to listen for debug adapter events, use the debug API or implement a custom mechanism.
-  // The following block is removed because workspace.onDidReceiveMessage does not exist.
 
   context.subscriptions.push(
     languages.registerDocumentHighlightProvider(LOGTALK_MODE, new LogtalkDocumentHighlightProvider())

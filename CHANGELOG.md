@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.53.0]
+
+* Improve readme section on code navigation
+
 ## [0.52.0]
 
 * Update "Go to Symbol in Editor..." support to also include predicate clauses and non-terminal rules
