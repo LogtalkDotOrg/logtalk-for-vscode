@@ -185,11 +185,11 @@ Code navigation features **require** the code to be loaded, typically by using t
 
 #### Go to Declaration
 
-Right-click on a predicate name and select the "Go to Declaration" menu or context menu item to go to the predicate scope directive.
+Right-click on a predicate (or non-terminal) name and select the "Go to Declaration" menu or context menu item to go to the predicate (or non-terminal) scope directive.
 
 #### Go to Definition
 
-Right-click on a predicate name in a goal or predicate directive and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate. Note that definitions may only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used). When a definition is not found, try in alternative to go to the declaration and then to the references.
+Right-click on a predicate (or non-terminal) name in a goal or predicate directive and select the "Go to Definition" menu or context menu item to go to the first clause defining the predicate. Note that some definitions may only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used). When a definition is not found, try in alternative to go to the declaration and then to the references.
 
 #### Go to Type Definition
 
@@ -197,13 +197,13 @@ Entities (objects, protocols, and categories) are interpreted as types. Right-cl
 
 #### Go to References
 
-Right-click on a predicate name in a scope directive, `uses/2` directive, fact, rule head, or goal and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls and predicate definitions are not counted as references.
+Right-click on a predicate (or non-terminal) name in a scope directive, `uses/2` directive, fact, rule head, or goal and select the "Go to References" or "Find All References" menu or context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls and predicate definitions are not counted as references.
 
 Right-click on an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by double-clicking to select an entity name and then right-clicking and selecting the "Go to Type Definition" menu or context menu item.
 
 #### Go to Implementations
 
-Right-click on a predicate name in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items. Note that you can go to a predicate scope directive by selecting the predicate name in a goal and right-clicking and selecting the "Go to Declaration" menu or context menu item.
+Right-click on a predicate (or non-terminal) name in a scope directive and select the "Go to Implementations" or "Find All Implementations" menu or context menu items. Note that you can go to a predicate scope directive by selecting the predicate name in a goal and right-clicking and selecting the "Go to Declaration" menu or context menu item.
 
 Right-click on a protocol name in its entity opening directive to find implementations of the protocol. Note that you can go to an entity opening directive by clicking in an entity name and then right-clicking and selecting the "Go to Type Definition" menu or context menu item.
 
@@ -217,7 +217,7 @@ Symbols include entity identifiers in entity opening directives and predicate (a
 
 #### Show Call Hierarchy
 
-Right-click on a predicate name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate. Note that callers and callees that can only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used) may not be returned.
+Right-click on a predicate (or non-terminal) name in a goal or in a clause head and select the "Show Call Hierarchy" context menu item to browse callers and callees of the selected predicate (or non-terminal). Note that callers and callees that can only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used) may not be returned.
 
 #### Show Type Hierarchy
 
