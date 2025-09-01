@@ -93,6 +93,8 @@ Refer to the table below for other snippets:
 - Errors/warnings when compiling source files are added to the "PROBLEMS" pane.
 - Errors/warnings when compiling source files can also be navigated from the Logtalk terminal via Ctrl+click (Windows, Linux, ...) or Cmd+click (macOS).
 
+Quick fixes are provided for some errors and warnings.
+
 ### Commands
 
 Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
