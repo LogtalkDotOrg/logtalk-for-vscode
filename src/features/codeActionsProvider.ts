@@ -44,6 +44,10 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Missing scope directive for predicate:')) {
       return true;
+    } else if (diagnostic.message.includes('Missing scope directive for non-terminal:')) {
+      return true;
+    } else if (diagnostic.message.includes('Missing dynamic/1 directive for predicate:')) {
+      return true;
     }
     return false;
   }
@@ -92,12 +96,30 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
     } else if (diagnostic.message.includes('Missing scope directive for predicate:')) {
       // Add missing scope directive
       action = new CodeAction(
-        'Add missing scope directive',
+        'Add missing public/1 directive',
         CodeActionKind.QuickFix
       );
       const predicateIndicator = diagnostic.message.match(/Missing scope directive for predicate: (.+\/\d+)/);
       const match = document.getText(diagnostic.range).match(/(\s*)/);
       edit.insert(document.uri, diagnostic.range.start, match[1] + ':- public(' + predicateIndicator[1] + ').\n');
+    } else if (diagnostic.message.includes('Missing scope directive for non-terminal:')) {
+      // Add missing scope directive
+      action = new CodeAction(
+        'Add missing public/1 directive',
+        CodeActionKind.QuickFix
+      );
+      const nonTerminalIndicator = diagnostic.message.match(/Missing scope directive for non-terminal: (.+\/\/\d+)/);
+      const match = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, match[1] + ':- public(' + nonTerminalIndicator[1] + ').\n');
+    } else if (diagnostic.message.includes('Missing dynamic/1 directive for predicate:')) {
+      // Add missing scope directive
+      action = new CodeAction(
+        'Add missing dynamic/1 directive',
+        CodeActionKind.QuickFix
+      );
+      const predicateIndicator = diagnostic.message.match(/Missing dynamic\/1 directive for predicate: (.+\/\d+)/);
+      const match = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, match[1] + ':- dynamic(' + predicateIndicator[1] + ').\n');
     }
 
     action.edit = edit;
