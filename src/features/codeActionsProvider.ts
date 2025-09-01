@@ -10,6 +10,7 @@ import {
   Diagnostic,
   TextDocument,
   Range,
+  Position,
   Selection
 } from "vscode";
 
@@ -51,6 +52,8 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
     } else if (diagnostic.message.includes('Missing multifile/1 directive for predicate:')) {
       return true;
     } else if (diagnostic.message.includes('Missing multifile/1 directive for non-terminal:')) {
+      return true;
+    } else if (diagnostic.message.includes('The encoding/1 directive is ignored')) {
       return true;
     }
     return false;
@@ -142,6 +145,15 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
       const nonTerminalIndicator = diagnostic.message.match(/Missing multifile\/1 directive for non-terminal: (.+\/\/\d+)/);
       const match = document.getText(diagnostic.range).match(/(\s*)/);
       edit.insert(document.uri, diagnostic.range.start, match[1] + ':- multifile(' + nonTerminalIndicator[1] + ').\n');
+    } else if (diagnostic.message.includes('The encoding/1 directive is ignored')) {
+      // Move encoding/1 directive to the first line
+      action = new CodeAction(
+        'Move encoding/1 directive to the first line',
+        CodeActionKind.QuickFix
+      );
+      const text = document.getText(diagnostic.range).trim();
+      edit.delete(document.uri, diagnostic.range);
+      edit.insert(document.uri, new Position(0, 0), text + '\n');
     }
 
     action.edit = edit;
