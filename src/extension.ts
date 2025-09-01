@@ -37,6 +37,7 @@ import { LogtalkTypeHierarchyProvider } from "./features/typeHierarchyProvider";
 import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
+import { LogtalkCodeActionsProvider } from "./features/codeActionsProvider";
 import { getLogger } from "./utils/logger";
 
 const DEBUG = 1;
@@ -359,6 +360,9 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkMetricsCodeLensProvider())
+  );
+  context.subscriptions.push(
+    languages.registerCodeActionsProvider(LOGTALK_MODE, new LogtalkCodeActionsProvider())
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }

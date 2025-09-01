@@ -2,6 +2,7 @@
 
 ## [0.53.0]
 
+* Add quick fixes for some linter warnings
 * Improve readme section on code navigation
 
 ## [0.52.0]
