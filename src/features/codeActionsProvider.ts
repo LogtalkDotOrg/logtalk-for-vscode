@@ -55,6 +55,10 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('The encoding/1 directive is ignored')) {
       return true;
+    } else if (diagnostic.message.includes('Missing meta_predicate/1 directive for predicate:')) {
+      return true;
+    } else if (diagnostic.message.includes('Missing meta_non_terminal/1 directive for non-terminal:')) {
+      return true;
     }
     return false;
   }
@@ -107,8 +111,8 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       const predicateIndicator = diagnostic.message.match(/Missing scope directive for predicate: (.+\/\d+)/);
-      const match = document.getText(diagnostic.range).match(/(\s*)/);
-      edit.insert(document.uri, diagnostic.range.start, match[1] + ':- public(' + predicateIndicator[1] + ').\n');
+      const indent = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- public(' + predicateIndicator[1] + ').\n');
     } else if (diagnostic.message.includes('Missing scope directive for non-terminal:')) {
       // Add missing scope directive
       action = new CodeAction(
@@ -116,8 +120,8 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       const nonTerminalIndicator = diagnostic.message.match(/Missing scope directive for non-terminal: (.+\/\/\d+)/);
-      const match = document.getText(diagnostic.range).match(/(\s*)/);
-      edit.insert(document.uri, diagnostic.range.start, match[1] + ':- public(' + nonTerminalIndicator[1] + ').\n');
+      const indent = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- public(' + nonTerminalIndicator[1] + ').\n');
     } else if (diagnostic.message.includes('Missing dynamic/1 directive for predicate:')) {
       // Add missing scope directive
       action = new CodeAction(
@@ -125,8 +129,8 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       const predicateIndicator = diagnostic.message.match(/Missing dynamic\/1 directive for predicate: (.+\/\d+)/);
-      const match = document.getText(diagnostic.range).match(/(\s*)/);
-      edit.insert(document.uri, diagnostic.range.start, match[1] + ':- dynamic(' + predicateIndicator[1] + ').\n');
+      const indent = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- dynamic(' + predicateIndicator[1] + ').\n');
     } else if (diagnostic.message.includes('Missing multifile/1 directive for predicate:')) {
       // Add missing scope directive
       action = new CodeAction(
@@ -134,8 +138,8 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       const predicateIndicator = diagnostic.message.match(/Missing multifile\/1 directive for predicate: (.+\/\d+)/);
-      const match = document.getText(diagnostic.range).match(/(\s*)/);
-      edit.insert(document.uri, diagnostic.range.start, match[1] + ':- multifile(' + predicateIndicator[1] + ').\n');
+      const indent = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- multifile(' + predicateIndicator[1] + ').\n');
     } else if (diagnostic.message.includes('Missing multifile/1 directive for non-terminal:')) {
       // Add missing scope directive
       action = new CodeAction(
@@ -143,8 +147,8 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       const nonTerminalIndicator = diagnostic.message.match(/Missing multifile\/1 directive for non-terminal: (.+\/\/\d+)/);
-      const match = document.getText(diagnostic.range).match(/(\s*)/);
-      edit.insert(document.uri, diagnostic.range.start, match[1] + ':- multifile(' + nonTerminalIndicator[1] + ').\n');
+      const indent = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- multifile(' + nonTerminalIndicator[1] + ').\n');
     } else if (diagnostic.message.includes('The encoding/1 directive is ignored')) {
       // Move encoding/1 directive to the first line
       action = new CodeAction(
@@ -154,6 +158,26 @@ export class LogtalkCodeActionsProvider implements CodeActionProvider {
       const text = document.getText(diagnostic.range).trim();
       edit.delete(document.uri, diagnostic.range);
       edit.insert(document.uri, new Position(0, 0), text + '\n');
+    } else if (diagnostic.message.includes('Missing meta_predicate/1 directive for predicate:')) {
+      // Add missing meta_predicate/1 directive
+      action = new CodeAction(
+        'Add missing meta_predicate/1 directive',
+        CodeActionKind.QuickFix
+      );
+      const predicateIndicator = diagnostic.message.match(/Missing meta_predicate\/1 directive for predicate: (.+)\/(\d+)/);
+      const stars = Array(predicateIndicator[2]).fill('*').join(',');
+      const indent = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- meta_predicate(' + predicateIndicator[1] + '(' + stars+ ')).\n');
+    } else if (diagnostic.message.includes('Missing meta_non_terminal/1 directive for non-terminal:')) {
+      // Add missing meta_non_terminal/1 directive
+      action = new CodeAction(
+        'Add missing meta_non_terminal/1 directive',
+        CodeActionKind.QuickFix
+      );
+      const nonTerminalIndicator = diagnostic.message.match(/Missing meta_non_terminal\/1 directive for non-terminal: (.+)\/\/(\d+)/);
+      const stars = Array(nonTerminalIndicator[2]).fill('*').join(',');
+      const indent = document.getText(diagnostic.range).match(/(\s*)/);
+      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- meta_non_terminal(' + nonTerminalIndicator[1] + '(' + stars + ')).\n');
     }
 
     action.edit = edit;
