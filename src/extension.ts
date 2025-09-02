@@ -37,7 +37,6 @@ import { LogtalkTypeHierarchyProvider } from "./features/typeHierarchyProvider";
 import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
-import { LogtalkCodeActionsProvider } from "./features/codeActionsProvider";
 import { getLogger } from "./utils/logger";
 
 const DEBUG = 1;
@@ -246,39 +245,41 @@ export function activate(context: ExtensionContext) {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', logtalkDebuggingEnabled);
     }},
     // Workspace commands
-    { command: "logtalk.create.project",          callback: ()   => LogtalkTerminal.createProject()},
-    { command: "logtalk.load.project",            callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
-    { command: "logtalk.open",                    callback: ()   => LogtalkTerminal.openLogtalk()},
-    { command: "logtalk.rscan.deadCode",          callback: uri  => LogtalkTerminal.rscanForDeadCode(uri, deadCodeScanner)},
-    { command: "logtalk.rgenerate.documentation", callback: uri  => LogtalkTerminal.rgenDocumentation(uri, documentationLinter)},
-    { command: "logtalk.rgenerate.diagrams",      callback: uri  => LogtalkTerminal.rgenDiagrams(uri)},
-    { command: "logtalk.run.testers",             callback: uri  => LogtalkTerminal.runTesters(uri)},
-    { command: "logtalk.run.doclets",             callback: uri  => LogtalkTerminal.runDoclets(uri)},
+    { command: "logtalk.create.project",            callback: ()   => LogtalkTerminal.createProject()},
+    { command: "logtalk.load.project",              callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
+    { command: "logtalk.open",                      callback: ()   => LogtalkTerminal.openLogtalk()},
+    { command: "logtalk.rscan.deadCode",            callback: uri  => LogtalkTerminal.rscanForDeadCode(uri, deadCodeScanner)},
+    { command: "logtalk.rgenerate.documentation",   callback: uri  => LogtalkTerminal.rgenDocumentation(uri, documentationLinter)},
+    { command: "logtalk.rgenerate.diagrams",        callback: uri  => LogtalkTerminal.rgenDiagrams(uri)},
+    { command: "logtalk.run.testers",               callback: uri  => LogtalkTerminal.runTesters(uri)},
+    { command: "logtalk.run.doclets",               callback: uri  => LogtalkTerminal.runDoclets(uri)},
     // Directory and file commands
-    { command: "logtalk.load.directory",          callback: uri  => LogtalkTerminal.loadDirectory(uri, linter)},
-    { command: "logtalk.load.file",               callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
-    { command: "logtalk.make.reload",             callback: uri  => LogtalkTerminal.makeReload(uri, linter)},
-    { command: "logtalk.make.optimal",            callback: uri  => LogtalkTerminal.makeOptimal(uri, linter)},
-    { command: "logtalk.make.normal",             callback: uri  => LogtalkTerminal.makeNormal(uri, linter)},
-    { command: "logtalk.make.debug",              callback: uri  => LogtalkTerminal.makeDebug(uri, linter)},
-    { command: "logtalk.make.check",              callback: uri  => LogtalkTerminal.makeCheck(uri, linter)},
-    { command: "logtalk.make.circular",           callback: uri  => LogtalkTerminal.makeCircular(uri, linter)},
-    { command: "logtalk.make.clean",              callback: uri  => LogtalkTerminal.makeClean(uri, linter)},
-    { command: "logtalk.make.caches",             callback: uri  => LogtalkTerminal.makeCaches(uri, linter)},
-    { command: "logtalk.run.tests",               callback: uri  => LogtalkTerminal.runTests(uri, linter, testsReporter)},
-    { command: "logtalk.run.test",                callback: (uri, object, test) => LogtalkTerminal.runTest(uri, object, test, linter, testsReporter)},
-    { command: "logtalk.run.doclet",              callback: uri  => LogtalkTerminal.runDoclet(uri, linter)},
-    { command: "logtalk.scan.deadCode",           callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
-    { command: "logtalk.generate.documentation",  callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},
-    { command: "logtalk.generate.diagrams",       callback: uri  => LogtalkTerminal.genDiagrams(uri)},
-    { command: "logtalk.open.parentFile",         callback: uri  => LogtalkTerminal.openParentFile(uri)},
-    { command: "logtalk.compute.metrics",         callback: uri  => LogtalkTerminal.computeMetrics(uri)},
+    { command: "logtalk.load.directory",            callback: uri  => LogtalkTerminal.loadDirectory(uri, linter)},
+    { command: "logtalk.load.file",                 callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
+    { command: "logtalk.make.reload",               callback: uri  => LogtalkTerminal.makeReload(uri, linter)},
+    { command: "logtalk.make.optimal",              callback: uri  => LogtalkTerminal.makeOptimal(uri, linter)},
+    { command: "logtalk.make.normal",               callback: uri  => LogtalkTerminal.makeNormal(uri, linter)},
+    { command: "logtalk.make.debug",                callback: uri  => LogtalkTerminal.makeDebug(uri, linter)},
+    { command: "logtalk.make.check",                callback: uri  => LogtalkTerminal.makeCheck(uri, linter)},
+    { command: "logtalk.make.circular",             callback: uri  => LogtalkTerminal.makeCircular(uri, linter)},
+    { command: "logtalk.make.clean",                callback: uri  => LogtalkTerminal.makeClean(uri, linter)},
+    { command: "logtalk.make.caches",               callback: uri  => LogtalkTerminal.makeCaches(uri, linter)},
+    { command: "logtalk.run.tests",                 callback: uri  => LogtalkTerminal.runTests(uri, linter, testsReporter)},
+    { command: "logtalk.run.test",                  callback: (uri, object, test) => LogtalkTerminal.runTest(uri, object, test, linter, testsReporter)},
+    { command: "logtalk.run.doclet",                callback: uri  => LogtalkTerminal.runDoclet(uri, linter)},
+    { command: "logtalk.scan.deadCode",             callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
+    { command: "logtalk.generate.documentation",    callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},
+    { command: "logtalk.generate.diagrams",         callback: uri  => LogtalkTerminal.genDiagrams(uri)},
+    { command: "logtalk.open.parentFile",           callback: uri  => LogtalkTerminal.openParentFile(uri)},
+    { command: "logtalk.compute.metrics",           callback: uri  => LogtalkTerminal.computeMetrics(uri)},
     // CodeLens commands
-    { command: "logtalk.toggle.codeLens",         callback: uri  => LogtalkTerminal.toggleCodeLens(uri)},
+    { command: "logtalk.toggle.codeLens",           callback: uri  => LogtalkTerminal.toggleCodeLens(uri)},
     // Jupyter commands
-    { command: "logtalk.open.notebook",           callback: uri  => LogtalkJupyter.openAsNotebook(uri)},
-    { command: "logtalk.open.paired.notebook",    callback: uri  => LogtalkJupyter.openAsPairedNotebook(uri)},
-    { command: "logtalk.sync.notebook",           callback: uri  => LogtalkJupyter.syncNotebook(uri)}
+    { command: "logtalk.open.notebook",             callback: uri  => LogtalkJupyter.openAsNotebook(uri)},
+    { command: "logtalk.open.paired.notebook",      callback: uri  => LogtalkJupyter.openAsPairedNotebook(uri)},
+    { command: "logtalk.sync.notebook",             callback: uri  => LogtalkJupyter.syncNotebook(uri)},
+    // Diagnostic commands
+    { command: "logtalk.linter.update.diagnostics", callback: (uri, diagnostic) => linter.updateDiagnostics(uri, diagnostic)}
   ];
 
   logtalkCommands.map(command => {
@@ -362,7 +363,7 @@ export function activate(context: ExtensionContext) {
     languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkMetricsCodeLensProvider())
   );
   context.subscriptions.push(
-    languages.registerCodeActionsProvider(LOGTALK_MODE, new LogtalkCodeActionsProvider())
+    languages.registerCodeActionsProvider(LOGTALK_MODE, linter)
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }
