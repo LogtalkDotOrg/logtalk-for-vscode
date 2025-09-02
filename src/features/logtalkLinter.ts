@@ -15,6 +15,8 @@ import {
   Position,
   Range,
   TextDocument,
+  TextDocumentContentChangeEvent,
+  TextDocumentChangeEvent,
   Uri,
   languages,
   workspace
@@ -251,6 +253,7 @@ export default class LogtalkLinter implements CodeActionProvider {
     errMsg = (match[1] + match[15]).replace(new RegExp(/\*     /,'g'), '').replace(new RegExp(/\!     /,'g'), '').trim();
     let diag = new Diagnostic(range, errMsg, severity);
     diag.source = "Logtalk Linter";
+    diag.code = lineFrom;
 
     if (diag) {
       if (!this.diagnostics[fileName]) {
@@ -302,10 +305,122 @@ export default class LogtalkLinter implements CodeActionProvider {
   }
   
   private areDiagnosticsEqual(a: Diagnostic, b: Diagnostic): boolean {
-    return a.range.isEqual(b.range) && 
-           a.message === b.message && 
+    return a.message === b.message && 
            a.severity === b.severity &&
            a.code === b.code;
+  }
+
+  public updateDiagnosticsOnChange(event: TextDocumentChangeEvent) {
+    const existingDiagnostics = this.diagnosticCollection.get(event.document.uri);
+
+    if (!existingDiagnostics || existingDiagnostics.length === 0) {
+      return;
+    }
+
+    const updatedDiagnostics: Diagnostic[] = [];
+
+    for (const diagnostic of existingDiagnostics) {
+      const newRange = this.adjustRangeForChanges(diagnostic.range, event.contentChanges);
+
+      if (newRange) {
+        // Create new diagnostic with updated position
+        const newDiagnostic = new Diagnostic(
+          newRange,
+          diagnostic.message,
+          diagnostic.severity
+        );
+        // Copy other properties
+        newDiagnostic.source = diagnostic.source;
+        newDiagnostic.code = diagnostic.code;
+        updatedDiagnostics.push(newDiagnostic);
+      }
+      // If newRange is null, the diagnostic should be removed
+    }
+
+    // Update the diagnostic collection
+    this.diagnosticCollection.set(event.document.uri, updatedDiagnostics);
+  }
+
+  private adjustRangeForChanges(
+    range: Range,
+    changes: readonly TextDocumentContentChangeEvent[]
+  ): Range | null {
+    let adjustedRange = range;
+
+    // Process changes in reverse order (from end to beginning)
+    const sortedChanges = [...changes].sort((a, b) => {
+      const aStart = a.range?.start || new Position(0, 0);
+      const bStart = b.range?.start || new Position(0, 0);
+      return bStart.compareTo(aStart);
+    });
+
+    for (const change of sortedChanges) {
+      if (!change.range) continue;
+
+      adjustedRange = this.adjustRangeForSingleChange(adjustedRange, change);
+
+      // If the diagnostic range was completely removed, return null
+      if (!adjustedRange) {
+        return null;
+      }
+    }
+
+    return adjustedRange;
+  }
+
+  private adjustRangeForSingleChange(
+    range: Range,
+    change: TextDocumentContentChangeEvent
+  ): Range | null {
+    if (!change.range) return range;
+
+    const changeStart = change.range.start;
+    const changeEnd = change.range.end;
+    const newText = change.text;
+    const newLines = newText.split('\n');
+    const lineDelta = newLines.length - 1 - (changeEnd.line - changeStart.line);
+
+    // If change is completely after the diagnostic, no adjustment needed
+    if (changeStart.isAfterOrEqual(range.end)) {
+      return range;
+    }
+
+    // If change completely contains the diagnostic, remove it
+    if (changeStart.isBeforeOrEqual(range.start) && changeEnd.isAfterOrEqual(range.end)) {
+      return null;
+    }
+
+    let newStart = range.start;
+    let newEnd = range.end;
+
+    // Adjust start position
+    if (changeEnd.isBeforeOrEqual(range.start)) {
+      // Change is completely before diagnostic
+      if (changeEnd.line < range.start.line) {
+        newStart = new Position(range.start.line + lineDelta, range.start.character);
+      } else if (changeEnd.line === range.start.line) {
+        const charDelta = newText.length - (changeEnd.character - changeStart.character);
+        newStart = new Position(
+          range.start.line + lineDelta,
+          range.start.character + charDelta
+        );
+      }
+    }
+
+    // Adjust end position similarly
+    if (changeEnd.isBeforeOrEqual(range.end)) {
+      if (changeEnd.line < range.end.line) {
+        newEnd = new Position(range.end.line + lineDelta, range.end.character);
+      } else if (changeEnd.line === range.end.line) {
+        const charDelta = newText.length - (changeEnd.character - changeStart.character);
+        newEnd = new Position(
+          range.end.line + lineDelta,
+          range.end.character + charDelta
+        );
+      }
+    }
+
+    return new Range(newStart, newEnd);
   }
 
   private removeDuplicateDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {

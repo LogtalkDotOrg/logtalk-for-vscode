@@ -365,6 +365,11 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerCodeActionsProvider(LOGTALK_MODE, linter)
   );
+  context.subscriptions.push(
+    workspace.onDidChangeTextDocument(event => {
+      linter.updateDiagnosticsOnChange(event);
+    })
+  );
   context.subscriptions.push(LogtalkTerminal.init(context));
 }
 // this method is called when your extension is deactivated
