@@ -93,7 +93,7 @@ Refer to the table below for other snippets:
 - Errors/warnings when compiling source files are added to the "PROBLEMS" pane.
 - Errors/warnings when compiling source files can also be navigated from the Logtalk terminal via Ctrl+click (Windows, Linux, ...) or Cmd+click (macOS).
 
-Quick fixes are provided for some errors and warnings.
+Quick fixes are provided for some errors and warnings. When applying quick fixes, notably those that delete and insert code, the _positions_ of the warnings and errors later in the file may not be updated, thus preventing further quick fixes to be applied or applied correctly. In this case, save your changes and re-run the linter by using the "Make - Reload" command.
 
 ### Commands
 
