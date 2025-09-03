@@ -5,6 +5,7 @@
 * Add quick fixes for some linter errors and warnings
 * Add code navigation support for `(@)/1` goals
 * Improve readme section on code navigation
+* Fix toggling debugging to always send the `debug`/`nodebug` messages after enabling/disabling the breakpoints
 
 ## [0.52.0]
 

@@ -220,17 +220,17 @@ export function activate(context: ExtensionContext) {
   // Register debug session start/stop handlers
   context.subscriptions.push(
     commands.registerCommand('workbench.action.debug.start', () => {
+      updateBreakpointStates(true);
       LogtalkTerminal.sendString('vscode::debug.\r');
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', true);
-      updateBreakpointStates(true);
     })
   );
 
   context.subscriptions.push(
     commands.registerCommand('workbench.action.debug.run', () => {
+      updateBreakpointStates(false);
       LogtalkTerminal.sendString('vscode::nodebug.\r');
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', false);
-      updateBreakpointStates(false);
     })
   );
 
