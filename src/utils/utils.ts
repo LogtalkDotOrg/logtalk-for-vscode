@@ -267,7 +267,7 @@ export class Utils {
   ): string {
     let wordRange: Range = doc.getWordRangeAtPosition(
       position,
-      /(\w+(\(.*\))?)?(::|\^\^)?\w+/
+      /(\w+(\(.*\))?)?(::|\^\^)?\w+|@\w+/
     );
     if (!wordRange) {
       return null;

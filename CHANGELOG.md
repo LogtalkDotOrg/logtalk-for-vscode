@@ -3,6 +3,7 @@
 ## [0.53.0]
 
 * Add quick fixes for some linter warnings
+* Add code navigation support for `(@)/1` goals
 * Improve readme section on code navigation
 
 ## [0.52.0]

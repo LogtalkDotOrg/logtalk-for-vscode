@@ -191,7 +191,7 @@ Right-click on a predicate (or non-terminal) name and select the "Go to Declarat
 
 #### Go to Definition
 
-Right-click on a predicate (or non-terminal) name in a goal or predicate directive and select the "Go to Definition" context menu item to go to the first clause defining the predicate. Note that some definitions may only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used). When a definition is not found, try in alternative to go to the declaration and then to the references.
+Right-click on a predicate (or non-terminal) name in a goal or predicate directive and select the "Go to Definition" context menu item to go to the first clause defining the predicate. Note that some definitions may only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used). When a definition is not found, try in alternative to go to the declaration and then to the implementations.
 
 #### Go to Type Definition
 
@@ -199,7 +199,7 @@ Entities (objects, protocols, and categories) are interpreted as types. Right-cl
 
 #### Go to References
 
-Right-click on a predicate (or non-terminal) name in a scope directive, `uses/2` directive, fact, rule head, or goal and select the "Go to References" or "Find All References" context menu items. References are interpreted here as messages, super calls, predicate calls, and predicate declarations. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls and predicate definitions are not counted as references.
+Right-click on a predicate (or non-terminal) name in a scope directive, `alias/2` directive, `uses/2` directive, `synchronized/1` directive, fact, rule head, or goal and select the "Go to References" or "Find All References" context menu items. References are interpreted here as messages, super calls, and predicate calls. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls, predicate declarations, and predicate definitions are not interpreted as references.
 
 Right-click on an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by right-clicking in an entity name and selecting the "Go to Type Definition" context menu item.
 
