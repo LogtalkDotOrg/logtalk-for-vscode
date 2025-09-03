@@ -57,7 +57,17 @@ export default class LogtalkLinter implements CodeActionProvider {
     }
 
   private canFix(diagnostic: Diagnostic): boolean {
-    if (diagnostic.message.includes('Redundant entity qualification in predicate directive argument:')) {
+    // Errors
+    if (diagnostic.message.includes('Permission error: modify meta_non_terminal_template ')) {
+      return true;
+    } else if (diagnostic.message.includes('Permission error: modify meta_predicate_template ')) {
+      return true;
+    } else if (diagnostic.message.includes('Permission error: modify predicate_scope ')) {
+      return true;
+    } else if (diagnostic.message.includes('Permission error: modify predicate_declaration ')) {
+      return true;
+    // Warnings
+    } else if (diagnostic.message.includes('Redundant entity qualification in predicate directive argument:')) {
       return true;
     } else if (diagnostic.message.includes('Duplicated clause:')) {
       return true;
@@ -90,7 +100,37 @@ export default class LogtalkLinter implements CodeActionProvider {
     const edit = new WorkspaceEdit();
     let action: CodeAction;
 
-    if (diagnostic.message.includes('Redundant entity qualification in predicate directive argument:')) {
+    // Errors
+    if (diagnostic.message.includes('Permission error: modify meta_non_terminal_template ')) {
+      // Remove the directive
+      action = new CodeAction(
+        'Remove meta_non_terminal/1 directive',
+        CodeActionKind.QuickFix
+      );
+      edit.delete(document.uri, diagnostic.range);
+    } else if (diagnostic.message.includes('Permission error: modify meta_predicate_template ')) {
+      // Remove the directive
+      action = new CodeAction(
+        'Remove meta_predicate/1 directive',
+        CodeActionKind.QuickFix
+      );
+      edit.delete(document.uri, diagnostic.range);
+    } else if (diagnostic.message.includes('Permission error: modify predicate_scope ')) {
+      // Remove the directive
+      action = new CodeAction(
+        'Remove predicate scope directive',
+        CodeActionKind.QuickFix
+      );
+      edit.delete(document.uri, diagnostic.range);
+    } else if (diagnostic.message.includes('Permission error: modify predicate_declaration ')) {
+      // Remove the directive
+      action = new CodeAction(
+        'Remove predicate declaration directive',
+        CodeActionKind.QuickFix
+      );
+      edit.delete(document.uri, diagnostic.range);
+    // Warnings
+    } else if (diagnostic.message.includes('Redundant entity qualification in predicate directive argument:')) {
       // Remove the redundant entity qualification
       action = new CodeAction(
         'Fix redundant entity qualification',
