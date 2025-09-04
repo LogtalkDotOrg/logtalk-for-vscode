@@ -185,7 +185,7 @@ export function activate(context: ExtensionContext) {
   );
 
   // Track Logtalk debugging state
-  let logtalkDebuggingEnabled = true;
+  let logtalkDebuggingEnabled = false;
 
   // Function to update breakpoint states
   function updateBreakpointStates(enabled: boolean) {
@@ -371,6 +371,7 @@ export function activate(context: ExtensionContext) {
     })
   );
   context.subscriptions.push(LogtalkTerminal.init(context));
+  updateBreakpointStates(logtalkDebuggingEnabled);
 }
-// this method is called when your extension is deactivated
+
 export function deactivate() {}
