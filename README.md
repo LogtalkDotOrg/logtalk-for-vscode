@@ -2,7 +2,7 @@
 
 A VSCode extension that provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Requires Logtalk 3.93.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
+Requires Logtalk 3.94.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
@@ -434,7 +434,7 @@ VSCode triggers the "Go to Definition" computations if the cursor happens to be 
 
 ## Development
 
-Developed and tested with **Logtalk 3.93.0** and **VSCode 1.103** on **macOS 14.7** and **Windows 10** with **Node 24.6**.
+Developed and tested with **Logtalk 3.94.0** and **VSCode 1.103** on **macOS 14.7** and **Windows 10** with **Node 24.6**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
@@ -447,7 +447,7 @@ See the [CHANGELOG.md](https://github.com/LogtalkDotOrg/logtalk-for-vscode/blob/
 
 ## Acknowledgements
 
-Due to Arthur's current unavailability and since-deprecated modules, this extension has been adopted by new maintainers.
+This extension started as a fork of the [VSC-Logtalk](https://github.com/arthwang/vsc-logtalk) extension by Arthur Wang. Due to Arthur's current unavailability and since-deprecated modules, this extension has been adopted by new maintainers. Renaming the fork was necessary to allow publishing to the VSCode Marketplace and avoid conflicts with the original extension.
 
 ### Arthur Wang (Original Author)
 
