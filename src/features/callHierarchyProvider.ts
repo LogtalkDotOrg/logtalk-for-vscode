@@ -76,7 +76,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
         );
       }
     } else {
-      console.log('references not found');
+      console.log('callers not found');
     }
 
     return callers;
@@ -118,7 +118,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
         );
       }
     } else {
-      console.log('references not found');
+      console.log('callees not found');
     }
 
     return callees;

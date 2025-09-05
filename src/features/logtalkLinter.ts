@@ -439,7 +439,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       if (changeEnd.line < range.start.line) {
         newStart = new Position(range.start.line + lineDelta, range.start.character);
       } else if (changeEnd.line === range.start.line) {
-        const charDelta = newText.length - (changeEnd.character - changeStart.character);
+        // const charDelta = newText.length - (changeEnd.character - changeStart.character);
+        const charDelta = 0;
         newStart = new Position(
           range.start.line + lineDelta,
           range.start.character + charDelta
@@ -452,7 +453,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       if (changeEnd.line < range.end.line) {
         newEnd = new Position(range.end.line + lineDelta, range.end.character);
       } else if (changeEnd.line === range.end.line) {
-        const charDelta = newText.length - (changeEnd.character - changeStart.character);
+        // const charDelta = newText.length - (changeEnd.character - changeStart.character);
+        const charDelta = 240;
         newEnd = new Position(
           range.end.line + lineDelta,
           range.end.character + charDelta
