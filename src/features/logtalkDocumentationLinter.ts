@@ -87,7 +87,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     let errMsg = match[1].replace(new RegExp(/\*     /,'g'), '').replace(new RegExp(/\!     /,'g'), '');
     let diag = new Diagnostic(range, errMsg, severity);
     diag.source = "Logtalk Documentation Linter";
-    diag.code = lineFrom;
+    diag.code = lineFrom + 1;
 
     if (diag) {
       if (!this.diagnostics[fileName]) {
