@@ -88,6 +88,7 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
     let errMsg = match[1].replace(new RegExp(/\*     /,'g'), '').replace(new RegExp(/\!     /,'g'), '');
     let diag = new Diagnostic(range, errMsg, severity);
     diag.source = "Logtalk Tests Reporter";
+    diag.code = lineFrom;
 
     if (diag) {
       if (!this.diagnostics[fileName]) {
