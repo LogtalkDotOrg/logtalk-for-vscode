@@ -36,6 +36,34 @@ export class Utils {
   private static logger = getLogger();
 
   constructor() {}
+
+  /**
+   * Resolves executable arguments based on configuration and backend.
+   * Supports both legacy array format and new dictionary format for backend-specific arguments.
+   * @param configValue The configuration value for executable.arguments
+   * @param backend The current backend identifier
+   * @returns Array of arguments for the specified backend
+   */
+  public static resolveExecutableArguments(configValue: any, backend: string): string[] {
+    if (!configValue) {
+      return [];
+    }
+
+    // Check if it's the new dictionary format
+    if (typeof configValue === 'object' && !Array.isArray(configValue)) {
+      // Dictionary format: return backend-specific arguments
+      return configValue[backend] || [];
+    }
+
+    // Legacy array format: return the array as-is
+    if (Array.isArray(configValue)) {
+      return configValue;
+    }
+
+    // Fallback for unexpected format
+    return [];
+  }
+
   public static init(context: ExtensionContext) {
     Utils.CONTEXT = context;
     Utils.REFMANPATH = `${process.env.LOGTALKHOME}/manuals/refman/`;
@@ -43,10 +71,6 @@ export class Utils {
     Utils.RUNTIMEPATH = workspace
       .getConfiguration("logtalk")
       .get<string>("executable.path", process.env.LOGTALKHOME);
-    Utils.RUNTIMEARGS = workspace
-      .getConfiguration("logtalk")
-      .get<string[]>("executable.arguments");
-    Utils.loadSnippets(context);
 
     Utils.logtalkHome = workspace
       .getConfiguration("logtalk")
@@ -55,6 +79,12 @@ export class Utils {
     Utils.backend = workspace
       .getConfiguration("logtalk")
       .get<string>("backend", process.env.LOGTALKHOME)
+
+    const executableArgsConfig = workspace
+      .getConfiguration("logtalk")
+      .get("executable.arguments");
+    Utils.RUNTIMEARGS = Utils.resolveExecutableArguments(executableArgsConfig, Utils.backend);
+    Utils.loadSnippets(context);
 
     if (Utils.RUNTIMEPATH == "") {
       switch(Utils.backend) {

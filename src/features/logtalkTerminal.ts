@@ -28,6 +28,7 @@ import { LogtalkMetricsCodeLensProvider } from "./metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./testsCodeLensProvider"
 import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
+import { Utils } from "../utils/utils";
 
 export default class LogtalkTerminal {
   private static _context:        ExtensionContext;
@@ -144,7 +145,8 @@ export default class LogtalkTerminal {
       let logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
       let logtalkBackend = jsesc(section.get<string>("backend", "logtalk"));
       let executable = jsesc(section.get<string>("executable.path", "logtalk"));
-      let args = section.get<string[]>("executable.arguments");
+      const executableArgsConfig = section.get("executable.arguments");
+      let args = Utils.resolveExecutableArguments(executableArgsConfig, logtalkBackend);
 
       let script = "";
       if (executable == "") {

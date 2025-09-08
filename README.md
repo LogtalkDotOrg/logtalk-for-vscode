@@ -324,15 +324,40 @@ For settings that specify scripts, see their [man pages](https://logtalk.org/doc
     "logtalk.executable.path": ""
     "logtalk.executable.arguments": [ ]
 
-Absolute path to the Logtalk executable or integration script and its arguments. On POSIX systems (e.g., macOS or Linux), the `logtalk` executable can be created by running the `logtalk_backend_select` script. In alternative, set the integration script you want to use. For example, assuming a POSIX system, using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`:
+Absolute path to the Logtalk executable or integration script and its arguments. The `logtalk.executable.arguments` setting supports two formats:
+
+1. A simple array of arguments that applies to all backends (legacy array format for backwards compatibility).
+2. An object where keys are backend identifiers and values are arrays of backend-specific arguments.
+
+On POSIX systems (e.g., macOS or Linux), the `logtalk` executable can be created by running the `logtalk_backend_select` script. In alternative, set the integration script you want to use.
+
+**Example using the legacy array format** (assuming a POSIX system, using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`):
 
     "logtalk.executable.path": "/usr/local/bin/swilgt"
     "logtalk.executable.arguments": [ "-q" ]
+
+**Example using the dictionary format for multiple backends** (assuming a POSIX system with integration scripts installed at `/usr/local/bin`):
+
+    "logtalk.executable.path": ""
+    "logtalk.executable.arguments": {
+        "swi": [ "-q" ],
+        "gnu": [ "--quiet" ],
+        "sicstus": [ "--nologo" ]
+    }
 
 On Windows systems, use the absolute path to the PowerShell 7 executable and set the arguments to load the Logtalk integration script. For example (assuming the default Logtalk installation) and using SWI-Prolog as the backend:
 
     "logtalk.executable.path": "C:/Program Files/PowerShell/7/pwsh.exe"
     "logtalk.executable.arguments": [ "-file", "C:/Windows/swilgt.ps1" ]
+
+**Example using the dictionary format on Windows for multiple backends**:
+
+    "logtalk.executable.path": "C:/Program Files/PowerShell/7/pwsh.exe"
+    "logtalk.executable.arguments": {
+        "swi": [ "-file", "C:/Windows/swilgt.ps1", "-q" ],
+        "gnu": [ "-file", "C:/Windows/gplgt.ps1", "--quiet" ],
+        "sicstus": [ "-file", "C:/Windows/sicstuslgt.ps1", "--nologo" ]
+    }
 
 #### Logtalk project testers
 

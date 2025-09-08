@@ -465,9 +465,30 @@
                     "order": 4
                 },
                 "logtalk.executable.arguments": {
-                    "type": "array",
-                    "description": "Arguments of the Logtalk integration script. Optional.",
+                    "oneOf": [
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "Arguments of the Logtalk integration script (legacy format). Optional."
+                        },
+                        {
+                            "type": "object",
+                            "patternProperties": {
+                                "^(b|ciao|cx|eclipse|gnu|ji|sicstus|swi|tau|trealla|xsb|xvm|yap)$": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "additionalProperties": false,
+                            "description": "Backend-specific arguments of the Logtalk integration script (dictionary format). Optional."
+                        }
+                    ],
                     "default": [],
+                    "description": "Arguments of the Logtalk integration script. Can be either an array (legacy format) or an object with backend-specific arguments. Optional.",
                     "order": 5
                 },
                 "logtalk.tester.script": {

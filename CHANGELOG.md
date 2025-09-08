@@ -2,6 +2,7 @@
 
 ## [0.53.0]
 
+* Add settings support for multi-backend Logtalk executable arguments
 * Add quick fixes for some linter errors and warnings
 * Add code navigation support for `(@)/1` goals
 * Improve readme section on code navigation

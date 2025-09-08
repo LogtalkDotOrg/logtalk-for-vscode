@@ -273,6 +273,7 @@ export default class LogtalkLinter implements CodeActionProvider {
     let lineFrom = 0,
         lineTo   = 0;
 
+    // Position line and column numbers are zero-based
     if(match[9]) {
       lineFrom = parseInt(match[9])-1;
       lineTo   = parseInt(match[9])-1;
@@ -284,8 +285,9 @@ export default class LogtalkLinter implements CodeActionProvider {
       lineTo   = parseInt(match[12])-1;
     }
 
+    // Default horizontal range
     let fromCol = 0;
-    let toCol = 240; // Default horizontal range
+    let toCol = 240;
     let fromPos = new Position(lineFrom, fromCol);
     let toPos = new Position(lineTo, toCol);
     let range = new Range(fromPos, toPos);

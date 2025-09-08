@@ -69,6 +69,7 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
         lineTo   = 0;
     this.logger.debug("match:", match);
 
+    // Position line and column numbers are zero-based
     if(match[9]) {
       lineFrom = parseInt(match[9])-1;
       lineTo   = parseInt(match[9])-1;
@@ -80,8 +81,9 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
       lineTo   = parseInt(match[12])-1
     }
 
+    // Default horizontal range
     let fromCol = 0;
-    let toCol = 240; // Default horizontal range
+    let toCol = 240;
     let fromPos = new Position(lineFrom, fromCol);
     let toPos = new Position(lineTo, toCol);
     let range = new Range(fromPos, toPos);
