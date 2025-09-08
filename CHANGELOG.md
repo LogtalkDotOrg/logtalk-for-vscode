@@ -5,7 +5,9 @@
 * Add settings support for multi-backend Logtalk executable arguments
 * Add quick fixes for some linter errors and warnings
 * Add code navigation support for `(@)/1` goals
+* Update "Go to Symbol in Workspace..." support to also include predicate clauses and non-terminal rules
 * Improve readme section on code navigation
+* Improve extension logging for internal debugging
 * Set debugging off and ensure any existing breakpoints are disabled at extension activation
 * Fix toggling debugging to always send the `debug`/`nodebug` messages after enabling/disabling the breakpoints
 * Fix call hierarchy "Show Incoming Calls" and "Show Outgoing Calls" context menu items

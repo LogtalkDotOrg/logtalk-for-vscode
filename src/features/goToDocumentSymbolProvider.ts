@@ -9,6 +9,7 @@ import {
   TextDocument,
   SymbolKind
 } from "vscode";
+import { SymbolRegexes, SymbolTypes, SymbolUtils, PatternSets } from "../utils/symbols";
 
 export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
   public provideDocumentSymbols(
@@ -16,113 +17,109 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
     token: CancellationToken
   ): Thenable<DocumentSymbol[]> {
     return new Promise((resolve, reject) => {
-      var symbols = [];
+      const symbols: DocumentSymbol[] = [];
 
-      // Match entity opening directive
-      const object_re   = /^(?:\:- object\()([^(),.]+(\(.*\))?)/;
-      const protocol_re = /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/;
-      const category_re = /^(?:\:- category\()([^(),.]+(\(.*\))?)/;
-      // Match entity ending directive
-      const end_object_re   = /^(?:\:- end_object\.)/;
-      const end_protocol_re = /^(?:\:- end_protocol\.)/;
-      const end_category_re = /^(?:\:- end_category\.)/;
-      // Match predicate scope directive
-      const public_predicate_re    = /(?:\s*\:- public\()(\w+[/]\d+)/;
-      const protected_predicate_re = /(?:\s*\:- protected\()(\w+[/]\d+)/;
-      const private_predicate_re   = /(?:\s*\:- private\()(\w+[/]\d+)/;
-      // Match non-terminal scope directive
-      const public_non_terminal_re    = /(?:\s*\:- public\()(\w+[/][/]\d+)/;
-      const protected_non_terminal_re = /(?:\s*\:- protected\()(\w+[/][/]\d+)/;
-      const private_non_terminal_re   = /(?:\s*\:- private\()(\w+[/][/]\d+)/;
-      // Match predicate clause (rule head or fact)
-      const predicate_clause_re = /^\s*(\w+\([^)]*\))\s*(?::-|\.)$/;
-      // Match non-terminal rule using the --> operator
-      const non_terminal_rule_re = /^\s*(\w+\([^)]*\))\s*-->/;
-      // Match a line ending with a comma or semicolon, optionally followed by a comment
-      const continuation_re = /^\s*.*[,;]\s*(?:%.*)?$/;
-
-      let found: string[];
-      let entity: DocumentSymbol;
+      let entity: DocumentSymbol | undefined;
 
       // Track predicates and non-terminals to only add first clause
-      let seenPredicates = new Set();
-      let seenNonTerminals = new Set();
+      const seenPredicates = new Set<string>();
+      const seenNonTerminals = new Set<string>();
       // Track if we're inside a multi-line term
-      let inside_term = false;
+      let insideTerm = false;
 
-      for (var i = 0; i < doc.lineCount; i++) {
-        var line = doc.lineAt(i);
-        if (found = line.text.match(object_re)) {
-          var j = LogtalkDocumentSymbolProvider.findEndEntityDirectivePosition(doc, i, end_object_re);
-          entity = new DocumentSymbol(found[1], "object", SymbolKind.Class, new Range(new Position(i,0), new Position(j,13)), new Range(line.range.start, line.range.end));
-          symbols.push(entity)
-        } else if (found = line.text.match(protocol_re)) {
-          var j = LogtalkDocumentSymbolProvider.findEndEntityDirectivePosition(doc, i, end_protocol_re);
-          entity = new DocumentSymbol(found[1], "protocol", SymbolKind.Interface, new Range(new Position(i,0), new Position(j,15)), new Range(line.range.start, line.range.end));
-          symbols.push(entity)
-        } else if (found = line.text.match(category_re)) {
-          var j = LogtalkDocumentSymbolProvider.findEndEntityDirectivePosition(doc, i, end_category_re);
-          entity = new DocumentSymbol(found[1], "category", SymbolKind.Struct, new Range(new Position(i,0), new Position(j,15)), new Range(line.range.start, line.range.end));
-          symbols.push(entity)
-        } else if (entity && (line.text.match(end_object_re) || line.text.match(end_category_re))) {
-          seenPredicates = new Set();
-          seenNonTerminals = new Set();
-        } else if (entity && (found = line.text.match(public_predicate_re))) {
-          entity.children.push(new DocumentSymbol(found[1], "public predicate", SymbolKind.Function, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (entity && (found = line.text.match(protected_predicate_re))) {
-          entity.children.push(new DocumentSymbol(found[1], "protected predicate", SymbolKind.Function, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (entity && (found = line.text.match(private_predicate_re))) {
-          entity.children.push(new DocumentSymbol(found[1], "private predicate", SymbolKind.Function, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (entity && (found = line.text.match(public_non_terminal_re))) {
-          entity.children.push(new DocumentSymbol(found[1], "public non-terminal", SymbolKind.Field, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (entity && (found = line.text.match(protected_non_terminal_re))) {
-          entity.children.push(new DocumentSymbol(found[1], "protected non-terminal", SymbolKind.Field, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (entity && (found = line.text.match(private_non_terminal_re))) {
-          entity.children.push(new DocumentSymbol(found[1], "private non-terminal", SymbolKind.Field, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)))
-        } else if (entity && !inside_term && (found = line.text.match(predicate_clause_re))) {
-          // Extract name and arity from the predicate clause
-          const match = found[1].match(/(\w+)\s*\([^)]*\)/);
-          if (match) {
-            const name = match[1];
-            if (!seenPredicates.has(name)) {
-              seenPredicates.add(name);
-              entity.children.push(new DocumentSymbol(found[1], "predicate clause", SymbolKind.Property, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)));
-            }
+      for (let i = 0; i < doc.lineCount; i++) {
+        const line = doc.lineAt(i);
+        const lineText = line.text;
+
+        // Check for entity opening directives
+        const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpening);
+        if (entityMatch) {
+          const endRegex = entityMatch.type === SymbolTypes.OBJECT ? SymbolRegexes.endObject :
+                          entityMatch.type === SymbolTypes.PROTOCOL ? SymbolRegexes.endProtocol :
+                          SymbolRegexes.endCategory;
+          const j = SymbolUtils.findEndEntityDirectivePosition(doc, i, endRegex);
+          const symbolKind = entityMatch.type === SymbolTypes.OBJECT ? SymbolKind.Class :
+                            entityMatch.type === SymbolTypes.PROTOCOL ? SymbolKind.Interface :
+                            SymbolKind.Struct;
+          const endLength = entityMatch.type === SymbolTypes.OBJECT ? 13 : 15;
+
+          entity = new DocumentSymbol(
+            entityMatch.match[1],
+            entityMatch.type,
+            symbolKind,
+            new Range(new Position(i, 0), new Position(j, endLength)),
+            new Range(line.range.start, line.range.end)
+          );
+          symbols.push(entity);
+          continue;
+        }
+
+        // Check for entity ending directives to reset tracking
+        if (entity && (lineText.match(SymbolRegexes.endObject) || lineText.match(SymbolRegexes.endCategory))) {
+          seenPredicates.clear();
+          seenNonTerminals.clear();
+          continue;
+        }
+
+        // Check for scope directives
+        if (entity) {
+          const scopeMatch = SymbolUtils.matchFirst(lineText, PatternSets.allScopes);
+          if (scopeMatch) {
+            const symbolKind = scopeMatch.type.includes('non-terminal') ? SymbolKind.Field : SymbolKind.Function;
+            entity.children.push(new DocumentSymbol(
+              scopeMatch.match[1],
+              scopeMatch.type,
+              symbolKind,
+              new Range(line.range.start, line.range.end),
+              new Range(line.range.start, line.range.end)
+            ));
+            continue;
           }
-        } else if (entity && !inside_term && (found = line.text.match(non_terminal_rule_re))) {
-          // Extract name from the non-terminal rule
-          const match = found[1].match(/(\w+)\s*\(/);
-          if (match) {
-            const name = match[1];
-            if (!seenNonTerminals.has(name)) {
-              seenNonTerminals.add(name);
-              entity.children.push(new DocumentSymbol(found[1], "non-terminal rule", SymbolKind.Property, new Range(line.range.start, line.range.end), new Range(line.range.start, line.range.end)));
+
+          // Check for predicate clauses (only if not inside a multi-line term)
+          if (!insideTerm) {
+            const predicateMatch = lineText.match(SymbolRegexes.predicateClause);
+            if (predicateMatch) {
+              const predicateName = SymbolUtils.extractPredicateName(predicateMatch[1]);
+              if (predicateName && !seenPredicates.has(predicateName)) {
+                seenPredicates.add(predicateName);
+                entity.children.push(new DocumentSymbol(
+                  predicateMatch[1],
+                  SymbolTypes.PREDICATE_CLAUSE,
+                  SymbolKind.Property,
+                  new Range(line.range.start, line.range.end),
+                  new Range(line.range.start, line.range.end)
+                ));
+              }
+              continue;
+            }
+
+            // Check for non-terminal rules (only if not inside a multi-line term)
+            const nonTerminalMatch = lineText.match(SymbolRegexes.nonTerminalRule);
+            if (nonTerminalMatch) {
+              const nonTerminalName = SymbolUtils.extractNonTerminalName(nonTerminalMatch[1]);
+              if (nonTerminalName && !seenNonTerminals.has(nonTerminalName)) {
+                seenNonTerminals.add(nonTerminalName);
+                entity.children.push(new DocumentSymbol(
+                  nonTerminalMatch[1],
+                  SymbolTypes.NON_TERMINAL_RULE,
+                  SymbolKind.Property,
+                  new Range(line.range.start, line.range.end),
+                  new Range(line.range.start, line.range.end)
+                ));
+              }
+              continue;
             }
           }
         }
+
         // Update inside_term state based on line ending
-        if (line.text.match(continuation_re)) {
-          inside_term = true;
-        } else {
-          inside_term = false;
-        }
+        insideTerm = SymbolUtils.isContinuationLine(lineText);
       }
 
       resolve(symbols);
     });
   }
 
-  private static findEndEntityDirectivePosition(doc: TextDocument, i: number, regex: RegExp): number {
-    var j = i + 1;
-    let end_entity = false;
-    while (!end_entity && j < doc.lineCount) {
-      var line = doc.lineAt(j);
-      if (line.text.match(regex)) {
-        end_entity = true;
-      } else {
-        j++;
-      }
-    }
-    return j;
-  }
+
 }
