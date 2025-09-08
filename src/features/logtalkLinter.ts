@@ -106,28 +106,28 @@ export default class LogtalkLinter implements CodeActionProvider {
         'Remove meta_non_terminal/1 directive',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     } else if (diagnostic.message.includes('Permission error: modify meta_predicate_template ')) {
       // Remove the directive
       action = new CodeAction(
         'Remove meta_predicate/1 directive',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     } else if (diagnostic.message.includes('Permission error: modify predicate_scope ')) {
       // Remove the directive
       action = new CodeAction(
         'Remove predicate scope directive',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     } else if (diagnostic.message.includes('Permission error: modify predicate_declaration ')) {
       // Remove the directive
       action = new CodeAction(
         'Remove predicate declaration directive',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     // Warnings
     } else if (diagnostic.message.includes('Redundant entity qualification in predicate directive argument:')) {
       // Remove the redundant entity qualification
@@ -150,21 +150,21 @@ export default class LogtalkLinter implements CodeActionProvider {
         'Delete duplicated clause',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     } else if (diagnostic.message.includes('Duplicated directive:')) {
       // Remove the duplicated directive
       action = new CodeAction(
         'Delete duplicated directive',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     } else if (diagnostic.message.includes('Duplicated grammar rule:')) {
       // Remove the duplicated grammar rule
       action = new CodeAction(
         'Delete duplicated grammar rule',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     } else if (diagnostic.message.includes('Missing scope directive for predicate:')) {
       // Add missing scope directive
       action = new CodeAction(
@@ -217,7 +217,7 @@ export default class LogtalkLinter implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       const text = document.getText(diagnostic.range).trim();
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
       edit.insert(document.uri, new Position(0, 0), text + '\n');
     } else if (diagnostic.message.includes('Missing meta_predicate/1 directive for predicate:')) {
       // Add missing meta_predicate/1 directive

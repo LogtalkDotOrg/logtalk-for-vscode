@@ -212,4 +212,71 @@ export class DiagnosticsUtils {
       return true;
     });
   }
+
+  /**
+   * Checks if there is only whitespace before and after a given range
+   * @param document The text document
+   * @param range The range to check around (can be single or multi-line)
+   * @returns true if there is only whitespace outside the range
+   */
+  public static isOnlyWhitespaceAroundRange(document: any, range: Range): boolean {
+    // For single-line ranges
+    if (range.start.line === range.end.line) {
+      const lineText = document.lineAt(range.start.line).text;
+      const beforeRange = lineText.substring(0, range.start.character);
+      const afterRange = lineText.substring(range.end.character);
+
+      return beforeRange.trim() === '' && afterRange.trim() === '';
+    }
+
+    // For multi-line ranges
+    // Check if there's only whitespace before the range on the first line
+    const firstLineText = document.lineAt(range.start.line).text;
+    const beforeRange = firstLineText.substring(0, range.start.character);
+
+    // Check if there's only whitespace after the range on the last line
+    const lastLineText = document.lineAt(range.end.line).text;
+    const afterRange = lastLineText.substring(range.end.character);
+
+    // Check if all lines between first and last are completely within the range
+    // (i.e., the range covers entire lines in between)
+    for (let lineNum = range.start.line + 1; lineNum < range.end.line; lineNum++) {
+      // For intermediate lines, they should be completely covered by the range
+      // This is typically true for multi-line diagnostics, but we'll assume it's correct
+    }
+
+    return beforeRange.trim() === '' && afterRange.trim() === '';
+  }
+
+  /**
+   * Creates a range for deleting entire lines covered by a diagnostic range
+   * @param range The diagnostic range that may span multiple lines
+   * @returns Range covering all lines from start to end including newlines
+   */
+  public static createWholeLineRange(range: Range): Range {
+    return new Range(
+      new Position(range.start.line, 0),
+      new Position(range.end.line + 1, 0)
+    );
+  }
+
+  /**
+   * Creates a smart delete operation that removes entire lines when there's only whitespace around the range,
+   * or just the range itself when there's other content on the same lines
+   * @param edit The WorkspaceEdit to add the delete operation to
+   * @param document The text document
+   * @param uri The document URI
+   * @param diagnosticRange The diagnostic range to delete
+   */
+  public static addSmartDeleteOperation(edit: any, document: any, uri: any, diagnosticRange: Range): void {
+    // Check if there is only whitespace around the diagnostic range
+    if (DiagnosticsUtils.isOnlyWhitespaceAroundRange(document, diagnosticRange)) {
+      // Delete the entire lines including newlines
+      const lineRange = DiagnosticsUtils.createWholeLineRange(diagnosticRange);
+      edit.delete(uri, lineRange);
+    } else {
+      // Only delete the diagnostic range itself
+      edit.delete(uri, diagnosticRange);
+    }
+  }
 }

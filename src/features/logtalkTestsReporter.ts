@@ -76,19 +76,19 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
 
     // Warnings
     if (diagnostic.message.includes('code coverage requested for protocol:')) {
-      // Remove the duplicated clause
+      // Delete useless cover/1 fact
       action = new CodeAction(
         'Delete cover/1 fact for the protocol',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     } else if (diagnostic.message.includes('unknown entity declared covered:')) {
-      // Remove the duplicated directive
+      // Delete useless cover/1 fact
       action = new CodeAction(
         'Delete cover/1 fact for the unknown entity',
         CodeActionKind.QuickFix
       );
-      edit.delete(document.uri, diagnostic.range);
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     } else if (diagnostic.message.includes('assertion uses a unification goal:')) {
       const assertion = diagnostic.message.match(/test (.+) assertion uses a unification goal: (.+)(\s*)=(\s*)(.+)/);
       if (assertion) {
