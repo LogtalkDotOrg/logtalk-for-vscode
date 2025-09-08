@@ -378,6 +378,9 @@ export function activate(context: ExtensionContext) {
     languages.registerCodeActionsProvider(LOGTALK_MODE, linter)
   );
   context.subscriptions.push(
+    languages.registerCodeActionsProvider(LOGTALK_MODE, testsReporter)
+  );
+  context.subscriptions.push(
     workspace.onDidChangeTextDocument(event => {
       // Update diagnostics for all diagnostic collections
       DiagnosticsUtils.updateDiagnosticsOnChange(linter.diagnosticCollection, event);

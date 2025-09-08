@@ -4,6 +4,7 @@
 
 * Add settings support for multi-backend Logtalk executable arguments
 * Add quick fixes for some linter errors and warnings
+* Add quick fixes for some tests reporter warnings
 * Add code navigation support for `(@)/1` goals
 * Update "Go to Symbol in Workspace..." support to also include predicate clauses and non-terminal rules
 * Improve readme section on code navigation

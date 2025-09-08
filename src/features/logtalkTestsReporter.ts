@@ -4,6 +4,9 @@ import {
   CancellationToken,
   CodeActionContext,
   CodeActionProvider,
+  CodeAction,
+  CodeActionKind,
+  WorkspaceEdit,
   Diagnostic,
   DiagnosticCollection,
   DiagnosticSeverity,
@@ -36,14 +39,129 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
     this.loadConfiguration();
   }
 
-  provideCodeActions(
-    document: TextDocument,
-    range: Range,
-    context: CodeActionContext,
-    token: CancellationToken
-  ): Command[] | Thenable<Command[]> {
-    let codeActions: Command[] = [];
-    return codeActions;
+  public async provideCodeActions(
+    document: TextDocument, range: Range | Selection,
+    context: CodeActionContext, token: CancellationToken):
+    Promise<CodeAction[]> {
+      const actions: CodeAction[] = [];
+      // Iterate through diagnostics (errors/warnings) in the current context
+      for (const diagnostic of context.diagnostics) {
+        // Check if this diagnostic has an associated quick fix
+        if (this.canFix(diagnostic)) {
+          const action = this.createQuickFix(document, diagnostic);
+          if (action) {
+            actions.push(action);
+          }
+        }
+      }  
+      return actions;
+    }
+
+  private canFix(diagnostic: Diagnostic): boolean {
+    // Warnings
+    if (diagnostic.message.includes('code coverage requested for protocol:')) {
+      return true;
+    } else if (diagnostic.message.includes('unknown entity declared covered:')) {
+      return true;
+    } else if (diagnostic.message.includes('assertion uses a unification goal:')) {
+      return true;
+    }
+    return false;
+  }
+
+  private createQuickFix(document: TextDocument, diagnostic: Diagnostic): CodeAction | null {
+    // Create the edit that will fix the issue
+    const edit = new WorkspaceEdit();
+    let action: CodeAction;
+
+    // Warnings
+    if (diagnostic.message.includes('code coverage requested for protocol:')) {
+      // Remove the duplicated clause
+      action = new CodeAction(
+        'Delete cover/1 fact for the protocol',
+        CodeActionKind.QuickFix
+      );
+      edit.delete(document.uri, diagnostic.range);
+    } else if (diagnostic.message.includes('unknown entity declared covered:')) {
+      // Remove the duplicated directive
+      action = new CodeAction(
+        'Delete cover/1 fact for the unknown entity',
+        CodeActionKind.QuickFix
+      );
+      edit.delete(document.uri, diagnostic.range);
+    } else if (diagnostic.message.includes('assertion uses a unification goal:')) {
+      const assertion = diagnostic.message.match(/test (.+) assertion uses a unification goal: (.+)(\s*)=(\s*)(.+)/);
+      if (assertion) {
+        // Extract the left and right operands from the diagnostic message
+        const leftOperand = assertion[2].trim();
+        const rightOperand = assertion[5].trim();
+
+        // Check if either operand is a float (contains a decimal point and is numeric)
+        const isFloat = (operand: string): boolean => {
+          // Remove any surrounding whitespace and check for float pattern
+          const trimmed = operand.trim();
+          // Match float patterns like: 3.14, -2.5, 0.0, .5, 5., +1.23
+          return /^[+-]?(\d+\.\d*|\d*\.\d+|\d+\.)$/.test(trimmed);
+        };
+
+        const hasFloatOperand = isFloat(leftOperand) || isFloat(rightOperand);
+        const operator = hasFloatOperand ? '=~=' : '==';
+        const description = hasFloatOperand
+          ? 'Fix assertion to use a (=~=)/2 float approximate equality goal'
+          : 'Fix assertion to use a (==)/2 term equality goal';
+
+        // Fix assertion to use appropriate operator
+        action = new CodeAction(description, CodeActionKind.QuickFix);
+
+        // Get the actual line text from the document
+        const lineText = document.lineAt(diagnostic.range.start.line).text;
+
+        // Find the = operator by looking for the pattern: leftOperand...=...rightOperand
+        // We'll search for = characters and check if they're surrounded by the correct operands
+        let equalStartCol = -1;
+
+        for (let i = 0; i < lineText.length; i++) {
+          if (lineText[i] === '=') {
+            // Check if this = is not part of == or =~= (avoid replacing == with === or =~= with =~==)
+            if (i > 0 && lineText[i - 1] === '=') continue;
+            if (i < lineText.length - 1 && lineText[i + 1] === '=') continue;
+            if (i > 0 && lineText[i - 1] === '~') continue;
+
+            // Extract text before and after this = to see if it matches our operands
+            const beforeEqual = lineText.substring(0, i).trim();
+            const afterEqual = lineText.substring(i + 1).trim();
+
+            // Check if the left operand appears at the end of beforeEqual
+            // and right operand appears at the start of afterEqual
+            if (beforeEqual.endsWith(leftOperand) && afterEqual.startsWith(rightOperand)) {
+              equalStartCol = i;
+              break;
+            }
+          }
+        }
+
+        if (equalStartCol !== -1) {
+          // Create a range that covers only the = operator
+          const equalRange = new Range(
+            new Position(diagnostic.range.start.line, equalStartCol),
+            new Position(diagnostic.range.start.line, equalStartCol + 1)
+          );
+
+          edit.replace(document.uri, equalRange, operator);
+        }
+      }
+    }
+
+    action.edit = edit;
+    // Associate this action with the specific diagnostic
+    action.diagnostics = [diagnostic];
+    action.command = {
+      title: 'Logtalk Testing',
+      command: 'logtalk.update.diagnostics',
+      arguments: [document.uri, diagnostic]
+    };
+
+    return action;
   }
 
   private parseIssue(issue: string) {
