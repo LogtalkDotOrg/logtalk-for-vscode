@@ -28,6 +28,7 @@ import { LogtalkMetricsCodeLensProvider } from "./metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./testsCodeLensProvider"
 import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
+import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 
 export default class LogtalkTerminal {
@@ -1336,8 +1337,8 @@ export default class LogtalkTerminal {
     let logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
     const normalizedDir = fs.realpathSync(dir).split(path.sep).join("/").toLowerCase();
     const normalizedCore = fs.realpathSync(path.join(logtalkHome, "core")).split(path.sep).join("/").toLowerCase();
-    // console.log("normalizedDir: " + normalizedDir);
-    // console.log("normalizedCore: " + normalizedCore);
+    getLogger().debug("normalizedDir: " + normalizedDir);
+    getLogger().debug("normalizedCore: " + normalizedCore);
     if (normalizedDir !== normalizedCore && !LogtalkTerminal._context.workspaceState.get(normalizedDir, false)) {
       let found: boolean = false; 
       for (const key of LogtalkTerminal._context.workspaceState.keys()) {

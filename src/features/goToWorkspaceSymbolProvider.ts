@@ -8,8 +8,11 @@ import {
   SymbolKind,
   workspace
 } from "vscode";
+import { getLogger } from "../utils/logger";
 
 export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
+  private logger = getLogger();
+
   public async provideWorkspaceSymbols(
     query: string,
     token: CancellationToken
@@ -57,7 +60,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
           }
         }
       } catch(err) {
-        console.log("failed to open " + docs[i]);
+        this.logger.debug("failed to open " + docs[i]);
       }
     }
 

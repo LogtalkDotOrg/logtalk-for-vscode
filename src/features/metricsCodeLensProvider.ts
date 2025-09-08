@@ -13,8 +13,10 @@ import {
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import { getLogger } from "../utils/logger";
 
 export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
+  private logger = getLogger();
 
   private _onDidChangeCodeLenses: EventEmitter<void> = new EventEmitter<void>();
   public readonly onDidChangeCodeLenses: Event<void> = this._onDidChangeCodeLenses.event;
@@ -97,6 +99,8 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
             );
           }
         }
+      } else {
+        this.logger.error('.vscode_metrics_results file not found');
       }
       return codeLenses;
     } else {

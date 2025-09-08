@@ -11,12 +11,15 @@ import {
   Range
 } from "vscode";
 import LogtalkTerminal from "./logtalkTerminal";
+import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 
 export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
+  private logger = getLogger();
+
   public async prepareTypeHierarchy(
     doc: TextDocument,
     position: Position,
@@ -73,7 +76,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
         );
       }
     } else {
-      console.log('ancestors not found');
+      this.logger.error('.vscode_ancestors file not found');
     }
 
     return ancestors;
@@ -113,7 +116,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
         );
       }
     } else {
-      console.log('descendants not found');
+      this.logger.error('.vscode_descendants file not found');
     }
 
     return descendants;

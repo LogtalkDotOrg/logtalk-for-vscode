@@ -14,12 +14,14 @@ import {
   Range
 } from "vscode";
 import LogtalkTerminal from "./logtalkTerminal";
+import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 
 export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
+  private logger = getLogger();
 
   /**
    * Find the range of a predicate name in a line of text
@@ -79,7 +81,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
         }
       }
     } catch (error) {
-      console.error(`Error reading file ${filePath}:`, error);
+      this.logger.error(`Error reading file ${filePath}:`, error);
     }
 
     // Fallback to zero-width ranges at line start
@@ -112,7 +114,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
         }
       }
     } catch (error) {
-      console.error(`Error reading file ${filePath}:`, error);
+      this.logger.error(`Error reading file ${filePath}:`, error);
     }
 
     // Fallback to empty array if not found
@@ -204,7 +206,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
         );
       }
     } else {
-      console.log('callers not found');
+      this.logger.error('.vscode_callers file not found');
     }
 
     return callers;
@@ -255,7 +257,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
         );
       }
     } else {
-      console.log('callees not found');
+      this.logger.error('.vscode_callees file not found');
     }
 
     return callees;

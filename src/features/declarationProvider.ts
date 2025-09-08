@@ -9,11 +9,11 @@ import {
   Uri
 } from "vscode";
 import LogtalkTerminal from "./logtalkTerminal";
+import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
-import { getLogger } from "../utils/logger";
 
 export class LogtalkDeclarationProvider implements DeclarationProvider {
   private logger = getLogger();
@@ -45,7 +45,7 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }
     } else {
-      this.logger.debug('declaration not found');
+      this.logger.error('.vscode_declaration file not found');
     }
 
     return location;

@@ -10,11 +10,11 @@ import {
   Uri
 } from "vscode";
 import LogtalkTerminal from "./logtalkTerminal";
+import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
-import { getLogger } from "../utils/logger";
 
 export class LogtalkReferenceProvider implements ReferenceProvider {
   private logger = getLogger();
@@ -49,7 +49,7 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
         locations.push(new Location(Uri.file(match[1]), new Position(parseInt(match[2]) - 1, 0)));
       }
     } else {
-      this.logger.debug('references not found');
+      this.logger.error('.vscode_references file not found');
     }
 
     return locations;

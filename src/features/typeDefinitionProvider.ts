@@ -9,12 +9,15 @@ import {
   Uri
 } from "vscode";
 import LogtalkTerminal from "./logtalkTerminal";
+import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 
 export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
+  private logger = getLogger();
+
   public async provideTypeDefinition(
     doc: TextDocument,
     position: Position,
@@ -42,7 +45,7 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }
     } else {
-      console.log('type definition not found');
+      this.logger.error('.vscode_type_definition file not found');
     }
 
     return location;
