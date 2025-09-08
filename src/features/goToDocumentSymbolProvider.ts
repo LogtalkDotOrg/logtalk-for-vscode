@@ -63,6 +63,7 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
 
         // Check for scope directives
         if (entity) {
+          // First try single-predicate scope directives
           const scopeMatch = SymbolUtils.matchFirst(lineText, PatternSets.allScopes);
           if (scopeMatch) {
             const symbolKind = scopeMatch.type.includes('non-terminal') ? SymbolKind.Field : SymbolKind.Function;
@@ -73,6 +74,37 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
               new Range(line.range.start, line.range.end),
               new Range(line.range.start, line.range.end)
             ));
+            continue;
+          }
+
+          // Check for multi-line/multi-predicate scope directive openings
+          const scopeOpening = SymbolUtils.matchScopeDirectiveOpening(lineText);
+          if (scopeOpening) {
+            // Collect the complete directive text
+            const { text: directiveText, endLine } = SymbolUtils.collectScopeDirectiveText(doc, i);
+
+            // Extract all predicate/non-terminal indicators from the directive
+            const indicators = SymbolUtils.extractIndicatorsFromScopeDirective(directiveText);
+
+            // Create symbols for each indicator
+            for (const { indicator, isNonTerminal } of indicators) {
+              const baseType = scopeOpening.type;
+              const symbolType = isNonTerminal
+                ? baseType.replace('predicate', 'non-terminal')
+                : baseType;
+              const symbolKind = isNonTerminal ? SymbolKind.Field : SymbolKind.Function;
+
+              entity.children.push(new DocumentSymbol(
+                indicator,
+                symbolType,
+                symbolKind,
+                new Range(new Position(i, 0), new Position(endLine, doc.lineAt(endLine).text.length)),
+                new Range(line.range.start, line.range.end)
+              ));
+            }
+
+            // Skip to the end of the directive
+            i = endLine;
             continue;
           }
 

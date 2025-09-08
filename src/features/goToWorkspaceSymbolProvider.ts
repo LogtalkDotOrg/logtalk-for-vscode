@@ -65,6 +65,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
           }
 
           // Check for scope directives
+          // First try single-predicate scope directives
           const scopeMatch = SymbolUtils.matchFirst(lineText, PatternSets.allScopes);
           if (scopeMatch) {
             const symbolKind = scopeMatch.type.includes('non-terminal') ? SymbolKind.Field : SymbolKind.Function;
@@ -75,6 +76,37 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
               containerName,
               new Location(doc.uri, line.range)
             ));
+            continue;
+          }
+
+          // Check for multi-line/multi-predicate scope directive openings
+          const scopeOpening = SymbolUtils.matchScopeDirectiveOpening(lineText);
+          if (scopeOpening) {
+            // Collect the complete directive text
+            const { text: directiveText, endLine } = SymbolUtils.collectScopeDirectiveText(doc, j);
+
+            // Extract all predicate/non-terminal indicators from the directive
+            const indicators = SymbolUtils.extractIndicatorsFromScopeDirective(directiveText);
+
+            // Create symbols for each indicator
+            for (const { indicator, isNonTerminal } of indicators) {
+              const baseType = scopeOpening.type;
+              const symbolType = isNonTerminal
+                ? baseType.replace('predicate', 'non-terminal')
+                : baseType;
+              const symbolKind = isNonTerminal ? SymbolKind.Field : SymbolKind.Function;
+              const containerName = currentEntity ? `${symbolType} • ${currentEntity} (${currentEntityType})` : symbolType;
+
+              symbols.push(new SymbolInformation(
+                indicator,
+                symbolKind,
+                containerName,
+                new Location(doc.uri, line.range)
+              ));
+            }
+
+            // Skip to the end of the directive
+            j = endLine;
             continue;
           }
 

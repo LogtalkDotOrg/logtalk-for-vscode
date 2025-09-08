@@ -211,11 +211,11 @@ Right-click on a protocol name in its entity opening directive to find implement
 
 #### Go to Symbol in Editor...
 
-Symbols include entity identifiers in entity opening directives, predicate (and non-terminal) indicators in predicate scope directives, first predicate clause, and first non-terminal rule. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded. Assumes that a single predicate (or non-terminal) is declared per scope directive.
+Symbols include entity identifiers in entity opening directives, predicate (and non-terminal) indicators in predicate scope directives, first predicate clause, and first non-terminal rule. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded.
 
 #### Go to Symbol in Workspace...
 
-Symbols include entity identifiers in entity opening directives and predicate (and non-terminal) indicators in predicate scope directives. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded. Assumes that a single predicate (or non-terminal) is declared per scope directive.
+Symbols include entity identifiers in entity opening directives, predicate (and non-terminal) indicators in predicate scope directives, first predicate clause, and first non-terminal rule. Note that VSCode doesn't support customization of symbol kind names and icons, thus forcing adapting the pre-defined names and icons. This feature doesn't require the code to be loaded.
 
 #### Show Call Hierarchy
 
