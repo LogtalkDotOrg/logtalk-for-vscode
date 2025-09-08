@@ -8,6 +8,7 @@
 * Improve readme section on code navigation
 * Set debugging off and ensure any existing breakpoints are disabled at extension activation
 * Fix toggling debugging to always send the `debug`/`nodebug` messages after enabling/disabling the breakpoints
+* Fix call hierarchy "Show Incoming Calls" and "Show Outgoing Calls" context menu items
 
 ## [0.52.0]
 
