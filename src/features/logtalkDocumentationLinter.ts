@@ -19,6 +19,7 @@ import {
 } from "vscode";
 import * as path from "path";
 import { getLogger } from "../utils/logger";
+import { DiagnosticsUtils } from "../utils/diagnostics";
 
 export default class LogtalkDocumentationLinter implements CodeActionProvider {
 
@@ -127,6 +128,10 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
         this.diagnosticHash = [];
       }
     }
+  }
+
+  public updateDiagnostics(uri: Uri, diagnosticToRemove: Diagnostic) {
+    DiagnosticsUtils.updateDiagnostics(this.diagnosticCollection, uri, diagnosticToRemove);
   }
 
   private loadConfiguration(): void {

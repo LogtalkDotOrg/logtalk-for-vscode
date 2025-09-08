@@ -18,6 +18,7 @@ import {
   workspace
 } from "vscode";
 import * as path from "path";
+import { DiagnosticsUtils } from "../utils/diagnostics";
 import { getLogger } from "../utils/logger";
 
 export default class LogtalkDeadCodeScanner implements CodeActionProvider {
@@ -128,6 +129,10 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
         this.diagnosticHash = [];
       }
     }
+  }
+
+  public updateDiagnostics(uri: Uri, diagnosticToRemove: Diagnostic) {
+    DiagnosticsUtils.updateDiagnostics(this.diagnosticCollection, uri, diagnosticToRemove);
   }
 
   private loadConfiguration(): void {

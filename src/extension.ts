@@ -38,6 +38,7 @@ import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvid
 import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
 import { getLogger } from "./utils/logger";
+import { DiagnosticsUtils } from "./utils/diagnostics";
 
 const DEBUG = 1;
 
@@ -279,7 +280,18 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.open.paired.notebook",      callback: uri  => LogtalkJupyter.openAsPairedNotebook(uri)},
     { command: "logtalk.sync.notebook",             callback: uri  => LogtalkJupyter.syncNotebook(uri)},
     // Diagnostic commands
-    { command: "logtalk.linter.update.diagnostics", callback: (uri, diagnostic) => linter.updateDiagnostics(uri, diagnostic)}
+    { command: "logtalk.update.diagnostics", callback: (uri, diagnostic) => {
+      // Route to appropriate diagnostic collection based on the diagnostic source
+      if (diagnostic.source === "Logtalk Linter") {
+        linter.updateDiagnostics(uri, diagnostic);
+      } else if (diagnostic.source === "Logtalk Tests Reporter") {
+        testsReporter.updateDiagnostics(uri, diagnostic);
+      } else if (diagnostic.source === "Logtalk Dead Code Scanner") {
+        deadCodeScanner.updateDiagnostics(uri, diagnostic);
+      } else if (diagnostic.source === "Logtalk Documentation Linter") {
+        documentationLinter.updateDiagnostics(uri, diagnostic);
+      }
+    }}
   ];
 
   logtalkCommands.map(command => {
@@ -367,7 +379,11 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     workspace.onDidChangeTextDocument(event => {
-      linter.updateDiagnosticsOnChange(event);
+      // Update diagnostics for all diagnostic collections
+      DiagnosticsUtils.updateDiagnosticsOnChange(linter.diagnosticCollection, event);
+      DiagnosticsUtils.updateDiagnosticsOnChange(testsReporter.diagnosticCollection, event);
+      DiagnosticsUtils.updateDiagnosticsOnChange(deadCodeScanner.diagnosticCollection, event);
+      DiagnosticsUtils.updateDiagnosticsOnChange(documentationLinter.diagnosticCollection, event);
     })
   );
   context.subscriptions.push(LogtalkTerminal.init(context));

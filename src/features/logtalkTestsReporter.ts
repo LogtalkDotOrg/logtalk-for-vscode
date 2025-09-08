@@ -4,7 +4,6 @@ import {
   CancellationToken,
   CodeActionContext,
   CodeActionProvider,
-  Command,
   Diagnostic,
   DiagnosticCollection,
   DiagnosticSeverity,
@@ -19,6 +18,7 @@ import {
 } from "vscode";
 import * as path from "path";
 import { getLogger } from "../utils/logger";
+import { DiagnosticsUtils } from "../utils/diagnostics";
 
 export default class LogtalkTestsReporter implements CodeActionProvider {
 
@@ -144,16 +144,12 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
     }
   }
 
+  public updateDiagnostics(uri: Uri, diagnosticToRemove: Diagnostic) {
+    DiagnosticsUtils.updateDiagnostics(this.diagnosticCollection, uri, diagnosticToRemove);
+  }
+
   private removeDuplicateDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
-    const seen = new Set<string>();
-    return diagnostics.filter(diag => {
-      const key = `${diag.range.start.line},${diag.range.start.character},${diag.range.end.line},${diag.range.end.character},${diag.message},${diag.severity}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
+    return DiagnosticsUtils.removeDuplicateDiagnostics(diagnostics);
   }
 
   private loadConfiguration(): void {
