@@ -238,13 +238,6 @@ export class DiagnosticsUtils {
     const lastLineText = document.lineAt(range.end.line).text;
     const afterRange = lastLineText.substring(range.end.character);
 
-    // Check if all lines between first and last are completely within the range
-    // (i.e., the range covers entire lines in between)
-    for (let lineNum = range.start.line + 1; lineNum < range.end.line; lineNum++) {
-      // For intermediate lines, they should be completely covered by the range
-      // This is typically true for multi-line diagnostics, but we'll assume it's correct
-    }
-
     return beforeRange.trim() === '' && afterRange.trim() === '';
   }
 
