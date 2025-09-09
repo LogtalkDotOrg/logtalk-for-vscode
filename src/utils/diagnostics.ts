@@ -326,4 +326,69 @@ export class DiagnosticsUtils {
       new Position(endLine, endChar)
     );
   }
+
+  /**
+   * Searches for a specific text within a diagnostic range and returns the range only if there's exactly one occurrence
+   * @param document The text document
+   * @param diagnosticRange The diagnostic range to search within
+   * @param searchText The text to search for
+   * @returns Range of the found text if there's exactly one occurrence, or null if not found or multiple occurrences
+   */
+  public static findSingleTextInRange(document: any, diagnosticRange: Range, searchText: string): Range | null {
+    // Get the text content of the diagnostic range
+    const rangeText = document.getText(diagnosticRange);
+
+    // Find all occurrences using case-sensitive exact text search
+    const occurrences: number[] = [];
+    let searchIndex = 0;
+
+    while (true) {
+      const foundIndex = rangeText.indexOf(searchText, searchIndex);
+      if (foundIndex === -1) {
+        break;
+      }
+
+      occurrences.push(foundIndex);
+      searchIndex = foundIndex + searchText.length; // Move past this occurrence
+    }
+
+    // Return null if not exactly one occurrence
+    if (occurrences.length !== 1) {
+      return null;
+    }
+
+    const firstIndex = occurrences[0];
+
+    // Calculate the absolute position
+    let currentLine = diagnosticRange.start.line;
+    let currentChar = diagnosticRange.start.character;
+
+    // Iterate through the range text to find the absolute position
+    for (let i = 0; i < firstIndex; i++) {
+      if (rangeText[i] === '\n') {
+        currentLine++;
+        currentChar = 0;
+      } else {
+        currentChar++;
+      }
+    }
+
+    // Calculate the end position
+    let endLine = currentLine;
+    let endChar = currentChar;
+
+    for (let i = 0; i < searchText.length; i++) {
+      if (searchText[i] === '\n') {
+        endLine++;
+        endChar = 0;
+      } else {
+        endChar++;
+      }
+    }
+
+    return new Range(
+      new Position(currentLine, currentChar),
+      new Position(endLine, endChar)
+    );
+  }
 }

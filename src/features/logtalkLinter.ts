@@ -66,6 +66,10 @@ export default class LogtalkLinter implements CodeActionProvider {
     } else if (diagnostic.message.includes('Permission error: modify predicate_declaration ')) {
       return true;
     // Warnings
+    } else if (diagnostic.message.includes('Singleton variable: ')) {
+      return true;
+    } else if (diagnostic.message.includes('Singleton variables: ')) {
+      return true;
     } else if (diagnostic.message.includes('Redundant entity qualification in predicate directive argument:')) {
       return true;
     } else if (diagnostic.message.includes('Duplicated clause:')) {
@@ -131,6 +135,48 @@ export default class LogtalkLinter implements CodeActionProvider {
       );
       DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     // Warnings
+    } else if (diagnostic.message.includes('Singleton variable: ')) {
+      // Rename the singleton variable to named anonymous variable
+      action = new CodeAction(
+        'Rename singleton variable to named anonymous variable',
+        CodeActionKind.QuickFix
+      );
+      const message = diagnostic.message.match(/Singleton variable: (.+)/);
+      const singletonVariable = message[1];
+      const namedSingleton = '_' + singletonVariable;
+      // Find the exact range of the singleton variable within the diagnostic range
+      const singletonRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, singletonVariable);
+      if (singletonRange) {
+        edit.replace(document.uri, singletonRange, namedSingleton);
+      } else {
+        return null;
+      }
+    } else if (diagnostic.message.includes('Singleton variables: ')) {
+      // Rename the singleton variables to named anonymous variables
+      action = new CodeAction(
+        'Rename singleton variables to named anonymous variables',
+        CodeActionKind.QuickFix
+      );
+      const message = diagnostic.message.match(/Singleton variables: (.+)/);
+      // Remove brackets and spaces, then split on comma - handles all formats: [A,B], [A, B], A,B, A, B
+      const variablesString = message[1].replace(/[\[\]\s]/g, ''); // Remove [, ], and spaces
+      const singletonVariables = variablesString.split(',');
+      // Compute replacements
+      let hasAnyReplacement = false;
+      for (const singletonVariable of singletonVariables) {
+        const namedSingleton = '_' + singletonVariable;
+        // Find the exact range of the singleton variable within the diagnostic range
+        const singletonRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, singletonVariable);
+        if (singletonRange) {
+          edit.replace(document.uri, singletonRange, namedSingleton);
+          hasAnyReplacement = true;
+        }
+        // Continue with other variables even if this one can't be renamed
+      }
+      // Only return null if no variables could be renamed at all
+      if (!hasAnyReplacement) {
+        return null;
+      }
     } else if (diagnostic.message.includes('Redundant entity qualification in predicate directive argument:')) {
       // Remove the redundant entity qualification
       action = new CodeAction(
@@ -224,7 +270,7 @@ export default class LogtalkLinter implements CodeActionProvider {
     } else if (diagnostic.message.includes('Missing meta_predicate/1 directive for predicate:')) {
       // Add missing meta_predicate/1 directive
       action = new CodeAction(
-        'Add missing meta_predicate/1 directive',
+        'Add missing meta_predicate/1 directive (edit as needed)',
         CodeActionKind.QuickFix
       );
       const predicateIndicator = diagnostic.message.match(/Missing meta_predicate\/1 directive for predicate: (.+)\/(\d+)/);
@@ -234,7 +280,7 @@ export default class LogtalkLinter implements CodeActionProvider {
     } else if (diagnostic.message.includes('Missing meta_non_terminal/1 directive for non-terminal:')) {
       // Add missing meta_non_terminal/1 directive
       action = new CodeAction(
-        'Add missing meta_non_terminal/1 directive',
+        'Add missing meta_non_terminal/1 directive (edit as needed)',
         CodeActionKind.QuickFix
       );
       const nonTerminalIndicator = diagnostic.message.match(/Missing meta_non_terminal\/1 directive for non-terminal: (.+)\/\/(\d+)/);
