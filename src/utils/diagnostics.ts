@@ -272,4 +272,58 @@ export class DiagnosticsUtils {
       edit.delete(uri, diagnosticRange);
     }
   }
+
+  /**
+   * Searches for a specific text within a diagnostic range and returns the range of the found text
+   * @param document The text document
+   * @param diagnosticRange The diagnostic range to search within
+   * @param searchText The text to search for
+   * @returns Range of the found text, or null if not found
+   */
+  public static findTextInRange(document: any, diagnosticRange: Range, searchText: string): Range | null {
+    // Get the text content of the diagnostic range
+    const rangeText = document.getText(diagnosticRange);
+
+    // Find the index of the search text within the range
+    const searchIndex = rangeText.indexOf(searchText);
+
+    if (searchIndex === -1) {
+      return null; // Text not found
+    }
+
+    // Calculate the absolute position of the found text
+    // We need to convert the relative position within the range to absolute document positions
+    let currentLine = diagnosticRange.start.line;
+    let currentChar = diagnosticRange.start.character;
+    let charCount = 0;
+
+    // Iterate through the range text to find the absolute position
+    for (let i = 0; i < searchIndex; i++) {
+      if (rangeText[i] === '\n') {
+        currentLine++;
+        currentChar = 0;
+      } else {
+        currentChar++;
+      }
+      charCount++;
+    }
+
+    // Calculate the end position
+    let endLine = currentLine;
+    let endChar = currentChar;
+
+    for (let i = 0; i < searchText.length; i++) {
+      if (searchText[i] === '\n') {
+        endLine++;
+        endChar = 0;
+      } else {
+        endChar++;
+      }
+    }
+
+    return new Range(
+      new Position(currentLine, currentChar),
+      new Position(endLine, endChar)
+    );
+  }
 }

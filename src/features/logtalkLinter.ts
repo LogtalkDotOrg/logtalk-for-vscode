@@ -90,6 +90,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Missing meta_non_terminal/1 directive for non-terminal:')) {
       return true;
+    } else if (diagnostic.message.includes('Deprecated date format:')) {
+      return true;
     }
     return false;
   }
@@ -239,6 +241,27 @@ export default class LogtalkLinter implements CodeActionProvider {
       const stars = Array(nonTerminalIndicator[2]).fill('*').join(',');
       const indent = document.getText(diagnostic.range).match(/(\s*)/);
       edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- meta_non_terminal(' + nonTerminalIndicator[1] + '(' + stars + ')).\n');
+    } else if (diagnostic.message.includes('Deprecated date format:')) {
+      // Replace deprecated date format with ISO 8601 format
+      action = new CodeAction(
+        'Replace deprecated date format with ISO 8601 format',
+        CodeActionKind.QuickFix
+      );
+      const deprecatedMessage = diagnostic.message.match(/Deprecated date format: (.+) \(use instead ISO 8601 format (.+)\)/);
+      if (deprecatedMessage) {
+        const deprecatedDate = deprecatedMessage[1];
+        const isoDate = deprecatedMessage[2];
+
+        // Find the exact range of the deprecated date within the diagnostic range
+        const deprecatedDateRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, deprecatedDate);
+
+        if (deprecatedDateRange) {
+          // Replace only the deprecated date part with the ISO date
+          edit.replace(document.uri, deprecatedDateRange, isoDate);
+        } else {
+          return null;
+        }
+      }
     }
 
     action.edit = edit;
