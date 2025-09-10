@@ -42,6 +42,16 @@ import { DiagnosticsUtils } from "./utils/diagnostics";
 
 const DEBUG = 1;
 
+// Module-level references for cleanup in deactivate()
+let linter: LogtalkLinter;
+let testsReporter: LogtalkTestsReporter;
+let deadCodeScanner: LogtalkDeadCodeScanner;
+let documentationLinter: LogtalkDocumentationLinter;
+let chatParticipant: LogtalkChatParticipant;
+let watcher: any;
+let testsCodeLensProvider: LogtalkTestsCodeLensProvider;
+let metricsCodeLensProvider: LogtalkMetricsCodeLensProvider;
+
 function getLogLevelDescription(level: string): string {
   switch (level) {
     case 'off': return 'No logging output';
@@ -66,13 +76,13 @@ export function activate(context: ExtensionContext) {
   const LOGTALK_MODE: DocumentFilter = { language: "logtalk", scheme: "file" };
 
   loadEditHelpers(subscriptions);
-  const linter = new LogtalkLinter(context);
+  linter = new LogtalkLinter(context);
   linter.activate(subscriptions);
-  const testsReporter = new LogtalkTestsReporter(context);
+  testsReporter = new LogtalkTestsReporter(context);
   testsReporter.activate(subscriptions);
-  const deadCodeScanner = new LogtalkDeadCodeScanner(context);
+  deadCodeScanner = new LogtalkDeadCodeScanner(context);
   deadCodeScanner.activate(subscriptions);
-  const documentationLinter = new LogtalkDocumentationLinter(context);
+  documentationLinter = new LogtalkDocumentationLinter(context);
   documentationLinter.activate(subscriptions);
 
   let section = workspace.getConfiguration("logtalk");
@@ -83,7 +93,7 @@ export function activate(context: ExtensionContext) {
     throw new Error("configuration settings error: logtalk"); 
   }
 
-  const watcher = workspace.createFileSystemWatcher(new RelativePattern(logtalkUser, "scratch/.debug_info"), false, false, true);
+  watcher = workspace.createFileSystemWatcher(new RelativePattern(logtalkUser, "scratch/.debug_info"), false, false, true);
 
   watcher.onDidCreate((uri) => {
     Utils.openFileAt(uri);
@@ -99,7 +109,7 @@ export function activate(context: ExtensionContext) {
   Utils.init(context);
 
   // Initialize chat participant
-  new LogtalkChatParticipant(context);
+  chatParticipant = new LogtalkChatParticipant(context);
 
   // Add logging commands
   context.subscriptions.push(
@@ -369,11 +379,13 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerWorkspaceSymbolProvider(new LogtalkWorkspaceSymbolProvider())
   );
+  testsCodeLensProvider = new LogtalkTestsCodeLensProvider();
   context.subscriptions.push(
-    languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkTestsCodeLensProvider())
+    languages.registerCodeLensProvider(LOGTALK_MODE, testsCodeLensProvider)
   );
+  metricsCodeLensProvider = new LogtalkMetricsCodeLensProvider();
   context.subscriptions.push(
-    languages.registerCodeLensProvider(LOGTALK_MODE, new LogtalkMetricsCodeLensProvider())
+    languages.registerCodeLensProvider(LOGTALK_MODE, metricsCodeLensProvider)
   );
   context.subscriptions.push(
     languages.registerCodeActionsProvider(LOGTALK_MODE, linter)
@@ -394,4 +406,72 @@ export function activate(context: ExtensionContext) {
   updateBreakpointStates(logtalkDebuggingEnabled);
 }
 
-export function deactivate() {}
+export function deactivate() {
+  // Get logger instance for error reporting during cleanup
+  const logger = getLogger();
+
+  // Dispose of all module-level resources
+  try {
+    if (linter) {
+      linter.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing linter:', error);
+  }
+
+  try {
+    if (testsReporter) {
+      testsReporter.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing tests reporter:', error);
+  }
+
+  try {
+    if (deadCodeScanner) {
+      deadCodeScanner.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing dead code scanner:', error);
+  }
+
+  try {
+    if (documentationLinter) {
+      documentationLinter.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing documentation linter:', error);
+  }
+
+  try {
+    if (chatParticipant) {
+      chatParticipant.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing chat participant:', error);
+  }
+
+  try {
+    if (watcher) {
+      watcher.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing file watcher:', error);
+  }
+
+  try {
+    if (testsCodeLensProvider) {
+      testsCodeLensProvider.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing tests code lens provider:', error);
+  }
+
+  try {
+    if (metricsCodeLensProvider) {
+      metricsCodeLensProvider.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing metrics code lens provider:', error);
+  }
+}

@@ -36,6 +36,15 @@ export class LogtalkChatParticipant {
     context.subscriptions.push(this.participant);
   }
 
+  /**
+   * Dispose of the chat participant and clean up resources
+   */
+  public dispose(): void {
+    if (this.participant) {
+      this.participant.dispose();
+    }
+  }
+
   private async handleChatRequest(
     request: vscode.ChatRequest,
     context: vscode.ChatContext,

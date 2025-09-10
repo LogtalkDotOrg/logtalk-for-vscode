@@ -12,6 +12,7 @@
 * Improve context menus items grouping and ordering
 * Improve readme section on code navigation
 * Improve extension logging for internal debugging
+* Improve resource cleanup on extension deactivation
 * Set debugging off and ensure any existing breakpoints are disabled at extension activation
 * Fix toggling debugging to always send the `debug`/`nodebug` messages after enabling/disabling the breakpoints
 * Fix call hierarchy "Show Incoming Calls" and "Show Outgoing Calls" context menu items

@@ -9,7 +9,8 @@ import {
   TextDocument,
   EventEmitter,
   Event,
-  workspace
+  workspace,
+  Disposable
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
@@ -23,13 +24,16 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
   public readonly onDidChangeCodeLenses: Event<void> = this._onDidChangeCodeLenses.event;
   public static outdated: boolean = false;
 
+  private configurationListener: Disposable;
+  private textDocumentListener: Disposable;
+
   constructor() {
-    workspace.onDidChangeConfiguration((_) => {
+    this.configurationListener = workspace.onDidChangeConfiguration((_) => {
       LogtalkMetricsCodeLensProvider.outdated = true;
       this._onDidChangeCodeLenses.fire();
     });
 
-    workspace.onDidChangeTextDocument((e) => {
+    this.textDocumentListener = workspace.onDidChangeTextDocument((e) => {
       // Remove metrics results only for the edited file
       const editedFile = path.resolve(e.document.uri.fsPath).split(path.sep).join("/");
       const dir = path.dirname(e.document.uri.fsPath);
@@ -37,7 +41,7 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
       if (fs.existsSync(metricsFile)) {
         const content = fs.readFileSync(metricsFile, 'utf8');
         const lines = content.split('\n');
-        const updatedLines = lines.filter(line => 
+        const updatedLines = lines.filter(line =>
           !line.toLowerCase().startsWith('file:' + editedFile.toLowerCase() + ';'));
         if (updatedLines.length < lines.length) {
           if (updatedLines.length > 0) {
@@ -50,6 +54,21 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
       LogtalkMetricsCodeLensProvider.outdated = true;
       this._onDidChangeCodeLenses.fire();
     });
+  }
+
+  /**
+   * Dispose of event listeners and clean up resources
+   */
+  public dispose(): void {
+    if (this.configurationListener) {
+      this.configurationListener.dispose();
+    }
+    if (this.textDocumentListener) {
+      this.textDocumentListener.dispose();
+    }
+    if (this._onDidChangeCodeLenses) {
+      this._onDidChangeCodeLenses.dispose();
+    }
   }
 
   public async provideCodeLenses(
