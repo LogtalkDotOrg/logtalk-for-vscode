@@ -96,6 +96,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Deprecated date format:')) {
       return true;
+    } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
+      return true;
     }
     return false;
   }
@@ -305,6 +307,31 @@ export default class LogtalkLinter implements CodeActionProvider {
           // Replace only the deprecated date part with the ISO date
           edit.replace(document.uri, deprecatedDateRange, isoDate);
         } else {
+          return null;
+        }
+      }
+    } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
+      // Replace unification with number equality operator
+      action = new CodeAction(
+        'Replace unification with number equality operator',
+        CodeActionKind.QuickFix
+      );
+      const comparison = diagnostic.message.match(/Suspicious call: (.+)\s*=\s*(.+) as the goal compares numbers using unification/);
+      if (comparison) {
+        const leftOperand = comparison[1].trim();
+        const rightOperand = comparison[2].trim();
+        // Find the exact range of the comparison within the diagnostic range
+        let comparisonRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, ' = ');
+        if (comparisonRange) {
+          // Replace the comparison with the proper comparison predicate
+          edit.replace(document.uri, comparisonRange, ' =:= ');
+        } else {
+          comparisonRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, '=');
+          if (comparisonRange) {
+            edit.replace(document.uri, comparisonRange, '=:=');
+          } else {
+            return null;
+          }
           return null;
         }
       }
