@@ -725,6 +725,20 @@ export default class LogtalkTerminal {
     LogtalkMetricsCodeLensProvider.outdated = false;
   }
 
+  public static async rcomputeMetrics(uri: Uri) {
+    LogtalkTerminal.createLogtalkTerm();
+    const dir0: string = LogtalkTerminal.ensureDir(uri);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
+    let goals = `vscode::metrics_recursive('${dir}').\r`;
+    LogtalkTerminal.sendString(goals, true);
+    const marker = path.join(dir0, ".vscode_metrics_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    window.showInformationMessage("Metrics completed.");
+    LogtalkMetricsCodeLensProvider.outdated = false;
+  }
+
   public static async runDoclet(uri: Uri, linter: LogtalkLinter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;

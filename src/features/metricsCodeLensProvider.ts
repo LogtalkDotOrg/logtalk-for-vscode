@@ -14,6 +14,7 @@ import {
 import * as path from "path";
 import * as fs from "fs";
 import { getLogger } from "../utils/logger";
+import LogtalkTerminal from "./logtalkTerminal";
 
 export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
   private logger = getLogger();
@@ -62,8 +63,15 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
       const dir0 = path.dirname(doc.uri.fsPath);
       const dir = path.resolve(dir0).split(path.sep).join("/");
       const results = path.join(dir, ".vscode_metrics_results");
+      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      const recursiveResults = path.join(wdir, ".vscode_metrics_results");
+      let out = null;
       if (fs.existsSync(results)) {
-        let out = fs.readFileSync(results).toString();
+        out = fs.readFileSync(results).toString();
+      } else if (fs.existsSync(recursiveResults)) {
+        out = fs.readFileSync(recursiveResults).toString();
+      }
+      if (out) {
         // use case-insensitive matching to workaround Prolog
         // backends down-casing file paths on Windows
         const regex = new RegExp("File:" + file + ";Line:(\\d+);Score:(\\d+)", "ig");

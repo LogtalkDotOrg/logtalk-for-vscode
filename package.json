@@ -182,6 +182,10 @@
                 "title": "Logtalk: Scan Project Dead Code"
             },
             {
+                "command": "logtalk.rcompute.metrics",
+                "title": "Logtalk: Compute Project Metrics"
+            },
+            {
                 "command": "logtalk.rgenerate.documentation",
                 "title": "Logtalk: Generate Project Documentation"
             },
@@ -304,6 +308,10 @@
                 },
                 {
                     "command": "logtalk.rscan.deadCode",
+                    "when": "resourceLangId == logtalk"
+                },
+                {
+                    "command": "logtalk.rcompute.metrics",
                     "when": "resourceLangId == logtalk"
                 },
                 {

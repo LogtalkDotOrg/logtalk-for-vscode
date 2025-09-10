@@ -109,6 +109,7 @@ Project (workspace) commands can be triggered from the command palette by typing
 |                  Create Project | Creates a new project with renamed copies of the sample files      |
 |                    Load Project | Loads the loader file found in the workspace root folder           |
 |          Scan Project Dead Code | Recursively scans the workspace root folder for dead code          |
+|         Compute Project Metrics | Recursively computes metrics for the workspace root folder         |
 |  Generate Project Documentation | Recursively generates documentation for the workspace root folder  |
 |       Generate Project Diagrams | Recursively generates diagrams for the workspace root folder       |
 |             Run Project Testers | Runs the `logtalk_tester` script from the workspace root folder    |
@@ -118,7 +119,7 @@ The "Create Project" command is usually called from the command palette. It asks
 
 The "Load Project" command looks for a `loader.lgt` or `loader.logtalk` file in the workspace root folder, printing a warning if no loader file is found.
 
-The "Scan Project Dead Code", "Generate Project Documentation", and "Generate Project Diagrams" commands require that the project code is already loaded.
+The "Scan Project Dead Code", "Compute Project Metrics", "Generate Project Documentation", and "Generate Project Diagrams" commands require that the project code is already loaded.
 
 The output of the "Run Project Testers" and "Run Project Doclets" commands is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
 

@@ -2,6 +2,7 @@
 
 ## [0.53.0]
 
+* Add "Logtalk: Compute Project Metrics" command
 * Add settings support for multi-backend Logtalk executable arguments
 * Add quick fixes for some linter errors and warnings
 * Add quick fixes for some tests reporter warnings

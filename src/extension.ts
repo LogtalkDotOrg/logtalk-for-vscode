@@ -250,6 +250,7 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.load.project",              callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
     { command: "logtalk.open",                      callback: ()   => LogtalkTerminal.openLogtalk()},
     { command: "logtalk.rscan.deadCode",            callback: uri  => LogtalkTerminal.rscanForDeadCode(uri, deadCodeScanner)},
+    { command: "logtalk.rcompute.metrics",          callback: uri  => LogtalkTerminal.rcomputeMetrics(uri)},
     { command: "logtalk.rgenerate.documentation",   callback: uri  => LogtalkTerminal.rgenDocumentation(uri, documentationLinter)},
     { command: "logtalk.rgenerate.diagrams",        callback: uri  => LogtalkTerminal.rgenDiagrams(uri)},
     { command: "logtalk.run.testers",               callback: uri  => LogtalkTerminal.runTesters(uri)},
