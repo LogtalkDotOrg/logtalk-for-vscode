@@ -241,145 +241,175 @@
             ],
             "editor/context": [
                 {
-                    "submenu": "makesubmenu",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "submenu": "jupytersubmenu",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true"
-                },
-                {
                     "command": "logtalk.load.directory",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_1@1"
                 },
                 {
                     "command": "logtalk.load.file",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.run.tests",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.run.doclet",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.generate.documentation",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.generate.diagrams",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.scan.deadCode",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_1@2"
                 },
                 {
                     "command": "logtalk.open.parentFile",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_1@3"
                 },
                 {
-                    "command": "logtalk.toggle.codeLens",
-                    "when": "resourceLangId == logtalk"
+                    "submenu": "makesubmenu",
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_1@4"
+                },
+                {
+                    "command": "logtalk.scan.deadCode",
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_2@1"
                 },
                 {
                     "command": "logtalk.compute.metrics",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_2@2"
+                },
+                {
+                    "command": "logtalk.generate.documentation",
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_3@1"
+                },
+                {
+                    "command": "logtalk.generate.diagrams",
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_3@2"
+                },
+                {
+                    "command": "logtalk.run.tests",
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_4@1"
+                },
+                {
+                    "command": "logtalk.run.doclet",
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_4@2"
+                },
+                {
+                    "submenu": "jupytersubmenu",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true",
+                    "group": "directory_5@1"
+                },
+                {
+                    "command": "logtalk.toggle.codeLens",
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_6@1"
                 }
             ],
             "explorer/context": [
                 {
-                    "submenu": "jupytersubmenu",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true"
-                },
-                {
                     "command": "logtalk.create.project",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_1@1"
                 },
                 {
                     "command": "logtalk.load.project",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_1@2"
                 },
                 {
                     "command": "logtalk.open",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_1@3"
                 },
                 {
                     "command": "logtalk.rscan.deadCode",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_2@1"
                 },
                 {
                     "command": "logtalk.rcompute.metrics",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_2@2"
                 },
                 {
                     "command": "logtalk.rgenerate.diagrams",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_3@1"
                 },
                 {
                     "command": "logtalk.rgenerate.documentation",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_3@2"
                 },
                 {
                     "command": "logtalk.run.testers",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_4@1"
                 },
                 {
                     "command": "logtalk.run.doclets",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_4@2"
+                },
+                {
+                    "submenu": "jupytersubmenu",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true",
+                    "group": "project_5@1"
                 }
             ],
             "makesubmenu": [
                 {
                     "command": "logtalk.make.reload",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.make.optimal",
-                    "when": "resourceLangId == logtalk"
-                },
-                {
-                    "command": "logtalk.make.normal",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "make_1_Reload@1"
                 },
                 {
                     "command": "logtalk.make.debug",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "make_2_Mode@1"
+                },
+                {
+                    "command": "logtalk.make.normal",
+                    "when": "resourceLangId == logtalk",
+                    "group": "make_2_Mode@2"
+                },
+                {
+                    "command": "logtalk.make.optimal",
+                    "when": "resourceLangId == logtalk",
+                    "group": "make_2_Mode@3"
                 },
                 {
                     "command": "logtalk.make.check",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "make_3_Check@1"
                 },
                 {
                     "command": "logtalk.make.circular",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "make_3_Check@2"
                 },
                 {
                     "command": "logtalk.make.clean",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "make_4_Clean@1"
                 },
                 {
                     "command": "logtalk.make.caches",
-                    "when": "resourceLangId == logtalk"
+                    "when": "resourceLangId == logtalk",
+                    "group": "make_4_Clean@2"
                 }
             ],
             "jupytersubmenu": [
                 {
                     "command": "logtalk.open.notebook",
                     "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
-                    "group": "jupyter@1"
+                    "group": "jupyter_1@1"
                 },
                 {
                     "command": "logtalk.open.paired.notebook",
                     "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
-                    "group": "jupyter@2"
+                    "group": "jupyter_2@1"
                 },
                 {
                     "command": "logtalk.sync.notebook",
                     "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true",
-                    "group": "jupyter@3"
+                    "group": "jupyter_2@2"
                 }
             ]
         },
