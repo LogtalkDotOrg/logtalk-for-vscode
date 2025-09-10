@@ -391,4 +391,90 @@ export class DiagnosticsUtils {
       new Position(endLine, endChar)
     );
   }
+
+  /**
+   * Finds the matching closing parenthesis for an opening parenthesis within a diagnostic range
+   * @param document The text document
+   * @param diagnosticRange The diagnostic range to search within
+   * @param openParenText The opening parenthesis text to find (e.g., "not(")
+   * @returns Object with ranges for the opening and closing parentheses, or null if not found or multiple occurrences
+   */
+  public static findMatchingParentheses(document: any, diagnosticRange: Range, openParenText: string): { openRange: Range; closeRange: Range } | null {
+    // Get the text content of the diagnostic range
+    const rangeText = document.getText(diagnosticRange);
+
+    // Find the opening parenthesis text
+    const openIndex = rangeText.indexOf(openParenText);
+    if (openIndex === -1) {
+      return null;
+    }
+
+    // Check if there's exactly one occurrence of the opening text
+    const secondOccurrence = rangeText.indexOf(openParenText, openIndex + openParenText.length);
+    if (secondOccurrence !== -1) {
+      return null; // Multiple occurrences, can't reliably match
+    }
+
+    // Find the position of the opening parenthesis within the opening text
+    const openParenPos = openParenText.lastIndexOf('(');
+    if (openParenPos === -1) {
+      return null; // No opening parenthesis found in the text
+    }
+
+    // Start matching from after the opening parenthesis
+    let i = openIndex + openParenPos + 1;
+    let parenDepth = 1;
+
+    // Find the matching closing parenthesis
+    while (parenDepth > 0 && i < rangeText.length) {
+      if (rangeText.charAt(i) === '(') {
+        parenDepth++;
+      } else if (rangeText.charAt(i) === ')') {
+        parenDepth--;
+      }
+      i++;
+    }
+
+    // Check if we found a matching closing parenthesis
+    if (parenDepth !== 0) {
+      return null; // No matching closing parenthesis found
+    }
+
+    // Calculate absolute positions for the opening text
+    const openAbsolutePos = this.calculateAbsolutePosition(diagnosticRange, rangeText, openIndex);
+    const openEndPos = this.calculateAbsolutePosition(diagnosticRange, rangeText, openIndex + openParenText.length);
+
+    // Calculate absolute position for the closing parenthesis
+    const closeAbsolutePos = this.calculateAbsolutePosition(diagnosticRange, rangeText, i - 1);
+    const closeEndPos = this.calculateAbsolutePosition(diagnosticRange, rangeText, i);
+
+    return {
+      openRange: new Range(openAbsolutePos, openEndPos),
+      closeRange: new Range(closeAbsolutePos, closeEndPos)
+    };
+  }
+
+  /**
+   * Helper method to calculate absolute position from relative position within a diagnostic range
+   * @param diagnosticRange The diagnostic range
+   * @param rangeText The text content of the diagnostic range
+   * @param relativeIndex The relative index within the range text
+   * @returns The absolute position in the document
+   */
+  private static calculateAbsolutePosition(diagnosticRange: Range, rangeText: string, relativeIndex: number): Position {
+    let currentLine = diagnosticRange.start.line;
+    let currentChar = diagnosticRange.start.character;
+
+    // Iterate through the range text to find the absolute position
+    for (let i = 0; i < relativeIndex && i < rangeText.length; i++) {
+      if (rangeText[i] === '\n') {
+        currentLine++;
+        currentChar = 0;
+      } else {
+        currentChar++;
+      }
+    }
+
+    return new Position(currentLine, currentChar);
+  }
 }

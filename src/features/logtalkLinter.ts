@@ -96,6 +96,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Deprecated date format:')) {
       return true;
+    } else if (diagnostic.message.includes('Deprecated predicate: not/1 (compiled as a call to')) {
+      return true;
     } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
       return true;
     }
@@ -310,6 +312,27 @@ export default class LogtalkLinter implements CodeActionProvider {
           return null;
         }
       }
+    } else if (diagnostic.message.includes('Deprecated predicate: not/1 (compiled as a call to')) {
+      // Replace deprecated not/1 predicate with (\+)/1 control construct
+      action = new CodeAction(
+        'Replace deprecated not/1 predicate with (\\+/1) control construct',
+        CodeActionKind.QuickFix
+      );
+      // Find the matching parentheses for the not/1 goal within the diagnostic range
+      const parenthesesMatch = DiagnosticsUtils.findMatchingParentheses(document, diagnostic.range, 'not(');
+      if (parenthesesMatch) {
+        // Replace 'not(' with '\+ ' and remove the closing parenthesis
+        edit.replace(document.uri, parenthesesMatch.openRange, '\\+ ');
+        edit.delete(document.uri, parenthesesMatch.closeRange);
+      } else {
+        // Fallback to the original approach if parentheses matching fails
+        const notRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, 'not(');
+        if (notRange) {
+          edit.replace(document.uri, notRange, '\\+ (');
+        } else {
+          return null;
+        }
+      }
     } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
       // Replace unification with number equality operator
       action = new CodeAction(
@@ -323,7 +346,6 @@ export default class LogtalkLinter implements CodeActionProvider {
         // Find the exact range of the comparison within the diagnostic range
         let comparisonRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, ' = ');
         if (comparisonRange) {
-          // Replace the comparison with the proper comparison predicate
           edit.replace(document.uri, comparisonRange, ' =:= ');
         } else {
           comparisonRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, '=');
