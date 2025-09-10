@@ -36,119 +36,128 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
           const line = doc.lineAt(j);
           const lineText = line.text;
 
-          // Check for entity opening directives
-          const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpening);
-          if (entityMatch) {
-            currentEntity = entityMatch.match[1];
-            currentEntityType = entityMatch.type;
-            entityPredicates.set(currentEntity, new Set<string>());
-            entityNonTerminals.set(currentEntity, new Set<string>());
+          // Performance optimization: Check if line starts with ":- " (with optional whitespace before)
+          // before attempting to match directive patterns
+          const startsWithDirective = /^\s*:-\s/.test(lineText);
 
-            const symbolKind = entityMatch.type === SymbolTypes.OBJECT ? SymbolKind.Class :
-                              entityMatch.type === SymbolTypes.PROTOCOL ? SymbolKind.Interface :
-                              SymbolKind.Struct;
-            symbols.push(new SymbolInformation(
-              entityMatch.match[1],
-              symbolKind,
-              entityMatch.type,
-              new Location(doc.uri, line.range)
-            ));
-            continue;
-          }
+          if (startsWithDirective) {
+            // Check for entity opening directives
+            const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpening);
+            if (entityMatch) {
+              currentEntity = entityMatch.match[1];
+              currentEntityType = entityMatch.type;
+              entityPredicates.set(currentEntity, new Set<string>());
+              entityNonTerminals.set(currentEntity, new Set<string>());
 
-          // Check for entity ending directives
-          const entityEndMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityEnding);
-          if (entityEndMatch) {
-            currentEntity = null;
-            currentEntityType = null;
-            continue;
-          }
-
-          // Check for scope directives
-          // First try single-predicate scope directives
-          const scopeMatch = SymbolUtils.matchFirst(lineText, PatternSets.allScopes);
-          if (scopeMatch) {
-            const symbolKind = scopeMatch.type.includes('non-terminal') ? SymbolKind.Field : SymbolKind.Function;
-            const containerName = currentEntity ? `${scopeMatch.type} • ${currentEntity} (${currentEntityType})` : scopeMatch.type;
-            symbols.push(new SymbolInformation(
-              scopeMatch.match[1],
-              symbolKind,
-              containerName,
-              new Location(doc.uri, line.range)
-            ));
-            continue;
-          }
-
-          // Check for multi-line/multi-predicate scope directive openings
-          const scopeOpening = SymbolUtils.matchScopeDirectiveOpening(lineText);
-          if (scopeOpening) {
-            // Collect the complete directive text
-            const { text: directiveText, endLine } = SymbolUtils.collectScopeDirectiveText(doc, j);
-
-            // Extract all predicate/non-terminal indicators from the directive
-            const indicators = SymbolUtils.extractIndicatorsFromScopeDirective(directiveText);
-
-            // Create symbols for each indicator
-            for (const { indicator, isNonTerminal } of indicators) {
-              const baseType = scopeOpening.type;
-              const symbolType = isNonTerminal
-                ? baseType.replace('predicate', 'non-terminal')
-                : baseType;
-              const symbolKind = isNonTerminal ? SymbolKind.Field : SymbolKind.Function;
-              const containerName = currentEntity ? `${symbolType} • ${currentEntity} (${currentEntityType})` : symbolType;
-
+              const symbolKind = entityMatch.type === SymbolTypes.OBJECT ? SymbolKind.Class :
+                                entityMatch.type === SymbolTypes.PROTOCOL ? SymbolKind.Interface :
+                                SymbolKind.Struct;
               symbols.push(new SymbolInformation(
-                indicator,
+                entityMatch.match[1],
+                symbolKind,
+                entityMatch.type,
+                new Location(doc.uri, line.range)
+              ));
+              continue;
+            }
+
+            // Check for entity ending directives
+            const entityEndMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityEnding);
+            if (entityEndMatch) {
+              currentEntity = null;
+              currentEntityType = null;
+              continue;
+            }
+
+            // Check for scope directives
+            // First try single-predicate scope directives
+            const scopeMatch = SymbolUtils.matchFirst(lineText, PatternSets.allScopes);
+            if (scopeMatch) {
+              const symbolKind = scopeMatch.type.includes('non-terminal') ? SymbolKind.Field : SymbolKind.Function;
+              const containerName = currentEntity ? `${scopeMatch.type} • ${currentEntity} (${currentEntityType})` : scopeMatch.type;
+              symbols.push(new SymbolInformation(
+                scopeMatch.match[1],
                 symbolKind,
                 containerName,
                 new Location(doc.uri, line.range)
               ));
+              continue;
             }
 
-            // Skip to the end of the directive
-            j = endLine;
-            continue;
+            // Check for multi-line/multi-predicate scope directive openings
+            const scopeOpening = SymbolUtils.matchScopeDirectiveOpening(lineText);
+            if (scopeOpening) {
+              // Collect the complete directive text
+              const { text: directiveText, endLine } = SymbolUtils.collectScopeDirectiveText(doc, j);
+
+              // Extract all predicate/non-terminal indicators from the directive
+              const indicators = SymbolUtils.extractIndicatorsFromScopeDirective(directiveText);
+
+              // Create symbols for each indicator
+              for (const { indicator, isNonTerminal } of indicators) {
+                const baseType = scopeOpening.type;
+                const symbolType = isNonTerminal
+                  ? baseType.replace('predicate', 'non-terminal')
+                  : baseType;
+                const symbolKind = isNonTerminal ? SymbolKind.Field : SymbolKind.Function;
+                const containerName = currentEntity ? `${symbolType} • ${currentEntity} (${currentEntityType})` : symbolType;
+
+                symbols.push(new SymbolInformation(
+                  indicator,
+                  symbolKind,
+                  containerName,
+                  new Location(doc.uri, line.range)
+                ));
+              }
+
+              // Skip to the end of the directive
+              j = endLine;
+              continue;
+            }
           }
 
-          // Check for predicate clauses (only if not inside a multi-line term and inside an entity)
+          // Check for predicate clauses and non-terminal rules (only if not inside a multi-line term and inside an entity)
           if (!insideTerm && currentEntity) {
-            const predicateMatch = lineText.match(SymbolRegexes.predicateClause);
-            if (predicateMatch) {
-              const predicateName = SymbolUtils.extractPredicateName(predicateMatch[1]);
-              if (predicateName) {
-                const entityPredicateSet = entityPredicates.get(currentEntity);
-                if (entityPredicateSet && !entityPredicateSet.has(predicateName)) {
-                  entityPredicateSet.add(predicateName);
-                  const containerName = `${SymbolTypes.PREDICATE_CLAUSE} • ${currentEntity} (${currentEntityType})`;
-                  symbols.push(new SymbolInformation(
-                    predicateMatch[1],
-                    SymbolKind.Property,
-                    containerName,
-                    new Location(doc.uri, line.range)
-                  ));
+            // Performance optimization: Check for DCG operator first since most files don't contain grammar rules
+            if (lineText.includes('-->')) {
+              const nonTerminalMatch = lineText.match(SymbolRegexes.nonTerminalRule);
+              if (nonTerminalMatch) {
+                const nonTerminalName = SymbolUtils.extractNonTerminalName(nonTerminalMatch[1]);
+                if (nonTerminalName) {
+                  const entityNonTerminalSet = entityNonTerminals.get(currentEntity);
+                  if (entityNonTerminalSet && !entityNonTerminalSet.has(nonTerminalName)) {
+                    entityNonTerminalSet.add(nonTerminalName);
+                    const containerName = `${SymbolTypes.NON_TERMINAL_RULE} • ${currentEntity} (${currentEntityType})`;
+                    symbols.push(new SymbolInformation(
+                      nonTerminalMatch[1],
+                      SymbolKind.Property,
+                      containerName,
+                      new Location(doc.uri, line.range)
+                    ));
+                  }
                 }
+                continue;
               }
-              continue;
-            }
-
-            // Check for non-terminal rules (only if not inside a multi-line term and inside an entity)
-            const nonTerminalMatch = lineText.match(SymbolRegexes.nonTerminalRule);
-            if (nonTerminalMatch) {
-              const nonTerminalName = SymbolUtils.extractNonTerminalName(nonTerminalMatch[1]);
-              if (nonTerminalName) {
-                const entityNonTerminalSet = entityNonTerminals.get(currentEntity);
-                if (entityNonTerminalSet && !entityNonTerminalSet.has(nonTerminalName)) {
-                  entityNonTerminalSet.add(nonTerminalName);
-                  const containerName = `${SymbolTypes.NON_TERMINAL_RULE} • ${currentEntity} (${currentEntityType})`;
-                  symbols.push(new SymbolInformation(
-                    nonTerminalMatch[1],
-                    SymbolKind.Property,
-                    containerName,
-                    new Location(doc.uri, line.range)
-                  ));
+            } else {
+              // If not a directive (already filtered out) and not a DCG rule, it can only be a predicate clause
+              const predicateMatch = lineText.match(SymbolRegexes.predicateClause);
+              if (predicateMatch) {
+                const predicateName = SymbolUtils.extractPredicateName(predicateMatch[1]);
+                if (predicateName) {
+                  const entityPredicateSet = entityPredicates.get(currentEntity);
+                  if (entityPredicateSet && !entityPredicateSet.has(predicateName)) {
+                    entityPredicateSet.add(predicateName);
+                    const containerName = `${SymbolTypes.PREDICATE_CLAUSE} • ${currentEntity} (${currentEntityType})`;
+                    symbols.push(new SymbolInformation(
+                      predicateMatch[1],
+                      SymbolKind.Property,
+                      containerName,
+                      new Location(doc.uri, line.range)
+                    ));
+                  }
                 }
+                continue;
               }
-              continue;
             }
           }
 
