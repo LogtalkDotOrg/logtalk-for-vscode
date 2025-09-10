@@ -28,6 +28,11 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
       let insideTerm = false;
 
       for (let i = 0; i < doc.lineCount; i++) {
+        // Check for cancellation at each iteration
+        if (token.isCancellationRequested) {
+          return resolve([]);
+        }
+
         const line = doc.lineAt(i);
         const lineText = line.text;
 

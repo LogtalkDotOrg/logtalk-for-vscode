@@ -22,6 +22,11 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
 
     const docs = await workspace.findFiles('**/*.{lgt,logtalk}');
     for (let i = 0; i < docs.length; i++) {
+      // Check for cancellation before processing each file
+      if (token.isCancellationRequested) {
+        return [];
+      }
+
       try {
         const doc = await workspace.openTextDocument(docs[i]);
 
@@ -33,6 +38,11 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
         let insideTerm = false;
 
         for (let j = 0; j < doc.lineCount; j++) {
+          // Check for cancellation at each iteration
+          if (token.isCancellationRequested) {
+            return [];
+          }
+
           const line = doc.lineAt(j);
           const lineText = line.text;
 
