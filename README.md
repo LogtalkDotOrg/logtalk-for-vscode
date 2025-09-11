@@ -31,6 +31,7 @@ For details, see [Configuration](#configuration). This extension includes a walk
 - [Linter](#linter)
 - [Commands](#commands)
 - [Code Navigation](#code-navigation)
+- [Refactoring support](#refactoring-support)
 - [Debugging support](#debugging-support)
 - [Hover contents](#hover-contents)
 - [Chat Participant](#chat-participant)
@@ -225,6 +226,10 @@ Right-click on a predicate (or non-terminal) name in a goal or in a clause head 
 #### Show Type Hierarchy
 
 Right-click on an entity name and select the "Show Type Hierarchy" context menu item to browse ancestors and descendants of the selected entity. Here, ancestor is interpreted as any entity from which the selected entity inherits, and descendant is interpreted as any entity that inherits from the selected entity.
+
+### Refactoring support
+
+Experimental predicate rename support is available. Users should commit their work before using this feature and preview the changes before applying them. To rename a predicate, right-click on the predicate name in a scope directive, `alias/2` directive, `uses/2` directive, `synchronized/1` directive, fact, rule head, or goal and select the "Rename Symbol" context menu item.
 
 ### Debugging support
 

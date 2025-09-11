@@ -36,6 +36,7 @@ import { LogtalkCallHierarchyProvider } from "./features/callHierarchyProvider";
 import { LogtalkTypeHierarchyProvider } from "./features/typeHierarchyProvider";
 import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
+import { LogtalkRenameProvider } from "./features/renameProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
@@ -366,6 +367,9 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerImplementationProvider(LOGTALK_MODE, new LogtalkImplementationProvider())
+  );
+  context.subscriptions.push(
+    languages.registerRenameProvider(LOGTALK_MODE, new LogtalkRenameProvider())
   );
   context.subscriptions.push(
     languages.registerCallHierarchyProvider(LOGTALK_MODE, new LogtalkCallHierarchyProvider())
