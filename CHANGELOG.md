@@ -2,7 +2,7 @@
 
 ## [0.53.0]
 
-* Add experimental predicate rename support
+* Add experimental predicate and non-terminal rename support
 * Add "Logtalk: Compute Project Metrics" command
 * Add settings support for multi-backend Logtalk executable arguments
 * Add quick fixes for some linter errors and warnings

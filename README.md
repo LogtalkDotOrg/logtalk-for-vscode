@@ -229,7 +229,7 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
-Experimental predicate rename support is available. Users should commit their work before using this feature and preview the changes before applying them. To rename a predicate, right-click on the predicate name in a scope directive, `alias/2` directive, `uses/2` directive, `synchronized/1` directive, fact, rule head, or goal and select the "Rename Symbol" context menu item.
+Experimental predicate and non-terminal rename support is available. Users should commit their work before using this feature and preview the changes before applying them. To rename a predicate (non-terminal), right-click on the predicate (non-terminal) name in a scope directive, `alias/2` directive, `uses/2` directive, `synchronized/1` directive, fact, rule head, or goal and select the "Rename Symbol" context menu item. After, use the "Make - Reload" command to verify the changes before committing them.
 
 ### Debugging support
 
