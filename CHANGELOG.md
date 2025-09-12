@@ -18,6 +18,7 @@
 * Fix toggling debugging to always send the `debug`/`nodebug` messages after enabling/disabling the breakpoints
 * Fix call hierarchy "Show Incoming Calls" and "Show Outgoing Calls" context menu items
 * Fix "Go to Symbol in Editor..." and "Go to Symbol in Workspace..." support to parse multi-line predicate scope directives
+* Fix code navigation commands to reject calls from inside line comments and support cancellation
 
 ## [0.52.0]
 

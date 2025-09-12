@@ -27,21 +27,24 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     if (window.activeTextEditor?.document === doc && window.activeTextEditor.selection.active.line !== position.line) {
       return null;
     }
+
     const lineText = doc.lineAt(position.line).text.trim();
     if (lineText.startsWith("%")) {
       return null;
     }
-    let location: Location = null;
+
     let call = Utils.getCallUnderCursor(doc, position);
     if (!call) {
       return null;
     }
+
     if (token.isCancellationRequested) {
       return null;
     }
 
     await LogtalkTerminal.getDefinition(doc, position, call);
 
+    let location: Location = null;
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const def = path.join(dir, ".vscode_definition");
 

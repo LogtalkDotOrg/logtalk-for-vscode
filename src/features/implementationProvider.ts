@@ -25,7 +25,11 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
     position: Position,
     token: CancellationToken
   ): Promise<Definition | LocationLink[]> {
-    let locations: Location[] = [];
+    const lineText = doc.lineAt(position.line).text.trim();
+    if (lineText.startsWith("%")) {
+      return null;
+    }
+
     const resource =
       Utils.getNonTerminalIndicatorUnderCursor(doc, position) ||
       Utils.getPredicateIndicatorUnderCursor(doc, position) ||
@@ -35,8 +39,13 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
       return null;
     }
 
+    if (token.isCancellationRequested) {
+      return null;
+    }
+
     await LogtalkTerminal.getImplementations(doc, position, resource);
 
+    let locations: Location[] = [];
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const imps = path.join(dir, ".vscode_implementations");
 

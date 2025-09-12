@@ -23,15 +23,23 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
     position: Position,
     token: CancellationToken
   ): Promise<Location | null> {
-    let location: Location = null;
-    const call = Utils.getCallUnderCursor(doc, position);
+    const lineText = doc.lineAt(position.line).text.trim();
+    if (lineText.startsWith("%")) {
+      return null;
+    }
 
+    const call = Utils.getCallUnderCursor(doc, position);
     if (!call) {
+      return null;
+    }
+
+    if (token.isCancellationRequested) {
       return null;
     }
 
     await LogtalkTerminal.getDeclaration(doc, position, call);
 
+    let location: Location = null;
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const dcl = path.join(dir, ".vscode_declaration");
 

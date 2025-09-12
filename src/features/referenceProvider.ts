@@ -25,7 +25,11 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
     context: ReferenceContext,
     token: CancellationToken
   ): Promise<Location[] | null> {
-    let locations: Location[] = [];
+    const lineText = doc.lineAt(position.line).text.trim();
+    if (lineText.startsWith("%")) {
+      return null;
+    }
+
     const resource =
       Utils.getNonTerminalIndicatorUnderCursor(doc, position) ||
       Utils.getPredicateIndicatorUnderCursor(doc, position) ||
@@ -35,8 +39,13 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
       return null;
     }
 
+    if (token.isCancellationRequested) {
+      return null;
+    }
+
     await LogtalkTerminal.getReferences(doc, position, resource);
 
+    let locations: Location[] = [];
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
     const refs = path.join(dir, ".vscode_references");
 
