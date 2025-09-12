@@ -116,8 +116,7 @@ export class LogtalkRenameProvider implements RenameProvider {
     if (!this.isValidPredicateName(newName)) {
       window.showErrorMessage(
         `Invalid predicate name: "${newName}". ` +
-        `Predicate names must start with a lowercase letter followed by letters, digits, and underscores, ` +
-        `or be a quoted atom enclosed in single quotes.`
+        `Predicate names must be atoms.`
       );
       return null;
     }
@@ -134,11 +133,6 @@ export class LogtalkRenameProvider implements RenameProvider {
     let predicateIndicator = nonTerminalIndicator ||
                              Utils.getPredicateIndicatorUnderCursor(document, position) ||
                              Utils.getCallUnderCursor(document, position);
-
-    if (!predicateIndicator) {
-      this.logger.debug("No predicate, non-terminal, or entity found at position");
-      return null;
-    }
 
     // Check if we're in a DCG rule context and should treat this as a non-terminal
     const currentLineText = document.lineAt(position.line).text;
