@@ -20,6 +20,7 @@ import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
 import { DiagnosticsUtils } from "../utils/diagnostics";
+import { SymbolRegexes, PatternSets, SymbolUtils } from "../utils/symbols";
 
 export class LogtalkRenameProvider implements RenameProvider {
   private logger = getLogger();
@@ -63,6 +64,19 @@ export class LogtalkRenameProvider implements RenameProvider {
       return null;
     }
 
+    // First, check if we're in an entity context
+    const entityContext = this.detectEntityContext(document, position);
+    if (entityContext) {
+      this.logger.debug(`Found entity: ${entityContext.indicator} (${entityContext.type})`);
+
+      // Get the word range for the entity name
+      const wordRange = document.getWordRangeAtPosition(position, /\w+/);
+      if (wordRange) {
+        return wordRange;
+      }
+      return null;
+    }
+
     // Get the predicate or non-terminal indicator under cursor
     let nonTerminalIndicator = Utils.getNonTerminalIndicatorUnderCursor(document, position);
     let predicateIndicator = nonTerminalIndicator ||
@@ -70,7 +84,7 @@ export class LogtalkRenameProvider implements RenameProvider {
                              Utils.getCallUnderCursor(document, position);
 
     if (!predicateIndicator) {
-      this.logger.debug("No predicate or non-terminal indicator found at position");
+      this.logger.debug("No predicate, non-terminal, or entity found at position");
       return null;
     }
 
@@ -138,6 +152,13 @@ export class LogtalkRenameProvider implements RenameProvider {
       return null;
     }
 
+    // First, check if we're in an entity context
+    const entityContext = this.detectEntityContext(document, position);
+    if (entityContext) {
+      this.logger.debug(`Renaming entity: ${entityContext.indicator} (${entityContext.type}) to ${newName}`);
+      return this.handleEntityRename(document, position, entityContext, newName, token);
+    }
+
     // Get the predicate or non-terminal indicator under cursor
     let nonTerminalIndicator = Utils.getNonTerminalIndicatorUnderCursor(document, position);
     let predicateIndicator = nonTerminalIndicator ||
@@ -145,7 +166,7 @@ export class LogtalkRenameProvider implements RenameProvider {
                              Utils.getCallUnderCursor(document, position);
 
     if (!predicateIndicator) {
-      this.logger.debug("No predicate or non-terminal indicator found at position");
+      this.logger.debug("No predicate, non-terminal, or entity found at position");
       return null;
     }
 
@@ -188,7 +209,7 @@ export class LogtalkRenameProvider implements RenameProvider {
 
         // Step 3: Use the declaration position to find all other locations
         const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
-        const declarationPosition = this.findPredicatePositionInDeclaration(declarationDocument, declarationLocation.range.start.line, currentName);
+        const declarationPosition = this.findPredicatePositionInDeclaration(declarationDocument, declarationLocation.range.start.line, predicateIndicator);
         this.logger.debug(`declarationPosition: ${declarationPosition.line}:${declarationPosition.character}`);
 
         // Get definition location from declaration position
@@ -239,7 +260,7 @@ export class LogtalkRenameProvider implements RenameProvider {
 
           // Find the actual position of the predicate/non-terminal in the definition line
           const definitionDocument = await workspace.openTextDocument(definitionLocation.uri);
-          const definitionPosition = this.findPredicatePositionInDefinition(definitionDocument, definitionLocation.range.start.line, currentName, isNonTerminal);
+          const definitionPosition = this.findPredicatePositionInDefinition(definitionDocument, definitionLocation.range.start.line, predicateIndicator, isNonTerminal);
           this.logger.debug(`definitionPosition: ${definitionPosition.line}:${definitionPosition.character}`);
 
           // Get reference locations from the definition position
@@ -517,6 +538,370 @@ export class LogtalkRenameProvider implements RenameProvider {
   }
 
   /**
+   * Handles entity renaming by finding all references and creating rename edits
+   * @param document The document containing the entity
+   * @param position The position where the user clicked
+   * @param entityContext The detected entity context
+   * @param newName The new entity name
+   * @param token Cancellation token
+   * @returns WorkspaceEdit with all rename operations
+   */
+  private async handleEntityRename(
+    document: TextDocument,
+    position: Position,
+    entityContext: { name: string; type: string; indicator: string },
+    newName: string,
+    token: CancellationToken
+  ): Promise<WorkspaceEdit | null> {
+    const { name: currentName, indicator: entityIndicator } = entityContext;
+
+    // Collect all locations where the entity is used
+    const allLocations: { uri: Uri; range: Range }[] = [];
+
+    try {
+      // Add the current entity opening directive location
+      const currentRange = document.getWordRangeAtPosition(position, /\w+/);
+      if (currentRange) {
+        allLocations.push({ uri: document.uri, range: currentRange });
+        this.logger.debug(`Added entity opening directive at: ${document.uri.fsPath}:${currentRange.start.line + 1}`);
+      }
+
+      // Get all references to the entity using the reference provider
+      const referenceLocations = await this.referenceProvider.provideReferences(
+        document,
+        position,
+        { includeDeclaration: false }, // We already added the declaration above
+        token
+      );
+
+      this.logger.debug(`Reference provider returned ${referenceLocations ? referenceLocations.length : 0} locations for entity`);
+
+      if (referenceLocations) {
+        for (const location of referenceLocations) {
+          if (this.isValidLocation(location)) {
+            allLocations.push({ uri: location.uri, range: location.range });
+            this.logger.debug(`Found entity reference at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
+          }
+        }
+      }
+
+      // Process all locations and create edits
+      return this.createEntityRenameEdits(allLocations, currentName, newName, entityIndicator);
+
+    } catch (error) {
+      this.logger.error(`Error collecting locations for entity rename: ${error}`);
+      window.showErrorMessage(`Failed to collect all references for renaming entity: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Creates rename edits for entity references, handling special cases like Entity::Message
+   * @param locations All locations where the entity appears
+   * @param currentName The current entity name
+   * @param newName The new entity name
+   * @param entityIndicator The entity indicator (name/arity)
+   * @returns WorkspaceEdit with all rename operations
+   */
+  private async createEntityRenameEdits(
+    locations: { uri: Uri; range: Range }[],
+    currentName: string,
+    newName: string,
+    entityIndicator: string
+  ): Promise<WorkspaceEdit> {
+    const workspaceEdit = new WorkspaceEdit();
+    const locationsByFile = new Map<string, { uri: Uri; range: Range }[]>();
+
+    // Group locations by file
+    for (const location of locations) {
+      const fileKey = location.uri.toString();
+      if (!locationsByFile.has(fileKey)) {
+        locationsByFile.set(fileKey, []);
+      }
+      locationsByFile.get(fileKey)!.push(location);
+    }
+
+    // Process each file
+    for (const [, fileLocations] of locationsByFile) {
+      const uri = fileLocations[0].uri;
+      const doc = await workspace.openTextDocument(uri);
+      const textEdits: TextEdit[] = [];
+      const processedRanges = new Set<string>();
+
+      for (const location of fileLocations) {
+        const isLineLevelLocation = location.range.start.character === 0 && location.range.end.character === 0;
+
+        if (isLineLevelLocation) {
+          // Line-level location: could be a multi-line directive
+          const startLineText = doc.lineAt(location.range.start.line).text;
+          this.logger.debug(`Processing line-level entity location: ${uri.fsPath}:${location.range.start.line + 1}`);
+          this.logger.debug(`Start line text: "${startLineText}"`);
+
+          // First, try to find entity on the starting line
+          let ranges = this.findEntityRangesInLine(startLineText, currentName, location.range.start.line, entityIndicator);
+
+          if (ranges.length === 0) {
+            // Entity not found on starting line, this might be a multi-line directive
+            this.logger.debug(`Entity not found on start line, searching multi-line directive...`);
+
+            // Find the actual position of the entity in the multi-line directive
+            const entityPosition = this.findEntityPositionInDirective(doc, location.range.start.line, currentName, entityIndicator);
+
+            // Get the line where the entity was actually found
+            const entityLineText = doc.lineAt(entityPosition.line).text;
+            ranges = this.findEntityRangesInLine(entityLineText, currentName, entityPosition.line, entityIndicator);
+
+            this.logger.debug(`Found ${ranges.length} entity occurrences in multi-line directive at line ${entityPosition.line + 1}`);
+          } else {
+            // Entity found on starting line, check for consecutive entity clauses (multifile predicates)
+            this.logger.debug(`Entity found on start line, checking for consecutive entity clauses...`);
+
+            const consecutiveRanges = this.findConsecutiveEntityClauses(doc, location.range.start.line, currentName, entityIndicator);
+            if (consecutiveRanges.length > ranges.length) {
+              this.logger.debug(`Found ${consecutiveRanges.length} consecutive entity clauses (vs ${ranges.length} on single line)`);
+              ranges = consecutiveRanges;
+            }
+          }
+
+          this.logger.debug(`Found ${ranges.length} entity occurrences on start line ${location.range.start.line + 1}`);
+
+          for (const range of ranges) {
+            const rangeKey = `${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
+
+            if (!processedRanges.has(rangeKey) && this.isValidRange(doc, range)) {
+              processedRanges.add(rangeKey);
+
+              const lineText = doc.lineAt(range.start.line).text;
+              const replacementText = this.determineEntityReplacementText(lineText, range, currentName, newName);
+              const edit = TextEdit.replace(range, replacementText);
+              textEdits.push(edit);
+
+              this.logger.debug(`✅ Created entity edit at ${uri.fsPath}:${range.start.line + 1}:${range.start.character + 1} - "${doc.getText(range)}" → "${replacementText}"`);
+            }
+          }
+        } else {
+          // Specific character range: use the exact location range
+          const rangeKey = `${location.range.start.line}:${location.range.start.character}:${location.range.end.line}:${location.range.end.character}`;
+
+          if (!processedRanges.has(rangeKey) && this.isValidRange(doc, location.range)) {
+            processedRanges.add(rangeKey);
+
+            const lineText = doc.lineAt(location.range.start.line).text;
+            const replacementText = this.determineEntityReplacementText(lineText, location.range, currentName, newName);
+            const edit = TextEdit.replace(location.range, replacementText);
+            textEdits.push(edit);
+
+            this.logger.debug(`✅ Created specific entity edit at ${uri.fsPath}:${location.range.start.line + 1}:${location.range.start.character + 1} - "${doc.getText(location.range)}" → "${replacementText}"`);
+          }
+        }
+      }
+
+      workspaceEdit.set(uri, textEdits);
+      this.logger.debug(`Added ${textEdits.length} entity edits for file: ${uri.fsPath}`);
+    }
+
+    // Count total edits created
+    let totalEditsCreated = 0;
+    for (const [, edits] of workspaceEdit.entries()) {
+      totalEditsCreated += edits.length;
+    }
+
+    // Show preview information
+    const fileCount = locationsByFile.size;
+    this.logger.debug(`Entity rename preview: ${locations.length} locations found, ${totalEditsCreated} edits created`);
+    window.showInformationMessage(
+      `Rename will update ${totalEditsCreated} occurrence${totalEditsCreated !== 1 ? 's' : ''} ` +
+      `across ${fileCount} file${fileCount !== 1 ? 's' : ''}`
+    );
+
+    return workspaceEdit;
+  }
+
+  /**
+   * Detects if the user clicked on an entity name in an entity opening directive
+   * @param document The document
+   * @param position The cursor position
+   * @returns Object with entity info if detected, null otherwise
+   */
+  private detectEntityContext(document: TextDocument, position: Position): { name: string; type: string; indicator: string } | null {
+    const lineText = document.lineAt(position.line).text.trim();
+
+    // Check if this line contains an entity opening directive
+    const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpening);
+    if (!entityMatch) {
+      return null;
+    }
+
+    // Use Utils.getCallUnderCursor to get the entity indicator (handles arity calculation)
+    const entityIndicator = Utils.getCallUnderCursor(document, position);
+    if (!entityIndicator) {
+      return null;
+    }
+
+    // Extract entity name from the indicator
+    const entityName = entityIndicator.split('/')[0];
+
+    return {
+      name: entityName,
+      type: entityMatch.type,
+      indicator: entityIndicator
+    };
+  }
+
+  /**
+   * Finds entity name ranges in a line with arity checking, handling special cases like Entity::Message
+   * @param lineText The text of the line
+   * @param entityName The entity name to find
+   * @param lineNumber The line number (for creating ranges)
+   * @param entityIndicator The entity indicator (name/arity)
+   * @returns Array of ranges where the entity name appears with correct arity
+   */
+  private findEntityRangesInLine(lineText: string, entityName: string, lineNumber: number, entityIndicator: string): Range[] {
+    const ranges: Range[] = [];
+
+    // Extract expected arity from entity indicator
+    const expectedArity = parseInt(entityIndicator.split('/')[1], 10);
+
+    // Create patterns for different entity contexts:
+    // 1. Entity opening directive: :- object(entity_name, ...)
+    // 2. Entity::Message patterns: entity_name::message
+    // 3. Entity::Predicate patterns: entity_name::predicate/arity
+    // 4. Entity::NonTerminal patterns: entity_name::non_terminal//arity
+    // 5. Parametric entity references: entity_name(params) in imports/extends/etc.
+    // 6. Regular entity references
+
+    const patterns = [
+      // Entity::Message patterns: entity_name directly followed by ::
+      new RegExp(`\\b(${this.escapeRegex(entityName)})(?=::)`, 'g'),
+      // Parametric entity patterns: entity_name followed by opening parenthesis (anywhere in line)
+      new RegExp(`\\b(${this.escapeRegex(entityName)})(?=\\()`, 'g'),
+      // Standalone entity name patterns (not followed by parentheses or ::)
+      new RegExp(`\\b(${this.escapeRegex(entityName)})(?![\\(::])\\b`, 'g')
+    ];
+
+    for (const pattern of patterns) {
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(lineText)) !== null) {
+        const startChar = match.index;
+        const endChar = startChar + match[0].length;
+
+        // Validate that this is a valid entity context
+        if (this.isValidEntityContextInText(lineText, startChar, endChar, entityName)) {
+          // Check arity for this entity occurrence
+          if (this.checkEntityArityAtPosition(lineText, endChar, expectedArity)) {
+            const range = new Range(lineNumber, startChar, lineNumber, endChar);
+            ranges.push(range);
+            this.logger.debug(`✅ Found entity "${entityName}" with correct arity ${expectedArity} at ${lineNumber + 1}:${startChar + 1}`);
+          } else {
+            this.logger.debug(`❌ Rejected entity "${entityName}" with wrong arity at ${lineNumber + 1}:${startChar + 1}`);
+          }
+        }
+      }
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Checks if an entity occurrence has the expected arity
+   * @param text The line text
+   * @param endPos The position after the entity name
+   * @param expectedArity The expected arity
+   * @returns true if the arity matches
+   */
+  private checkEntityArityAtPosition(text: string, endPos: number, expectedArity: number): boolean {
+    const after = endPos < text.length ? text[endPos] : '';
+
+    this.logger.debug(`  Checking entity arity at position ${endPos}, character after: "${after}"`);
+
+    // Check for explicit arity indicator: entity/arity
+    if (after === '/') {
+      const arityMatch = text.substring(endPos + 1).match(/^(\d+)/);
+      if (arityMatch) {
+        const arity = parseInt(arityMatch[1], 10);
+        this.logger.debug(`    Found entity indicator: arity ${arity}, expected ${expectedArity}`);
+        return arity === expectedArity;
+      }
+      this.logger.debug(`    No entity indicator found after /`);
+      return false;
+    }
+
+    // Check for parameter list: entity(param1, param2, ...)
+    if (after === '(') {
+      const argCount = this.countArgumentsAfterPosition(text, endPos);
+      this.logger.debug(`    Found parentheses: counted ${argCount} arguments, expected ${expectedArity}`);
+      return argCount === expectedArity;
+    }
+
+    // For arity 0 entities, accept if no parameters or indicators follow
+    if (expectedArity === 0) {
+      // Check that we're not followed by parameters or arity indicators
+      if (after === '(' || after === '/') {
+        this.logger.debug(`    Expected arity 0 but found parameters/indicator`);
+        return false;
+      }
+      this.logger.debug(`    Expected arity 0, no parameters found - accepting`);
+      return true;
+    }
+
+    // For non-zero arity entities without explicit indicators, we need to be more careful
+    // In entity contexts, this might be acceptable (e.g., in implements/extends clauses)
+    // But we should validate the context more carefully
+    this.logger.debug(`    Expected arity ${expectedArity} but no indicator or parentheses found - accepting for entity context`);
+    return true;
+  }
+
+  /**
+   * Validates if an entity occurrence is in a valid context
+   * @param text The line text
+   * @param startPos Start position of the entity name
+   * @param endPos End position of the entity name
+   * @param entityName The entity name
+   * @returns true if valid context
+   */
+  private isValidEntityContextInText(text: string, startPos: number, endPos: number, entityName: string): boolean {
+    // Check if this is in a comment
+    const beforeMatch = text.substring(0, startPos);
+    if (beforeMatch.includes('%')) {
+      return false;
+    }
+
+    // Check if this is in a string literal
+    const singleQuotes = (beforeMatch.match(/'/g) || []).length;
+    const doubleQuotes = (beforeMatch.match(/"/g) || []).length;
+    if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
+      return false;
+    }
+
+    // Additional validation for entity contexts could be added here
+    // For now, accept all non-comment, non-string contexts
+
+    return true;
+  }
+
+  /**
+   * Determines the replacement text for an entity occurrence
+   * @param lineText The line text
+   * @param range The range of the entity occurrence
+   * @param currentName The current entity name
+   * @param newName The new entity name
+   * @returns The replacement text
+   */
+  private determineEntityReplacementText(lineText: string, range: Range, currentName: string, newName: string): string {
+    const originalText = lineText.substring(range.start.character, range.end.character);
+
+    // If the original text is quoted, preserve quotes
+    if (originalText.startsWith("'") && originalText.endsWith("'")) {
+      return `'${newName}'`;
+    }
+
+    // For regular entity names, just replace with the new name
+    return newName;
+  }
+
+
+
+  /**
    * Validates if a range is valid within a document
    * @param document The document
    * @param range The range to validate
@@ -719,14 +1104,14 @@ export class LogtalkRenameProvider implements RenameProvider {
    * Finds the exact position of a predicate name in a declaration line
    * @param doc The document
    * @param declarationLine The line number of the declaration
-   * @param predicateName The predicate name to find
+   * @param predicateIndicator The predicate/non-terminal indicator (name/arity or name//arity)
    * @returns Position of the predicate name
    */
-  private findPredicatePositionInDeclaration(doc: TextDocument, declarationLine: number, predicateName: string): Position {
+  private findPredicatePositionInDeclaration(doc: TextDocument, declarationLine: number, predicateIndicator: string): Position {
     const lineText = doc.lineAt(declarationLine).text;
 
-    // Find the predicate name in the line
-    const ranges = this.findPredicateRangesInLine(lineText, predicateName, declarationLine);
+    // Find the predicate name in the line with arity checking
+    const ranges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, declarationLine);
 
     if (ranges.length > 0) {
       return ranges[0].start;
@@ -737,14 +1122,52 @@ export class LogtalkRenameProvider implements RenameProvider {
   }
 
   /**
+   * Finds the position of an entity name in a multi-line directive
+   * @param doc The document
+   * @param startLine The line number where the directive starts
+   * @param entityName The entity name to find
+   * @param entityIndicator The entity indicator (name/arity)
+   * @returns Position of the entity name
+   */
+  private findEntityPositionInDirective(doc: TextDocument, startLine: number, entityName: string, entityIndicator: string): Position {
+    // Search through the directive lines to find the entity name
+    // Multi-line directives can span several lines, so we need to search forward
+
+    const maxSearchLines = 10; // Reasonable limit for directive length
+    const endLine = Math.min(startLine + maxSearchLines, doc.lineCount);
+
+    for (let lineNum = startLine; lineNum < endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      // Look for the entity name in this line
+      const ranges = this.findEntityRangesInLine(lineText, entityName, lineNum, entityIndicator);
+
+      if (ranges.length > 0) {
+        // Found the entity name on this line
+        this.logger.debug(`Found entity "${entityName}" in directive at line ${lineNum + 1}:${ranges[0].start.character + 1}`);
+        return ranges[0].start;
+      }
+
+      // Check if we've reached the end of the directive
+      if (lineText.includes(').') || lineText.includes('].)')) {
+        break;
+      }
+    }
+
+    // Fallback: return start of the original line if not found
+    this.logger.debug(`Entity "${entityName}" not found in directive starting at line ${startLine + 1}, using fallback position`);
+    return new Position(startLine, 0);
+  }
+
+  /**
    * Finds the position of a predicate or non-terminal name in a definition line
    * @param doc The document
    * @param definitionLine The line number of the definition
-   * @param predicateName The predicate/non-terminal name to find
+   * @param predicateIndicator The predicate/non-terminal indicator (name/arity or name//arity)
    * @param isNonTerminal Whether this is a non-terminal (uses -->) or predicate (uses :-)
    * @returns Position of the predicate/non-terminal name
    */
-  private findPredicatePositionInDefinition(doc: TextDocument, definitionLine: number, predicateName: string, isNonTerminal: boolean): Position {
+  private findPredicatePositionInDefinition(doc: TextDocument, definitionLine: number, predicateIndicator: string, isNonTerminal: boolean): Position {
     const lineText = doc.lineAt(definitionLine).text;
 
     // For definitions, we look for the predicate/non-terminal name at the start of the clause/rule
@@ -753,8 +1176,8 @@ export class LogtalkRenameProvider implements RenameProvider {
 
     const expectedOperator = isNonTerminal ? '-->' : ':-';
 
-    // Find the predicate name in the line, but only if it's followed by the correct operator
-    const ranges = this.findPredicateRangesInLine(lineText, predicateName, definitionLine);
+    // Find the predicate name in the line with arity checking, but only if it's followed by the correct operator
+    const ranges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, definitionLine);
 
     for (const range of ranges) {
       // Check if this occurrence is followed by the expected operator
@@ -870,7 +1293,7 @@ export class LogtalkRenameProvider implements RenameProvider {
       if (trimmedLineText.includes('mode(') || trimmedLineText.includes('info(')) {
         // Check if this directive mentions our predicate
         if (trimmedLineText.includes(predicateName) || trimmedLineText.includes(predicateIndicator)) {
-          const lineRanges = this.findPredicateRangesInLine(lineText, predicateName, line);
+          const lineRanges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, line);
           ranges.push(...lineRanges);
         }
       }
@@ -1278,6 +1701,86 @@ export class LogtalkRenameProvider implements RenameProvider {
     }
 
     return locations;
+  }
+
+  /**
+   * Finds consecutive entity clauses (multifile predicates) starting from a given line
+   * @param document The document to search
+   * @param startLine The line number where an entity clause was found
+   * @param entityName The entity name to find
+   * @param entityIndicator The entity indicator (name/arity)
+   * @returns Array of ranges where consecutive entity clauses are found
+   */
+  private findConsecutiveEntityClauses(
+    document: TextDocument,
+    startLine: number,
+    entityName: string,
+    entityIndicator: string
+  ): Range[] {
+    const ranges: Range[] = [];
+
+    this.logger.debug(`Starting consecutive entity clause search for ${entityName} from line ${startLine + 1}`);
+
+    // Search forwards from startLine to find all consecutive entity clauses
+    let lineNum = startLine;
+    while (lineNum < document.lineCount) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      this.logger.debug(`Checking line ${lineNum + 1}: "${trimmedLine}"`);
+
+      // Stop if we hit an entity boundary
+      if (this.isEntityBoundary(trimmedLine)) {
+        this.logger.debug(`Stopping at entity boundary: line ${lineNum + 1}`);
+        break;
+      }
+
+      // Skip comments and empty lines, but continue searching
+      if (trimmedLine.startsWith('%') || trimmedLine === '' ||
+          trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
+        this.logger.debug(`Skipping comment/empty line: ${lineNum + 1}`);
+        lineNum++;
+        continue;
+      }
+
+      // Check if this line contains entity references
+      const lineRanges = this.findEntityRangesInLine(lineText, entityName, lineNum, entityIndicator);
+
+      if (lineRanges.length > 0) {
+        this.logger.debug(`Found ${lineRanges.length} entity references for ${entityName} at line ${lineNum + 1}`);
+        ranges.push(...lineRanges);
+        lineNum++;
+      } else {
+        // Check if this line starts a different entity clause pattern
+        if (this.isDifferentEntityClause(lineText, entityName)) {
+          this.logger.debug(`Stopping at different entity clause: line ${lineNum + 1}`);
+          break;
+        }
+        lineNum++;
+      }
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Checks if a line starts a clause for a different entity
+   * @param lineText The line text
+   * @param entityName The entity name we're looking for
+   * @returns true if this is a clause for a different entity
+   */
+  private isDifferentEntityClause(lineText: string, entityName: string): boolean {
+    const trimmedLine = lineText.trim();
+
+    // Check if this line contains an entity reference pattern (entity::predicate)
+    const entityRefMatch = trimmedLine.match(/^([a-zA-Z_][a-zA-Z0-9_]*)::/);
+    if (entityRefMatch) {
+      const foundEntityName = entityRefMatch[1];
+      // If it's a different entity, stop searching
+      return foundEntityName !== entityName;
+    }
+
+    return false;
   }
 
   /**
