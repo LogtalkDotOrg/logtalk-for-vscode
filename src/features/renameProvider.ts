@@ -130,9 +130,11 @@ export class LogtalkRenameProvider implements RenameProvider {
 
     // Get the predicate or non-terminal indicator under cursor
     let nonTerminalIndicator = Utils.getNonTerminalIndicatorUnderCursor(document, position);
-    let predicateIndicator = nonTerminalIndicator ||
-                             Utils.getPredicateIndicatorUnderCursor(document, position) ||
-                             Utils.getCallUnderCursor(document, position);
+    let predicateIndicator = nonTerminalIndicator || Utils.getPredicateIndicatorUnderCursor(document, position);
+    if (!predicateIndicator) {
+      const callable = Utils.getCallUnderCursor(document, position);
+      predicateIndicator = callable.match(/(?:(\w+(\(.*\))?)?(::|\^\^))?(\w+[\/]\d+)/)[4];
+    }
 
     // Check if we're in a DCG rule context and should treat this as a non-terminal
     const currentLineText = document.lineAt(position.line).text;
@@ -188,9 +190,9 @@ export class LogtalkRenameProvider implements RenameProvider {
         this.logger.debug(`declarationPosition: ${declarationPosition.line}:${declarationPosition.character}`);
         implementationLocations = await this.implementationProvider.provideImplementation(declarationDocument, declarationPosition, token);
         this.logger.debug(`Found implementations at: ${implementationLocations}`);
-        if (implementationLocations && Array.isArray(implementationLocations)) {
+        if (implementationLocations) {
           for (const location of implementationLocations) {
-            if ('uri' in location && 'range' in location && this.isValidLocation(location)) {
+            if (this.isValidLocation(location)) {
               allLocations.push({ uri: location.uri, range: location.range });
               this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
             }
