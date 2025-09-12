@@ -19,8 +19,7 @@ import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
-import { DiagnosticsUtils } from "../utils/diagnostics";
-import { SymbolRegexes, PatternSets, SymbolUtils } from "../utils/symbols";
+import { PatternSets, SymbolUtils } from "../utils/symbols";
 
 export class LogtalkRenameProvider implements RenameProvider {
   private logger = getLogger();
@@ -977,76 +976,6 @@ export class LogtalkRenameProvider implements RenameProvider {
 
     this.logger.debug(`Deduplicated ${locations.length} locations to ${uniqueLocations.length} unique locations`);
     return uniqueLocations;
-  }
-
-
-
-  /**
-   * Finds all ranges where the predicate name appears in a line of text
-   * @param lineText The text of the line
-   * @param predicateName The predicate name to find
-   * @param lineNumber The line number (0-based)
-   * @returns Array of ranges where the predicate name appears
-   */
-  private findPredicateRangesInLine(lineText: string, predicateName: string, lineNumber: number): Range[] {
-    const ranges: Range[] = [];
-
-    // Remove quotes from predicate name for searching if it's a quoted atom
-    const searchName = predicateName.startsWith("'") && predicateName.endsWith("'")
-      ? predicateName.slice(1, -1)
-      : predicateName;
-
-    // Create regex patterns for different contexts where the predicate might appear
-    const patterns: RegExp[] = [];
-
-    if (predicateName.startsWith("'") && predicateName.endsWith("'")) {
-      // For quoted atoms, search for the exact quoted form
-      patterns.push(new RegExp(`'${this.escapeRegex(searchName)}'`, 'g'));
-    } else {
-      // For regular atoms, use a single comprehensive pattern with word boundaries
-      patterns.push(new RegExp(`\\b${this.escapeRegex(searchName)}\\b`, 'g'));
-    }
-
-    // Search for each pattern
-    for (const pattern of patterns) {
-      let match;
-      while ((match = pattern.exec(lineText)) !== null) {
-        const startChar = match.index;
-        const endChar = startChar + match[0].length;
-        const matchedText = match[0];
-
-        this.logger.debug(`Checking match "${matchedText}" at line ${lineNumber + 1}, chars ${startChar}-${endChar} in: "${lineText}"`);
-
-        // Additional validation to ensure this is a valid predicate context
-        if (this.isValidPredicateContext(lineText, startChar, endChar)) {
-          // Validate character positions
-          if (startChar >= 0 && endChar <= lineText.length && startChar < endChar) {
-            // Create range for this occurrence
-            const range = new Range(
-              new Position(lineNumber, startChar),
-              new Position(lineNumber, endChar)
-            );
-
-            // Avoid duplicates
-            if (!ranges.some(r => r.isEqual(range))) {
-              ranges.push(range);
-              this.logger.debug(`✅ Found valid predicate range at line ${lineNumber + 1}, chars ${startChar}-${endChar}: "${matchedText}"`);
-            } else {
-              this.logger.debug(`Skipped duplicate range at line ${lineNumber + 1}, chars ${startChar}-${endChar}`);
-            }
-          } else {
-            this.logger.warn(`Invalid character positions at line ${lineNumber + 1}: start=${startChar}, end=${endChar}, lineLength=${lineText.length}`);
-          }
-        } else {
-          this.logger.debug(`❌ Skipped invalid context at line ${lineNumber + 1}, chars ${startChar}-${endChar}: "${matchedText}"`);
-        }
-
-        // Reset regex lastIndex to avoid infinite loop
-        if (!pattern.global) break;
-      }
-    }
-
-    return ranges;
   }
 
   /**
