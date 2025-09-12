@@ -76,51 +76,22 @@ export class LogtalkRenameProvider implements RenameProvider {
       return null;
     }
 
-    // Get the predicate or non-terminal indicator under cursor
-    let nonTerminalIndicator = Utils.getNonTerminalIndicatorUnderCursor(document, position);
-    let predicateIndicator = nonTerminalIndicator ||
-                             Utils.getPredicateIndicatorUnderCursor(document, position) ||
-                             Utils.getCallUnderCursor(document, position);
+    // Check if we're clicking on a predicate/non-terminal indicator or callable term
+    const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
+                      Utils.getPredicateIndicatorUnderCursor(document, position) ||
+                      Utils.getCallUnderCursor(document, position);
 
-    if (!predicateIndicator) {
+    if (!indicator) {
       this.logger.debug("No predicate, non-terminal, or entity found at position");
       return null;
     }
 
-    // Check if we're in a DCG rule context and should treat this as a non-terminal
-    const isDCGContext = currentLineText.includes('-->');
+    this.logger.debug(`Found indicator: ${indicator}`);
 
-    if (!nonTerminalIndicator && isDCGContext && predicateIndicator.includes('/')) {
-      // Convert predicate indicator to non-terminal indicator in DCG context
-      const [name, arity] = predicateIndicator.split('/');
-      const inferredNonTerminalIndicator = `${name}//${arity}`;
-      this.logger.debug(`DCG context detected, inferring non-terminal: ${inferredNonTerminalIndicator}`);
-      nonTerminalIndicator = inferredNonTerminalIndicator;
-      predicateIndicator = inferredNonTerminalIndicator;
-    }
-
-    this.logger.debug(`Found ${nonTerminalIndicator ? 'non-terminal' : 'predicate'} indicator: ${predicateIndicator}`);
-
-    // Get the word range for the predicate/non-terminal name (without arity)
-    const isNonTerminal = predicateIndicator.includes('//');
-    const predicateName = predicateIndicator.split(isNonTerminal ? '//' : '/')[0];
-
-    // Use a more specific regex to match the predicate name
-    // This handles both regular atoms and quoted atoms
-    let wordRange: Range | undefined;
-
-    if (predicateName.startsWith("'") && predicateName.endsWith("'")) {
-      // For quoted atoms, include the quotes
-      const escapedName = predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      wordRange = document.getWordRangeAtPosition(position, new RegExp(escapedName));
-    } else {
-      // For regular atoms, use word boundaries
-      const escapedName = predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      wordRange = document.getWordRangeAtPosition(position, new RegExp(`\\b${escapedName}\\b`));
-    }
-
+    // Get the word range at the current position
+    const wordRange = document.getWordRangeAtPosition(position);
     if (!wordRange) {
-      this.logger.debug("Could not determine word range for predicate");
+      this.logger.debug("Could not determine word range");
       return null;
     }
 
