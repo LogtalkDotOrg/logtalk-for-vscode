@@ -232,4 +232,24 @@ suite('LogtalkRenameProvider Test Suite', () => {
     assert.strictEqual(sorted[0].range.start.line, 1);
     assert.strictEqual(sorted[1].range.start.line, 2);
   });
+
+  test('isCorrectPredicateInDirective - matches correct predicate with arity', () => {
+    const isCorrect = (renameProvider as any).isCorrectPredicateInDirective('gravitational_acceleration', '/1', 'gravitational_acceleration/1');
+    assert.strictEqual(isCorrect, true);
+  });
+
+  test('isCorrectPredicateInDirective - rejects wrong arity', () => {
+    const isCorrect = (renameProvider as any).isCorrectPredicateInDirective('gravitational_acceleration', '/2', 'gravitational_acceleration/1');
+    assert.strictEqual(isCorrect, false);
+  });
+
+  test('isCorrectPredicateInDirective - rejects wrong name', () => {
+    const isCorrect = (renameProvider as any).isCorrectPredicateInDirective('other_predicate', '/1', 'gravitational_acceleration/1');
+    assert.strictEqual(isCorrect, false);
+  });
+
+  test('isCorrectPredicateInDirective - accepts when no explicit arity', () => {
+    const isCorrect = (renameProvider as any).isCorrectPredicateInDirective('gravitational_acceleration', ',', 'gravitational_acceleration/1');
+    assert.strictEqual(isCorrect, true);
+  });
 });

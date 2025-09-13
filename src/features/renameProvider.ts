@@ -1012,24 +1012,75 @@ export class LogtalkRenameProvider implements RenameProvider {
   }
 
   /**
-   * Finds the exact position of a predicate name in a declaration line
+   * Finds the exact position of a predicate name in a declaration line or multi-line directive
    * @param doc The document
    * @param declarationLine The line number of the declaration
    * @param predicateIndicator The predicate/non-terminal indicator (name/arity or name//arity)
    * @returns Position of the predicate name
    */
   private findPredicatePositionInDeclaration(doc: TextDocument, declarationLine: number, predicateIndicator: string): Position {
-    const lineText = doc.lineAt(declarationLine).text;
+    const isNonTerminal = predicateIndicator.includes('//');
+    const separator = isNonTerminal ? '//' : '/';
+    const [predicateName] = predicateIndicator.split(separator);
 
-    // Find the predicate name in the line with arity checking
+    // First try to find the predicate on the declaration line itself
+    const lineText = doc.lineAt(declarationLine).text;
     const ranges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, declarationLine);
 
     if (ranges.length > 0) {
       return ranges[0].start;
     }
 
+    // If not found on the declaration line, this might be a multi-line directive
+    // Use the multi-line directive search logic
+    const multiLineRanges = this.findPredicateInMultiLineDirective(doc, declarationLine, predicateName);
+
+    // Filter the ranges to find the one that matches our specific predicate indicator
+    for (const range of multiLineRanges) {
+      const rangeLineText = doc.lineAt(range.start.line).text;
+      const rangeText = rangeLineText.substring(range.start.character, range.end.character);
+
+      // Check if this range corresponds to our specific predicate by looking at the context
+      // We need to verify the arity matches
+      const afterRange = rangeLineText.substring(range.end.character);
+      if (this.isCorrectPredicateInDirective(rangeText, afterRange, predicateIndicator)) {
+        this.logger.debug(`Found predicate "${predicateIndicator}" in multi-line directive at line ${range.start.line + 1}:${range.start.character + 1}`);
+        return range.start;
+      }
+    }
+
     // Fallback: return start of line if not found
+    this.logger.debug(`Predicate "${predicateIndicator}" not found in declaration, using fallback position`);
     return new Position(declarationLine, 0);
+  }
+
+  /**
+   * Checks if a predicate name match in a directive corresponds to the correct predicate indicator
+   * @param rangeText The matched predicate name text
+   * @param afterRange The text after the matched predicate name
+   * @param predicateIndicator The full predicate indicator we're looking for
+   * @returns true if this is the correct predicate match
+   */
+  private isCorrectPredicateInDirective(rangeText: string, afterRange: string, predicateIndicator: string): boolean {
+    const isNonTerminal = predicateIndicator.includes('//');
+    const separator = isNonTerminal ? '//' : '/';
+    const [expectedName, expectedArity] = predicateIndicator.split(separator);
+
+    // The range text should match the expected predicate name
+    if (rangeText !== expectedName) {
+      return false;
+    }
+
+    // Check if the arity matches by looking at what follows the predicate name
+    const arityMatch = afterRange.match(/^\/(\d+)/);
+    if (arityMatch) {
+      const foundArity = arityMatch[1];
+      return foundArity === expectedArity;
+    }
+
+    // If no explicit arity found, this might be in a context where arity is implicit
+    // For now, accept it as a potential match
+    return true;
   }
 
   /**
