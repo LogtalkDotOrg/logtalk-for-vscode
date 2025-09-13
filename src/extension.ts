@@ -38,6 +38,7 @@ import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvid
 import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
 import { LogtalkRenameProvider } from "./features/renameProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
+import { LogtalkRefactorProvider } from "./refactorProvider";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
 
@@ -52,6 +53,7 @@ let chatParticipant: LogtalkChatParticipant;
 let watcher: any;
 let testsCodeLensProvider: LogtalkTestsCodeLensProvider;
 let metricsCodeLensProvider: LogtalkMetricsCodeLensProvider;
+let refactorProvider: LogtalkRefactorProvider;
 
 function getLogLevelDescription(level: string): string {
   switch (level) {
@@ -337,6 +339,23 @@ export function activate(context: ExtensionContext) {
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#test' };
 	}));
 
+  // Register refactor commands
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.extractToEntity', async (document, selection) => {
+      if (refactorProvider) {
+        await refactorProvider.extractToEntity(document, selection);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.extractToFile', async (document, selection) => {
+      if (refactorProvider) {
+        await refactorProvider.extractToFile(document, selection);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {
@@ -396,6 +415,10 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerCodeActionsProvider(LOGTALK_MODE, testsReporter)
+  );
+  refactorProvider = new LogtalkRefactorProvider();
+  context.subscriptions.push(
+    languages.registerCodeActionsProvider(LOGTALK_MODE, refactorProvider)
   );
   context.subscriptions.push(
     workspace.onDidChangeTextDocument(event => {
@@ -477,5 +500,13 @@ export function deactivate() {
     }
   } catch (error) {
     logger.error('Error disposing metrics code lens provider:', error);
+  }
+
+  try {
+    if (refactorProvider) {
+      refactorProvider.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing refactor provider:', error);
   }
 }

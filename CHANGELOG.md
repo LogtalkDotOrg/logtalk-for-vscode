@@ -2,6 +2,8 @@
 
 ## [0.53.0]
 
+* Add "Extract to new Logtalk entity" refactoring support
+* Add "Extract to new Logtalk file" refactoring support
 * Add experimental entity, predicate, and non-terminal rename support
 * Add "Logtalk: Compute Project Metrics" command
 * Add settings support for multi-backend Logtalk executable arguments

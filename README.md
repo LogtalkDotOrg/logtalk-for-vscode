@@ -229,6 +229,11 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
+Two types of code extraction are supported when the user selects a region of code and uses the "Refactor" context menu item or the "Refactor" command palette item:
+
+- Extract to new Logtalk entity (the user is asked to select the entity type, entity name, file name, and file location)
+- Extract to new Logtalk file (the user is asked to select the file name and file location)
+
 Experimental entity, predicate, and non-terminal rename support is available. Users should commit their work before using this feature and preview the changes before applying them. After, the "Make - Reload" command can be used to verify the changes before committing them.
 
 To rename a predicate (non-terminal), right-click on the predicate (non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Rename Symbol" context menu item.
