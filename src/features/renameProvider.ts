@@ -128,33 +128,14 @@ export class LogtalkRenameProvider implements RenameProvider {
       return this.handleEntityRename(document, position, entityContext, newName, token);
     }
 
-    // Get the predicate or non-terminal indicator under cursor
-    let nonTerminalIndicator = Utils.getNonTerminalIndicatorUnderCursor(document, position);
-    let predicateIndicator = nonTerminalIndicator || Utils.getPredicateIndicatorUnderCursor(document, position);
+    // Get the initial indicator under cursor (will be refined based on declaration)
+    let predicateIndicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
+                             Utils.getPredicateIndicatorUnderCursor(document, position);
     if (!predicateIndicator) {
       const callable = Utils.getCallUnderCursor(document, position);
+      // Predicate calls can be message sending or super calls
       predicateIndicator = callable.match(/(?:(\w+(\(.*\))?)?(::|\^\^))?(\w+[\/]\d+)/)[4];
     }
-
-    // Check if we're in a DCG rule context and should treat this as a non-terminal
-    const currentLineText = document.lineAt(position.line).text;
-    const isDCGContext = currentLineText.includes('-->');
-
-    if (!nonTerminalIndicator && isDCGContext && predicateIndicator.includes('/')) {
-      // Convert predicate indicator to non-terminal indicator in DCG context
-      const [name, arity] = predicateIndicator.split('/');
-      const inferredNonTerminalIndicator = `${name}//${arity}`;
-      this.logger.debug(`DCG context detected, inferring non-terminal: ${inferredNonTerminalIndicator}`);
-      nonTerminalIndicator = inferredNonTerminalIndicator;
-      predicateIndicator = inferredNonTerminalIndicator;
-    }
-
-    const isNonTerminal = predicateIndicator.includes('//');
-    this.logger.debug(`Renaming ${isNonTerminal ? 'non-terminal' : 'predicate'}: ${predicateIndicator} to ${newName}`);
-
-    // Extract the current predicate/non-terminal name and arity
-    const separator = isNonTerminal ? '//' : '/';
-    const [currentName, arity] = predicateIndicator.split(separator);
     // const newIndicator = `${newName}${separator}${arity}`;
 
     // Collect all locations where the predicate is used
@@ -162,19 +143,52 @@ export class LogtalkRenameProvider implements RenameProvider {
     let declarationLocation: Location | null = null;
     let implementationLocations: any = null;
 
+    // Variables to be determined based on declaration or heuristics
+    let isNonTerminal: boolean;
+    let currentName: string;
+    let arity: string;
+
     try {
       // Step 1: Try to get declaration location from user click position
       declarationLocation = await this.declarationProvider.provideDeclaration(document, position, token);
 
       if (declarationLocation && this.isValidLocation(declarationLocation)) {
-        // Case 1: Declaration found - use the existing flow for declared predicates/non-terminals
+        // Case 1: Declaration found - definitively determine predicate vs non-terminal from declaration
         this.logger.debug(`Found declaration at: ${declarationLocation.uri.fsPath}:${declarationLocation.range.start.line + 1}`);
 
-        // Step 2: Add the declaration location itself to the bag
+        // Step 2: Determine the actual indicator type from the declaration
+        const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
+        const declarationLineText = declarationDocument.lineAt(declarationLocation.range.start.line).text;
+
+        // Definitively determine if it's a predicate or non-terminal by checking the declaration line
+        // Extract the name and arity from the original indicator
+        const tempSeparator = predicateIndicator.includes('//') ? '//' : '/';
+        const [originalName, originalArity] = predicateIndicator.split(tempSeparator);
+
+        // Check the declaration line to determine the correct type
+        if (declarationLineText.includes(`${originalName}//`)) {
+          isNonTerminal = true;
+          predicateIndicator = `${originalName}//${originalArity}`;
+          this.logger.debug(`Definitively determined as non-terminal from declaration: ${predicateIndicator}`);
+        } else if (declarationLineText.includes(`${originalName}/`)) {
+          isNonTerminal = false;
+          predicateIndicator = `${originalName}/${originalArity}`;
+          this.logger.debug(`Definitively determined as predicate from declaration: ${predicateIndicator}`);
+        } else {
+          // Fallback: use the original indicator and determine type from it
+          isNonTerminal = predicateIndicator.includes('//');
+          this.logger.debug(`Could not find indicator in declaration, using original: ${predicateIndicator}`);
+        }
+
+        const separator = isNonTerminal ? '//' : '/';
+        [currentName, arity] = predicateIndicator.split(separator);
+
+        this.logger.debug(`Renaming ${isNonTerminal ? 'non-terminal' : 'predicate'}: ${predicateIndicator} to ${newName}`);
+
+        // Step 3: Add the declaration location itself to the bag
         allLocations.push({ uri: declarationLocation.uri, range: declarationLocation.range });
 
-        // Step 3: Use the declaration position to find all other locations
-        const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
+        // Step 4: Use the declaration position to find all other locations
         const declarationPosition = this.findPredicatePositionInDeclaration(declarationDocument, declarationLocation.range.start.line, predicateIndicator);
         this.logger.debug(`declarationPosition: ${declarationPosition.line}:${declarationPosition.character}`);
 
@@ -215,8 +229,25 @@ export class LogtalkRenameProvider implements RenameProvider {
           }
         }
       } else {
-        // Case 2: No declaration found - handle local predicates/non-terminals without declarations
-        this.logger.debug(`No declaration found for ${isNonTerminal ? 'non-terminal' : 'predicate'}: ${predicateIndicator}. Trying definition and references...`);
+        // Case 2: No declaration found - use heuristics to determine predicate vs non-terminal
+        this.logger.debug(`No declaration found for: ${predicateIndicator}. Using heuristics to determine type...`);
+
+        // Use heuristic: check if we're in a DCG rule context
+        const currentLineText = document.lineAt(position.line).text;
+        const isDCGContext = currentLineText.includes('-->');
+
+        if (isDCGContext && predicateIndicator.includes('/')) {
+          // Convert predicate indicator to non-terminal indicator in DCG context
+          const [name, arity] = predicateIndicator.split('/');
+          predicateIndicator = `${name}//${arity}`;
+          this.logger.debug(`DCG context detected, inferring non-terminal: ${predicateIndicator}`);
+        }
+
+        isNonTerminal = predicateIndicator.includes('//');
+        const separator = isNonTerminal ? '//' : '/';
+        [currentName, arity] = predicateIndicator.split(separator);
+
+        this.logger.debug(`Renaming ${isNonTerminal ? 'non-terminal' : 'predicate'}: ${predicateIndicator} to ${newName}`);
 
         // Get definition location from user click position
         const definitionLocation = await this.definitionProvider.provideDefinition(document, position, token);
@@ -331,8 +362,6 @@ export class LogtalkRenameProvider implements RenameProvider {
       locationsByFile.get(fileKey)!.push(location);
     }
 
-
-
     // Process each file
     for (const [fileKey, locations] of locationsByFile) {
       const uri = locations[0].uri;
@@ -399,35 +428,21 @@ export class LogtalkRenameProvider implements RenameProvider {
           this.logger.debug(`Processing location at ${uri.fsPath}:${location.range.start.line + 1}:${location.range.start.character} - isLineLevelLocation: ${isLineLevelLocation}`);
 
           if (isLineLevelLocation) {
-            // Line-level location: search for all occurrences on this line with arity checking
-            this.logger.debug(`Line-level location detected - searching for all ${predicateIndicator} occurrences on line`);
+            // Line-level location: search for all occurrences in the complete clause (may be multi-line)
+            this.logger.debug(`Line-level location detected - searching for all ${predicateIndicator} occurrences in clause`);
             this.logger.debug(`Line text: "${lineText}"`);
 
-            const separator = isNonTerminal ? '//' : '/';
-            const [, arity] = predicateIndicator.split(separator);
-            const expectedArity = parseInt(arity, 10);
+            // Use findPredicateInClauseWithEndLine to search the complete clause
+            const clauseResult = this.findPredicateInClauseWithEndLine(doc, location.range.start.line, predicateIndicator);
+            this.logger.debug(`Found ${clauseResult.ranges.length} occurrences in clause starting at line ${location.range.start.line + 1}`);
 
-            this.logger.debug(`Searching for ${currentName} with arity ${expectedArity}, isNonTerminal: ${isNonTerminal}`);
+            for (const clauseRange of clauseResult.ranges) {
+              const rangeKey = `${clauseRange.range.start.line}:${clauseRange.range.start.character}:${clauseRange.range.end.line}:${clauseRange.range.end.character}`;
+              const rangeLineText = doc.lineAt(clauseRange.range.start.line).text;
+              const rangeText = rangeLineText.substring(clauseRange.range.start.character, clauseRange.range.end.character);
+              this.logger.debug(`Processing range ${rangeKey}: "${rangeText}"`);
 
-            const lineRanges = this.findPredicateRangesInTextWithArity(
-              lineText,
-              currentName,
-              expectedArity,
-              isNonTerminal
-            );
-
-            this.logger.debug(`Found ${lineRanges.length} occurrences on line ${location.range.start.line + 1}`);
-
-            for (const range of lineRanges) {
-              const absoluteRange = new Range(
-                location.range.start.line, range.start,
-                location.range.start.line, range.end
-              );
-
-              const rangeKey = `${absoluteRange.start.line}:${absoluteRange.start.character}:${absoluteRange.end.line}:${absoluteRange.end.character}`;
-              this.logger.debug(`Processing range ${rangeKey}: "${lineText.substring(range.start, range.end)}"`);
-
-              const isValidRange = this.isValidRange(doc, absoluteRange);
+              const isValidRange = this.isValidRange(doc, clauseRange.range);
               const isDuplicate = processedRanges.has(rangeKey);
 
               this.logger.debug(`Range validation: ${rangeKey} - valid: ${isValidRange}, duplicate: ${isDuplicate}`);
@@ -436,19 +451,19 @@ export class LogtalkRenameProvider implements RenameProvider {
                 processedRanges.add(rangeKey);
 
                 let replacementText = this.determineReplacementText(
-                  lineText,
-                  absoluteRange,
+                  rangeLineText,
+                  clauseRange.range,
                   currentName,
                   newName
                 );
 
-                const edit = TextEdit.replace(absoluteRange, replacementText);
+                const edit = TextEdit.replace(clauseRange.range, replacementText);
                 textEdits.push(edit);
-                this.logger.debug(`✅ Created line-level edit at ${uri.fsPath}:${absoluteRange.start.line + 1}:${absoluteRange.start.character + 1} - "${doc.getText(absoluteRange)}" → "${replacementText}"`);
+                this.logger.debug(`✅ Created line-level edit at ${uri.fsPath}:${clauseRange.range.start.line + 1}:${clauseRange.range.start.character + 1} - "${doc.getText(clauseRange.range)}" → "${replacementText}"`);
               } else if (isDuplicate) {
-                this.logger.debug(`❌ Skipping duplicate line-level range at ${uri.fsPath}:${absoluteRange.start.line + 1}:${absoluteRange.start.character + 1}`);
+                this.logger.debug(`❌ Skipping duplicate line-level range at ${uri.fsPath}:${clauseRange.range.start.line + 1}:${clauseRange.range.start.character + 1}`);
               } else {
-                this.logger.debug(`❌ Skipping invalid line-level range at ${uri.fsPath}:${absoluteRange.start.line + 1}:${absoluteRange.start.character + 1} - line count: ${doc.lineCount}, line length: ${lineText.length}`);
+                this.logger.debug(`❌ Skipping invalid line-level range at ${uri.fsPath}:${clauseRange.range.start.line + 1}:${clauseRange.range.start.character + 1} - line count: ${doc.lineCount}, line length: ${rangeLineText.length}`);
               }
             }
           } else {
@@ -1076,11 +1091,16 @@ export class LogtalkRenameProvider implements RenameProvider {
     const ranges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, definitionLine);
 
     for (const range of ranges) {
-      // Check if this occurrence is followed by the expected operator
+      // Check if this occurrence is followed by the expected operator or is a fact
       const afterRange = lineText.substring(range.end.character);
       const operatorMatch = afterRange.match(/^\s*(\(.*?\))?\s*(-->|:-)/);
+      const factMatch = afterRange.match(/^\s*(\(.*?\))?\s*\./);
 
       if (operatorMatch && operatorMatch[2] === expectedOperator) {
+        // Found predicate/non-terminal with expected operator
+        return range.start;
+      } else if (!isNonTerminal && factMatch) {
+        // Found predicate fact (no operator, just arguments and period)
         return range.start;
       }
     }
@@ -1513,21 +1533,41 @@ export class LogtalkRenameProvider implements RenameProvider {
     predicateIndicator: string,
     existingLocations: { uri: Uri; range: Range }[]
   ): Promise<{ uri: Uri; range: Range }[]> {
-    // Find the definition location to use as starting point
-    const definitionLocation = existingLocations.find(loc =>
+    // Find the implementation/definition location to use as starting point
+    // We need to distinguish between declaration locations and implementation locations
+    const locationsInFile = existingLocations.filter(loc =>
       loc.uri.toString() === document.uri.toString()
     );
 
-    if (definitionLocation) {
-      // Search for consecutive clauses starting from the known definition
+    // Look for an implementation location (not a declaration)
+    let implementationLocation: { uri: Uri; range: Range } | undefined;
+
+    for (const location of locationsInFile) {
+      const lineText = document.lineAt(location.range.start.line).text.trim();
+
+      // Skip declaration lines (directives starting with :-)
+      if (lineText.startsWith(':-')) {
+        this.logger.debug(`Skipping declaration line ${location.range.start.line + 1}: "${lineText}"`);
+        continue;
+      }
+
+      // This should be an implementation location
+      implementationLocation = location;
+      this.logger.debug(`Found implementation location at line ${location.range.start.line + 1}: "${lineText}"`);
+      break;
+    }
+
+    if (implementationLocation) {
+      // Search for consecutive clauses starting from the implementation
       // Pass the full predicate indicator to enable arity checking
       return this.findConsecutivePredicateClauses(
         document,
         predicateIndicator,
-        definitionLocation.range.start.line
+        implementationLocation.range.start.line
       );
     }
 
+    this.logger.debug(`No implementation location found for ${predicateIndicator} in ${document.uri.fsPath}`);
     return [];
   }
 
