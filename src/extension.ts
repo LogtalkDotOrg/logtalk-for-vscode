@@ -38,7 +38,7 @@ import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvid
 import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
 import { LogtalkRenameProvider } from "./features/renameProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
-import { LogtalkRefactorProvider } from "./refactorProvider";
+import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
 

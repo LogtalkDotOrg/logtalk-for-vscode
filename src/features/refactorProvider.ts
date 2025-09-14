@@ -17,7 +17,7 @@ import {
   SaveDialogOptions,
   Position
 } from "vscode";
-import { getLogger } from "./utils/logger";
+import { getLogger } from "../utils/logger";
 import * as path from "path";
 import * as fs from "fs";
 
