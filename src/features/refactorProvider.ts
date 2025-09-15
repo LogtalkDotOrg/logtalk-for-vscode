@@ -22,6 +22,8 @@ import {
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import { SymbolUtils } from "../utils/symbols";
+import { PredicateUtils, PredicateTypeResult } from "../utils/predicateUtils";
+import { ArgumentUtils } from "../utils/argumentUtils";
 import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
@@ -523,23 +525,47 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * Add argument to predicate refactoring operation
    */
   public async addArgument(document: TextDocument, position: Position): Promise<void> {
+    this.logger.debug(`=== addArgument method called ===`);
     try {
       // Step 1: Validate that we're on a predicate call
+      this.logger.debug(`Looking for predicate indicator at cursor position...`);
       const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
                         Utils.getPredicateIndicatorUnderCursor(document, position) ||
                         Utils.getCallUnderCursor(document, position);
 
       if (!indicator) {
+        this.logger.debug(`No predicate indicator found at cursor position`);
         window.showErrorMessage("No predicate found at cursor position.");
         return;
       }
 
       this.logger.debug(`Found predicate indicator: ${indicator}`);
 
-      // Extract predicate name and arity
-      const isNonTerminal = indicator.includes('//');
-      const separator = isNonTerminal ? '//' : '/';
-      const parts = indicator.split(separator);
+      // Extract predicate name and arity - use proper type determination
+      const token = { isCancellationRequested: false } as CancellationToken;
+      this.logger.debug(`Initial indicator from cursor: "${indicator}"`);
+      this.logger.debug(`About to call PredicateUtils.determinePredicateType...`);
+
+      let typeResult: PredicateTypeResult;
+      try {
+        typeResult = await PredicateUtils.determinePredicateType(
+          document,
+          position,
+          indicator,
+          this.declarationProvider,
+          token
+        );
+        this.logger.debug(`Type determination completed successfully`);
+      } catch (error) {
+        this.logger.error(`Type determination failed: ${error}`);
+        window.showErrorMessage(`Type determination failed: ${error}`);
+        return;
+      }
+
+      this.logger.debug(`Type determination result: isNonTerminal=${typeResult.isNonTerminal}, currentIndicator="${typeResult.currentIndicator}", newIndicator="${typeResult.newIndicator}"`);
+      const finalIsNonTerminal = typeResult.isNonTerminal;  // Use the definitive determination
+      const separator = finalIsNonTerminal ? '//' : '/';
+      const parts = typeResult.currentIndicator.split(separator);
 
       if (parts.length !== 2) {
         window.showErrorMessage("Invalid predicate indicator format.");
@@ -572,9 +598,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         position,
         predicateName,
         currentArity,
-        isNonTerminal,
+        finalIsNonTerminal,  // Use the definitive determination
         argumentName,
-        position_input
+        position_input,
+        typeResult.currentIndicator,  // Pass the correct current indicator
+        typeResult.newIndicator       // Pass the correct new indicator
       );
 
     } catch (error) {
@@ -639,77 +667,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     currentArity: number,
     isNonTerminal: boolean,
     argumentName: string,
-    argumentPosition: number
+    argumentPosition: number,
+    currentIndicator?: string,  // Optional: use provided indicator if available
+    newIndicator?: string       // Optional: use provided indicator if available
   ): Promise<void> {
     try {
+      // Use provided indicators or construct them (for backward compatibility)
       const separator = isNonTerminal ? '//' : '/';
-      const currentIndicator = `${predicateName}${separator}${currentArity}`;
-      const newArity = currentArity + 1;
-      const newIndicator = `${predicateName}${separator}${newArity}`;
+      const finalCurrentIndicator2 = currentIndicator || `${predicateName}${separator}${currentArity}`;
+      const finalNewIndicator2 = newIndicator || `${predicateName}${separator}${currentArity + 1}`;
 
-      this.logger.debug(`Adding argument '${argumentName}' at position ${argumentPosition} to ${currentIndicator}`);
+      this.logger.debug(`Adding argument '${argumentName}' at position ${argumentPosition} to ${finalCurrentIndicator2}`);
 
       // Step 1: Find declaration location (if exists)
       const token = { isCancellationRequested: false } as CancellationToken;
       const declarationLocation = await this.declarationProvider.provideDeclaration(document, position, token);
-
-      // Step 1.5: Definitively determine if this is a predicate or non-terminal
-      let finalIsNonTerminal = isNonTerminal; // Start with the initial determination
-      let finalCurrentIndicator = currentIndicator;
-      let finalNewIndicator = newIndicator;
-
-      if (declarationLocation && this.isValidLocation(declarationLocation)) {
-        // Case 1: Declaration found - definitively determine from declaration
-        this.logger.debug(`Found declaration at: ${declarationLocation.uri.fsPath}:${declarationLocation.range.start.line + 1}`);
-
-        // Check the declaration line to determine the correct type
-        const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
-        const declarationLineText = declarationDocument.lineAt(declarationLocation.range.start.line).text;
-
-        // Definitively determine type by checking the declaration line
-        if (declarationLineText.includes(`${predicateName}//`)) {
-          finalIsNonTerminal = true;
-          finalCurrentIndicator = `${predicateName}//${currentArity}`;
-          finalNewIndicator = `${predicateName}//${newArity}`;
-          this.logger.debug(`Definitively determined as non-terminal from declaration: ${finalCurrentIndicator}`);
-        } else if (declarationLineText.includes(`${predicateName}/`)) {
-          finalIsNonTerminal = false;
-          finalCurrentIndicator = `${predicateName}/${currentArity}`;
-          finalNewIndicator = `${predicateName}/${newArity}`;
-          this.logger.debug(`Definitively determined as predicate from declaration: ${finalCurrentIndicator}`);
-        } else {
-          // Fallback: use the original indicator and determine type from it
-          this.logger.debug(`Could not find indicator in declaration, using original determination: ${finalCurrentIndicator}`);
-        }
-      } else {
-        // Case 2: No declaration found - use heuristics to determine predicate vs non-terminal
-        this.logger.debug(`No declaration found. Using heuristics to determine type...`);
-
-        // Use heuristic: check if we're in a DCG rule context
-        const currentLineText = document.lineAt(position.line).text;
-        const isDCGContext = currentLineText.includes('-->');
-
-        if (isDCGContext && currentIndicator.includes('/') && !currentIndicator.includes('//')) {
-          // Convert predicate indicator to non-terminal indicator in DCG context
-          const [name, arity] = currentIndicator.split('/');
-          finalIsNonTerminal = true;
-          finalCurrentIndicator = `${name}//${arity}`;
-          finalNewIndicator = `${name}//${currentArity + 1}`;
-          this.logger.debug(`DCG context detected, inferring non-terminal: ${finalCurrentIndicator}`);
-        } else {
-          // Use the original determination
-          finalIsNonTerminal = currentIndicator.includes('//');
-          this.logger.debug(`Using original determination: ${finalIsNonTerminal ? 'non-terminal' : 'predicate'} ${finalCurrentIndicator}`);
-        }
-      }
-
-      // Update the variables to use the final determination
-      isNonTerminal = finalIsNonTerminal;
-      const finalSeparator = isNonTerminal ? '//' : '/';
-      const finalCurrentIndicator2 = `${predicateName}${finalSeparator}${currentArity}`;
-      const finalNewIndicator2 = `${predicateName}${finalSeparator}${newArity}`;
-
-      this.logger.debug(`Final determination: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${finalCurrentIndicator2} → ${finalNewIndicator2}`);
 
       // Step 2: Find all locations that need to be updated
       const allLocations: { uri: Uri; range: Range }[] = [];
@@ -778,7 +750,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
           // Use the definition location to find implementations and references
           const definitionDocument = await workspace.openTextDocument(definitionLocation.uri);
-          const definitionPosition = this.findPredicatePositionInDefinition(definitionDocument, definitionLocation.range.start.line, finalCurrentIndicator2, finalIsNonTerminal);
+          this.logger.debug(`Definition location range: ${definitionLocation.range.start.line}:${definitionLocation.range.start.character}-${definitionLocation.range.end.line}:${definitionLocation.range.end.character}`);
+          const definitionPosition = this.findPredicatePositionInDefinition(definitionDocument, definitionLocation.range.start.line, finalCurrentIndicator2, isNonTerminal);
           this.logger.debug(`Definition position found at: ${definitionPosition.line}:${definitionPosition.character}`);
 
           // Get implementation locations (all predicate clauses)
@@ -808,11 +781,15 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           );
 
           this.logger.debug(`Reference provider returned ${referenceLocations ? referenceLocations.length : 0} locations`);
-          if (referenceLocations) {
+          if (referenceLocations && referenceLocations.length > 0) {
             for (const refLoc of referenceLocations) {
               allLocations.push({ uri: refLoc.uri, range: refLoc.range });
-              this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}`);
+              this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}:${refLoc.range.start.character}-${refLoc.range.end.character}`);
             }
+          } else {
+            this.logger.debug(`Reference provider returned ${referenceLocations ? '0 locations' : 'null'} - will rely on definition/implementation locations for local ${isNonTerminal ? 'non-terminal' : 'predicate'}`);
+            // Note: For local predicates/non-terminals, we rely on the definition and implementation
+            // providers to find all clauses. The reference provider may not find calls in some contexts.
           }
         } else {
           this.logger.debug(`No definition found for: ${currentIndicator}`);
@@ -885,6 +862,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (!seen.has(key)) {
         seen.add(key);
         unique.push(location);
+        this.logger.debug(`Added unique location: ${location.uri.fsPath}:${location.range.start.line + 1} (range: ${location.range.start.character}-${location.range.end.character})`);
+      } else {
+        this.logger.debug(`Skipped duplicate location: ${location.uri.fsPath}:${location.range.start.line + 1} (range: ${location.range.start.character}-${location.range.end.character})`);
       }
     }
 
@@ -918,6 +898,32 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return new Position(declarationLine, nameMatch.index);
     }
 
+    // If not found on the declaration line, this might be a multi-line directive
+    // Search the next few lines for the predicate indicator
+    const maxLinesToSearch = 10; // Reasonable limit for multi-line directives
+    for (let lineNum = declarationLine + 1; lineNum < Math.min(declarationLine + maxLinesToSearch, doc.lineCount); lineNum++) {
+      const searchLineText = doc.lineAt(lineNum).text;
+
+      // Stop if we've reached the end of the directive
+      if (searchLineText.includes(').') || searchLineText.includes('].)')) {
+        break;
+      }
+
+      // Look for the predicate indicator in this line
+      const searchIndicatorMatch = searchLineText.match(indicatorPattern);
+      if (searchIndicatorMatch && searchIndicatorMatch.index !== undefined) {
+        this.logger.debug(`Found predicate "${predicateIndicator}" in multi-line directive at line ${lineNum + 1}:${searchIndicatorMatch.index + 1}`);
+        return new Position(lineNum, searchIndicatorMatch.index);
+      }
+
+      // Look for just the predicate name in this line
+      const searchNameMatch = searchLineText.match(namePattern);
+      if (searchNameMatch && searchNameMatch.index !== undefined) {
+        this.logger.debug(`Found predicate name "${predicateName}" in multi-line directive at line ${lineNum + 1}:${searchNameMatch.index + 1}`);
+        return new Position(lineNum, searchNameMatch.index);
+      }
+    }
+
     // Fallback: return start of line if not found
     this.logger.debug(`Predicate "${predicateIndicator}" not found in declaration, using fallback position`);
     return new Position(declarationLine, 0);
@@ -931,6 +937,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const separator = isNonTerminal ? '//' : '/';
     const [predicateName] = predicateIndicator.split(separator);
     const expectedOperator = isNonTerminal ? '-->' : ':-';
+    this.logger.debug(`findPredicatePositionInDefinition: Looking for "${predicateName}" (from ${predicateIndicator}) expecting "${expectedOperator}" on line ${definitionLine + 1}: "${lineText}"`);
 
     // Look for the predicate name at the start of the line (for definitions)
     const namePattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
@@ -1328,7 +1335,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       } else {
         // Parse existing arguments and insert at correct position
         const listContent = currentList.slice(1, -1); // Remove [ and ]
-        const args = this.parseArguments(listContent);
+        const args = ArgumentUtils.parseArguments(listContent);
         args.splice(argumentPosition - 1, 0, `'${argumentName}'`);
         newList = `[${args.join(', ')}]`;
       }
@@ -1355,7 +1362,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       } else {
         // Parse existing arguments and insert at correct position
         const listContent = currentList.slice(1, -1); // Remove [ and ]
-        const args = this.parseArguments(listContent);
+        const args = ArgumentUtils.parseArguments(listContent);
         args.splice(argumentPosition - 1, 0, `'${argumentName}'-''`);
         newList = `[${args.join(', ')}]`;
       }
@@ -1381,27 +1388,42 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     currentArity: number
   ): string {
     // Pattern: mode(predicate_name(arg1, arg2), mode_info)
-    const modePattern = new RegExp(`mode\\s*\\(\\s*${predicateName}\\s*\\(([^)]*)\\)\\s*,`);
-    const match = lineText.match(modePattern);
-
-    if (match) {
-      const currentArgs = match[1].trim();
-      let newArgs: string;
-
-      if (currentArgs === '') {
-        // No current arguments - add ? for unknown mode
-        newArgs = '?';
-      } else {
-        // Split current arguments and insert new one
-        const argList = currentArgs.split(',').map(arg => arg.trim());
-        argList.splice(argumentPosition - 1, 0, '?');  // Use ? for unknown mode
-        newArgs = argList.join(', ');
-      }
-
-      return lineText.replace(modePattern, `mode(${predicateName}(${newArgs}),`);
+    // We need to handle nested parentheses in arguments like ?list(integer)
+    const predicateStart = lineText.indexOf(`${predicateName}(`);
+    if (predicateStart === -1) {
+      return lineText;
     }
 
-    return lineText;
+    // Find the opening parenthesis after the predicate name
+    const openParenPos = predicateStart + predicateName.length;
+    if (lineText[openParenPos] !== '(') {
+      return lineText;
+    }
+
+    // Find the matching closing parenthesis using proper nesting
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+    if (closeParenPos === -1) {
+      return lineText;
+    }
+
+    // Extract current arguments
+    const currentArgs = lineText.substring(openParenPos + 1, closeParenPos).trim();
+    let newArgs: string;
+
+    if (currentArgs === '') {
+      // No current arguments - add ? for unknown mode
+      newArgs = '?';
+    } else {
+      // Parse arguments properly handling nested structures
+      const argList = ArgumentUtils.parseArguments(currentArgs);
+      argList.splice(argumentPosition - 1, 0, '?');  // Use ? for unknown mode
+      newArgs = argList.join(', ');
+    }
+
+    // Replace the arguments part
+    const beforeArgs = lineText.substring(0, openParenPos + 1);
+    const afterArgs = lineText.substring(closeParenPos);
+    return beforeArgs + newArgs + afterArgs;
   }
 
   /**
@@ -1427,7 +1449,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         newTemplate = '*';
       } else {
         // Split current template and insert new meta argument
-        const templateArgs = this.parseArguments(currentTemplate);
+        const templateArgs = ArgumentUtils.parseArguments(currentTemplate);
         templateArgs.splice(argumentPosition - 1, 0, '*');
         newTemplate = templateArgs.join(', ');
       }
@@ -1534,10 +1556,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         if (argsMatch) {
           // Already has arguments: predicateName(arg1, arg2)
           const openParenPos = nameEndPos + afterName.indexOf('(');
-          const closeParenPos = this.findMatchingCloseParen(lineText, openParenPos);
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
           if (closeParenPos !== -1) {
             const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = this.parseArguments(argsText);
+            const args = ArgumentUtils.parseArguments(argsText);
 
             // Insert new argument at specified position
             args.splice(argumentPosition - 1, 0, argumentName);
@@ -1574,36 +1596,36 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           `(${argumentName})`
         ));
       }
-    }
 
-    // Look for predicate calls with arguments
-    const callPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
-    let callMatch: RegExpExecArray | null;
-    while ((callMatch = callPattern.exec(lineText)) !== null) {
-      const startPos = callMatch.index + predicateName.length;
-      const openParenPos = lineText.indexOf('(', startPos);
+      // Look for predicate calls with arguments
+      const callPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
+      let callMatch: RegExpExecArray | null;
+      while ((callMatch = callPattern.exec(lineText)) !== null) {
+        const startPos = callMatch.index + predicateName.length;
+        const openParenPos = lineText.indexOf('(', startPos);
 
-      if (openParenPos !== -1) {
-        const closeParenPos = this.findMatchingCloseParen(lineText, openParenPos);
+        if (openParenPos !== -1) {
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
 
-        if (closeParenPos !== -1) {
-          this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...)`);
+          if (closeParenPos !== -1) {
+            this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...)`);
 
-          // Extract current arguments
-          const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-          const args = this.parseArguments(argsText);
+            // Extract current arguments
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
 
-          // Insert new argument at specified position
-          args.splice(argumentPosition - 1, 0, argumentName);
-          const newArgsText = args.join(', ');
+            // Insert new argument at specified position
+            args.splice(argumentPosition - 1, 0, argumentName);
+            const newArgsText = args.join(', ');
 
-          edits.push(TextEdit.replace(
-            new Range(
-              new Position(lineNum, openParenPos + 1),
-              new Position(lineNum, closeParenPos)
-            ),
-            newArgsText
-          ));
+            edits.push(TextEdit.replace(
+              new Range(
+                new Position(lineNum, openParenPos + 1),
+                new Position(lineNum, closeParenPos)
+              ),
+              newArgsText
+            ));
+          }
         }
       }
     }

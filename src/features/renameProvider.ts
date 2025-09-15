@@ -15,6 +15,8 @@ import {
 } from "vscode";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
+import { PredicateUtils } from "../utils/predicateUtils";
+import { ArgumentUtils } from "../utils/argumentUtils";
 import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
@@ -194,21 +196,31 @@ export class LogtalkRenameProvider implements RenameProvider {
 
         // Get definition location from declaration position
         const definitionLocation = await this.definitionProvider.provideDefinition(declarationDocument, declarationPosition, token);
+        this.logger.debug(`Definition provider returned: ${definitionLocation ? 'Location' : 'null'}`);
+        if (definitionLocation) {
+          this.logger.debug(`Definition location: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}:${definitionLocation.range.start.character}-${definitionLocation.range.end.character}`);
+        }
         if (definitionLocation && this.isValidLocation(definitionLocation)) {
           allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
           this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
+        } else if (definitionLocation) {
+          this.logger.debug(`Definition location is invalid: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
         }
 
         // Get implementation locations from declaration position
         this.logger.debug(`declarationDocument: ${declarationDocument.uri.fsPath}`);
         this.logger.debug(`declarationPosition: ${declarationPosition.line}:${declarationPosition.character}`);
         implementationLocations = await this.implementationProvider.provideImplementation(declarationDocument, declarationPosition, token);
-        this.logger.debug(`Found implementations at: ${implementationLocations}`);
+        this.logger.debug(`Implementation provider returned: ${implementationLocations ? (Array.isArray(implementationLocations) ? implementationLocations.length : 1) + ' locations' : 'null'}`);
         if (implementationLocations) {
-          for (const location of implementationLocations) {
+          const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
+          for (const location of implArray) {
+            this.logger.debug(`Implementation location: ${location.uri.fsPath}:${location.range.start.line + 1}:${location.range.start.character}-${location.range.end.character}`);
             if (this.isValidLocation(location)) {
               allLocations.push({ uri: location.uri, range: location.range });
               this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
+            } else {
+              this.logger.debug(`Implementation location is invalid: ${location.uri.fsPath}:${location.range.start.line + 1}`);
             }
           }
         }
@@ -229,18 +241,49 @@ export class LogtalkRenameProvider implements RenameProvider {
           }
         }
       } else {
-        // Case 2: No declaration found - use heuristics to determine predicate vs non-terminal
-        this.logger.debug(`No declaration found for: ${predicateIndicator}. Using heuristics to determine type...`);
+        // Case 2: No declaration found - find definition first to determine type
+        this.logger.debug(`No declaration found for: ${predicateIndicator}. Finding definition to determine type...`);
 
-        // Use heuristic: check if we're in a DCG rule context
-        const currentLineText = document.lineAt(position.line).text;
-        const isDCGContext = currentLineText.includes('-->');
+        // Get definition location from user click position first
+        const definitionLocation = await this.definitionProvider.provideDefinition(document, position, token);
 
-        if (isDCGContext && predicateIndicator.includes('/')) {
-          // Convert predicate indicator to non-terminal indicator in DCG context
-          const [name, arity] = predicateIndicator.split('/');
-          predicateIndicator = `${name}//${arity}`;
-          this.logger.debug(`DCG context detected, inferring non-terminal: ${predicateIndicator}`);
+        if (definitionLocation && this.isValidLocation(definitionLocation)) {
+          // Found definition - check if it's a DCG rule to determine type
+          const definitionDocument = await workspace.openTextDocument(definitionLocation.uri);
+          const definitionLineText = definitionDocument.lineAt(definitionLocation.range.start.line).text;
+
+          if (definitionLineText.includes('-->')) {
+            // Definition contains DCG operator - it's a non-terminal
+            if (predicateIndicator.includes('/') && !predicateIndicator.includes('//')) {
+              const [name, arity] = predicateIndicator.split('/');
+              predicateIndicator = `${name}//${arity}`;
+              this.logger.debug(`DCG rule found in definition, inferring non-terminal: ${predicateIndicator}`);
+            }
+          } else if (definitionLineText.includes(':-') || definitionLineText.includes('.')) {
+            // Definition contains predicate operator or fact - it's a predicate
+            this.logger.debug(`Predicate rule/fact found in definition, keeping as predicate: ${predicateIndicator}`);
+          } else {
+            // Fallback to current line context
+            const currentLineText = document.lineAt(position.line).text;
+            const isDCGContext = currentLineText.includes('-->');
+
+            if (isDCGContext && predicateIndicator.includes('/') && !predicateIndicator.includes('//')) {
+              const [name, arity] = predicateIndicator.split('/');
+              predicateIndicator = `${name}//${arity}`;
+              this.logger.debug(`DCG context detected in current line, inferring non-terminal: ${predicateIndicator}`);
+            }
+          }
+        } else {
+          // No definition found - fallback to current line context
+          this.logger.debug(`No definition found, using current line context for type determination`);
+          const currentLineText = document.lineAt(position.line).text;
+          const isDCGContext = currentLineText.includes('-->');
+
+          if (isDCGContext && predicateIndicator.includes('/') && !predicateIndicator.includes('//')) {
+            const [name, arity] = predicateIndicator.split('/');
+            predicateIndicator = `${name}//${arity}`;
+            this.logger.debug(`DCG context detected in current line, inferring non-terminal: ${predicateIndicator}`);
+          }
         }
 
         isNonTerminal = predicateIndicator.includes('//');
@@ -248,9 +291,6 @@ export class LogtalkRenameProvider implements RenameProvider {
         [currentName, arity] = predicateIndicator.split(separator);
 
         this.logger.debug(`Renaming ${isNonTerminal ? 'non-terminal' : 'predicate'}: ${predicateIndicator} to ${newName}`);
-
-        // Get definition location from user click position
-        const definitionLocation = await this.definitionProvider.provideDefinition(document, position, token);
         if (definitionLocation && this.isValidLocation(definitionLocation)) {
           allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
           this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
@@ -1175,14 +1215,18 @@ export class LogtalkRenameProvider implements RenameProvider {
     predicateIndicator: string
   ): Range[] {
     const ranges: Range[] = [];
-    const [name, arity] = predicateIndicator.split('/');
+
+    // Handle both predicate (name/arity) and non-terminal (name//arity) indicators
+    const isNonTerminal = predicateIndicator.includes('//');
+    const separator = isNonTerminal ? '//' : '/';
+    const [name, arity] = predicateIndicator.split(separator);
 
     // First, handle the scope directive itself (may be multi-line)
     const scopeRanges = this.findPredicateInMultiLineDirective(doc, startLine, predicateName);
     ranges.push(...scopeRanges);
 
     // Then, look for related mode/2 and info/2 directives that follow
-    const relatedRanges = this.findRelatedDirectives(doc, startLine, name, arity);
+    const relatedRanges = this.findRelatedDirectives(doc, startLine, name, arity, isNonTerminal);
     ranges.push(...relatedRanges);
 
     return ranges;
@@ -1240,11 +1284,13 @@ export class LogtalkRenameProvider implements RenameProvider {
    * @param scopeLine The line of the scope directive
    * @param predicateName The predicate name
    * @param arity The predicate arity
+   * @param isNonTerminal Whether this is a non-terminal (uses //) or predicate (uses /)
    * @returns Array of ranges in related directives
    */
-  private findRelatedDirectives(doc: TextDocument, scopeLine: number, predicateName: string, arity: string): Range[] {
+  private findRelatedDirectives(doc: TextDocument, scopeLine: number, predicateName: string, arity: string, isNonTerminal: boolean = false): Range[] {
     const ranges: Range[] = [];
-    const predicateIndicator = `${predicateName}/${arity}`;
+    const separator = isNonTerminal ? '//' : '/';
+    const predicateIndicator = `${predicateName}${separator}${arity}`;
 
     // Look at the next few lines for mode/2 and info/2 directives
     for (let line = scopeLine + 1; line < Math.min(doc.lineCount, scopeLine + 10); line++) {
@@ -1518,6 +1564,7 @@ export class LogtalkRenameProvider implements RenameProvider {
     let pos = openParenPos + 1; // Start after the opening parenthesis
     let argCount = 0;
     let parenDepth = 0;
+    let bracketDepth = 0; // Track square brackets for lists
     let inString = false;
     let escaped = false;
     let hasContent = false;
@@ -1555,7 +1602,13 @@ export class LogtalkRenameProvider implements RenameProvider {
             return argCount;
           }
           parenDepth--;
-        } else if (char === ',' && parenDepth === 0) {
+        } else if (char === '[') {
+          bracketDepth++;
+          hasContent = true;
+        } else if (char === ']') {
+          bracketDepth--;
+        } else if (char === ',' && parenDepth === 0 && bracketDepth === 0) {
+          // Only count commas that are at the top level (not inside parentheses or brackets)
           argCount++;
           hasContent = false; // Reset for next argument
         } else if (!char.match(/\s/)) {
