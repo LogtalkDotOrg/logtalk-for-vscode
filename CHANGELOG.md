@@ -2,6 +2,7 @@
 
 ## [0.53.0]
 
+* Add "Add argument to predicate/non-terminal" refactoring support
 * Add "Extract to new Logtalk entity" refactoring support
 * Add "Extract to new Logtalk file" refactoring support
 * Add experimental entity, predicate, and non-terminal rename support

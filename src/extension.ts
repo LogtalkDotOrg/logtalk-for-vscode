@@ -356,6 +356,14 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.addArgument', async (document, position) => {
+      if (refactorProvider) {
+        await refactorProvider.addArgument(document, position);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {
