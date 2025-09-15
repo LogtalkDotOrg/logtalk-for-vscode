@@ -126,8 +126,6 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
             );
           }
         }
-      } else {
-        this.logger.error('.vscode_metrics_results file not found');
       }
       return codeLenses;
     } else {
