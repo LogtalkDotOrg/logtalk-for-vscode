@@ -5,7 +5,9 @@ import {
   Position,
   workspace,
   Location,
-  CancellationToken
+  CancellationToken,
+  Uri,
+  Range
 } from "vscode";
 import { getLogger } from "./logger";
 
@@ -259,7 +261,7 @@ export class PredicateUtils {
     // First try to find the predicate on the declaration line itself
     const lineText = doc.lineAt(declarationLine).text;
     const namePattern = new RegExp(`\\b${parsed.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
-    let match;
+    let match: RegExpExecArray | null;
     let pos = 0;
 
     while ((match = namePattern.exec(lineText.substring(pos))) !== null) {
@@ -292,7 +294,7 @@ export class PredicateUtils {
 
     // Look for the predicate name at the start of the line (for definitions)
     const namePattern = new RegExp(`\\b${parsed.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
-    let match;
+    let match: RegExpExecArray | null;
     let pos = 0;
 
     while ((match = namePattern.exec(lineText.substring(pos))) !== null) {
@@ -323,5 +325,390 @@ export class PredicateUtils {
    */
   private static isValidLocation(location: Location | { uri: any; range: any } | null): boolean {
     return location !== null && location.uri !== undefined && location.range !== undefined;
+  }
+
+  /**
+   * Computes the range of all clauses of a predicate or all rules of a non-terminal
+   * starting from the first clause/rule position.
+   *
+   * @param uri The URI of the document
+   * @param position The position of the first clause/rule
+   * @param indicator The predicate/non-terminal indicator (Name/Arity for predicates, Name//Arity for non-terminals)
+   * @returns The range covering all consecutive clauses/rules, or null if none found
+   */
+  static async getPredicateDefinitionRange(
+    uri: Uri,
+    position: Position,
+    indicator: string
+  ): Promise<Range | null> {
+    try {
+      const document = await workspace.openTextDocument(uri);
+
+      // Parse the indicator to determine if it's a non-terminal and extract the name
+      const parsed = this.parseIndicator(indicator);
+      if (!parsed) {
+        logger.error(`Invalid indicator: ${indicator}`);
+        return null;
+      }
+
+      const isNonTerminal = parsed.isNonTerminal;
+      const predicateName = parsed.name;
+
+      // Find all consecutive clauses/rules
+      const ranges = this.findConsecutivePredicateClauseRanges(
+        document,
+        predicateName,
+        position.line,
+        isNonTerminal
+      );
+
+      if (ranges.length === 0) {
+        return null;
+      }
+
+      // Compute the overall range from first to last clause/rule
+      const firstRange = ranges[0];
+      const lastRange = ranges[ranges.length - 1];
+
+      return new Range(
+        firstRange.start,
+        lastRange.end
+      );
+    } catch (error) {
+      logger.error(`Error computing predicate definition range: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Computes the range of all consecutive directives for a predicate or non-terminal
+   * starting from the scope directive position.
+   *
+   * @param uri The URI of the document
+   * @param position The position of the scope directive
+   * @param indicator The predicate/non-terminal indicator (Name/Arity for predicates, Name//Arity for non-terminals)
+   * @returns The range covering all consecutive directives, or null if none found
+   */
+  static async getPredicateDeclarationRange(
+    uri: Uri,
+    position: Position,
+    indicator: string
+  ): Promise<Range | null> {
+    try {
+      const document = await workspace.openTextDocument(uri);
+
+      // Parse the indicator to determine if it's a non-terminal and extract the name
+      const parsed = this.parseIndicator(indicator);
+      if (!parsed) {
+        logger.error(`Invalid indicator: ${indicator}`);
+        return null;
+      }
+
+      const isNonTerminal = parsed.isNonTerminal;
+      const predicateName = parsed.name;
+
+      // Find all consecutive directive ranges
+      const ranges = this.findConsecutiveDirectiveRanges(
+        document,
+        predicateName,
+        position.line,
+        isNonTerminal,
+        indicator
+      );
+
+      if (ranges.length === 0) {
+        return null;
+      }
+
+      // Compute the overall range from first to last directive
+      const firstRange = ranges[0];
+      const lastRange = ranges[ranges.length - 1];
+
+      return new Range(
+        firstRange.start,
+        lastRange.end
+      );
+    } catch (error) {
+      logger.error(`Error computing predicate declaration range: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Find consecutive predicate clauses or non-terminal rules starting from a known position
+   */
+  private static findConsecutivePredicateClauseRanges(
+    document: TextDocument,
+    predicateName: string,
+    startLine: number,
+    isNonTerminal: boolean
+  ): Range[] {
+    const ranges: Range[] = [];
+
+    // Search forwards from startLine to find all consecutive clauses
+    let lineNum = startLine;
+    while (lineNum < document.lineCount) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Stop if we hit an entity boundary
+      if (this.isEntityBoundary(trimmedLine)) {
+        break;
+      }
+
+      // Skip comments and empty/whitespace-only lines, but continue searching
+      if (trimmedLine === '' || trimmedLine.startsWith('%') ||
+          trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
+        lineNum++;
+        continue;
+      }
+
+      // Stop if we hit a different predicate clause or non-terminal rule
+      if (this.isDifferentPredicateClause(lineText, predicateName, isNonTerminal)) {
+        break;
+      }
+
+      // Check if this is a clause/rule for our predicate/non-terminal
+      if (this.isPredicateClause(lineText, predicateName, isNonTerminal)) {
+        // Find the end of this clause
+        const clauseEndLine = this.findClauseEndLine(document, lineNum);
+
+        // Add the range for this clause
+        ranges.push(new Range(
+          new Position(lineNum, 0),
+          new Position(clauseEndLine, document.lineAt(clauseEndLine).text.length)
+        ));
+
+        // Skip ahead to after the end of this clause
+        lineNum = clauseEndLine + 1;
+      } else {
+        lineNum++;
+      }
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Check if a line represents an entity boundary
+   */
+  private static isEntityBoundary(trimmedLine: string): boolean {
+    return trimmedLine.startsWith(':- object(') ||
+           trimmedLine.startsWith(':- protocol(') ||
+           trimmedLine.startsWith(':- category(') ||
+           trimmedLine.startsWith(':- end_object') ||
+           trimmedLine.startsWith(':- end_protocol') ||
+           trimmedLine.startsWith(':- end_category');
+  }
+
+  /**
+   * Check if a line is a clause for a different predicate or non-terminal
+   */
+  private static isDifferentPredicateClause(lineText: string, predicateName: string, isNonTerminal: boolean = false): boolean {
+    const trimmedLine = lineText.trim();
+
+    // Skip comments, empty lines, and directives - these don't count as different predicates
+    if (trimmedLine.startsWith('%') || trimmedLine === '' || trimmedLine.startsWith(':-') ||
+        trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
+      return false;
+    }
+
+    // Skip lines that are clearly clause body content
+    if (trimmedLine.startsWith(',') || trimmedLine.startsWith(';')) {
+      return false;
+    }
+
+    // Skip lines with significant indentation (likely clause body content)
+    // Predicate clauses typically start at column 0 or with minimal indentation (1-4 spaces)
+    if (/^\s{8,}/.test(lineText)) {
+      return false;
+    }
+
+    // Check if this starts a predicate clause or non-terminal rule
+    if (isNonTerminal) {
+      // For non-terminals, look for pattern: name(...) --> or name -->
+      const nonTerminalPattern = /^\s{0,4}([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\(.*\)?\s*)?-->/;
+      const match = lineText.match(nonTerminalPattern);
+
+      if (match) {
+        const foundNonTerminalName = match[1];
+        // Only return true if it's a different non-terminal (not our target non-terminal)
+        return foundNonTerminalName !== predicateName;
+      }
+    } else {
+      // For predicates, look for pattern: name(...) :- or name(...)
+      const clausePattern = /^\s{0,4}([a-z][a-zA-Z0-9_]*|'[^']*')\s*[\(:-]/;
+      const match = lineText.match(clausePattern);
+
+      if (match) {
+        const foundPredicateName = match[1];
+        // Only return true if it's a different predicate (not our target predicate)
+        return foundPredicateName !== predicateName;
+      }
+    }
+
+    // If it doesn't match a predicate/non-terminal clause pattern, it's not a different one
+    return false;
+  }
+
+  /**
+   * Check if a line is a clause for the specified predicate or non-terminal
+   */
+  private static isPredicateClause(lineText: string, predicateName: string, isNonTerminal: boolean = false): boolean {
+    if (isNonTerminal) {
+      // A non-terminal rule starts with the non-terminal name followed by optional ( and then -->
+      const nonTerminalPattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}\\s*(\\(.*\\)?\\s*)?-->`);
+      return nonTerminalPattern.test(lineText);
+    } else {
+      // A predicate clause starts with the predicate name followed by:
+      // - ( for predicates with arguments
+      // - :- for rules
+      // - . for facts without arguments (arity 0)
+      // - whitespace followed by . for facts without arguments
+      const clausePattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}\\s*[\\(:-]|^\\s*${this.escapeRegex(predicateName)}\\s*\\.`);
+      return clausePattern.test(lineText);
+    }
+  }
+
+  /**
+   * Find the end line of a clause starting from a given line
+   */
+  private static findClauseEndLine(document: TextDocument, startLine: number): number {
+    let currentLine = startLine;
+
+    while (currentLine < document.lineCount) {
+      const lineText = document.lineAt(currentLine).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if clause is complete (ends with period)
+      if (trimmedLine.endsWith('.')) {
+        return currentLine;
+      }
+
+      currentLine++;
+    }
+
+    // If no period found, return the start line
+    return startLine;
+  }
+
+  /**
+   * Find consecutive directive ranges for a predicate/non-terminal starting from a known position
+   */
+  private static findConsecutiveDirectiveRanges(
+    document: TextDocument,
+    predicateName: string,
+    startLine: number,
+    isNonTerminal: boolean,
+    indicator: string
+  ): Range[] {
+    const ranges: Range[] = [];
+
+    // Search forwards from startLine to find all consecutive directives
+    let lineNum = startLine;
+    while (lineNum < document.lineCount) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Stop if we hit an entity boundary
+      if (this.isEntityBoundary(trimmedLine)) {
+        break;
+      }
+
+      // Skip empty/whitespace-only lines and comments, but continue searching
+      if (trimmedLine === '' || trimmedLine.startsWith('%') ||
+          trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
+        lineNum++;
+        continue;
+      }
+
+      // Stop if we hit a predicate clause or non-terminal rule
+      if (this.isPredicateClause(lineText, predicateName, isNonTerminal)) {
+        break;
+      }
+
+      // Stop if we hit a different predicate clause or non-terminal rule
+      if (this.isDifferentPredicateClause(lineText, predicateName, isNonTerminal)) {
+        break;
+      }
+
+      // Check if this is a directive
+      if (trimmedLine.startsWith(':-')) {
+        // Check if this directive is for our predicate/non-terminal
+        if (this.isDirectiveForPredicate(lineText, predicateName, indicator)) {
+          // Find the end of this directive (may be multi-line)
+          const directiveEndLine = this.findDirectiveEndLine(document, lineNum);
+
+          // Add the range for this directive
+          ranges.push(new Range(
+            new Position(lineNum, 0),
+            new Position(directiveEndLine, document.lineAt(directiveEndLine).text.length)
+          ));
+
+          // Skip ahead to after the end of this directive
+          lineNum = directiveEndLine + 1;
+        } else {
+          // This is a directive for a different predicate/non-terminal, stop
+          break;
+        }
+      } else {
+        // This is not a directive, comment, or empty line, stop
+        break;
+      }
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Check if a directive line is for the specified predicate/non-terminal
+   */
+  private static isDirectiveForPredicate(lineText: string, predicateName: string, indicator: string): boolean {
+    // Check for various directive types that might contain the predicate/non-terminal
+    const directiveTypes = [
+      'public', 'protected', 'private',
+      'mode', 'info', 'meta_predicate', 'meta_non_terminal',
+      'dynamic', 'discontiguous', 'multifile'
+    ];
+
+    for (const directiveType of directiveTypes) {
+      if (lineText.includes(`${directiveType}(`)) {
+        // Check if the directive contains our predicate name or indicator
+        if (lineText.includes(predicateName) || lineText.includes(indicator)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Find the end line of a directive starting from a given line
+   */
+  private static findDirectiveEndLine(document: TextDocument, startLine: number): number {
+    let currentLine = startLine;
+
+    while (currentLine < document.lineCount) {
+      const lineText = document.lineAt(currentLine).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if directive is complete (ends with period)
+      if (trimmedLine.endsWith('.')) {
+        return currentLine;
+      }
+
+      currentLine++;
+    }
+
+    // If no period found, return the start line
+    return startLine;
+  }
+
+  /**
+   * Escape special regex characters in a string
+   */
+  private static escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

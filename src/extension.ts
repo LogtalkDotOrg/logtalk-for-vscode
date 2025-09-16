@@ -424,6 +424,9 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerCodeActionsProvider(LOGTALK_MODE, testsReporter)
   );
+  context.subscriptions.push(
+    languages.registerCodeActionsProvider(LOGTALK_MODE, deadCodeScanner)
+  );
   refactorProvider = new LogtalkRefactorProvider();
   context.subscriptions.push(
     languages.registerCodeActionsProvider(LOGTALK_MODE, refactorProvider)
