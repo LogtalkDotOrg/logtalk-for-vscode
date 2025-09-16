@@ -372,6 +372,14 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.removeArgument', async (document, position) => {
+      if (refactorProvider) {
+        await refactorProvider.removeArgument(document, position);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

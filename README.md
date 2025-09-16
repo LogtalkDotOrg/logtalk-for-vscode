@@ -231,20 +231,22 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
+Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" command can be used to verify the changes before committing them. Due to VSCode limitations, refactoring operations that require user input cannot be not previewed. But the files changed are opened in the editor and the user can verify the changes before saving them.
+
+#### Code extraction
+
 Two types of code extraction are supported when the user selects a region of code and uses the "Refactor" context menu item or the "Refactor" command palette item:
 
 - Extract to new Logtalk entity (the user is asked to select the entity type, entity name, file name, and file location)
 - Extract to new Logtalk file (the user is asked to select the file name and file location)
 
-Experimental entity, predicate, and non-terminal rename support is available. Users should commit their work before using this feature and preview the changes before applying them. After, the "Make - Reload" command can be used to verify the changes before committing them.
+#### Symbol renaming
 
-To rename a predicate (non-terminal), right-click on the predicate (non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Rename Symbol" context menu item.
+Experimental entity, predicate, and non-terminal rename support is available. To rename a predicate (non-terminal), right-click on the predicate (non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Rename Symbol" context menu item. To rename an entity, right-click on the entity name and use the "Go to Type Definition" context menu item to go to the entity opening directive. Then, right-click on the entity name and select the "Rename Symbol" context menu item.
 
-To rename an entity, right-click on the entity name and use the "Go to Type Definition" context menu item to go to the entity opening directive. Then, right-click on the entity name and select the "Rename Symbol" context menu item.
+#### Predicate and non-terminal argument refactoring
 
-To add a new argument to a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Add argument to predicate/non-terminal" context menu item and enter the new argument name and position. To reorder the arguments of a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Reorder predicate/non-terminal arguments" context menu item and enter the new argument order.
-
-Known issue: Due to VSCode limitations, refactoring operations that require user input cannot be not previewed.
+To add a new argument to a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Add argument to predicate/non-terminal" context menu item and enter the new argument name and position. To reorder the arguments of a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Reorder predicate/non-terminal arguments" context menu item and enter the new argument order. To remove an argument from a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Remove argument from predicate/non-terminal" context menu item and enter the argument position.
 
 ### Debugging support
 

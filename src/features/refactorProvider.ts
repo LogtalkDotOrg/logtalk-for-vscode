@@ -93,7 +93,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       };
       actions.push(addArgumentAction);
 
-      // Check if the predicate/non-terminal has arguments to reorder
+      // Check if the predicate/non-terminal has arguments to reorder or remove
       const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
                         Utils.getPredicateIndicatorUnderCursor(document, position) ||
                         Utils.getCallUnderCursor(document, position);
@@ -103,17 +103,34 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         const parts = indicator.split(separator);
         if (parts.length === 2) {
           const currentArity = parseInt(parts[1]);
-          if (!isNaN(currentArity) && currentArity > 1) {
-            const reorderArgumentsAction = new CodeAction(
-              "Reorder predicate/non-terminal arguments",
-              CodeActionKind.Refactor
-            );
-            reorderArgumentsAction.command = {
-              command: "logtalk.refactor.reorderArguments",
-              title: "Reorder predicate/non-terminal arguments",
-              arguments: [document, position]
-            };
-            actions.push(reorderArgumentsAction);
+          if (!isNaN(currentArity)) {
+            // Add reorder action if arity > 1
+            if (currentArity > 1) {
+              const reorderArgumentsAction = new CodeAction(
+                "Reorder predicate/non-terminal arguments",
+                CodeActionKind.Refactor
+              );
+              reorderArgumentsAction.command = {
+                command: "logtalk.refactor.reorderArguments",
+                title: "Reorder predicate/non-terminal arguments",
+                arguments: [document, position]
+              };
+              actions.push(reorderArgumentsAction);
+            }
+
+            // Add remove argument action if arity >= 1
+            if (currentArity >= 1) {
+              const removeArgumentAction = new CodeAction(
+                "Remove argument from predicate/non-terminal",
+                CodeActionKind.Refactor
+              );
+              removeArgumentAction.command = {
+                command: "logtalk.refactor.removeArgument",
+                title: "Remove argument from predicate/non-terminal",
+                arguments: [document, position]
+              };
+              actions.push(removeArgumentAction);
+            }
           }
         }
       }
@@ -724,6 +741,261 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Remove argument from predicate/non-terminal refactoring operation
+   */
+  public async removeArgument(document: TextDocument, position: Position): Promise<void> {
+    this.logger.debug(`=== removeArgument method called ===`);
+    try {
+      // Step 1: Validate that we're on a predicate call
+      this.logger.debug(`Looking for predicate indicator at cursor position...`);
+      const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
+                        Utils.getPredicateIndicatorUnderCursor(document, position) ||
+                        Utils.getCallUnderCursor(document, position);
+
+      if (!indicator) {
+        this.logger.debug(`No predicate indicator found at cursor position`);
+        window.showErrorMessage("No predicate found at cursor position.");
+        return;
+      }
+
+      this.logger.debug(`Found predicate indicator: ${indicator}`);
+
+      // Extract predicate name and arity - use proper type determination
+      const token = { isCancellationRequested: false } as CancellationToken;
+      this.logger.debug(`Initial indicator from cursor: "${indicator}"`);
+      this.logger.debug(`About to call PredicateUtils.determinePredicateType...`);
+
+      let typeResult: PredicateTypeResult;
+      try {
+        typeResult = await PredicateUtils.determinePredicateType(
+          document,
+          position,
+          indicator,
+          this.declarationProvider,
+          token
+        );
+        this.logger.debug(`Type determination completed successfully`);
+      } catch (error) {
+        this.logger.error(`Type determination failed: ${error}`);
+        window.showErrorMessage(`Type determination failed: ${error}`);
+        return;
+      }
+
+      this.logger.debug(`Type determination result: isNonTerminal=${typeResult.isNonTerminal}, currentIndicator="${typeResult.currentIndicator}", newIndicator="${typeResult.newIndicator}"`);
+      const finalIsNonTerminal = typeResult.isNonTerminal;
+      const separator = finalIsNonTerminal ? '//' : '/';
+      const parts = typeResult.currentIndicator.split(separator);
+
+      if (parts.length !== 2) {
+        window.showErrorMessage("Invalid predicate indicator format.");
+        return;
+      }
+
+      const predicateName = parts[0];
+      const currentArity = parseInt(parts[1]);
+
+      if (isNaN(currentArity)) {
+        window.showErrorMessage("Invalid arity in predicate indicator.");
+        return;
+      }
+
+      if (currentArity < 1) {
+        window.showErrorMessage("Cannot remove arguments: predicate/non-terminal has no arguments.");
+        return;
+      }
+
+      // Step 2: Ask user for argument position to remove
+      const argumentPosition = await this.promptForArgumentPositionToRemove(currentArity);
+      if (argumentPosition === undefined) {
+        return; // User cancelled
+      }
+
+      // Step 3: Perform the refactoring
+      await this.performRemoveArgumentRefactoring(
+        document,
+        position,
+        predicateName,
+        currentArity,
+        finalIsNonTerminal,
+        argumentPosition,
+        typeResult.currentIndicator
+      );
+
+    } catch (error) {
+      this.logger.error(`Error removing argument: ${error}`);
+      window.showErrorMessage(`Error removing argument: ${error}`);
+    }
+  }
+
+  /**
+   * Perform the remove argument refactoring operation
+   */
+  private async performRemoveArgumentRefactoring(
+    document: TextDocument,
+    position: Position,
+    predicateName: string,
+    currentArity: number,
+    isNonTerminal: boolean,
+    argumentPosition: number,
+    currentIndicator: string
+  ): Promise<void> {
+    this.logger.debug(`=== performRemoveArgumentRefactoring ===`);
+    this.logger.debug(`Predicate: ${predicateName}, Current Arity: ${currentArity}, Remove Position: ${argumentPosition}, Is Non-Terminal: ${isNonTerminal}`);
+
+    const newArity = currentArity - 1;
+    const separator = isNonTerminal ? '//' : '/';
+    const newIndicator = `${predicateName}${separator}${newArity}`;
+
+    this.logger.debug(`New indicator will be: ${newIndicator}`);
+
+    // Find all locations that need to be updated
+    const locationResult = await this.findAllLocationsToUpdate(document, position, currentIndicator, isNonTerminal);
+    const uniqueLocations = locationResult.locations; // Already deduplicated
+    this.logger.debug(`Found ${uniqueLocations.length} unique locations to update`);
+
+    if (uniqueLocations.length === 0) {
+      window.showWarningMessage("No locations found to update.");
+      return;
+    }
+
+    // Create workspace edit
+    const workspaceEdit = new WorkspaceEdit();
+    await this.createRemoveArgumentEdits(
+      workspaceEdit,
+      uniqueLocations,
+      predicateName,
+      currentIndicator,
+      newIndicator,
+      isNonTerminal,
+      argumentPosition,
+      currentArity
+    );
+
+    // Apply the edit
+    const success = await workspace.applyEdit(workspaceEdit);
+    if (success) {
+      this.logger.debug(`Successfully removed argument ${argumentPosition} from ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
+      window.showInformationMessage(`Successfully removed argument ${argumentPosition} from ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}.`);
+    } else {
+      this.logger.error(`Failed to apply workspace edit for ${currentIndicator}`);
+      window.showErrorMessage("Failed to remove argument.");
+    }
+  }
+
+  /**
+   * Create edits for removing argument from predicate/non-terminal
+   */
+  private async createRemoveArgumentEdits(
+    workspaceEdit: WorkspaceEdit,
+    locations: { uri: Uri; range: Range }[],
+    predicateName: string,
+    currentIndicator: string,
+    newIndicator: string,
+    isNonTerminal: boolean,
+    argumentPosition: number,
+    currentArity: number
+  ): Promise<void> {
+    this.logger.debug(`Creating remove argument edits for ${locations.length} locations`);
+
+    // Group locations by file
+    const locationsByFile = new Map<string, { uri: Uri; range: Range }[]>();
+
+    for (const location of locations) {
+      const key = location.uri.toString();
+      if (!locationsByFile.has(key)) {
+        locationsByFile.set(key, []);
+      }
+      locationsByFile.get(key)!.push(location);
+    }
+
+    // Process each file
+    for (const [uriString, fileLocations] of locationsByFile) {
+      const uri = Uri.parse(uriString);
+      const doc = await workspace.openTextDocument(uri);
+      const textEdits: TextEdit[] = [];
+
+      // Track scope directive locations to search for consecutive directives
+      const scopeDirectiveLines = new Set<number>();
+
+      for (const location of fileLocations) {
+        const lineText = doc.lineAt(location.range.start.line).text;
+
+        // Check if this line contains a directive (scope, mode, info)
+        const isDirective = lineText.trim().startsWith(':-');
+
+        // Check if this directive is related to our predicate
+        const isRelatedDirective = isDirective && (
+          lineText.includes(currentIndicator) ||  // info(process/3, ...) or info(parse//2, ...)
+          lineText.includes(predicateName + '(') || // mode(process(...), ...) or mode(parse(...), ...)
+          (lineText.includes('public(') && lineText.includes(currentIndicator)) ||  // public(process/3) or public(parse//2)
+          (lineText.includes('protected(') && lineText.includes(currentIndicator)) ||  // protected(process/3) or protected(parse//2)
+          (lineText.includes('private(') && lineText.includes(currentIndicator))  // private(process/3) or private(parse//2)
+        );
+
+        if (isRelatedDirective) {
+          // Handle directive - remove arguments in directives
+          this.logger.debug(`Processing directive at line ${location.range.start.line + 1}: "${lineText.trim()}"`);
+          let updatedLine = lineText;
+
+          // Update indicator in scope directives
+          if (lineText.includes(currentIndicator)) {
+            this.logger.debug(`Updating indicator in directive: ${currentIndicator} → ${newIndicator}`);
+            updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
+          }
+
+          // Track scope directives for consecutive directive search
+          if ((lineText.includes('public(') || lineText.includes('protected(') || lineText.includes('private(')) &&
+              lineText.includes(currentIndicator)) {
+            scopeDirectiveLines.add(location.range.start.line);
+            this.logger.debug(`Found scope directive at line ${location.range.start.line + 1}, will search for consecutive directives`);
+          }
+
+          // Update mode directives: mode(predicate_name(args), mode_info)
+          if (lineText.includes('mode(') && lineText.includes(predicateName + '(')) {
+            this.logger.debug(`Updating mode directive for predicate: ${predicateName}`);
+            updatedLine = this.updateModeDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity);
+          }
+
+          // Update meta_predicate/meta_non_terminal directives
+          if (!isNonTerminal && lineText.includes('meta_predicate(') && lineText.includes(predicateName + '(')) {
+            this.logger.debug(`Updating meta_predicate directive for predicate: ${predicateName}`);
+            updatedLine = this.updateMetaDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity, isNonTerminal);
+          }
+
+          if (isNonTerminal && lineText.includes('meta_non_terminal(') && lineText.includes(predicateName + '(')) {
+            this.logger.debug(`Updating meta_non_terminal directive for predicate: ${predicateName}`);
+            updatedLine = this.updateMetaDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity, isNonTerminal);
+          }
+
+          const edit = TextEdit.replace(
+            new Range(
+              new Position(location.range.start.line, 0),
+              new Position(location.range.start.line, lineText.length)
+            ),
+            updatedLine
+          );
+          textEdits.push(edit);
+        } else {
+          // Handle predicate call/definition - remove the argument
+          const edits = this.createArgumentRemovalEdit(doc, location, argumentPosition, currentArity, isNonTerminal, predicateName);
+          textEdits.push(...edits);
+        }
+      }
+
+      // Search for consecutive directives after each scope directive
+      for (const scopeLine of scopeDirectiveLines) {
+        this.logger.debug(`Searching for consecutive directives after scope directive at line ${scopeLine + 1}`);
+        const consecutiveEdits = this.findAndUpdateConsecutiveDirectivesForRemoval(
+          doc, scopeLine, predicateName, currentIndicator, newIndicator, argumentPosition, currentArity, isNonTerminal
+        );
+        textEdits.push(...consecutiveEdits);
+      }
+
+      workspaceEdit.set(uri, textEdits);
+    }
+  }
+
+  /**
    * Prompt user for argument name with validation
    */
   private async promptForArgumentName(): Promise<string | undefined> {
@@ -826,6 +1098,37 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Prompt user for argument position to remove with validation
+   */
+  private async promptForArgumentPositionToRemove(currentArity: number): Promise<number | undefined> {
+    const result = await window.showInputBox({
+      prompt: `Enter position of argument to remove (1 to ${currentArity})`,
+      placeHolder: "1",
+      validateInput: (value: string) => {
+        if (!value.trim()) {
+          return "Argument position cannot be empty";
+        }
+
+        const num = parseInt(value.trim());
+        if (isNaN(num)) {
+          return `"${value}" is not a valid number`;
+        }
+        if (num < 1 || num > currentArity) {
+          return `Position must be between 1 and ${currentArity}`;
+        }
+
+        return null;
+      }
+    });
+
+    if (!result) {
+      return undefined;
+    }
+
+    return parseInt(result.trim());
+  }
+
+  /**
    * Perform the actual reorder arguments refactoring
    */
   private async performReorderArgumentsRefactoring(
@@ -840,125 +1143,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     try {
       this.logger.debug(`Reordering arguments for ${currentIndicator} with new order: [${newOrder.join(', ')}]`);
 
-      // Step 1: Find declaration location (if exists)
-      const token = { isCancellationRequested: false } as CancellationToken;
-      const declarationLocation = await this.declarationProvider.provideDeclaration(document, position, token);
+      // Find all locations that need to be updated
+      const locationResult = await this.findAllLocationsToUpdate(document, position, currentIndicator, isNonTerminal);
+      const uniqueLocations = locationResult.locations; // Already deduplicated
+      const declarationLocation = locationResult.declarationLocation;
 
-      // Step 2: Find all locations that need to be updated (same logic as add argument)
-      const allLocations: { uri: Uri; range: Range }[] = [];
-
-      if (declarationLocation && this.isValidLocation(declarationLocation)) {
-        // Add declaration location
-        allLocations.push({ uri: declarationLocation.uri, range: declarationLocation.range });
-        this.logger.debug(`Found declaration at: ${declarationLocation.uri.fsPath}:${declarationLocation.range.start.line + 1}`);
-
-        // Find definition and references from declaration position
-        const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
-        const declarationPosition = this.findPredicatePositionInDeclaration(declarationDocument, declarationLocation.range.start.line, currentIndicator);
-        this.logger.debug(`Declaration position found at: ${declarationPosition.line}:${declarationPosition.character}`);
-
-        // Get definition location (first predicate clause)
-        this.logger.debug(`Calling definition provider from declaration position...`);
-        const definitionLocation = await this.definitionProvider.provideDefinition(declarationDocument, declarationPosition, token);
-        if (definitionLocation && this.isValidLocation(definitionLocation)) {
-          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
-          this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
-        }
-
-        // Get implementation locations (all predicate clauses)
-        this.logger.debug(`Calling implementation provider from declaration position...`);
-        const implementationLocations = await this.implementationProvider.provideImplementation(declarationDocument, declarationPosition, token);
-        if (implementationLocations) {
-          const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
-          for (const implLoc of implArray) {
-            // Handle both Location and LocationLink types
-            const location = 'targetUri' in implLoc ?
-              { uri: implLoc.targetUri, range: implLoc.targetRange } :
-              { uri: implLoc.uri, range: implLoc.range };
-
-            if (this.isValidLocation(location)) {
-              allLocations.push(location);
-              this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
-            }
-          }
-        }
-
-        // Get reference locations (calls to the predicate)
-        this.logger.debug(`Calling reference provider from declaration position...`);
-        const referenceLocations = await this.referenceProvider.provideReferences(
-          declarationDocument,
-          declarationPosition,
-          { includeDeclaration: false }, // Don't include declaration since we already have it
-          token
-        );
-
-        this.logger.debug(`Reference provider returned ${referenceLocations ? referenceLocations.length : 0} locations`);
-        if (referenceLocations) {
-          for (const refLoc of referenceLocations) {
-            allLocations.push({ uri: refLoc.uri, range: refLoc.range });
-            this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}`);
-          }
-        }
-      } else {
-        // No declaration found - find definition and references from current position
-        this.logger.debug(`No declaration found for: ${currentIndicator}. Finding definition and references...`);
-
-        this.logger.debug(`Calling definition provider from current position...`);
-        const definitionLocation = await this.definitionProvider.provideDefinition(document, position, token);
-        if (definitionLocation && this.isValidLocation(definitionLocation)) {
-          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
-          this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
-
-          // Use the definition location to find implementations and references
-          const definitionDocument = await workspace.openTextDocument(definitionLocation.uri);
-          this.logger.debug(`Definition location range: ${definitionLocation.range.start.line}:${definitionLocation.range.start.character}-${definitionLocation.range.end.line}:${definitionLocation.range.end.character}`);
-          const definitionPosition = this.findPredicatePositionInDefinition(definitionDocument, definitionLocation.range.start.line, currentIndicator, isNonTerminal);
-          this.logger.debug(`Definition position found at: ${definitionPosition.line}:${definitionPosition.character}`);
-
-          // Get implementation locations (all predicate clauses)
-          this.logger.debug(`Calling implementation provider from definition position...`);
-          const implementationLocations = await this.implementationProvider.provideImplementation(definitionDocument, definitionPosition, token);
-          if (implementationLocations) {
-            const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
-            for (const implLoc of implArray) {
-              // Handle both Location and LocationLink types
-              const location = 'targetUri' in implLoc ?
-                { uri: implLoc.targetUri, range: implLoc.targetRange } :
-                { uri: implLoc.uri, range: implLoc.range };
-
-              if (this.isValidLocation(location)) {
-                allLocations.push(location);
-                this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
-              }
-            }
-          }
-
-          this.logger.debug(`Calling reference provider from definition position...`);
-          const referenceLocations = await this.referenceProvider.provideReferences(
-            definitionDocument,
-            definitionPosition,
-            { includeDeclaration: false }, // Don't include declaration since we don't have one
-            token
-          );
-
-          this.logger.debug(`Reference provider returned ${referenceLocations ? referenceLocations.length : 0} locations`);
-          if (referenceLocations && referenceLocations.length > 0) {
-            for (const refLoc of referenceLocations) {
-              allLocations.push({ uri: refLoc.uri, range: refLoc.range });
-              this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}:${refLoc.range.start.character}-${refLoc.range.end.character}`);
-            }
-          } else {
-            this.logger.debug(`Reference provider returned ${referenceLocations ? '0 locations' : 'null'} - will rely on definition/implementation locations for local ${isNonTerminal ? 'non-terminal' : 'predicate'}`);
-          }
-        } else {
-          this.logger.debug(`No definition found for: ${currentIndicator}`);
-        }
-      }
-
-      // Remove duplicates by creating a unique set based on URI and line number
-      const uniqueLocations = this.deduplicateLocations(allLocations);
-
-      this.logger.debug(`Total locations found: ${allLocations.length}, unique: ${uniqueLocations.length}`);
+      this.logger.debug(`Total unique locations found: ${uniqueLocations.length}`);
       for (const loc of uniqueLocations) {
         this.logger.debug(`Location: ${loc.uri.fsPath}:${loc.range.start.line + 1}`);
       }
@@ -1022,127 +1212,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       this.logger.debug(`Adding argument '${argumentName}' at position ${argumentPosition} to ${finalCurrentIndicator2}`);
 
-      // Step 1: Find declaration location (if exists)
-      const token = { isCancellationRequested: false } as CancellationToken;
-      const declarationLocation = await this.declarationProvider.provideDeclaration(document, position, token);
+      // Find all locations that need to be updated
+      const locationResult = await this.findAllLocationsToUpdate(document, position, finalCurrentIndicator2, isNonTerminal);
+      const uniqueLocations = locationResult.locations; // Already deduplicated
+      const declarationLocation = locationResult.declarationLocation;
 
-      // Step 2: Find all locations that need to be updated
-      const allLocations: { uri: Uri; range: Range }[] = [];
-
-      if (declarationLocation && this.isValidLocation(declarationLocation)) {
-        // Add declaration location
-        allLocations.push({ uri: declarationLocation.uri, range: declarationLocation.range });
-        this.logger.debug(`Found declaration at: ${declarationLocation.uri.fsPath}:${declarationLocation.range.start.line + 1}`);
-
-        // Find definition and references from declaration position
-        const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
-        const declarationPosition = this.findPredicatePositionInDeclaration(declarationDocument, declarationLocation.range.start.line, finalCurrentIndicator2);
-        this.logger.debug(`Declaration position found at: ${declarationPosition.line}:${declarationPosition.character}`);
-
-        // Get definition location (first predicate clause)
-        this.logger.debug(`Calling definition provider from declaration position...`);
-        const definitionLocation = await this.definitionProvider.provideDefinition(declarationDocument, declarationPosition, token);
-        if (definitionLocation && this.isValidLocation(definitionLocation)) {
-          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
-          this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
-        }
-
-        // Get implementation locations (all predicate clauses)
-        this.logger.debug(`Calling implementation provider from declaration position...`);
-        const implementationLocations = await this.implementationProvider.provideImplementation(declarationDocument, declarationPosition, token);
-        if (implementationLocations) {
-          const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
-          for (const implLoc of implArray) {
-            // Handle both Location and LocationLink types
-            const location = 'targetUri' in implLoc ?
-              { uri: implLoc.targetUri, range: implLoc.targetRange } :
-              { uri: implLoc.uri, range: implLoc.range };
-
-            if (this.isValidLocation(location)) {
-              allLocations.push(location);
-              this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
-            }
-          }
-        }
-
-        // Get reference locations (calls to the predicate)
-        this.logger.debug(`Calling reference provider from declaration position...`);
-        const referenceLocations = await this.referenceProvider.provideReferences(
-          declarationDocument,
-          declarationPosition,
-          { includeDeclaration: false }, // Don't include declaration since we already have it
-          token
-        );
-
-        this.logger.debug(`Reference provider returned ${referenceLocations ? referenceLocations.length : 0} locations`);
-        if (referenceLocations) {
-          for (const refLoc of referenceLocations) {
-            allLocations.push({ uri: refLoc.uri, range: refLoc.range });
-            this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}`);
-          }
-        }
-      } else {
-        // No declaration found - find definition and references from current position
-        this.logger.debug(`No declaration found for: ${currentIndicator}. Finding definition and references...`);
-
-        this.logger.debug(`Calling definition provider from current position...`);
-        const definitionLocation = await this.definitionProvider.provideDefinition(document, position, token);
-        if (definitionLocation && this.isValidLocation(definitionLocation)) {
-          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
-          this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
-
-          // Use the definition location to find implementations and references
-          const definitionDocument = await workspace.openTextDocument(definitionLocation.uri);
-          this.logger.debug(`Definition location range: ${definitionLocation.range.start.line}:${definitionLocation.range.start.character}-${definitionLocation.range.end.line}:${definitionLocation.range.end.character}`);
-          const definitionPosition = this.findPredicatePositionInDefinition(definitionDocument, definitionLocation.range.start.line, finalCurrentIndicator2, isNonTerminal);
-          this.logger.debug(`Definition position found at: ${definitionPosition.line}:${definitionPosition.character}`);
-
-          // Get implementation locations (all predicate clauses)
-          this.logger.debug(`Calling implementation provider from definition position...`);
-          const implementationLocations = await this.implementationProvider.provideImplementation(definitionDocument, definitionPosition, token);
-          if (implementationLocations) {
-            const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
-            for (const implLoc of implArray) {
-              // Handle both Location and LocationLink types
-              const location = 'targetUri' in implLoc ?
-                { uri: implLoc.targetUri, range: implLoc.targetRange } :
-                { uri: implLoc.uri, range: implLoc.range };
-
-              if (this.isValidLocation(location)) {
-                allLocations.push(location);
-                this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
-              }
-            }
-          }
-
-          this.logger.debug(`Calling reference provider from definition position...`);
-          const referenceLocations = await this.referenceProvider.provideReferences(
-            definitionDocument,
-            definitionPosition,
-            { includeDeclaration: false }, // Don't include declaration since we don't have one
-            token
-          );
-
-          this.logger.debug(`Reference provider returned ${referenceLocations ? referenceLocations.length : 0} locations`);
-          if (referenceLocations && referenceLocations.length > 0) {
-            for (const refLoc of referenceLocations) {
-              allLocations.push({ uri: refLoc.uri, range: refLoc.range });
-              this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}:${refLoc.range.start.character}-${refLoc.range.end.character}`);
-            }
-          } else {
-            this.logger.debug(`Reference provider returned ${referenceLocations ? '0 locations' : 'null'} - will rely on definition/implementation locations for local ${isNonTerminal ? 'non-terminal' : 'predicate'}`);
-            // Note: For local predicates/non-terminals, we rely on the definition and implementation
-            // providers to find all clauses. The reference provider may not find calls in some contexts.
-          }
-        } else {
-          this.logger.debug(`No definition found for: ${currentIndicator}`);
-        }
-      }
-
-      // Remove duplicates by creating a unique set based on URI and line number
-      const uniqueLocations = this.deduplicateLocations(allLocations);
-
-      this.logger.debug(`Total locations found: ${allLocations.length}, unique: ${uniqueLocations.length}`);
+      this.logger.debug(`Total unique locations found: ${uniqueLocations.length}`);
       for (const loc of uniqueLocations) {
         this.logger.debug(`Location: ${loc.uri.fsPath}:${loc.range.start.line + 1}`);
       }
@@ -1941,16 +2016,911 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     this.logger.debug(`Processing consecutive clauses from line ${startLine + 1} to ${endLine + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
 
-    // Process each line in all consecutive clauses to find predicate calls
+    // Process each line in all consecutive clauses
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const lineText = doc.lineAt(lineNum).text;
-      const lineEdits = this.findAndUpdatePredicateCallsInLine(
-        lineText, lineNum, predicateName, argumentName, argumentPosition, isNonTerminal
-      );
-      edits.push(...lineEdits);
+
+      // Check if this line contains a clause head (predicate definition)
+      const clauseHeadMatch = this.findClauseHead(lineText, predicateName, isNonTerminal);
+
+      if (clauseHeadMatch) {
+        // This line contains a clause head - only update if arity matches exactly
+        const headArity = this.countArguments(clauseHeadMatch.arguments);
+        this.logger.debug(`Found clause head with arity ${headArity}, target arity: ${currentArity} at line ${lineNum + 1}`);
+
+        if (headArity === currentArity) {
+          // Update the clause head
+          this.logger.debug(`Updating clause head: ${clauseHeadMatch.fullMatch}`);
+          const headEdits = this.updateClauseHead(lineText, lineNum, clauseHeadMatch, argumentName, argumentPosition, isNonTerminal);
+          edits.push(...headEdits);
+        } else {
+          this.logger.debug(`Skipping clause head with different arity (${headArity} vs ${currentArity})`);
+        }
+
+        // Always check for calls in the clause body (after :- or -->)
+        const bodyEdits = this.findAndAddPredicateCallsInClauseBody(lineText, lineNum, predicateName, argumentName, argumentPosition, isNonTerminal);
+        edits.push(...bodyEdits);
+      } else {
+        // No clause head found - update all predicate calls in the line
+        const lineEdits = this.findAndAddPredicateCallsInLine(lineText, lineNum, predicateName, argumentName, argumentPosition, isNonTerminal);
+        edits.push(...lineEdits);
+      }
     }
 
     return edits;
+  }
+
+  /**
+   * Find clause head in a line
+   */
+  private findClauseHead(lineText: string, predicateName: string, isNonTerminal: boolean): { fullMatch: string; arguments: string; startIndex: number; endIndex: number } | null {
+    const trimmedLine = lineText.trim();
+
+    // Skip directive lines
+    if (trimmedLine.startsWith(':-')) {
+      return null;
+    }
+
+    // For non-terminals, look for predicate_name(...) --> or predicate_name(...) :-
+    // For predicates, look for predicate_name(...) :-
+    const clausePattern = isNonTerminal
+      ? new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]*)\\)\\s*(?:-->|:-)`, 'g')
+      : new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]*)\\)\\s*:-`, 'g');
+
+    const match = clausePattern.exec(lineText);
+    if (match) {
+      return {
+        fullMatch: match[0],
+        arguments: match[1],
+        startIndex: match.index,
+        endIndex: match.index + match[0].length
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Count arguments in a comma-separated argument string
+   */
+  private countArguments(argumentString: string): number {
+    if (!argumentString || argumentString.trim() === '') {
+      return 0;
+    }
+
+    // Use ArgumentUtils for proper argument parsing
+    const args = ArgumentUtils.parseArguments(argumentString);
+    return args.length;
+  }
+
+  /**
+   * Update clause head by adding argument
+   */
+  private updateClauseHead(
+    lineText: string,
+    lineNum: number,
+    clauseHead: { fullMatch: string; arguments: string; startIndex: number; endIndex: number },
+    argumentName: string,
+    argumentPosition: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+
+    // Parse existing arguments
+    const existingArgs = clauseHead.arguments.trim() === '' ? [] :
+      ArgumentUtils.parseArguments(clauseHead.arguments);
+
+    // Insert new argument at specified position
+    const newArgs = [...existingArgs];
+    newArgs.splice(argumentPosition - 1, 0, argumentName);
+
+    // Create the updated clause head
+    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-).*)$/);
+    if (predicateNameMatch) {
+      const [, leadingSpace, predName, openParen, , closingAndRest] = predicateNameMatch;
+      const newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
+
+      const edit = TextEdit.replace(
+        new Range(
+          new Position(lineNum, clauseHead.startIndex),
+          new Position(lineNum, clauseHead.endIndex)
+        ),
+        newClauseHead
+      );
+      edits.push(edit);
+    }
+
+    return edits;
+  }
+
+  /**
+   * Find and add predicate calls in clause body (after :- or -->)
+   */
+  private findAndAddPredicateCallsInClauseBody(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    argumentName: string,
+    argumentPosition: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    // Find the body part (after :- or -->)
+    const bodyStartMatch = lineText.match(/(:-|-->)/);
+    if (!bodyStartMatch) {
+      return []; // No body found
+    }
+
+    const bodyStartIndex = bodyStartMatch.index! + bodyStartMatch[0].length;
+    const bodyText = lineText.substring(bodyStartIndex);
+
+    // Find predicate calls in the body with arity checking
+    const bodyEdits = this.findAndAddPredicateCallsInLineWithArityCheck(bodyText, lineNum, predicateName, argumentName, argumentPosition, isNonTerminal);
+
+    // Adjust edit positions to account for body offset
+    return bodyEdits.map((edit: TextEdit) => {
+      const adjustedRange = new Range(
+        new Position(edit.range.start.line, edit.range.start.character + bodyStartIndex),
+        new Position(edit.range.end.line, edit.range.end.character + bodyStartIndex)
+      );
+      return TextEdit.replace(adjustedRange, edit.newText);
+    });
+  }
+
+  /**
+   * Find and add predicate calls in a line
+   */
+  private findAndAddPredicateCallsInLine(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    argumentName: string,
+    argumentPosition: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    this.logger.debug(`findAndAddPredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
+    const edits: TextEdit[] = [];
+
+    if (isNonTerminal) {
+      // For non-terminals, find all occurrences of the non-terminal name
+      // This includes both rule heads (with -->) and calls (without -->)
+      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      let match: RegExpExecArray | null;
+      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
+        // Skip if this is inside a comment
+        const beforeMatch = lineText.substring(0, match.index);
+        if (beforeMatch.includes('%')) {
+          const commentPos = beforeMatch.lastIndexOf('%');
+          if (commentPos > beforeMatch.lastIndexOf('\n')) {
+            continue;
+          }
+        }
+
+        this.logger.debug(`Found non-terminal occurrence at line ${lineNum + 1}, column ${match.index}: ${predicateName}`);
+        const nameEndPos = match.index + predicateName.length;
+
+        // Check if it has arguments: predicateName(args)
+        const afterName = lineText.substring(nameEndPos);
+        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+
+        if (argsMatch) {
+          // Already has arguments: predicateName(arg1, arg2)
+          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+          if (closeParenPos !== -1) {
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+
+            // Insert new argument at specified position
+            args.splice(argumentPosition - 1, 0, argumentName);
+            const newArgsText = args.join(', ');
+
+            edits.push(TextEdit.replace(
+              new Range(
+                new Position(lineNum, openParenPos + 1),
+                new Position(lineNum, closeParenPos)
+              ),
+              newArgsText
+            ));
+            this.logger.debug(`Added argument to non-terminal with args: "${newArgsText}"`);
+          }
+        } else {
+          // No arguments: predicateName
+          edits.push(TextEdit.insert(
+            new Position(lineNum, nameEndPos),
+            `(${argumentName})`
+          ));
+          this.logger.debug(`Added argument to non-terminal without args: "(${argumentName})"`);
+        }
+      }
+
+    } else {
+      // Handle predicate facts: predicateName.
+      const factPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\.`, 'g');
+      let factMatch: RegExpExecArray | null;
+      while ((factMatch = factPattern.exec(lineText)) !== null) {
+        this.logger.debug(`Found fact at line ${lineNum + 1}, column ${factMatch.index}: ${predicateName}`);
+        const insertPos = factMatch.index + predicateName.length;
+        edits.push(TextEdit.insert(
+          new Position(lineNum, insertPos),
+          `(${argumentName})`
+        ));
+      }
+
+      // Look for predicate calls with arguments
+      const callPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
+      let callMatch: RegExpExecArray | null;
+      while ((callMatch = callPattern.exec(lineText)) !== null) {
+        const startPos = callMatch.index + predicateName.length;
+        const openParenPos = lineText.indexOf('(', startPos);
+
+        if (openParenPos !== -1) {
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+
+          if (closeParenPos !== -1) {
+            this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...)`);
+
+            // Extract current arguments
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+
+            // Insert new argument at specified position
+            args.splice(argumentPosition - 1, 0, argumentName);
+            const newArgsText = args.join(', ');
+
+            edits.push(TextEdit.replace(
+              new Range(
+                new Position(lineNum, openParenPos + 1),
+                new Position(lineNum, closeParenPos)
+              ),
+              newArgsText
+            ));
+          }
+        }
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Find and add predicate calls in a line with arity checking
+   */
+  private findAndAddPredicateCallsInLineWithArityCheck(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    argumentName: string,
+    argumentPosition: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    this.logger.debug(`findAndAddPredicateCallsInLineWithArityCheck: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
+    const edits: TextEdit[] = [];
+    const targetArity = argumentPosition; // After adding, the arity will be argumentPosition (since we're adding at that position)
+
+    if (isNonTerminal) {
+      // For non-terminals, find all occurrences of the non-terminal name
+      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      let match: RegExpExecArray | null;
+      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
+        // Skip if this is inside a comment
+        const beforeMatch = lineText.substring(0, match.index);
+        if (beforeMatch.includes('%')) {
+          const commentPos = beforeMatch.lastIndexOf('%');
+          if (commentPos > beforeMatch.lastIndexOf('\n')) {
+            continue;
+          }
+        }
+
+        this.logger.debug(`Found non-terminal occurrence at line ${lineNum + 1}, column ${match.index}: ${predicateName}`);
+        const nameEndPos = match.index + predicateName.length;
+
+        // Check if it has arguments: predicateName(args)
+        const afterName = lineText.substring(nameEndPos);
+        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+
+        if (argsMatch) {
+          // Already has arguments: predicateName(arg1, arg2)
+          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+          if (closeParenPos !== -1) {
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
+
+            // Only update if current arity matches target arity - 1 (since we're adding one argument)
+            if (currentArity === targetArity - 1) {
+              // Insert new argument at specified position
+              args.splice(argumentPosition - 1, 0, argumentName);
+              const newArgsText = args.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+              this.logger.debug(`Added argument to non-terminal with matching arity ${currentArity}: "${newArgsText}"`);
+            } else {
+              this.logger.debug(`Skipping non-terminal with different arity (${currentArity} vs expected ${targetArity - 1})`);
+            }
+          }
+        } else {
+          // No arguments: predicateName - only update if target arity is 1
+          if (targetArity === 1) {
+            edits.push(TextEdit.insert(
+              new Position(lineNum, nameEndPos),
+              `(${argumentName})`
+            ));
+            this.logger.debug(`Added argument to non-terminal without args (target arity 1): "(${argumentName})"`);
+          } else {
+            this.logger.debug(`Skipping non-terminal without args (target arity ${targetArity} != 1)`);
+          }
+        }
+      }
+
+    } else {
+      // Handle predicate facts: predicateName.
+      const factPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\.`, 'g');
+      let factMatch: RegExpExecArray | null;
+      while ((factMatch = factPattern.exec(lineText)) !== null) {
+        // Only update facts if target arity is 1
+        if (targetArity === 1) {
+          this.logger.debug(`Found fact at line ${lineNum + 1}, column ${factMatch.index}: ${predicateName}`);
+          const insertPos = factMatch.index + predicateName.length;
+          edits.push(TextEdit.insert(
+            new Position(lineNum, insertPos),
+            `(${argumentName})`
+          ));
+        } else {
+          this.logger.debug(`Skipping fact with target arity ${targetArity} != 1`);
+        }
+      }
+
+      // Look for predicate calls with arguments
+      const callPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
+      let callMatch: RegExpExecArray | null;
+      while ((callMatch = callPattern.exec(lineText)) !== null) {
+        const startPos = callMatch.index + predicateName.length;
+        const openParenPos = lineText.indexOf('(', startPos);
+
+        if (openParenPos !== -1) {
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+
+          if (closeParenPos !== -1) {
+            // Extract current arguments
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
+
+            // Only update if current arity matches target arity - 1 (since we're adding one argument)
+            if (currentArity === targetArity - 1) {
+              this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...) with matching arity ${currentArity}`);
+
+              // Insert new argument at specified position
+              args.splice(argumentPosition - 1, 0, argumentName);
+              const newArgsText = args.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+            } else {
+              this.logger.debug(`Skipping predicate call with different arity (${currentArity} vs expected ${targetArity - 1})`);
+            }
+          }
+        }
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Find and reorder predicate calls in a line with arity checking
+   */
+  private findAndReorderPredicateCallsInLineWithArityCheck(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    newOrder: number[],
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    this.logger.debug(`findAndReorderPredicateCallsInLineWithArityCheck: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
+    const edits: TextEdit[] = [];
+    const targetArity = newOrder.length;
+
+    if (isNonTerminal) {
+      // For non-terminals, find all occurrences of the non-terminal name
+      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      let match: RegExpExecArray | null;
+
+      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
+        const startPos = match.index;
+        const nameEndPos = startPos + predicateName.length;
+
+        // Check if it has arguments: predicateName(args)
+        const afterName = lineText.substring(nameEndPos);
+        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+
+        if (argsMatch) {
+          // Already has arguments: predicateName(arg1, arg2)
+          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+          if (closeParenPos !== -1) {
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
+
+            // Only update if current arity matches target arity
+            if (currentArity === targetArity) {
+              // Reorder arguments according to newOrder
+              const reorderedArgs = newOrder.map(pos => args[pos - 1]);
+              const newArgsText = reorderedArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+              this.logger.debug(`Reordered arguments for non-terminal with matching arity ${currentArity}: "${newArgsText}"`);
+            } else {
+              this.logger.debug(`Skipping non-terminal with different arity (${currentArity} vs expected ${targetArity})`);
+            }
+          }
+        } else {
+          // No arguments: predicateName - only update if target arity is 0
+          if (targetArity === 0) {
+            this.logger.debug(`Non-terminal without args matches target arity 0`);
+            // No changes needed for arity 0
+          } else {
+            this.logger.debug(`Skipping non-terminal without args (target arity ${targetArity} != 0)`);
+          }
+        }
+      }
+
+    } else {
+      // For predicates, find all occurrences of the predicate name
+      const predicatePattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
+      let match: RegExpExecArray | null;
+
+      while ((match = predicatePattern.exec(lineText)) !== null) {
+        const startPos = match.index;
+        const openParenPos = lineText.indexOf('(', startPos);
+
+        if (openParenPos !== -1) {
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+
+          if (closeParenPos !== -1) {
+            // Extract current arguments
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
+
+            // Only update if current arity matches target arity
+            if (currentArity === targetArity) {
+              this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${startPos}: ${predicateName}(...) with matching arity ${currentArity}`);
+
+              // Reorder arguments according to newOrder
+              const reorderedArgs = newOrder.map(pos => args[pos - 1]);
+              const newArgsText = reorderedArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+            } else {
+              this.logger.debug(`Skipping predicate call with different arity (${currentArity} vs expected ${targetArity})`);
+            }
+          }
+        }
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Find and remove predicate calls in a line with arity checking
+   */
+  private findAndRemovePredicateCallsInLineWithArityCheck(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    argumentPosition: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    this.logger.debug(`findAndRemovePredicateCallsInLineWithArityCheck: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
+    const edits: TextEdit[] = [];
+
+    // We need to determine the target arity (before removal)
+    // This should be passed from the calling context, but for now we need to infer it
+    // The target arity is the arity of the predicate we're removing an argument from
+    // We'll get this from the clause head or use a reasonable assumption
+
+    if (isNonTerminal) {
+      // For non-terminals, find all occurrences of the non-terminal name
+      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      let match: RegExpExecArray | null;
+
+      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
+        const startPos = match.index;
+        const nameEndPos = startPos + predicateName.length;
+
+        // Check if it has arguments: predicateName(args)
+        const afterName = lineText.substring(nameEndPos);
+        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+
+        if (argsMatch) {
+          // Already has arguments: predicateName(arg1, arg2)
+          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+          if (closeParenPos !== -1) {
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
+
+            // Only update if current arity has the argument position we want to remove
+            // and the argument position is valid
+            if (currentArity >= argumentPosition && argumentPosition > 0) {
+              // Remove argument at specified position
+              const newArgs = [...args];
+              newArgs.splice(argumentPosition - 1, 1);
+              const newArgsText = newArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+              this.logger.debug(`Removed argument ${argumentPosition} from non-terminal with arity ${currentArity}: "${newArgsText}"`);
+            } else {
+              this.logger.debug(`Skipping non-terminal with arity ${currentArity} (argument position ${argumentPosition} not valid)`);
+            }
+          }
+        } else {
+          this.logger.debug(`Skipping non-terminal without args (cannot remove from arity 0)`);
+        }
+      }
+
+    } else {
+      // For predicates, find all occurrences of the predicate name
+      const predicatePattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
+      let match: RegExpExecArray | null;
+
+      while ((match = predicatePattern.exec(lineText)) !== null) {
+        const startPos = match.index;
+        const openParenPos = lineText.indexOf('(', startPos);
+
+        if (openParenPos !== -1) {
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+
+          if (closeParenPos !== -1) {
+            // Extract current arguments
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
+
+            // Only update if current arity has the argument position we want to remove
+            // and the argument position is valid
+            if (currentArity >= argumentPosition && argumentPosition > 0) {
+              this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${startPos}: ${predicateName}(...) with arity ${currentArity}`);
+
+              // Remove argument at specified position
+              const newArgs = [...args];
+              newArgs.splice(argumentPosition - 1, 1);
+              const newArgsText = newArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+            } else {
+              this.logger.debug(`Skipping predicate call with arity ${currentArity} (argument position ${argumentPosition} not valid)`);
+            }
+          }
+        }
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Find and remove predicate calls in a line with exact arity checking
+   */
+  private findAndRemovePredicateCallsInLineWithExactArity(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    argumentPosition: number,
+    targetArity: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    this.logger.debug(`findAndRemovePredicateCallsInLineWithExactArity: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}", target arity: ${targetArity}`);
+    const edits: TextEdit[] = [];
+
+    if (isNonTerminal) {
+      // For non-terminals, find all occurrences of the non-terminal name
+      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      let match: RegExpExecArray | null;
+
+      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
+        const startPos = match.index;
+        const nameEndPos = startPos + predicateName.length;
+
+        // Check if it has arguments: predicateName(args)
+        const afterName = lineText.substring(nameEndPos);
+        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+
+        if (argsMatch) {
+          // Already has arguments: predicateName(arg1, arg2)
+          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+          if (closeParenPos !== -1) {
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
+
+            // Only update if current arity matches target arity exactly
+            if (currentArity === targetArity) {
+              // Remove argument at specified position
+              const newArgs = [...args];
+              newArgs.splice(argumentPosition - 1, 1);
+              const newArgsText = newArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+              this.logger.debug(`Removed argument ${argumentPosition} from non-terminal with exact arity ${currentArity}: "${newArgsText}"`);
+            } else {
+              this.logger.debug(`Skipping non-terminal with different arity (${currentArity} vs target ${targetArity})`);
+            }
+          }
+        } else {
+          // No arguments: predicateName - only update if target arity is 0
+          if (targetArity === 0) {
+            this.logger.debug(`Non-terminal without args matches target arity 0 - no changes needed`);
+          } else {
+            this.logger.debug(`Skipping non-terminal without args (target arity ${targetArity} != 0)`);
+          }
+        }
+      }
+
+    } else {
+      // For predicates, find all occurrences of the predicate name
+      const predicatePattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
+      let match: RegExpExecArray | null;
+
+      while ((match = predicatePattern.exec(lineText)) !== null) {
+        const startPos = match.index;
+        const openParenPos = lineText.indexOf('(', startPos);
+
+        if (openParenPos !== -1) {
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+
+          if (closeParenPos !== -1) {
+            // Extract current arguments
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
+
+            // Only update if current arity matches target arity exactly
+            if (currentArity === targetArity) {
+              this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${startPos}: ${predicateName}(...) with exact arity ${currentArity}`);
+
+              // Remove argument at specified position
+              const newArgs = [...args];
+              newArgs.splice(argumentPosition - 1, 1);
+              const newArgsText = newArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+            } else {
+              this.logger.debug(`Skipping predicate call with different arity (${currentArity} vs target ${targetArity})`);
+            }
+          }
+        }
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Update clause head by reordering arguments
+   */
+  private updateClauseHeadForReorder(
+    lineText: string,
+    lineNum: number,
+    clauseHead: { fullMatch: string; arguments: string; startIndex: number; endIndex: number },
+    newOrder: number[],
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+
+    // Parse existing arguments
+    const existingArgs = clauseHead.arguments.trim() === '' ? [] :
+      ArgumentUtils.parseArguments(clauseHead.arguments);
+
+    // Reorder arguments according to newOrder
+    const reorderedArgs = newOrder.map(pos => existingArgs[pos - 1]);
+
+    // Create the updated clause head
+    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-).*)$/);
+    if (predicateNameMatch) {
+      const [, leadingSpace, predName, openParen, , closingAndRest] = predicateNameMatch;
+      const newClauseHead = `${leadingSpace}${predName}${openParen}${reorderedArgs.join(', ')}${closingAndRest}`;
+
+      const edit = TextEdit.replace(
+        new Range(
+          new Position(lineNum, clauseHead.startIndex),
+          new Position(lineNum, clauseHead.endIndex)
+        ),
+        newClauseHead
+      );
+      edits.push(edit);
+    }
+
+    return edits;
+  }
+
+  /**
+   * Update clause head by removing argument
+   */
+  private updateClauseHeadForRemoval(
+    lineText: string,
+    lineNum: number,
+    clauseHead: { fullMatch: string; arguments: string; startIndex: number; endIndex: number },
+    argumentPosition: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+
+    // Parse existing arguments
+    const existingArgs = clauseHead.arguments.trim() === '' ? [] :
+      ArgumentUtils.parseArguments(clauseHead.arguments);
+
+    // Remove argument at specified position
+    const newArgs = [...existingArgs];
+    newArgs.splice(argumentPosition - 1, 1);
+
+    // Create the updated clause head
+    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-).*)$/);
+    if (predicateNameMatch) {
+      const [, leadingSpace, predName, openParen, , closingAndRest] = predicateNameMatch;
+      const newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
+
+      const edit = TextEdit.replace(
+        new Range(
+          new Position(lineNum, clauseHead.startIndex),
+          new Position(lineNum, clauseHead.endIndex)
+        ),
+        newClauseHead
+      );
+      edits.push(edit);
+    }
+
+    return edits;
+  }
+
+  /**
+   * Find and reorder predicate calls in clause body (after :- or -->)
+   */
+  private findAndReorderPredicateCallsInClauseBody(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    newOrder: number[],
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    // Find the body part (after :- or -->)
+    const bodyStartMatch = lineText.match(/(:-|-->)/);
+    if (!bodyStartMatch) {
+      return []; // No body found
+    }
+
+    const bodyStartIndex = bodyStartMatch.index! + bodyStartMatch[0].length;
+    const bodyText = lineText.substring(bodyStartIndex);
+
+    // Find predicate calls in the body with arity checking
+    const bodyEdits = this.findAndReorderPredicateCallsInLineWithArityCheck(bodyText, lineNum, predicateName, newOrder, isNonTerminal);
+
+    // Adjust edit positions to account for body offset
+    return bodyEdits.map((edit: TextEdit) => {
+      const adjustedRange = new Range(
+        new Position(edit.range.start.line, edit.range.start.character + bodyStartIndex),
+        new Position(edit.range.end.line, edit.range.end.character + bodyStartIndex)
+      );
+      return TextEdit.replace(adjustedRange, edit.newText);
+    });
+  }
+
+  /**
+   * Find and remove predicate calls in clause body (after :- or -->) with exact arity checking
+   */
+  private findAndRemovePredicateCallsInClauseBodyWithArity(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    argumentPosition: number,
+    targetArity: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    // Find the body part (after :- or -->)
+    const bodyStartMatch = lineText.match(/(:-|-->)/);
+    if (!bodyStartMatch) {
+      return []; // No body found
+    }
+
+    const bodyStartIndex = bodyStartMatch.index! + bodyStartMatch[0].length;
+    const bodyText = lineText.substring(bodyStartIndex);
+
+    // Find predicate calls in the body with exact arity checking
+    const bodyEdits = this.findAndRemovePredicateCallsInLineWithExactArity(bodyText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
+
+    // Adjust edit positions to account for body offset
+    return bodyEdits.map((edit: TextEdit) => {
+      const adjustedRange = new Range(
+        new Position(edit.range.start.line, edit.range.start.character + bodyStartIndex),
+        new Position(edit.range.end.line, edit.range.end.character + bodyStartIndex)
+      );
+      return TextEdit.replace(adjustedRange, edit.newText);
+    });
+  }
+
+  /**
+   * Find and remove predicate calls in clause body (after :- or -->)
+   */
+  private findAndRemovePredicateCallsInClauseBody(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    argumentPosition: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    // Find the body part (after :- or -->)
+    const bodyStartMatch = lineText.match(/(:-|-->)/);
+    if (!bodyStartMatch) {
+      return []; // No body found
+    }
+
+    const bodyStartIndex = bodyStartMatch.index! + bodyStartMatch[0].length;
+    const bodyText = lineText.substring(bodyStartIndex);
+
+    // Find predicate calls in the body with arity checking
+    const bodyEdits = this.findAndRemovePredicateCallsInLineWithArityCheck(bodyText, lineNum, predicateName, argumentPosition, isNonTerminal);
+
+    // Adjust edit positions to account for body offset
+    return bodyEdits.map((edit: TextEdit) => {
+      const adjustedRange = new Range(
+        new Position(edit.range.start.line, edit.range.start.character + bodyStartIndex),
+        new Position(edit.range.end.line, edit.range.end.character + bodyStartIndex)
+      );
+      return TextEdit.replace(adjustedRange, edit.newText);
+    });
   }
 
   /**
@@ -2287,14 +3257,94 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     let endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, isNonTerminal);
 
     this.logger.debug(`Processing consecutive clauses from line ${startLine + 1} to ${endLine + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
+    const currentArity = newOrder.length;
 
-    // Process each line in all consecutive clauses to find predicate calls
+    // Process each line in all consecutive clauses
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const lineText = doc.lineAt(lineNum).text;
-      const lineEdits = this.findAndReorderPredicateCallsInLine(
-        lineText, lineNum, predicateName, newOrder, isNonTerminal
-      );
-      edits.push(...lineEdits);
+
+      // Check if this line contains a clause head (predicate definition)
+      const clauseHeadMatch = this.findClauseHead(lineText, predicateName, isNonTerminal);
+
+      if (clauseHeadMatch) {
+        // This line contains a clause head - only update if arity matches exactly
+        const headArity = this.countArguments(clauseHeadMatch.arguments);
+        this.logger.debug(`Found clause head with arity ${headArity}, target arity: ${currentArity} at line ${lineNum + 1}`);
+
+        if (headArity === currentArity) {
+          // Update the clause head
+          this.logger.debug(`Updating clause head: ${clauseHeadMatch.fullMatch}`);
+          const headEdits = this.updateClauseHeadForReorder(lineText, lineNum, clauseHeadMatch, newOrder, isNonTerminal);
+          edits.push(...headEdits);
+        } else {
+          this.logger.debug(`Skipping clause head with different arity (${headArity} vs ${currentArity})`);
+        }
+
+        // Always check for calls in the clause body (after :- or -->)
+        const bodyEdits = this.findAndReorderPredicateCallsInClauseBody(lineText, lineNum, predicateName, newOrder, isNonTerminal);
+        edits.push(...bodyEdits);
+      } else {
+        // No clause head found - update all predicate calls in the line
+        const lineEdits = this.findAndReorderPredicateCallsInLine(lineText, lineNum, predicateName, newOrder, isNonTerminal);
+        edits.push(...lineEdits);
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Create edit for removing argument from a predicate call or definition
+   */
+  private createArgumentRemovalEdit(
+    doc: TextDocument,
+    location: { uri: Uri; range: Range },
+    argumentPosition: number,
+    targetArity: number,
+    isNonTerminal: boolean,
+    predicateName: string
+  ): TextEdit[] {
+    this.logger.debug(`createArgumentRemovalEdit: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} at line ${location.range.start.line + 1}, removing position ${argumentPosition}`);
+    const edits: TextEdit[] = [];
+    const startLine = location.range.start.line;
+
+    // Find all consecutive clauses of the same predicate/non-terminal
+    let endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, isNonTerminal);
+
+    this.logger.debug(`Processing consecutive clauses from line ${startLine + 1} to ${endLine + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
+
+    // Process each line in all consecutive clauses
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      // Check if this line contains a clause head (predicate definition)
+      const clauseHeadMatch = this.findClauseHead(lineText, predicateName, isNonTerminal);
+
+      if (clauseHeadMatch) {
+        // This line contains a clause head - only update if arity matches exactly
+        const headArity = this.countArguments(clauseHeadMatch.arguments);
+        // For removal, the current arity is headArity, target arity is headArity - 1
+        this.logger.debug(`Found clause head with arity ${headArity} at line ${lineNum + 1}`);
+
+        if (headArity > 0) {
+          // Update the clause head (remove argument)
+          this.logger.debug(`Updating clause head: ${clauseHeadMatch.fullMatch}`);
+          const headEdits = this.updateClauseHeadForRemoval(lineText, lineNum, clauseHeadMatch, argumentPosition, isNonTerminal);
+          edits.push(...headEdits);
+        } else {
+          this.logger.debug(`Skipping clause head with no arguments`);
+        }
+
+        // Always check for calls in the clause body (after :- or -->)
+        // For remove operations, we use the target arity (before removal)
+        const bodyEdits = this.findAndRemovePredicateCallsInClauseBodyWithArity(lineText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
+        edits.push(...bodyEdits);
+      } else {
+        // No clause head found - this means we're processing calls/references
+        // Use the target arity from the method parameter (determined from predicate indicator)
+        const lineEdits = this.findAndRemovePredicateCallsInLineWithExactArity(lineText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
+        edits.push(...lineEdits);
+      }
     }
 
     return edits;
@@ -2483,6 +3533,92 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Find and remove all predicate calls in a single line
+   */
+  private findAndRemovePredicateCallsInLine(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    argumentPosition: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    this.logger.debug(`findAndRemovePredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
+    const edits: TextEdit[] = [];
+
+    if (isNonTerminal) {
+      // For non-terminals, find all occurrences of the non-terminal name
+      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      let match;
+
+      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
+        const startPos = match.index;
+        const endPos = startPos + match[0].length;
+
+        // Check if this is followed by an opening parenthesis
+        if (endPos < lineText.length && lineText[endPos] === '(') {
+          const openParenPos = endPos;
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+
+          if (closeParenPos !== -1) {
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+
+            if (args.length > 0 && argumentPosition <= args.length) {
+              // Remove the specified argument
+              const newArgs = [...args];
+              newArgs.splice(argumentPosition - 1, 1); // Convert to 0-based index
+              const newArgsText = newArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+              this.logger.debug(`Removed argument ${argumentPosition} from non-terminal: "${newArgsText}"`);
+            }
+          }
+        }
+      }
+    } else {
+      // For predicates, find all occurrences of the predicate name
+      const predicatePattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
+      let match;
+
+      while ((match = predicatePattern.exec(lineText)) !== null) {
+        const startPos = match.index;
+        const openParenPos = startPos + match[0].length - 1; // Position of the opening parenthesis
+
+        const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+
+        if (closeParenPos !== -1) {
+          const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+          const args = ArgumentUtils.parseArguments(argsText);
+
+          if (args.length > 0 && argumentPosition <= args.length) {
+            // Remove the specified argument
+            const newArgs = [...args];
+            newArgs.splice(argumentPosition - 1, 1); // Convert to 0-based index
+            const newArgsText = newArgs.join(', ');
+
+            edits.push(TextEdit.replace(
+              new Range(
+                new Position(lineNum, openParenPos + 1),
+                new Position(lineNum, closeParenPos)
+              ),
+              newArgsText
+            ));
+            this.logger.debug(`Removed argument ${argumentPosition} from predicate: "${newArgsText}"`);
+          }
+        }
+      }
+    }
+
+    return edits;
+  }
+
+  /**
    * Find and update consecutive directives for reordering
    */
   private findAndUpdateConsecutiveDirectivesForReorder(
@@ -2595,6 +3731,376 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     return edits;
+  }
+
+  /**
+   * Find all locations that need to be updated
+   */
+  private async findAllLocationsToUpdate(
+    document: TextDocument,
+    position: Position,
+    currentIndicator: string,
+    isNonTerminal: boolean
+  ): Promise<{
+    locations: { uri: Uri; range: Range }[],
+    declarationLocation: Location | null
+  }> {
+    const allLocations: { uri: Uri; range: Range }[] = [];
+    const token = { isCancellationRequested: false } as CancellationToken;
+
+    // Find declaration location (if exists)
+    const declarationLocation = await this.declarationProvider.provideDeclaration(document, position, token);
+
+    if (declarationLocation && this.isValidLocation(declarationLocation)) {
+      // Add declaration location
+      allLocations.push({ uri: declarationLocation.uri, range: declarationLocation.range });
+      this.logger.debug(`Found declaration at: ${declarationLocation.uri.fsPath}:${declarationLocation.range.start.line + 1}`);
+
+      // Find definition and references from declaration position
+      const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
+      const declarationPosition = this.findPredicatePositionInDeclaration(declarationDocument, declarationLocation.range.start.line, currentIndicator);
+
+      // Get definition location
+      const definitionLocation = await this.definitionProvider.provideDefinition(declarationDocument, declarationPosition, token);
+      if (definitionLocation && this.isValidLocation(definitionLocation)) {
+        allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
+        this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
+      }
+
+      // Get implementation locations
+      const implementationLocations = await this.implementationProvider.provideImplementation(declarationDocument, declarationPosition, token);
+      if (implementationLocations) {
+        const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
+        for (const implLoc of implArray) {
+          const location = 'targetUri' in implLoc ?
+            { uri: implLoc.targetUri, range: implLoc.targetRange } :
+            { uri: implLoc.uri, range: implLoc.range };
+
+          if (this.isValidLocation(location)) {
+            allLocations.push(location);
+            this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
+          }
+        }
+      }
+
+      // Get reference locations
+      const referenceLocations = await this.referenceProvider.provideReferences(
+        declarationDocument,
+        declarationPosition,
+        { includeDeclaration: false },
+        token
+      );
+
+      if (referenceLocations) {
+        for (const refLoc of referenceLocations) {
+          allLocations.push({ uri: refLoc.uri, range: refLoc.range });
+          this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}`);
+        }
+      }
+    } else {
+      // No declaration found - find definition and references from current position
+      const definitionLocation = await this.definitionProvider.provideDefinition(document, position, token);
+      if (definitionLocation && this.isValidLocation(definitionLocation)) {
+        allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
+        this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
+
+        // Use the definition location to find implementations and references
+        const definitionDocument = await workspace.openTextDocument(definitionLocation.uri);
+        const definitionPosition = this.findPredicatePositionInDefinition(definitionDocument, definitionLocation.range.start.line, currentIndicator, isNonTerminal);
+
+        // Get implementation locations
+        const implementationLocations = await this.implementationProvider.provideImplementation(definitionDocument, definitionPosition, token);
+        if (implementationLocations) {
+          const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
+          for (const implLoc of implArray) {
+            const location = 'targetUri' in implLoc ?
+              { uri: implLoc.targetUri, range: implLoc.targetRange } :
+              { uri: implLoc.uri, range: implLoc.range };
+
+            if (this.isValidLocation(location)) {
+              allLocations.push(location);
+              this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
+            }
+          }
+        }
+
+        // Get reference locations
+        const referenceLocations = await this.referenceProvider.provideReferences(
+          definitionDocument,
+          definitionPosition,
+          { includeDeclaration: false },
+          token
+        );
+
+        if (referenceLocations && referenceLocations.length > 0) {
+          for (const refLoc of referenceLocations) {
+            allLocations.push({ uri: refLoc.uri, range: refLoc.range });
+            this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}:${refLoc.range.start.character}-${refLoc.range.end.character}`);
+          }
+        }
+      }
+    }
+
+    // Remove duplicates by creating a unique set based on URI and line number
+    const uniqueLocations = this.deduplicateLocations(allLocations);
+
+    return {
+      locations: uniqueLocations,
+      declarationLocation: declarationLocation && this.isValidLocation(declarationLocation) ? declarationLocation : null
+    };
+  }
+
+  /**
+   * Update info directive arguments for removal
+   */
+  private updateInfoDirectiveArgumentsForRemoval(lineText: string, argumentPosition: number, currentArity: number): string {
+    let updatedLine = lineText;
+
+    // Handle argnames and arguments lists
+    if (lineText.includes('argnames') || lineText.includes('arguments')) {
+      // If removing the last argument and it would result in an empty list, we'll handle this in the consecutive directives method
+      if (currentArity === 1) {
+        return updatedLine; // Don't modify here, let consecutive directives handle deletion
+      }
+
+      // Find the list and remove the specified argument
+      const listMatch = lineText.match(/\[(.*?)\]/);
+      if (listMatch) {
+        const listContent = listMatch[1];
+        const args = listContent.split(',').map(arg => arg.trim().replace(/^['"]|['"]$/g, ''));
+
+        if (args.length >= argumentPosition) {
+          args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
+          const newListContent = args.map(arg => `'${arg}'`).join(', ');
+          updatedLine = updatedLine.replace(/\[.*?\]/, `[${newListContent}]`);
+        }
+      }
+    }
+
+    return updatedLine;
+  }
+
+  /**
+   * Find and update consecutive directives for removal
+   */
+  private findAndUpdateConsecutiveDirectivesForRemoval(
+    doc: TextDocument,
+    scopeLine: number,
+    predicateName: string,
+    currentIndicator: string,
+    newIndicator: string,
+    argumentPosition: number,
+    currentArity: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+    const totalLines = doc.lineCount;
+    let insideInfoDirective = false;
+
+    // Start searching from the line after the scope directive
+    let lineNum = scopeLine + 1;
+
+    while (lineNum < totalLines) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Skip empty lines and comments
+      if (trimmedLine === '' || trimmedLine.startsWith('%')) {
+        lineNum++;
+        continue;
+      }
+
+      if (trimmedLine.startsWith(':-')) {
+        // This is a directive
+        let updatedLine = lineText;
+
+        // Update indicator if present
+        if (lineText.includes(currentIndicator)) {
+          this.logger.debug(`Updating indicator in directive: ${currentIndicator} → ${newIndicator}`);
+          updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
+        }
+
+        // Handle specific directive types
+        if (lineText.includes('info(')) {
+          insideInfoDirective = true;
+
+          // Check for argnames/arguments patterns and handle removal
+          if (currentArity === 1 && (lineText.includes('argnames') || lineText.includes('arguments'))) {
+            // If this is the only argument and we're removing it, delete the entire line
+            const edit = TextEdit.delete(new Range(
+              new Position(lineNum, 0),
+              new Position(lineNum + 1, 0)
+            ));
+            edits.push(edit);
+            lineNum++;
+            continue;
+          } else {
+            // Update the arguments list
+            updatedLine = this.updateInfoDirectiveArgumentsForRemoval(updatedLine, argumentPosition, currentArity);
+          }
+        } else if (lineText.includes('mode(')) {
+          updatedLine = this.updateModeDirectiveForRemoval(lineText, predicateName, argumentPosition, currentArity);
+        } else if (lineText.includes('meta_predicate(') || lineText.includes('meta_non_terminal(')) {
+          updatedLine = this.updateMetaDirectiveForRemoval(lineText, predicateName, argumentPosition, currentArity, isNonTerminal);
+        }
+
+        // Add edit if line was modified
+        if (updatedLine !== lineText) {
+          const edit = TextEdit.replace(
+            new Range(
+              new Position(lineNum, 0),
+              new Position(lineNum, lineText.length)
+            ),
+            updatedLine
+          );
+          edits.push(edit);
+        }
+
+        // Check if this line ends the info directive
+        if (trimmedLine.includes(']).')) {
+          this.logger.debug(`Info directive ends at line ${lineNum + 1}`);
+          insideInfoDirective = false;
+        }
+      } else if (insideInfoDirective) {
+        // We're inside an info directive, check for argnames/arguments patterns
+        if (currentArity === 1 && (lineText.includes('argnames') || lineText.includes('arguments'))) {
+          // Delete the entire line if it contains argnames/arguments and we're removing the only argument
+          const edit = TextEdit.delete(new Range(
+            new Position(lineNum, 0),
+            new Position(lineNum + 1, 0)
+          ));
+          edits.push(edit);
+        } else {
+          // Update the arguments list
+          const updatedLine = this.updateInfoDirectiveArgumentsForRemoval(lineText, argumentPosition, currentArity);
+          if (updatedLine !== lineText) {
+            const edit = TextEdit.replace(
+              new Range(
+                new Position(lineNum, 0),
+                new Position(lineNum, lineText.length)
+              ),
+              updatedLine
+            );
+            edits.push(edit);
+          }
+        }
+
+        // Check if this line ends the info directive
+        if (trimmedLine.includes(']).')) {
+          this.logger.debug(`Info directive ends at line ${lineNum + 1}`);
+          insideInfoDirective = false;
+        }
+      } else {
+        // This is not a directive and we're not inside an info directive, stop searching
+        this.logger.debug(`Stopping consecutive directive search at non-directive line ${lineNum + 1}`);
+        break;
+      }
+
+      lineNum++;
+    }
+
+    return edits;
+  }
+
+  /**
+   * Update info directive for argument removal
+   */
+  private updateInfoDirectiveForRemoval(
+    lineText: string,
+    predicateName: string,
+    argumentPosition: number,
+    currentArity: number,
+    isNonTerminal: boolean
+  ): string | null {
+    // Handle argnames and arguments lists
+    if (lineText.includes('argnames') || lineText.includes('arguments')) {
+      // If removing the last argument and it would result in an empty list, delete the line
+      if (currentArity === 1) {
+        return ''; // Signal to delete the line
+      }
+
+      // Find the list and remove the specified argument
+      const listMatch = lineText.match(/\[(.*?)\]/);
+      if (listMatch) {
+        const listContent = listMatch[1];
+        const args = listContent.split(',').map(arg => arg.trim().replace(/^['"]|['"]$/g, ''));
+
+        if (args.length >= argumentPosition) {
+          args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
+          const newListContent = args.map(arg => `'${arg}'`).join(', ');
+          return lineText.replace(/\[.*?\]/, `[${newListContent}]`);
+        }
+      }
+    }
+
+    return lineText; // No changes needed
+  }
+
+  /**
+   * Update mode directive for argument removal
+   */
+  private updateModeDirectiveForRemoval(
+    lineText: string,
+    predicateName: string,
+    argumentPosition: number,
+    currentArity: number
+  ): string {
+    // Pattern: mode(predicate_name(arg1, arg2), mode_info)
+    const modePattern = new RegExp(`mode\\s*\\(\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]+)\\)\\s*,\\s*([^)]+)\\)`, 'g');
+
+    return lineText.replace(modePattern, (match, argsText, modeInfo) => {
+      const args = ArgumentUtils.parseArguments(argsText);
+      if (args.length >= argumentPosition) {
+        args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
+        const newArgsText = args.join(', ');
+        return `mode(${predicateName}(${newArgsText}), ${modeInfo})`;
+      }
+      return match;
+    });
+  }
+
+  /**
+   * Update meta directive for argument removal
+   */
+  private updateMetaDirectiveForRemoval(
+    lineText: string,
+    predicateName: string,
+    argumentPosition: number,
+    currentArity: number,
+    isNonTerminal: boolean
+  ): string {
+    const directiveType = isNonTerminal ? 'meta_non_terminal' : 'meta_predicate';
+    const pattern = new RegExp(`${directiveType}\\s*\\(\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]+)\\)\\s*\\)`, 'g');
+
+    return lineText.replace(pattern, (match, argsText) => {
+      const args = ArgumentUtils.parseArguments(argsText);
+      if (args.length >= argumentPosition) {
+        args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
+        const newArgsText = args.join(', ');
+        return `${directiveType}(${predicateName}(${newArgsText}))`;
+      }
+      return match;
+    });
+  }
+
+  /**
+   * Update general directive for argument removal
+   */
+  private updateDirectiveForRemoval(
+    lineText: string,
+    predicateName: string,
+    currentIndicator: string,
+    argumentPosition: number,
+    currentArity: number,
+    isNonTerminal: boolean
+  ): string {
+    // Handle general directives that contain the predicate/non-terminal
+    const separator = isNonTerminal ? '//' : '/';
+    const newArity = currentArity - 1;
+    const newIndicator = `${predicateName}${separator}${newArity}`;
+
+    // Replace the indicator
+    return lineText.replace(currentIndicator, newIndicator);
   }
 
   /**
