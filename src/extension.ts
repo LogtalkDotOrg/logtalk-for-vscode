@@ -364,6 +364,14 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.reorderArguments', async (document, position) => {
+      if (refactorProvider) {
+        await refactorProvider.reorderArguments(document, position);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

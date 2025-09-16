@@ -92,6 +92,31 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         arguments: [document, position]
       };
       actions.push(addArgumentAction);
+
+      // Check if the predicate/non-terminal has arguments to reorder
+      const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
+                        Utils.getPredicateIndicatorUnderCursor(document, position) ||
+                        Utils.getCallUnderCursor(document, position);
+
+      if (indicator) {
+        const separator = indicator.includes('//') ? '//' : '/';
+        const parts = indicator.split(separator);
+        if (parts.length === 2) {
+          const currentArity = parseInt(parts[1]);
+          if (!isNaN(currentArity) && currentArity > 1) {
+            const reorderArgumentsAction = new CodeAction(
+              "Reorder predicate/non-terminal arguments",
+              CodeActionKind.Refactor
+            );
+            reorderArgumentsAction.command = {
+              command: "logtalk.refactor.reorderArguments",
+              title: "Reorder predicate/non-terminal arguments",
+              arguments: [document, position]
+            };
+            actions.push(reorderArgumentsAction);
+          }
+        }
+      }
     }
 
     return actions;
@@ -612,6 +637,93 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Reorder arguments of predicate/non-terminal refactoring operation
+   */
+  public async reorderArguments(document: TextDocument, position: Position): Promise<void> {
+    this.logger.debug(`=== reorderArguments method called ===`);
+    try {
+      // Step 1: Validate that we're on a predicate call
+      this.logger.debug(`Looking for predicate indicator at cursor position...`);
+      const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
+                        Utils.getPredicateIndicatorUnderCursor(document, position) ||
+                        Utils.getCallUnderCursor(document, position);
+
+      if (!indicator) {
+        this.logger.debug(`No predicate indicator found at cursor position`);
+        window.showErrorMessage("No predicate found at cursor position.");
+        return;
+      }
+
+      this.logger.debug(`Found predicate indicator: ${indicator}`);
+
+      // Extract predicate name and arity - use proper type determination
+      const token = { isCancellationRequested: false } as CancellationToken;
+      this.logger.debug(`Initial indicator from cursor: "${indicator}"`);
+      this.logger.debug(`About to call PredicateUtils.determinePredicateType...`);
+
+      let typeResult: PredicateTypeResult;
+      try {
+        typeResult = await PredicateUtils.determinePredicateType(
+          document,
+          position,
+          indicator,
+          this.declarationProvider,
+          token
+        );
+        this.logger.debug(`Type determination completed successfully`);
+      } catch (error) {
+        this.logger.error(`Type determination failed: ${error}`);
+        window.showErrorMessage(`Type determination failed: ${error}`);
+        return;
+      }
+
+      this.logger.debug(`Type determination result: isNonTerminal=${typeResult.isNonTerminal}, currentIndicator="${typeResult.currentIndicator}", newIndicator="${typeResult.newIndicator}"`);
+      const finalIsNonTerminal = typeResult.isNonTerminal;
+      const separator = finalIsNonTerminal ? '//' : '/';
+      const parts = typeResult.currentIndicator.split(separator);
+
+      if (parts.length !== 2) {
+        window.showErrorMessage("Invalid predicate indicator format.");
+        return;
+      }
+
+      const predicateName = parts[0];
+      const currentArity = parseInt(parts[1]);
+
+      if (isNaN(currentArity)) {
+        window.showErrorMessage("Invalid arity in predicate indicator.");
+        return;
+      }
+
+      if (currentArity < 2) {
+        window.showErrorMessage("Cannot reorder arguments: predicate/non-terminal must have at least 2 arguments.");
+        return;
+      }
+
+      // Step 2: Ask user for new argument order
+      const newOrder = await this.promptForArgumentOrder(currentArity);
+      if (!newOrder) {
+        return; // User cancelled
+      }
+
+      // Step 3: Perform the refactoring
+      await this.performReorderArgumentsRefactoring(
+        document,
+        position,
+        predicateName,
+        currentArity,
+        finalIsNonTerminal,
+        newOrder,
+        typeResult.currentIndicator
+      );
+
+    } catch (error) {
+      this.logger.error(`Error reordering arguments: ${error}`);
+      window.showErrorMessage(`Error reordering arguments: ${error}`);
+    }
+  }
+
+  /**
    * Prompt user for argument name with validation
    */
   private async promptForArgumentName(): Promise<string | undefined> {
@@ -655,6 +767,237 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     });
 
     return result ? parseInt(result.trim()) : undefined;
+  }
+
+  /**
+   * Prompt user for new argument order
+   */
+  private async promptForArgumentOrder(currentArity: number): Promise<number[] | undefined> {
+    const result = await window.showInputBox({
+      prompt: `Enter the new argument order as comma-separated positions (1 to ${currentArity})`,
+      placeHolder: `e.g., for ${currentArity} arguments: ${Array.from({length: currentArity}, (_, i) => i + 1).reverse().join(',')}`,
+      validateInput: (value: string) => {
+        if (!value.trim()) {
+          return "Argument order cannot be empty";
+        }
+
+        const positions = value.trim().split(',').map(p => p.trim());
+
+        // Check that we have exactly currentArity positions
+        if (positions.length !== currentArity) {
+          return `Must specify exactly ${currentArity} positions`;
+        }
+
+        // Parse and validate each position
+        const parsedPositions: number[] = [];
+        for (const pos of positions) {
+          const num = parseInt(pos);
+          if (isNaN(num)) {
+            return `"${pos}" is not a valid number`;
+          }
+          if (num < 1 || num > currentArity) {
+            return `Position ${num} is out of range (must be 1-${currentArity})`;
+          }
+          parsedPositions.push(num);
+        }
+
+        // Check for duplicates
+        const uniquePositions = new Set(parsedPositions);
+        if (uniquePositions.size !== parsedPositions.length) {
+          return "All positions must be unique (no repetitions)";
+        }
+
+        // Check that all positions from 1 to currentArity are present
+        for (let i = 1; i <= currentArity; i++) {
+          if (!uniquePositions.has(i)) {
+            return `Missing position ${i}`;
+          }
+        }
+
+        return null;
+      }
+    });
+
+    if (!result) {
+      return undefined;
+    }
+
+    return result.trim().split(',').map(p => parseInt(p.trim()));
+  }
+
+  /**
+   * Perform the actual reorder arguments refactoring
+   */
+  private async performReorderArgumentsRefactoring(
+    document: TextDocument,
+    position: Position,
+    predicateName: string,
+    currentArity: number,
+    isNonTerminal: boolean,
+    newOrder: number[],
+    currentIndicator: string
+  ): Promise<void> {
+    try {
+      this.logger.debug(`Reordering arguments for ${currentIndicator} with new order: [${newOrder.join(', ')}]`);
+
+      // Step 1: Find declaration location (if exists)
+      const token = { isCancellationRequested: false } as CancellationToken;
+      const declarationLocation = await this.declarationProvider.provideDeclaration(document, position, token);
+
+      // Step 2: Find all locations that need to be updated (same logic as add argument)
+      const allLocations: { uri: Uri; range: Range }[] = [];
+
+      if (declarationLocation && this.isValidLocation(declarationLocation)) {
+        // Add declaration location
+        allLocations.push({ uri: declarationLocation.uri, range: declarationLocation.range });
+        this.logger.debug(`Found declaration at: ${declarationLocation.uri.fsPath}:${declarationLocation.range.start.line + 1}`);
+
+        // Find definition and references from declaration position
+        const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
+        const declarationPosition = this.findPredicatePositionInDeclaration(declarationDocument, declarationLocation.range.start.line, currentIndicator);
+        this.logger.debug(`Declaration position found at: ${declarationPosition.line}:${declarationPosition.character}`);
+
+        // Get definition location (first predicate clause)
+        this.logger.debug(`Calling definition provider from declaration position...`);
+        const definitionLocation = await this.definitionProvider.provideDefinition(declarationDocument, declarationPosition, token);
+        if (definitionLocation && this.isValidLocation(definitionLocation)) {
+          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
+          this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
+        }
+
+        // Get implementation locations (all predicate clauses)
+        this.logger.debug(`Calling implementation provider from declaration position...`);
+        const implementationLocations = await this.implementationProvider.provideImplementation(declarationDocument, declarationPosition, token);
+        if (implementationLocations) {
+          const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
+          for (const implLoc of implArray) {
+            // Handle both Location and LocationLink types
+            const location = 'targetUri' in implLoc ?
+              { uri: implLoc.targetUri, range: implLoc.targetRange } :
+              { uri: implLoc.uri, range: implLoc.range };
+
+            if (this.isValidLocation(location)) {
+              allLocations.push(location);
+              this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
+            }
+          }
+        }
+
+        // Get reference locations (calls to the predicate)
+        this.logger.debug(`Calling reference provider from declaration position...`);
+        const referenceLocations = await this.referenceProvider.provideReferences(
+          declarationDocument,
+          declarationPosition,
+          { includeDeclaration: false }, // Don't include declaration since we already have it
+          token
+        );
+
+        this.logger.debug(`Reference provider returned ${referenceLocations ? referenceLocations.length : 0} locations`);
+        if (referenceLocations) {
+          for (const refLoc of referenceLocations) {
+            allLocations.push({ uri: refLoc.uri, range: refLoc.range });
+            this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}`);
+          }
+        }
+      } else {
+        // No declaration found - find definition and references from current position
+        this.logger.debug(`No declaration found for: ${currentIndicator}. Finding definition and references...`);
+
+        this.logger.debug(`Calling definition provider from current position...`);
+        const definitionLocation = await this.definitionProvider.provideDefinition(document, position, token);
+        if (definitionLocation && this.isValidLocation(definitionLocation)) {
+          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
+          this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
+
+          // Use the definition location to find implementations and references
+          const definitionDocument = await workspace.openTextDocument(definitionLocation.uri);
+          this.logger.debug(`Definition location range: ${definitionLocation.range.start.line}:${definitionLocation.range.start.character}-${definitionLocation.range.end.line}:${definitionLocation.range.end.character}`);
+          const definitionPosition = this.findPredicatePositionInDefinition(definitionDocument, definitionLocation.range.start.line, currentIndicator, isNonTerminal);
+          this.logger.debug(`Definition position found at: ${definitionPosition.line}:${definitionPosition.character}`);
+
+          // Get implementation locations (all predicate clauses)
+          this.logger.debug(`Calling implementation provider from definition position...`);
+          const implementationLocations = await this.implementationProvider.provideImplementation(definitionDocument, definitionPosition, token);
+          if (implementationLocations) {
+            const implArray = Array.isArray(implementationLocations) ? implementationLocations : [implementationLocations];
+            for (const implLoc of implArray) {
+              // Handle both Location and LocationLink types
+              const location = 'targetUri' in implLoc ?
+                { uri: implLoc.targetUri, range: implLoc.targetRange } :
+                { uri: implLoc.uri, range: implLoc.range };
+
+              if (this.isValidLocation(location)) {
+                allLocations.push(location);
+                this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
+              }
+            }
+          }
+
+          this.logger.debug(`Calling reference provider from definition position...`);
+          const referenceLocations = await this.referenceProvider.provideReferences(
+            definitionDocument,
+            definitionPosition,
+            { includeDeclaration: false }, // Don't include declaration since we don't have one
+            token
+          );
+
+          this.logger.debug(`Reference provider returned ${referenceLocations ? referenceLocations.length : 0} locations`);
+          if (referenceLocations && referenceLocations.length > 0) {
+            for (const refLoc of referenceLocations) {
+              allLocations.push({ uri: refLoc.uri, range: refLoc.range });
+              this.logger.debug(`Found reference at: ${refLoc.uri.fsPath}:${refLoc.range.start.line + 1}:${refLoc.range.start.character}-${refLoc.range.end.character}`);
+            }
+          } else {
+            this.logger.debug(`Reference provider returned ${referenceLocations ? '0 locations' : 'null'} - will rely on definition/implementation locations for local ${isNonTerminal ? 'non-terminal' : 'predicate'}`);
+          }
+        } else {
+          this.logger.debug(`No definition found for: ${currentIndicator}`);
+        }
+      }
+
+      // Remove duplicates by creating a unique set based on URI and line number
+      const uniqueLocations = this.deduplicateLocations(allLocations);
+
+      this.logger.debug(`Total locations found: ${allLocations.length}, unique: ${uniqueLocations.length}`);
+      for (const loc of uniqueLocations) {
+        this.logger.debug(`Location: ${loc.uri.fsPath}:${loc.range.start.line + 1}`);
+      }
+
+      // Step 3: Create workspace edit
+      const workspaceEdit = new WorkspaceEdit();
+      await this.createReorderArgumentsEdits(
+        workspaceEdit,
+        uniqueLocations,
+        declarationLocation,
+        predicateName,
+        currentIndicator,
+        isNonTerminal,
+        newOrder,
+        currentArity
+      );
+
+      // Step 4: Apply the edit
+      this.logger.debug(`Applying workspace edit with ${workspaceEdit.size} files...`);
+      for (const [uri, edits] of workspaceEdit.entries()) {
+        this.logger.debug(`File: ${uri.fsPath} - ${edits.length} edits`);
+        for (const edit of edits) {
+          this.logger.debug(`  Edit: ${edit.range.start.line + 1}:${edit.range.start.character + 1} - "${edit.newText}"`);
+        }
+      }
+
+      const success = await workspace.applyEdit(workspaceEdit);
+      if (success) {
+        this.logger.info(`Successfully reordered arguments for ${currentIndicator}`);
+        window.showInformationMessage(`Successfully reordered arguments for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${currentIndicator}`);
+      } else {
+        this.logger.error(`Failed to apply workspace edit for ${currentIndicator}`);
+        window.showErrorMessage("Failed to reorder arguments.");
+      }
+
+    } catch (error) {
+      this.logger.error(`Error in performReorderArgumentsRefactoring: ${error}`);
+      window.showErrorMessage(`Error reordering arguments: ${error}`);
+    }
   }
 
   /**
@@ -1087,6 +1430,121 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Create workspace edits for reordering arguments
+   */
+  private async createReorderArgumentsEdits(
+    workspaceEdit: WorkspaceEdit,
+    allLocations: { uri: Uri; range: Range }[],
+    declarationLocation: Location | null,
+    predicateName: string,
+    currentIndicator: string,
+    isNonTerminal: boolean,
+    newOrder: number[],
+    currentArity: number
+  ): Promise<void> {
+    // Group locations by file
+    const locationsByFile = new Map<string, { uri: Uri; range: Range }[]>();
+
+    for (const location of allLocations) {
+      const key = location.uri.toString();
+      if (!locationsByFile.has(key)) {
+        locationsByFile.set(key, []);
+      }
+      locationsByFile.get(key)!.push(location);
+    }
+
+    // Process each file
+    for (const [uriString, locations] of locationsByFile) {
+      const uri = Uri.parse(uriString);
+      const doc = await workspace.openTextDocument(uri);
+      const textEdits: TextEdit[] = [];
+
+      // Track scope directive locations to search for consecutive directives
+      const scopeDirectiveLines = new Set<number>();
+
+      for (const location of locations) {
+        const lineText = doc.lineAt(location.range.start.line).text;
+
+        // Check if this is a declaration location (scope directive)
+        const isDeclaration = declarationLocation &&
+                             location.uri.toString() === declarationLocation.uri.toString() &&
+                             location.range.start.line === declarationLocation.range.start.line;
+
+        // Check if this line contains a directive (scope, mode, info)
+        const isDirective = lineText.trim().startsWith(':-');
+
+        // Check if this directive is related to our predicate
+        const isRelatedDirective = isDirective && (
+          lineText.includes(currentIndicator) ||  // info(process_image/2, ...) or info(parse//2, ...)
+          lineText.includes(predicateName + '(') || // mode(process_image(...), ...) or mode(parse(...), ...)
+          (lineText.includes('public(') && lineText.includes(currentIndicator)) ||  // public(process_image/2) or public(parse//2)
+          (lineText.includes('protected(') && lineText.includes(currentIndicator)) ||  // protected(process_image/2) or protected(parse//2)
+          (lineText.includes('private(') && lineText.includes(currentIndicator))  // private(process_image/2) or private(parse//2)
+        );
+
+        if (isDeclaration || isRelatedDirective) {
+          // Handle directive - reorder arguments in directives
+          this.logger.debug(`Processing directive at line ${location.range.start.line + 1}: "${lineText.trim()}"`);
+          let updatedLine = lineText;
+
+          // Track scope directives for consecutive directive search
+          if (isDeclaration || ((lineText.includes('public(') || lineText.includes('protected(') || lineText.includes('private(')) &&
+              lineText.includes(currentIndicator))) {
+            scopeDirectiveLines.add(location.range.start.line);
+            this.logger.debug(`Found scope directive at line ${location.range.start.line + 1}, will search for consecutive directives`);
+          }
+
+          // Update argnames and arguments lists in info directives
+          if (lineText.includes('info(')) {
+            updatedLine = this.updateInfoDirectiveArgumentsForReorder(updatedLine, newOrder);
+          }
+
+          // Update mode directives: mode(predicate_name(args), mode_info)
+          if (lineText.includes('mode(') && lineText.includes(predicateName + '(')) {
+            this.logger.debug(`Updating mode directive for predicate: ${predicateName}`);
+            updatedLine = this.updateModeDirectiveForReorder(updatedLine, predicateName, newOrder);
+          }
+
+          // Update meta_predicate/meta_non_terminal directives
+          if (!isNonTerminal && lineText.includes('meta_predicate(') && lineText.includes(predicateName + '(')) {
+            this.logger.debug(`Updating meta_predicate directive for predicate: ${predicateName}`);
+            updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, 'meta_predicate');
+          }
+
+          if (isNonTerminal && lineText.includes('meta_non_terminal(') && lineText.includes(predicateName + '(')) {
+            this.logger.debug(`Updating meta_non_terminal directive for predicate: ${predicateName}`);
+            updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, 'meta_non_terminal');
+          }
+
+          const edit = TextEdit.replace(
+            new Range(
+              new Position(location.range.start.line, 0),
+              new Position(location.range.start.line, lineText.length)
+            ),
+            updatedLine
+          );
+          textEdits.push(edit);
+        } else {
+          // Handle predicate call/definition - reorder the arguments
+          const edits = this.createArgumentReorderEdit(doc, location, newOrder, isNonTerminal, predicateName);
+          textEdits.push(...edits);
+        }
+      }
+
+      // Search for consecutive directives after each scope directive
+      for (const scopeLine of scopeDirectiveLines) {
+        this.logger.debug(`Searching for consecutive directives after scope directive at line ${scopeLine + 1}`);
+        const consecutiveEdits = this.findAndUpdateConsecutiveDirectivesForReorder(
+          doc, scopeLine, predicateName, currentIndicator, newOrder, currentArity, isNonTerminal
+        );
+        textEdits.push(...consecutiveEdits);
+      }
+
+      workspaceEdit.set(uri, textEdits);
+    }
+  }
+
+  /**
    * Find and update consecutive directives that follow a scope directive
    */
   private findAndUpdateConsecutiveDirectives(
@@ -1478,34 +1936,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const edits: TextEdit[] = [];
     const startLine = location.range.start.line;
 
-    // Find the end of the clause by looking for the terminating period
-    let endLine = startLine;
-    let foundTerminator = false;
+    // Find all consecutive clauses of the same predicate/non-terminal
+    let endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, isNonTerminal);
 
-    for (let lineNum = startLine; lineNum < doc.lineCount; lineNum++) {
-      const lineText = doc.lineAt(lineNum).text;
+    this.logger.debug(`Processing consecutive clauses from line ${startLine + 1} to ${endLine + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
 
-      // Check if this line contains a period that terminates the clause
-      // We need to be careful about periods inside strings or comments
-      if (lineText.includes('.')) {
-        // Simple heuristic: if the line ends with a period (possibly followed by whitespace/comments)
-        // then this is likely the end of the clause
-        if (/\.\s*(?:%.*)?$/.test(lineText)) {
-          endLine = lineNum;
-          foundTerminator = true;
-          break;
-        }
-      }
-    }
-
-    if (!foundTerminator) {
-      // If we didn't find a terminator, just process the single line
-      endLine = startLine;
-    }
-
-    this.logger.debug(`Processing clause from line ${startLine + 1} to ${endLine + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
-
-    // Process each line in the clause to find predicate calls
+    // Process each line in all consecutive clauses to find predicate calls
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const lineText = doc.lineAt(lineNum).text;
       const lineEdits = this.findAndUpdatePredicateCallsInLine(
@@ -1688,6 +2124,477 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     return args;
+  }
+
+  /**
+   * Update info directive arguments for reordering
+   */
+  private updateInfoDirectiveArgumentsForReorder(lineText: string, newOrder: number[]): string {
+    let updatedLine = lineText;
+
+    // Update argnames is List pattern
+    const argnamesPattern = /^(\s*)argnames\s+is\s+(\[[^\]]*\])(.*)/;
+    const argnamesMatch = updatedLine.match(argnamesPattern);
+    if (argnamesMatch) {
+      const leadingWhitespace = argnamesMatch[1];
+      const currentList = argnamesMatch[2];
+      const trailingContent = argnamesMatch[3];
+
+      if (currentList !== '[]') {
+        // Parse existing arguments and reorder them
+        const listContent = currentList.slice(1, -1); // Remove [ and ]
+        const args = ArgumentUtils.parseArguments(listContent);
+        const reorderedArgs = this.reorderArray(args, newOrder);
+        const newList = `[${reorderedArgs.join(', ')}]`;
+        updatedLine = `${leadingWhitespace}argnames is ${newList}${trailingContent}`;
+        this.logger.debug(`Reordered argnames list: ${currentList} → ${newList}`);
+      }
+    }
+
+    // Update arguments is Pairs pattern (single-line only)
+    const argumentsPattern = /^(\s*)arguments\s+is\s+(\[[^\]]*\])(.*)/;
+    const argumentsMatch = updatedLine.match(argumentsPattern);
+    if (argumentsMatch) {
+      const leadingWhitespace = argumentsMatch[1];
+      const currentList = argumentsMatch[2];
+      const trailingContent = argumentsMatch[3];
+
+      if (currentList !== '[]') {
+        // Parse existing arguments and reorder them
+        const listContent = currentList.slice(1, -1); // Remove [ and ]
+        const args = ArgumentUtils.parseArguments(listContent);
+        const reorderedArgs = this.reorderArray(args, newOrder);
+        const newList = `[${reorderedArgs.join(', ')}]`;
+        updatedLine = `${leadingWhitespace}arguments is ${newList}${trailingContent}`;
+        this.logger.debug(`Reordered single-line arguments list: ${currentList} → ${newList}`);
+      }
+    }
+
+    return updatedLine;
+  }
+
+  /**
+   * Update mode directive for reordering
+   */
+  private updateModeDirectiveForReorder(
+    lineText: string,
+    predicateName: string,
+    newOrder: number[]
+  ): string {
+    // Pattern: mode(predicate_name(arg1, arg2), mode_info)
+    const predicateStart = lineText.indexOf(`${predicateName}(`);
+    if (predicateStart === -1) {
+      return lineText;
+    }
+
+    // Find the opening parenthesis after the predicate name
+    const openParenPos = predicateStart + predicateName.length;
+    if (lineText[openParenPos] !== '(') {
+      return lineText;
+    }
+
+    // Find the matching closing parenthesis using proper nesting
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+    if (closeParenPos === -1) {
+      return lineText;
+    }
+
+    // Extract current arguments
+    const currentArgs = lineText.substring(openParenPos + 1, closeParenPos).trim();
+    let newArgs: string;
+
+    if (currentArgs === '') {
+      // No current arguments
+      newArgs = '';
+    } else {
+      // Parse arguments properly handling nested structures
+      const argList = ArgumentUtils.parseArguments(currentArgs);
+      const reorderedArgs = this.reorderArray(argList, newOrder);
+      newArgs = reorderedArgs.join(', ');
+    }
+
+    // Replace the arguments part
+    const beforeArgs = lineText.substring(0, openParenPos + 1);
+    const afterArgs = lineText.substring(closeParenPos);
+    return beforeArgs + newArgs + afterArgs;
+  }
+
+  /**
+   * Update meta_predicate or meta_non_terminal directive for reordering
+   */
+  private updateMetaDirectiveForReorder(
+    lineText: string,
+    predicateName: string,
+    newOrder: number[],
+    directiveType: 'meta_predicate' | 'meta_non_terminal'
+  ): string {
+    // Pattern: meta_predicate(predicate_name(meta_template)) or meta_non_terminal(predicate_name(meta_template))
+    const metaPattern = new RegExp(`${directiveType}\\s*\\(\\s*${predicateName}\\s*\\(([^)]*)\\)\\s*\\)`);
+    const match = lineText.match(metaPattern);
+
+    if (match) {
+      const currentTemplate = match[1];
+      this.logger.debug(`Found ${directiveType} template: ${currentTemplate}`);
+
+      let newTemplate: string;
+      if (currentTemplate.trim() === '') {
+        // No current template arguments
+        newTemplate = '';
+      } else {
+        // Split current template and reorder meta arguments
+        const templateArgs = ArgumentUtils.parseArguments(currentTemplate);
+        const reorderedArgs = this.reorderArray(templateArgs, newOrder);
+        newTemplate = reorderedArgs.join(', ');
+      }
+
+      const updatedLine = lineText.replace(metaPattern, `${directiveType}(${predicateName}(${newTemplate}))`);
+      this.logger.debug(`Reordered ${directiveType} template: ${currentTemplate} → ${newTemplate}`);
+      return updatedLine;
+    }
+
+    return lineText;
+  }
+
+  /**
+   * Reorder an array according to the new order specification
+   */
+  private reorderArray(originalArray: string[], newOrder: number[]): string[] {
+    const reordered: string[] = new Array(originalArray.length);
+    for (let i = 0; i < newOrder.length; i++) {
+      const sourceIndex = newOrder[i] - 1; // Convert from 1-based to 0-based
+      if (sourceIndex >= 0 && sourceIndex < originalArray.length) {
+        reordered[i] = originalArray[sourceIndex];
+      }
+    }
+    return reordered;
+  }
+
+  /**
+   * Create edit for reordering arguments in a predicate call or definition
+   */
+  private createArgumentReorderEdit(
+    doc: TextDocument,
+    location: { uri: Uri; range: Range },
+    newOrder: number[],
+    isNonTerminal: boolean,
+    predicateName: string
+  ): TextEdit[] {
+    this.logger.debug(`createArgumentReorderEdit: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} at line ${location.range.start.line + 1}`);
+    const edits: TextEdit[] = [];
+    const startLine = location.range.start.line;
+
+    // Find all consecutive clauses of the same predicate/non-terminal
+    let endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, isNonTerminal);
+
+    this.logger.debug(`Processing consecutive clauses from line ${startLine + 1} to ${endLine + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
+
+    // Process each line in all consecutive clauses to find predicate calls
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const lineEdits = this.findAndReorderPredicateCallsInLine(
+        lineText, lineNum, predicateName, newOrder, isNonTerminal
+      );
+      edits.push(...lineEdits);
+    }
+
+    return edits;
+  }
+
+  /**
+   * Find the end line of all consecutive clauses of the same predicate/non-terminal
+   */
+  private findEndOfConsecutiveClauses(
+    doc: TextDocument,
+    startLine: number,
+    predicateName: string,
+    isNonTerminal: boolean
+  ): number {
+    let currentLine = startLine;
+    let lastClauseEndLine = startLine;
+
+    while (currentLine < doc.lineCount) {
+      const lineText = doc.lineAt(currentLine).text;
+      const trimmedLine = lineText.trim();
+
+      // Skip empty lines and comments
+      if (trimmedLine === '' || trimmedLine.startsWith('%')) {
+        currentLine++;
+        continue;
+      }
+
+      // Check if this line starts a clause of our predicate/non-terminal
+      const namePattern = new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`);
+
+      if (namePattern.test(lineText)) {
+        // This is a clause of our predicate/non-terminal
+        // Find the end of this clause
+        let clauseEndLine = this.findEndOfSingleClause(doc, currentLine);
+        lastClauseEndLine = clauseEndLine;
+        currentLine = clauseEndLine + 1;
+      } else if (trimmedLine.startsWith(':-')) {
+        // This is a directive, stop here
+        break;
+      } else if (this.isPredicateOrNonTerminalClause(lineText)) {
+        // This is a clause of a different predicate/non-terminal, stop here
+        break;
+      } else {
+        // Continue to next line
+        currentLine++;
+      }
+    }
+
+    return lastClauseEndLine;
+  }
+
+  /**
+   * Find the end of a single clause (until the terminating period)
+   */
+  private findEndOfSingleClause(doc: TextDocument, startLine: number): number {
+    for (let lineNum = startLine; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      // Check if this line contains a period that terminates the clause
+      if (lineText.includes('.')) {
+        // Simple heuristic: if the line ends with a period (possibly followed by whitespace/comments)
+        if (/\.\s*(?:%.*)?$/.test(lineText)) {
+          return lineNum;
+        }
+      }
+    }
+
+    // If no terminator found, return the start line
+    return startLine;
+  }
+
+  /**
+   * Check if a line contains a predicate or non-terminal clause
+   */
+  private isPredicateOrNonTerminalClause(lineText: string): boolean {
+    const trimmedLine = lineText.trim();
+
+    // Skip empty lines, comments, and directives
+    if (trimmedLine === '' || trimmedLine.startsWith('%') || trimmedLine.startsWith(':-')) {
+      return false;
+    }
+
+    // Check if it looks like a predicate clause (contains :- or ends with .)
+    // or a non-terminal clause (contains -->)
+    return trimmedLine.includes(':-') || trimmedLine.includes('-->') || /\.\s*(?:%.*)?$/.test(trimmedLine);
+  }
+
+  /**
+   * Find and reorder all predicate calls in a single line
+   */
+  private findAndReorderPredicateCallsInLine(
+    lineText: string,
+    lineNum: number,
+    predicateName: string,
+    newOrder: number[],
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    this.logger.debug(`findAndReorderPredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
+    const edits: TextEdit[] = [];
+
+    if (isNonTerminal) {
+      // For non-terminals, find all occurrences of the non-terminal name
+      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+      let match: RegExpExecArray | null;
+      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
+        // Skip if this is inside a comment
+        const beforeMatch = lineText.substring(0, match.index);
+        if (beforeMatch.includes('%')) {
+          const commentPos = beforeMatch.lastIndexOf('%');
+          if (commentPos > beforeMatch.lastIndexOf('\n')) {
+            continue;
+          }
+        }
+
+        this.logger.debug(`Found non-terminal occurrence at line ${lineNum + 1}, column ${match.index}: ${predicateName}`);
+        const nameEndPos = match.index + predicateName.length;
+
+        // Check if it has arguments: predicateName(args)
+        const afterName = lineText.substring(nameEndPos);
+        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+
+        if (argsMatch) {
+          // Already has arguments: predicateName(arg1, arg2)
+          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+          if (closeParenPos !== -1) {
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+
+            if (args.length === newOrder.length) {
+              // Reorder arguments
+              const reorderedArgs = this.reorderArray(args, newOrder);
+              const newArgsText = reorderedArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+              this.logger.debug(`Reordered non-terminal args: "${newArgsText}"`);
+            }
+          }
+        }
+      }
+
+    } else {
+      // Look for predicate calls with arguments
+      const callPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
+      let callMatch: RegExpExecArray | null;
+      while ((callMatch = callPattern.exec(lineText)) !== null) {
+        const startPos = callMatch.index + predicateName.length;
+        const openParenPos = lineText.indexOf('(', startPos);
+
+        if (openParenPos !== -1) {
+          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+
+          if (closeParenPos !== -1) {
+            this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...)`);
+
+            // Extract current arguments
+            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+            const args = ArgumentUtils.parseArguments(argsText);
+
+            if (args.length === newOrder.length) {
+              // Reorder arguments
+              const reorderedArgs = this.reorderArray(args, newOrder);
+              const newArgsText = reorderedArgs.join(', ');
+
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+              this.logger.debug(`Reordered predicate args: "${newArgsText}"`);
+            }
+          }
+        }
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Find and update consecutive directives for reordering
+   */
+  private findAndUpdateConsecutiveDirectivesForReorder(
+    doc: TextDocument,
+    scopeLine: number,
+    predicateName: string,
+    currentIndicator: string,
+    newOrder: number[],
+    currentArity: number,
+    isNonTerminal: boolean
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+    const totalLines = doc.lineCount;
+    let insideInfoDirective = false;
+
+    // Start searching from the line after the scope directive
+    let lineNum = scopeLine + 1;
+    while (lineNum < totalLines) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Stop if we hit an empty line (unless we're inside an info directive)
+      if (trimmedLine === '' && !insideInfoDirective) {
+        this.logger.debug(`Stopping consecutive directive search at empty line ${lineNum + 1}`);
+        break;
+      }
+
+      // Stop if we hit another scope directive (unless we're inside an info directive)
+      if (!insideInfoDirective && trimmedLine.startsWith(':-') &&
+          (trimmedLine.includes('public(') || trimmedLine.includes('protected(') || trimmedLine.includes('private('))) {
+        this.logger.debug(`Stopping consecutive directive search at scope directive line ${lineNum + 1}`);
+        break;
+      }
+
+      // Check if this starts a new directive
+      if (trimmedLine.startsWith(':-')) {
+        let updatedLine = lineText;
+        let hasChanges = false;
+
+        // Update info directives
+        if (trimmedLine.includes('info(') && trimmedLine.includes(currentIndicator)) {
+          this.logger.debug(`Found consecutive info directive at line ${lineNum + 1}: "${trimmedLine}"`);
+          insideInfoDirective = true;
+          updatedLine = this.updateInfoDirectiveArgumentsForReorder(updatedLine, newOrder);
+          hasChanges = true;
+        }
+
+        // Update mode directives
+        if (trimmedLine.includes('mode(') && trimmedLine.includes(predicateName + '(')) {
+          this.logger.debug(`Found consecutive mode directive at line ${lineNum + 1}: "${trimmedLine}"`);
+          updatedLine = this.updateModeDirectiveForReorder(updatedLine, predicateName, newOrder);
+          hasChanges = true;
+        }
+
+        // Update meta_predicate/meta_non_terminal directives
+        if (!isNonTerminal && trimmedLine.includes('meta_predicate(') && trimmedLine.includes(predicateName + '(')) {
+          this.logger.debug(`Found consecutive meta_predicate directive at line ${lineNum + 1}: "${trimmedLine}"`);
+          updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, 'meta_predicate');
+          hasChanges = true;
+        }
+
+        if (isNonTerminal && trimmedLine.includes('meta_non_terminal(') && trimmedLine.includes(predicateName + '(')) {
+          this.logger.debug(`Found consecutive meta_non_terminal directive at line ${lineNum + 1}: "${trimmedLine}"`);
+          updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, 'meta_non_terminal');
+          hasChanges = true;
+        }
+
+        if (hasChanges) {
+          const edit = TextEdit.replace(
+            new Range(
+              new Position(lineNum, 0),
+              new Position(lineNum, lineText.length)
+            ),
+            updatedLine
+          );
+          edits.push(edit);
+        }
+      } else if (insideInfoDirective) {
+        // We're inside an info directive, check for argnames/arguments patterns
+        const argnamesUpdated = this.updateInfoDirectiveArgumentsForReorder(lineText, newOrder);
+        if (argnamesUpdated !== lineText) {
+          this.logger.debug(`Found argnames/arguments pattern at line ${lineNum + 1}: "${trimmedLine}"`);
+
+          const edit = TextEdit.replace(
+            new Range(
+              new Position(lineNum, 0),
+              new Position(lineNum, lineText.length)
+            ),
+            argnamesUpdated
+          );
+          edits.push(edit);
+        }
+
+        // Check if this line ends the info directive
+        if (trimmedLine.includes(']).')) {
+          this.logger.debug(`Info directive ends at line ${lineNum + 1}`);
+          insideInfoDirective = false;
+        }
+      } else if (trimmedLine.startsWith(':-')) {
+        // This is some other directive, continue searching
+        lineNum++;
+        continue;
+      } else {
+        // This is not a directive and we're not inside an info directive, stop searching
+        this.logger.debug(`Stopping consecutive directive search at non-directive line ${lineNum + 1}`);
+        break;
+      }
+
+      lineNum++;
+    }
+
+    return edits;
   }
 
   /**

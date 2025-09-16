@@ -242,7 +242,9 @@ To rename a predicate (non-terminal), right-click on the predicate (non-terminal
 
 To rename an entity, right-click on the entity name and use the "Go to Type Definition" context menu item to go to the entity opening directive. Then, right-click on the entity name and select the "Rename Symbol" context menu item.
 
-To add a new argument to a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Add argument to predicate/non-terminal" context menu item and enter the new argument name and position. Due to VSCode limitations when a refactoring requires user input, this refactoring changes cannot be previewed.
+To add a new argument to a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Add argument to predicate/non-terminal" context menu item and enter the new argument name and position. To reorder the arguments of a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Reorder predicate/non-terminal arguments" context menu item and enter the new argument order.
+
+Known issue: Due to VSCode limitations, refactoring operations that require user input cannot be not previewed.
 
 ### Debugging support
 
