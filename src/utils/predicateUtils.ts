@@ -706,6 +706,142 @@ export class PredicateUtils {
   }
 
   /**
+   * Finds the range of a predicate call in a grammar rule starting at the given position
+   * @param document The text document
+   * @param position The position to start searching from
+   * @param indicator The predicate indicator (name/arity)
+   * @returns The range of the predicate call, or null if not found
+   */
+  static findPredicateCallRange(document: TextDocument, position: Position, indicator: string): Range | null {
+    try {
+      // Parse the indicator to extract predicate name
+      const match = indicator.match(/^(.+)\/(\d+)$/);
+      if (!match) {
+        return null;
+      }
+
+      const predicateName = match[1];
+      const namePattern = new RegExp(`\\b${this.escapeRegex(predicateName)}\\s*\\(`);
+
+      // Find the complete clause/rule range starting from the diagnostic position
+      const clauseRange = this.findClauseRangeFromPosition(document, position);
+      if (!clauseRange) {
+        return null;
+      }
+
+      // Search within the complete clause/rule for the predicate call
+      for (let searchLine = clauseRange.start.line; searchLine <= clauseRange.end.line; searchLine++) {
+        const lineText = document.lineAt(searchLine).text;
+        let startChar = 0;
+
+        // If this is the first line of the clause, start from the beginning
+        // If this is the diagnostic line, start from the diagnostic position
+        if (searchLine === position.line) {
+          startChar = position.character;
+        }
+
+        // Find the predicate call starting from the position
+        const searchText = lineText.substring(startChar);
+        const nameMatch = namePattern.exec(searchText);
+
+        if (nameMatch) {
+          // Found the predicate call on this line
+          const actualPosition = new Position(searchLine, startChar);
+          return this.findPredicateCallRangeOnLine(document, actualPosition, nameMatch);
+        }
+      }
+
+      return null;
+    } catch (error) {
+      logger.error(`Error finding predicate call range: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Find the complete clause/rule range starting from the given position (clause head)
+   */
+  private static findClauseRangeFromPosition(document: TextDocument, position: Position): Range | null {
+    try {
+      // The position already points to the clause head, so start from there
+      const clauseStartLine = position.line;
+
+      // Find the end of the clause starting from the clause head
+      const clauseEndLine = this.findClauseEndLine(document, clauseStartLine);
+
+      return new Range(
+        new Position(clauseStartLine, 0),
+        new Position(clauseEndLine, document.lineAt(clauseEndLine).text.length)
+      );
+    } catch (error) {
+      logger.error(`Error finding clause range: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Helper function to find the complete predicate call range on a specific line
+   */
+  private static findPredicateCallRangeOnLine(document: TextDocument, position: Position, nameMatch: RegExpExecArray): Range | null {
+    try {
+      // Calculate the start position of the predicate name
+      const nameStartCol = position.character + nameMatch.index;
+
+      // Find the opening parenthesis
+      const openParenCol = nameStartCol + nameMatch[0].length - 1;
+
+      // Find the matching closing parenthesis
+      let parenCount = 1;
+      let currentCol = openParenCol + 1;
+      let currentLine = position.line;
+
+      while (currentLine < document.lineCount && parenCount > 0) {
+        const currentLineText = document.lineAt(currentLine).text;
+
+        while (currentCol < currentLineText.length && parenCount > 0) {
+          const char = currentLineText[currentCol];
+
+          if (char === '(') {
+            parenCount++;
+          } else if (char === ')') {
+            parenCount--;
+          } else if (char === "'" || char === '"') {
+            // Skip quoted strings
+            const quote = char;
+            currentCol++;
+            while (currentCol < currentLineText.length && currentLineText[currentCol] !== quote) {
+              if (currentLineText[currentCol] === '\\') {
+                currentCol++; // Skip escaped character
+              }
+              currentCol++;
+            }
+          }
+
+          currentCol++;
+        }
+
+        if (parenCount > 0) {
+          currentLine++;
+          currentCol = 0;
+        }
+      }
+
+      if (parenCount === 0) {
+        // Found the matching closing parenthesis
+        return new Range(
+          new Position(position.line, nameStartCol),
+          new Position(currentLine, currentCol)
+        );
+      }
+
+      return null;
+    } catch (error) {
+      logger.error(`Error finding predicate call range: ${error}`);
+      return null;
+    }
+  }
+
+  /**
    * Escape special regex characters in a string
    */
   private static escapeRegex(str: string): string {

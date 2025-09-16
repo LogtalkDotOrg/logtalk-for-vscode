@@ -246,7 +246,7 @@ export class ArgumentUtils {
   static extractArgumentsAtPosition(text: string, nameEndPos: number): string[] {
     const afterName = text.substring(nameEndPos);
     const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
-    
+
     if (!argsMatch) {
       return []; // No parentheses, so no arguments
     }
@@ -257,5 +257,86 @@ export class ArgumentUtils {
     }
 
     return this.parseArguments(argsText);
+  }
+
+  /**
+   * Extract arguments from a complete predicate call text
+   * @param callText The complete predicate call text (e.g., "predicate(arg1, arg2, arg3)")
+   * @returns Array of argument strings, or empty array if no arguments
+   */
+  static extractArgumentsFromCall(callText: string): string[] {
+    if (!callText || callText.trim() === '') {
+      return [];
+    }
+
+    // Find the opening parenthesis
+    const openParenPos = callText.indexOf('(');
+    if (openParenPos === -1) {
+      return []; // No parentheses, so no arguments
+    }
+
+    // Find the matching closing parenthesis
+    const closeParenPos = this.findMatchingCloseParen(callText, openParenPos);
+    if (closeParenPos === -1) {
+      return []; // No matching closing parenthesis
+    }
+
+    // Extract the arguments text
+    const argsText = callText.substring(openParenPos + 1, closeParenPos);
+    if (!argsText || argsText.trim() === '') {
+      return []; // Empty parentheses
+    }
+
+    return this.parseArguments(argsText);
+  }
+
+  /**
+   * Reconstruct a predicate call with a subset of arguments
+   * @param callText The original predicate call text
+   * @param keepLastN Number of arguments to keep from the end (negative to remove from end)
+   * @returns Object with the reconstructed call and the removed arguments
+   */
+  static splitCallArguments(callText: string, keepLastN: number): {
+    mainCall: string,
+    removedArgs: string[]
+  } {
+    if (!callText || callText.trim() === '') {
+      return { mainCall: callText, removedArgs: [] };
+    }
+
+    // Find the predicate name
+    const openParenPos = callText.indexOf('(');
+    if (openParenPos === -1) {
+      return { mainCall: callText, removedArgs: [] };
+    }
+
+    const predicateName = callText.substring(0, openParenPos);
+    const args = this.extractArgumentsFromCall(callText);
+
+    if (args.length === 0) {
+      return { mainCall: callText, removedArgs: [] };
+    }
+
+    let mainArgs: string[];
+    let removedArgs: string[];
+
+    if (keepLastN < 0) {
+      // Remove N arguments from the end
+      const removeCount = Math.min(-keepLastN, args.length);
+      mainArgs = args.slice(0, args.length - removeCount);
+      removedArgs = args.slice(args.length - removeCount);
+    } else {
+      // Keep only the last N arguments
+      const keepCount = Math.min(keepLastN, args.length);
+      mainArgs = args.slice(-keepCount);
+      removedArgs = args.slice(0, args.length - keepCount);
+    }
+
+    // Reconstruct the main call
+    const mainCall = mainArgs.length > 0
+      ? `${predicateName}(${mainArgs.join(', ')})`
+      : predicateName;
+
+    return { mainCall, removedArgs };
   }
 }

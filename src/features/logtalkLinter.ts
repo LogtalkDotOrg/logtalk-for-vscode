@@ -21,6 +21,8 @@ import {
 } from "vscode";
 import * as path from "path";
 import { DiagnosticsUtils } from "../utils/diagnostics";
+import { PredicateUtils } from "../utils/predicateUtils";
+import { ArgumentUtils } from "../utils/argumentUtils";
 
 export default class LogtalkLinter implements CodeActionProvider {
 
@@ -51,7 +53,7 @@ export default class LogtalkLinter implements CodeActionProvider {
             actions.push(action);
           }
         }
-      }  
+      }
       return actions;
     }
 
@@ -109,6 +111,10 @@ export default class LogtalkLinter implements CodeActionProvider {
     } else if (diagnostic.message.includes('Deprecated predicate: not/1 (compiled as a call to')) {
       return true;
     } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
+      return true;
+    } else if (diagnostic.message.includes('Non-terminal called as a predicate:')) {
+      return true;
+    } else if (diagnostic.message.includes('Predicate called as a non-terminal:')) {
       return true;
     }
     return false;
@@ -426,6 +432,45 @@ export default class LogtalkLinter implements CodeActionProvider {
           }
           return null;
         }
+      }
+    } else if (diagnostic.message.includes('Non-terminal called as a predicate:')) {
+      // Replace predicate call with a phrase/3 call to the non-terminal
+      action = new CodeAction(
+        'Replace predicate call with a phrase/3 call to the non-terminal',
+        CodeActionKind.QuickFix
+      );
+      const nonTerminalIndicator = diagnostic.message.match(/Non-terminal called as a predicate: (.+)\/\/(\d+)/);
+      const predicateArity = parseInt(nonTerminalIndicator[2], 10) + 2;
+      const predicateIndicator = nonTerminalIndicator[1] + '/' + predicateArity.toString();
+      const callRange = PredicateUtils.findPredicateCallRange(document, diagnostic.range.start, predicateIndicator);
+      if (callRange) {
+        // Get the original predicate call text
+        const originalCall = document.getText(callRange);
+        // Split the call to get the non-terminal part and the last two arguments
+        const { mainCall, removedArgs } = ArgumentUtils.splitCallArguments(originalCall, -2);
+        // The main call becomes the non-terminal call
+        const nonTerminalCall = mainCall;
+        // The removed arguments are the input and output arguments
+        const inputArg = removedArgs.length > 0 ? removedArgs[0] : 'Input';
+        const outputArg = removedArgs.length > 1 ? removedArgs[1] : 'Output';
+        edit.replace(document.uri, callRange, 'phrase(' + nonTerminalCall + ', ' + inputArg + ', ' + outputArg + ')');
+      } else {
+        return null;
+      }
+    } else if (diagnostic.message.includes('Predicate called as a non-terminal:')) {
+      // Use call//1 to call the predicate
+      action = new CodeAction(
+        'Use call//1 to call the predicate',
+        CodeActionKind.QuickFix
+      );
+      const predicateIndicator = diagnostic.message.match(/Predicate called as a non-terminal: (.+)\/(\d+)/);
+      const nonTerminalArity = parseInt(predicateIndicator[2], 10) - 2;
+      const callRange = PredicateUtils.findPredicateCallRange(document, diagnostic.range.start, predicateIndicator[1] + '/' + nonTerminalArity);
+      if (callRange) {
+        const call = document.getText(callRange);
+        edit.replace(document.uri, callRange, 'call(' + call + ')');
+      } else {
+        return null;
       }
     }
 
