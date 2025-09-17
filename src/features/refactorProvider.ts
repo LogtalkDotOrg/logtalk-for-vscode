@@ -1083,18 +1083,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const separator = finalIsNonTerminal ? '//' : '/';
       const parts = typeResult.currentIndicator.split(separator);
 
-      if (parts.length !== 2) {
-        window.showErrorMessage("Invalid predicate indicator format.");
-        return;
-      }
-
       const predicateName = parts[0];
       const currentArity = parseInt(parts[1]);
-
-      if (isNaN(currentArity)) {
-        window.showErrorMessage("Invalid arity in predicate indicator.");
-        return;
-      }
 
       // Step 2: Ask user for argument name
       const argumentName = await this.promptForArgumentName();
@@ -1160,18 +1150,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const separator = finalIsNonTerminal ? '//' : '/';
       const parts = typeResult.currentIndicator.split(separator);
 
-      if (parts.length !== 2) {
-        window.showErrorMessage("Invalid predicate indicator format.");
-        return;
-      }
-
       const predicateName = parts[0];
       const currentArity = parseInt(parts[1]);
-
-      if (isNaN(currentArity)) {
-        window.showErrorMessage("Invalid arity in predicate indicator.");
-        return;
-      }
 
       if (currentArity < 2) {
         window.showErrorMessage("Cannot reorder arguments: predicate/non-terminal must have at least 2 arguments.");
@@ -1234,18 +1214,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const separator = finalIsNonTerminal ? '//' : '/';
       const parts = typeResult.currentIndicator.split(separator);
 
-      if (parts.length !== 2) {
-        window.showErrorMessage("Invalid predicate indicator format.");
-        return;
-      }
-
       const predicateName = parts[0];
       const currentArity = parseInt(parts[1]);
-
-      if (isNaN(currentArity)) {
-        window.showErrorMessage("Invalid arity in predicate indicator.");
-        return;
-      }
 
       if (currentArity < 1) {
         window.showErrorMessage("Cannot remove arguments: predicate/non-terminal has no arguments.");
