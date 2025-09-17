@@ -380,6 +380,14 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.replaceIncludeByFileContents', async (document, position, selection) => {
+      if (refactorProvider) {
+        await refactorProvider.replaceIncludeByFileContents(document, position, selection);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

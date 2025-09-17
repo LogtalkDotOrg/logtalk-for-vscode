@@ -52,31 +52,47 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   ): Promise<CodeAction[]> {
     const actions: CodeAction[] = [];
 
-    // Only provide extract actions if there's a selection
-    if (range instanceof Selection && !range.isEmpty) {
-      // Extract to new entity action
-      const extractToEntityAction = new CodeAction(
-        "Extract to new Logtalk entity",
-        CodeActionKind.RefactorExtract
-      );
-      extractToEntityAction.command = {
-        command: "logtalk.refactor.extractToEntity",
-        title: "Extract to new Logtalk entity",
-        arguments: [document, range]
-      };
-      actions.push(extractToEntityAction);
+    // Check for include directive in selection (parse only once)
+    const selection = range instanceof Selection ? range : new Selection(range.start, range.end);
+    const includePosition = !selection.isEmpty ? this.containsIncludeDirective(document, selection) : null;
 
-      // Extract to new file action
-      const extractToFileAction = new CodeAction(
-        "Extract to new Logtalk file",
-        CodeActionKind.RefactorExtract
-      );
-      extractToFileAction.command = {
-        command: "logtalk.refactor.extractToFile",
-        title: "Extract to new Logtalk file",
-        arguments: [document, range]
-      };
-      actions.push(extractToFileAction);
+    if (!selection.isEmpty) {
+      if (includePosition !== null) {
+        // Selection contains include/1 directive - provide replace action
+        const replaceIncludeAction = new CodeAction(
+          "Replace include/1 directive with file contents",
+          CodeActionKind.RefactorInline
+        );
+        replaceIncludeAction.command = {
+          command: "logtalk.refactor.replaceIncludeByFileContents",
+          title: "Replace include/1 directive with file contents",
+          arguments: [document, includePosition, selection]
+        };
+        actions.push(replaceIncludeAction);
+      } else {
+        // Selection doesn't contain include directive - provide extract actions
+        const extractToEntityAction = new CodeAction(
+          "Extract to new Logtalk entity",
+          CodeActionKind.RefactorExtract
+        );
+        extractToEntityAction.command = {
+          command: "logtalk.refactor.extractToEntity",
+          title: "Extract to new Logtalk entity",
+          arguments: [document, range]
+        };
+        actions.push(extractToEntityAction);
+
+        const extractToFileAction = new CodeAction(
+          "Extract to new Logtalk file",
+          CodeActionKind.RefactorExtract
+        );
+        extractToFileAction.command = {
+          command: "logtalk.refactor.extractToFile",
+          title: "Extract to new Logtalk file",
+          arguments: [document, range]
+        };
+        actions.push(extractToFileAction);
+      }
     }
 
     // Check if we're on a predicate call for add argument refactoring
@@ -561,6 +577,275 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
                       Utils.getCallUnderCursor(document, position);
 
     return indicator !== null;
+  }
+
+  /**
+   * Check if the selection contains ONLY an include/1 directive (with optional comments)
+   *
+   * This function ensures that the selection contains only:
+   * - Exactly one include/1 directive (uncommented)
+   * - Optional comment lines before or after the include directive
+   * - Optional empty lines
+   * - No other code (predicates, other directives, etc.)
+   *
+   * This restriction ensures that the replace action is only available when the user
+   * has specifically selected an include directive (possibly with surrounding comments),
+   * not when they've selected mixed content that happens to contain an include.
+   *
+   * @param document The text document
+   * @param selection The selected range
+   * @returns Position of the include directive if it's the only code in selection, null otherwise
+   */
+  private containsIncludeDirective(document: TextDocument, selection: Selection): Position | null {
+    const startLine = selection.start.line;
+    const endLine = selection.end.line;
+
+    // Check for include directive pattern: :- include(...) or :-include(...)
+    const includePattern = /^\s*:-\s*include\s*\(/;
+    const commentPattern = /^\s*%/;
+    const emptyLinePattern = /^\s*$/;
+
+    let includePosition: Position | null = null;
+    let hasNonCommentNonIncludeCode = false;
+
+    // Search through each line in the selection
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+
+      // Skip empty lines
+      if (emptyLinePattern.test(lineText)) {
+        continue;
+      }
+
+      // Skip commented lines
+      if (commentPattern.test(lineText)) {
+        continue;
+      }
+
+      // Check if this line contains an include directive
+      if (includePattern.test(lineText)) {
+        if (includePosition !== null) {
+          // Multiple include directives found - not allowed
+          return null;
+        }
+        // Store the position of the include directive (pointing to the ':' character)
+        const colonIndex = lineText.indexOf(':-');
+        if (colonIndex !== -1) {
+          includePosition = new Position(lineNum, colonIndex);
+        }
+      } else {
+        // Found non-comment, non-include code - not allowed
+        hasNonCommentNonIncludeCode = true;
+        break;
+      }
+    }
+
+    // Return include position only if:
+    // 1. Exactly one include directive was found
+    // 2. No other non-comment code was found
+    return (includePosition !== null && !hasNonCommentNonIncludeCode) ? includePosition : null;
+  }
+
+  /**
+   * Replace include/1 directive with the contents of the included file
+   *
+   * This refactoring action replaces an include/1 directive with the actual contents
+   * of the included file. It handles:
+   * - Relative and absolute file paths
+   * - Different quote styles ('file.lgt', "file.lgt")
+   * - Files with or without extensions (tries .lgt, .logtalk, .pl, .prolog)
+   * - Proper indentation preservation
+   * - Error handling for missing files
+   *
+   * Note: The file argument must be quoted (an atom) in valid Logtalk syntax.
+   * If no extension is provided, the system will try common Logtalk extensions.
+   * The replacement preserves the indentation level of the original include directive,
+   * applying it to all non-empty lines from the included file.
+   */
+  public async replaceIncludeByFileContents(document: TextDocument, position: Position, selection?: Selection): Promise<void> {
+    try {
+      const lineText = document.lineAt(position.line).text;
+
+      // Parse the include directive to extract the file path
+      const filePath = this.parseIncludeDirective(lineText);
+      if (!filePath) {
+        window.showErrorMessage("Could not parse include directive.");
+        return;
+      }
+
+      // Resolve the file path (handle relative paths)
+      const resolvedPath = this.resolveIncludePath(filePath, document.uri);
+      if (!resolvedPath) {
+        window.showErrorMessage(`Could not resolve include path: ${filePath}`);
+        return;
+      }
+
+      // Read the included file contents
+      const fileContents = await this.readIncludedFile(resolvedPath);
+      if (fileContents === null) {
+        window.showErrorMessage(`Could not read included file: ${resolvedPath}`);
+        return;
+      }
+
+      // Replace the entire selection with the file contents
+      await this.performIncludeReplacement(document, position, fileContents, selection);
+
+      this.logger.info(`Successfully replaced include directive with contents from: ${resolvedPath}`);
+      window.showInformationMessage(`Include directive replaced with file contents from: ${path.basename(resolvedPath)}`);
+
+    } catch (error) {
+      this.logger.error(`Error replacing include directive: ${error}`);
+      window.showErrorMessage(`Error replacing include directive: ${error}`);
+    }
+  }
+
+  /**
+   * Parse the include directive to extract the file path
+   */
+  private parseIncludeDirective(lineText: string): string | null {
+    // Match include directive pattern and extract the file path
+    // Handles: :- include('file.lgt'). or :- include("file.lgt").
+    // Note: The file argument must be quoted (an atom) in valid Logtalk syntax
+    const includePattern = /^\s*:-\s*include\s*\(\s*['"]([^'"()]*)['"]\s*\)/;
+    const match = lineText.match(includePattern);
+
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+
+    return null;
+  }
+
+  /**
+   * Resolve include file path (handle relative paths and missing extensions)
+   */
+  private resolveIncludePath(filePath: string, documentUri: Uri): string | null {
+    try {
+      let basePath: string;
+
+      // Resolve relative to absolute path first
+      if (path.isAbsolute(filePath)) {
+        basePath = filePath;
+      } else {
+        // For relative paths, resolve relative to the directory containing the current document
+        const documentDir = path.dirname(documentUri.fsPath);
+        basePath = path.resolve(documentDir, filePath);
+      }
+
+      // If the file already has an extension and exists, return it
+      if (path.extname(basePath) && fs.existsSync(basePath)) {
+        return basePath;
+      }
+
+      // If file has extension but doesn't exist, return the original path
+      // (will be handled as an error in readIncludedFile)
+      if (path.extname(basePath)) {
+        return basePath;
+      }
+
+      // No extension - try the file as-is first, then with common extensions
+      if (fs.existsSync(basePath)) {
+        this.logger.debug(`Found include file without extension: ${basePath}`);
+        return basePath;
+      }
+
+      // Try common Logtalk extensions
+      const extensions = ['lgt', 'logtalk', 'pl', 'prolog'];
+
+      for (const ext of extensions) {
+        const pathWithExt = `${basePath}.${ext}`;
+        if (fs.existsSync(pathWithExt)) {
+          this.logger.debug(`Found include file with extension: ${pathWithExt}`);
+          return pathWithExt;
+        }
+      }
+
+      // No file found with any extension
+      this.logger.warn(`Could not find include file with any common extension: ${basePath}`);
+      return null;
+    } catch (error) {
+      this.logger.error(`Error resolving include path: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Read the contents of the included file
+   */
+  private async readIncludedFile(filePath: string): Promise<string | null> {
+    try {
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        this.logger.warn(`Include file does not exist: ${filePath}`);
+        return null;
+      }
+
+      // Read file contents
+      const fileContents = fs.readFileSync(filePath, 'utf8');
+      this.logger.debug(`Successfully read include file: ${filePath} (${fileContents.length} characters)`);
+
+      return fileContents;
+    } catch (error) {
+      this.logger.error(`Error reading include file ${filePath}: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Perform the actual replacement of include directive with file contents
+   */
+  private async performIncludeReplacement(document: TextDocument, position: Position, fileContents: string, selection?: Selection): Promise<void> {
+    let replaceRange: Range;
+    let referenceLineText: string;
+
+    if (selection && !selection.isEmpty) {
+      // Replace the entire selection (include directive + comments)
+      replaceRange = new Range(selection.start, selection.end);
+      referenceLineText = document.lineAt(position.line).text;
+    } else {
+      // Fallback: replace just the line containing the include directive
+      const lineText = document.lineAt(position.line).text;
+      replaceRange = new Range(
+        new Position(position.line, 0),
+        new Position(position.line, lineText.length)
+      );
+      referenceLineText = lineText;
+    }
+
+    // Process the file contents to preserve indentation from the include directive line
+    const processedContents = this.processIncludeContents(fileContents, referenceLineText);
+
+    // Create workspace edit
+    const edit = new WorkspaceEdit();
+    edit.replace(document.uri, replaceRange, processedContents);
+
+    // Apply the edit
+    const success = await workspace.applyEdit(edit);
+    if (!success) {
+      throw new Error("Failed to apply workspace edit");
+    }
+  }
+
+  /**
+   * Process include file contents to preserve indentation
+   */
+  private processIncludeContents(fileContents: string, originalLine: string): string {
+    // Extract the indentation from the original include directive line
+    const indentMatch = originalLine.match(/^(\s*)/);
+    const baseIndent = indentMatch ? indentMatch[1] : '';
+
+    // Split file contents into lines
+    const lines = fileContents.split(/\r?\n/);
+
+    // Apply base indentation to each line (except empty lines)
+    const processedLines = lines.map(line => {
+      if (line.trim() === '') {
+        return line; // Keep empty lines as-is
+      }
+      return baseIndent + line;
+    });
+
+    return processedLines.join('\n');
   }
 
   /**

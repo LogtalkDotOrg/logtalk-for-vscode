@@ -240,6 +240,10 @@ Two types of code extraction are supported when the user selects a region of cod
 - Extract to new Logtalk entity (the user is asked to select the entity type, entity name, file name, and file location)
 - Extract to new Logtalk file (the user is asked to select the file name and file location)
 
+#### Resolve include/1 directive
+
+Replace an `include/1` directive with the contents of the included file. The included file is resolved if it's a relative or abosolute path, with or without a common Logtalk or Prolog extension. The included file contents are indented to match the indentation of the `include/1` directive.
+
 #### Symbol renaming
 
 Experimental entity, predicate, and non-terminal rename support is available. To rename a predicate (non-terminal), right-click on the predicate (non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Rename Symbol" context menu item. To rename an entity, right-click on the entity name and use the "Go to Type Definition" context menu item to go to the entity opening directive. Then, right-click on the entity name and select the "Rename Symbol" context menu item.
