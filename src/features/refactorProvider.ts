@@ -92,6 +92,17 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           arguments: [document, range]
         };
         actions.push(extractToFileAction);
+
+        const replaceWithIncludeAction = new CodeAction(
+          "Replace with include/1 directive",
+          CodeActionKind.RefactorExtract
+        );
+        replaceWithIncludeAction.command = {
+          command: "logtalk.refactor.replaceWithInclude",
+          title: "Replace with include/1 directive",
+          arguments: [document, range]
+        };
+        actions.push(replaceWithIncludeAction);
       }
     }
 
@@ -846,6 +857,184 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     });
 
     return processedLines.join('\n');
+  }
+
+  /**
+   * Replace selected code with include/1 directive
+   *
+   * This refactoring extracts the selected code to a new file and replaces
+   * the selection with an include/1 directive pointing to the new file.
+   * Uses relative paths when the new file is in the same directory or subdirectory,
+   * otherwise uses absolute paths.
+   */
+  public async replaceWithInclude(document: TextDocument, range: Range): Promise<void> {
+    try {
+      // Get the selected text
+      const selectedText = document.getText(range);
+
+      // Get the directory of the current document
+      const currentDocumentPath = document.uri.fsPath;
+      const currentDir = path.dirname(currentDocumentPath);
+
+      // Prompt user for the new file name
+      const fileName = await window.showInputBox({
+        prompt: "Enter the name for the new file (without extension)",
+        placeHolder: "extracted_code",
+        validateInput: (value) => {
+          if (!value || value.trim() === '') {
+            return "File name cannot be empty";
+          }
+          if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value.trim())) {
+            return "File name must be a valid identifier (letters, numbers, underscores, starting with letter or underscore)";
+          }
+          return null;
+        }
+      });
+
+      if (!fileName) {
+        return; // User cancelled
+      }
+
+      // Create the new file path
+      const newFileName = `${fileName.trim()}.lgt`;
+      const newFilePath = path.join(currentDir, newFileName);
+
+      // Check if file already exists
+      if (fs.existsSync(newFilePath)) {
+        const overwrite = await window.showWarningMessage(
+          `File "${newFileName}" already exists. Overwrite?`,
+          "Yes", "No"
+        );
+        if (overwrite !== "Yes") {
+          return;
+        }
+      }
+
+      // Process the selected content to remove base indentation
+      const processedContent = this.processExtractedContent(selectedText);
+
+      // Write the processed content to the new file
+      await this.writeExtractedFile(newFilePath, processedContent);
+
+      // Determine the include path (relative vs absolute)
+      const includePath = this.determineIncludePath(currentDocumentPath, newFilePath);
+
+      // Replace the selection with include directive
+      await this.replaceSelectionWithInclude(document, range, includePath);
+
+      this.logger.info(`Successfully extracted code to: ${newFilePath}`);
+      window.showInformationMessage(`Code extracted to "${newFileName}" and replaced with include directive.`);
+
+    } catch (error) {
+      this.logger.error(`Error in replaceWithInclude: ${error}`);
+      window.showErrorMessage(`Failed to extract code: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Process extracted content to remove base indentation
+   * This makes the refactoring symmetrical - when the include directive is later
+   * replaced with file contents, the indentation will be properly restored.
+   */
+  private processExtractedContent(selectedText: string): string {
+    const lines = selectedText.split(/\r?\n/);
+
+    if (lines.length === 0) {
+      return selectedText;
+    }
+
+    // Find the minimum indentation level (excluding empty lines)
+    let minIndent = Infinity;
+    for (const line of lines) {
+      if (line.trim() !== '') {
+        const indentMatch = line.match(/^(\s*)/);
+        const indentLength = indentMatch ? indentMatch[1].length : 0;
+        minIndent = Math.min(minIndent, indentLength);
+      }
+    }
+
+    // If no indentation found, return as-is
+    if (minIndent === Infinity || minIndent === 0) {
+      return selectedText;
+    }
+
+    // Remove the minimum indentation from all non-empty lines
+    const processedLines = lines.map(line => {
+      if (line.trim() === '') {
+        return line; // Keep empty lines as-is
+      }
+      // Remove the base indentation
+      return line.substring(minIndent);
+    });
+
+    return processedLines.join('\n');
+  }
+
+  /**
+   * Write extracted content to a new file
+   */
+  private async writeExtractedFile(filePath: string, content: string): Promise<void> {
+    try {
+      await fs.promises.writeFile(filePath, content, 'utf8');
+    } catch (error) {
+      throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Determine the appropriate include path (relative vs absolute)
+   */
+  private determineIncludePath(currentDocumentPath: string, newFilePath: string): string {
+    const currentDir = path.dirname(currentDocumentPath);
+    const newFileDir = path.dirname(newFilePath);
+    const newFileName = path.basename(newFilePath, '.lgt'); // Remove .lgt extension
+
+    // Check if the new file is in the same directory or a subdirectory
+    const relativePath = path.relative(currentDir, newFilePath);
+
+    // If the relative path doesn't start with '..' and doesn't contain path separators
+    // that would indicate going up directories, use relative path
+    if (!relativePath.startsWith('..') && !path.isAbsolute(relativePath)) {
+      // For files in the same directory, just use the filename without extension
+      if (newFileDir === currentDir) {
+        return newFileName;
+      }
+      // For files in subdirectories, use relative path without extension
+      return path.join(path.dirname(relativePath), path.basename(relativePath, '.lgt'));
+    }
+
+    // Use absolute path without extension for files outside the current directory tree
+    return path.join(newFileDir, newFileName);
+  }
+
+  /**
+   * Replace the selection with an include directive
+   */
+  private async replaceSelectionWithInclude(document: TextDocument, range: Range, includePath: string): Promise<void> {
+    // Get the indentation of the first line in the selection
+    const firstLineText = document.lineAt(range.start.line).text;
+    const indentMatch = firstLineText.match(/^(\s*)/);
+    const baseIndent = indentMatch ? indentMatch[1] : '';
+
+    // Get the selected text to check for trailing empty lines
+    const selectedText = document.getText(range);
+
+    // Extract trailing newlines/empty lines from the selection
+    const trailingNewlineMatch = selectedText.match(/(\n\s*)*$/);
+    const preserveTrailingNewlines = (trailingNewlineMatch && trailingNewlineMatch[0]) ? trailingNewlineMatch[0] : '';
+
+    // Create the include directive with proper indentation and preserved trailing newlines
+    const includeDirective = `${baseIndent}:- include('${includePath}').${preserveTrailingNewlines}`;
+
+    // Create workspace edit
+    const edit = new WorkspaceEdit();
+    edit.replace(document.uri, range, includeDirective);
+
+    // Apply the edit
+    const success = await workspace.applyEdit(edit);
+    if (!success) {
+      throw new Error("Failed to apply workspace edit");
+    }
   }
 
   /**

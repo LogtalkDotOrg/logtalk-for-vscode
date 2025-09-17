@@ -388,6 +388,14 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.replaceWithInclude', async (document, range) => {
+      if (refactorProvider) {
+        await refactorProvider.replaceWithInclude(document, range);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {
