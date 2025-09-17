@@ -55,6 +55,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const selection = range instanceof Selection ? range : new Selection(range.start, range.end);
     const includePosition = !selection.isEmpty ? this.containsIncludeDirective(document, selection) : null;
 
+    // Check for cancellation after potentially expensive include directive parsing
+    if (token.isCancellationRequested) {
+      return actions;
+    }
+
     if (!selection.isEmpty) {
       if (includePosition !== null) {
         // Selection contains include/1 directive - provide replace action
@@ -103,6 +108,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         };
         actions.push(replaceWithIncludeAction);
       }
+    }
+
+    // Check for cancellation before potentially expensive predicate call analysis
+    if (token.isCancellationRequested) {
+      return actions;
     }
 
     // Check if we're on a predicate call for add argument refactoring
