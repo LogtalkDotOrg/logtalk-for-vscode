@@ -16,6 +16,7 @@
 * Add quick fixes for some tests reporter warnings
 * Add quick fixes for some dead code scanner warnings
 * Add code navigation support for `(@)/1` goals
+* Add "Logtalk: Make" submenu to the explorer context menu
 * Update "Go to Symbol in Workspace..." support to also include predicate clauses and non-terminal rules
 * Improve performance of "Go to Symbol in Workspace..." and "Go to Symbol in Editor..." support
 * Improve context menus items grouping and ordering

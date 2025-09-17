@@ -318,6 +318,11 @@
                     "group": "project_1@3"
                 },
                 {
+                    "submenu": "makesubmenu",
+                    "when": "resourceLangId == logtalk",
+                    "group": "project_1@4"
+                },
+                {
                     "command": "logtalk.rscan.deadCode",
                     "when": "resourceLangId == logtalk",
                     "group": "project_2@1"

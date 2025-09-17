@@ -231,7 +231,7 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
-Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" command can be used to verify the changes before committing them. Due to VSCode limitations, refactoring operations that require user input cannot be not previewed. But the files changed are opened in the editor and the user can verify the changes before saving them.
+Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them. Due to VSCode limitations, refactoring operations that require user input cannot be not previewed. But the files changed are opened in the editor and the user can verify the changes before saving them.
 
 #### Code extraction
 
