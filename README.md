@@ -237,13 +237,13 @@ Several refactoring operations are supported. Users should commit their work bef
 
 Three types of code extraction are supported when the user selects a region of code and uses the "Refactor" context menu item or the "Refactor" command palette item:
 
-- Extract to new Logtalk entity (the user is asked to select the entity type, entity name, file name, and file location)
-- Extract to new Logtalk file (the user is asked to select the file name and file location)
-- Replace with include/1 directive (the user is asked to select the file name and file location)
+- "Extract to new Logtalk entity" (the user is asked to select the entity type, entity name, file name, and file location)
+- "Extract to new Logtalk file" (the user is asked to select the file name and file location)
+- "Replace with include/1 directive" (the user is asked to select the file name and file location)
 
 #### Resolve include/1 directive
 
-When the user selects a region of code that contains an `include/1` directive, the "Refactor" context menu item or the "Refactor" command palette item provides an action that replaces the `include/1` directive with the contents of the included file. The included file is resolved if it's a relative or abosolute path, with or without a common Logtalk or Prolog extension. The included file contents are indented to match the indentation of the `include/1` directive.
+When the user selects a region of code that contains an `include/1` directive, the "Refactor" context menu item or the "Refactor" command palette item provides a "Replace include/1 directive with file contents" action. The included file is resolved if it's a relative or absolute path, with or without a common Logtalk or Prolog extension. The included file contents are indented to match the indentation of the `include/1` directive.
 
 #### Symbol renaming
 

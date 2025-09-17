@@ -45,10 +45,9 @@ export class LogtalkRenameProvider implements RenameProvider {
   }
 
   /**
-   * Prepares the rename operation by validating the position and new name
+   * Prepares the rename operation by validating the position
    * @param document The document containing the symbol to rename
    * @param position The position of the symbol
-   * @param newName The new name for the symbol
    * @param token Cancellation token
    * @returns Range of the symbol or null if rename is not possible
    */
@@ -73,6 +72,10 @@ export class LogtalkRenameProvider implements RenameProvider {
       if (wordRange) {
         return wordRange;
       }
+      return null;
+    }
+
+    if (token.isCancellationRequested) {
       return null;
     }
 
@@ -121,7 +124,7 @@ export class LogtalkRenameProvider implements RenameProvider {
       return null;
     }
 
-    // First, check if we're in an entity context
+    // Check if we're in an entity context
     const entityContext = this.detectEntityContext(document, position);
     if (entityContext) {
       this.logger.debug(`Renaming entity: ${entityContext.indicator} (${entityContext.type}) to ${newName}`);

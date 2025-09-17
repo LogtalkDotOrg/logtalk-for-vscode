@@ -357,25 +357,25 @@ export function activate(context: ExtensionContext) {
   );
 
   context.subscriptions.push(
-    commands.registerCommand('logtalk.refactor.addArgument', async (document, position) => {
+    commands.registerCommand('logtalk.refactor.addArgument', async (document, position, indicator) => {
       if (refactorProvider) {
-        await refactorProvider.addArgument(document, position);
+        await refactorProvider.addArgument(document, position, indicator);
       }
     })
   );
 
   context.subscriptions.push(
-    commands.registerCommand('logtalk.refactor.reorderArguments', async (document, position) => {
+    commands.registerCommand('logtalk.refactor.reorderArguments', async (document, position, indicator) => {
       if (refactorProvider) {
-        await refactorProvider.reorderArguments(document, position);
+        await refactorProvider.reorderArguments(document, position, indicator);
       }
     })
   );
 
   context.subscriptions.push(
-    commands.registerCommand('logtalk.refactor.removeArgument', async (document, position) => {
+    commands.registerCommand('logtalk.refactor.removeArgument', async (document, position, indicator) => {
       if (refactorProvider) {
-        await refactorProvider.removeArgument(document, position);
+        await refactorProvider.removeArgument(document, position, indicator);
       }
     })
   );

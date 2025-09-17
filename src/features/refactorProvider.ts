@@ -117,7 +117,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     // Check if we're on a predicate call for add argument refactoring
     const position = range instanceof Selection ? range.active : range.start;
-    if (this.isPredicateCall(document, position)) {
+    const indicator = await this.isPredicateCall(document, position);
+    if (indicator) {
       const addArgumentAction = new CodeAction(
         "Add argument to predicate/non-terminal",
         CodeActionKind.Refactor
@@ -125,52 +126,42 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       addArgumentAction.command = {
         command: "logtalk.refactor.addArgument",
         title: "Add argument to predicate/non-terminal",
-        arguments: [document, position]
+        arguments: [document, position, indicator]
       };
       actions.push(addArgumentAction);
 
-      // Check if the predicate/non-terminal has arguments to reorder or remove
-      const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
-                        Utils.getPredicateIndicatorUnderCursor(document, position) ||
-                        Utils.getCallUnderCursor(document, position);
+      const separator = indicator.includes('//') ? '//' : '/';
+      const parts = indicator.split(separator);
+      const currentArity = parseInt(parts[1]);
 
-      if (indicator) {
-        const separator = indicator.includes('//') ? '//' : '/';
-        const parts = indicator.split(separator);
-        if (parts.length === 2) {
-          const currentArity = parseInt(parts[1]);
-          if (!isNaN(currentArity)) {
-            // Add reorder action if arity > 1
-            if (currentArity > 1) {
-              const reorderArgumentsAction = new CodeAction(
-                "Reorder predicate/non-terminal arguments",
-                CodeActionKind.Refactor
-              );
-              reorderArgumentsAction.command = {
-                command: "logtalk.refactor.reorderArguments",
-                title: "Reorder predicate/non-terminal arguments",
-                arguments: [document, position]
-              };
-              actions.push(reorderArgumentsAction);
-            }
-
-            // Add remove argument action if arity >= 1
-            if (currentArity >= 1) {
-              const removeArgumentAction = new CodeAction(
-                "Remove argument from predicate/non-terminal",
-                CodeActionKind.Refactor
-              );
-              removeArgumentAction.command = {
-                command: "logtalk.refactor.removeArgument",
-                title: "Remove argument from predicate/non-terminal",
-                arguments: [document, position]
-              };
-              actions.push(removeArgumentAction);
-            }
-          }
-        }
+      // Add reorder action if arity > 1
+      if (currentArity > 1) {
+        const reorderArgumentsAction = new CodeAction(
+          "Reorder predicate/non-terminal arguments",
+          CodeActionKind.Refactor
+        );
+        reorderArgumentsAction.command = {
+          command: "logtalk.refactor.reorderArguments",
+          title: "Reorder predicate/non-terminal arguments",
+          arguments: [document, position, indicator]
+        };
+        actions.push(reorderArgumentsAction);
       }
-    }
+
+      // Add remove argument action if arity >= 1
+      if (currentArity >= 1) {
+        const removeArgumentAction = new CodeAction(
+          "Remove argument from predicate/non-terminal",
+          CodeActionKind.Refactor
+        );
+        removeArgumentAction.command = {
+          command: "logtalk.refactor.removeArgument",
+          title: "Remove argument from predicate/non-terminal",
+          arguments: [document, position, indicator]
+        };
+        actions.push(removeArgumentAction);
+      }
+      }
 
     return actions;
   }
@@ -582,13 +573,26 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Check if the current position is on a predicate call
+   * Check if the current position is on a predicate call and return the indicator
+   * @returns The predicate/non-terminal indicator if valid for refactoring, null otherwise
    */
-  private isPredicateCall(document: TextDocument, position: Position): boolean {
+  private async isPredicateCall(document: TextDocument, position: Position): Promise<string | null> {
     // Check if we're in a comment
     const currentLineText = document.lineAt(position.line).text;
     if (currentLineText.trim().startsWith("%")) {
-      return false;
+      return null;
+    }
+
+    // Use termType to ensure we're not in an entity directive (before expensive Utils calls)
+    try {
+      const termType = await Utils.termType(document.uri, position);
+      // Exclude entity directives from predicate/non-terminal argument refactoring
+      if (termType === 'entity_directive') {
+        return null;
+      }
+    } catch (error) {
+      this.logger.error(`Error checking term type: ${error}`);
+      // Continue with indicator check if termType fails
     }
 
     // Check if we can find a predicate indicator or call at this position
@@ -596,7 +600,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
                       Utils.getPredicateIndicatorUnderCursor(document, position) ||
                       Utils.getCallUnderCursor(document, position);
 
-    return indicator !== null;
+    return indicator || null;
   }
 
   /**
@@ -1049,23 +1053,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Add argument to predicate refactoring operation
    */
-  public async addArgument(document: TextDocument, position: Position): Promise<void> {
+  public async addArgument(document: TextDocument, position: Position, indicator: string): Promise<void> {
     this.logger.debug(`=== addArgument method called ===`);
     try {
-      // Step 1: Validate that we're on a predicate call
-      this.logger.debug(`Looking for predicate indicator at cursor position...`);
-      const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
-                        Utils.getPredicateIndicatorUnderCursor(document, position) ||
-                        Utils.getCallUnderCursor(document, position);
-
-      if (!indicator) {
-        this.logger.debug(`No predicate indicator found at cursor position`);
-        window.showErrorMessage("No predicate found at cursor position.");
-        return;
-      }
-
-      this.logger.debug(`Found predicate indicator: ${indicator}`);
-
+      this.logger.debug(`Using predicate indicator: ${indicator}`);
       // Extract predicate name and arity - use proper type determination
       const token = { isCancellationRequested: false } as CancellationToken;
       this.logger.debug(`Initial indicator from cursor: "${indicator}"`);
@@ -1139,23 +1130,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Reorder arguments of predicate/non-terminal refactoring operation
    */
-  public async reorderArguments(document: TextDocument, position: Position): Promise<void> {
+  public async reorderArguments(document: TextDocument, position: Position, indicator: string): Promise<void> {
     this.logger.debug(`=== reorderArguments method called ===`);
     try {
-      // Step 1: Validate that we're on a predicate call
-      this.logger.debug(`Looking for predicate indicator at cursor position...`);
-      const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
-                        Utils.getPredicateIndicatorUnderCursor(document, position) ||
-                        Utils.getCallUnderCursor(document, position);
-
-      if (!indicator) {
-        this.logger.debug(`No predicate indicator found at cursor position`);
-        window.showErrorMessage("No predicate found at cursor position.");
-        return;
-      }
-
-      this.logger.debug(`Found predicate indicator: ${indicator}`);
-
+      this.logger.debug(`Using predicate indicator: ${indicator}`);
       // Extract predicate name and arity - use proper type determination
       const token = { isCancellationRequested: false } as CancellationToken;
       this.logger.debug(`Initial indicator from cursor: "${indicator}"`);
@@ -1226,23 +1204,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Remove argument from predicate/non-terminal refactoring operation
    */
-  public async removeArgument(document: TextDocument, position: Position): Promise<void> {
+  public async removeArgument(document: TextDocument, position: Position, indicator: string): Promise<void> {
     this.logger.debug(`=== removeArgument method called ===`);
     try {
-      // Step 1: Validate that we're on a predicate call
-      this.logger.debug(`Looking for predicate indicator at cursor position...`);
-      const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
-                        Utils.getPredicateIndicatorUnderCursor(document, position) ||
-                        Utils.getCallUnderCursor(document, position);
-
-      if (!indicator) {
-        this.logger.debug(`No predicate indicator found at cursor position`);
-        window.showErrorMessage("No predicate found at cursor position.");
-        return;
-      }
-
-      this.logger.debug(`Found predicate indicator: ${indicator}`);
-
+      this.logger.debug(`Using predicate indicator: ${indicator}`);
       // Extract predicate name and arity - use proper type determination
       const token = { isCancellationRequested: false } as CancellationToken;
       this.logger.debug(`Initial indicator from cursor: "${indicator}"`);

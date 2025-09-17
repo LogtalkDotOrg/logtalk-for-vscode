@@ -23,6 +23,7 @@ import * as jsesc from "jsesc";
 import * as path from "path";
 import * as vscode from "vscode";
 import { getLogger } from "./logger";
+import { PatternSets } from "./symbols";
 
 export class Utils {
   private static logtalkHome: string;
@@ -440,6 +441,214 @@ export class Utils {
         });
       }
     }
+  }
+
+  /**
+   * Determines the type of term at the given position in a document.
+   * @param uri The URI of the document
+   * @param position The position in the document
+   * @returns The term type: 'predicate_rule', 'predicate_fact', 'non_terminal_rule', 'entity_directive', or 'predicate_directive'
+   */
+  public static async termType(uri: Uri, position: Position): Promise<string | null> {
+    try {
+      const doc = await workspace.openTextDocument(uri);
+      const lineText = doc.lineAt(position.line).text;
+
+      // Simple case: check if the current line has clear indicators
+      const simpleType = Utils.checkSimpleTermType(lineText);
+      if (simpleType) {
+        return simpleType;
+      }
+
+      // Complex case: multi-line term - search backwards to find the start
+      const termStart = Utils.findTermStart(doc, position.line);
+      if (termStart === null) {
+        return null;
+      }
+
+      const startLineText = doc.lineAt(termStart).text;
+      return Utils.analyzeTermType(doc, termStart, startLineText);
+
+    } catch (error) {
+      Utils.logger.error(`Error determining term type: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Check for simple term type indicators on the current line
+   */
+  private static checkSimpleTermType(lineText: string): string | null {
+    const trimmed = lineText.trim();
+
+    // Check for directive start
+    if (trimmed.startsWith(':-')) {
+      return Utils.classifyDirective(lineText);
+    }
+    // Check if line contains --> (non-terminal rule)
+    if (trimmed.includes('-->')) {
+      return 'non_terminal_rule';
+    }
+    // Check if line contains :- (predicate rule)
+    if (trimmed.includes(':-')) {
+      return 'predicate_rule';
+    }
+
+    return null;
+  }
+
+  /**
+   * Find the start of a multi-line term by searching backwards
+   */
+  private static findTermStart(doc: TextDocument, currentLine: number): number | null {
+    let lineNum = currentLine;
+
+    // Search backwards to find the start of the term
+    while (lineNum >= 0) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmed = lineText.trim();
+
+      // Skip empty lines and comments
+      if (trimmed === '' || trimmed.startsWith('%')) {
+        lineNum--;
+        continue;
+      }
+
+      // Check if this line could be the start of a term
+      if (Utils.isTermStart(lineText)) {
+        return lineNum;
+      }
+
+      // Check if this line ends with a period (end of previous term)
+      if (trimmed.endsWith('.')) {
+        // The term starts on the next line
+        return lineNum + 1 <= currentLine ? lineNum + 1 : null;
+      }
+
+      lineNum--;
+    }
+
+    // If we reach the beginning of the file, the term starts at line 0
+    return 0;
+  }
+
+  /**
+   * Check if a line could be the start of a term
+   */
+  private static isTermStart(lineText: string): boolean {
+    const trimmed = lineText.trim();
+
+    // Directive start
+    if (trimmed.startsWith(':-')) {
+      return true;
+    }
+
+    // Predicate clause or non-terminal rule (starts with atom)
+    if (/^\s*[a-z][a-zA-Z0-9_]*\s*[\(:-]/.test(lineText)) {
+      return true;
+    }
+
+    // Non-terminal rule with -->
+    if (trimmed.includes('-->')) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Analyze the complete term to determine its type
+   */
+  private static analyzeTermType(doc: TextDocument, startLine: number, startLineText: string): string | null {
+    // Collect the complete term text
+    const termText = Utils.collectTermText(doc, startLine);
+
+    // Check for directive
+    if (startLineText.trim().startsWith(':-')) {
+      return Utils.classifyDirective(termText);
+    }
+
+    // Check for non-terminal rule
+    if (termText.includes('-->')) {
+      return 'non_terminal_rule';
+    }
+
+    // Check for predicate rule
+    if (termText.includes(':-')) {
+      return 'predicate_rule';
+    }
+
+    // Must be a fact
+    return 'predicate_fact';
+  }
+
+  /**
+   * Collect the complete text of a term starting from a given line
+   */
+  private static collectTermText(doc: TextDocument, startLine: number): string {
+    let termText = '';
+    let lineNum = startLine;
+
+    while (lineNum < doc.lineCount) {
+      const lineText = doc.lineAt(lineNum).text;
+      termText += lineText + ' ';
+
+      // Check if term is complete (ends with period)
+      if (lineText.trim().endsWith('.')) {
+        break;
+      }
+
+      lineNum++;
+    }
+
+    return termText.trim();
+  }
+
+  /**
+   * Classify a directive as entity or predicate directive
+   */
+  private static classifyDirective(directiveText: string): string {
+    // Check for entity directives
+    for (const pattern of PatternSets.entityOpening) {
+      if (pattern.regex.test(directiveText)) {
+        return 'entity_directive';
+      }
+    }
+
+    for (const pattern of PatternSets.entityEnding) {
+      if (pattern.regex.test(directiveText)) {
+        return 'entity_directive';
+      }
+    }
+
+    // Check for entity-specific directives (like entity info/1)
+    for (const pattern of PatternSets.entityDirectives) {
+      if (pattern.regex.test(directiveText)) {
+        return 'entity_directive';
+      }
+    }
+
+    // Check for predicate directives (scope and other predicate-related)
+    for (const pattern of PatternSets.allScopes) {
+      if (pattern.regex.test(directiveText)) {
+        return 'predicate_directive';
+      }
+    }
+
+    for (const pattern of PatternSets.scopeOpenings) {
+      if (pattern.regex.test(directiveText)) {
+        return 'predicate_directive';
+      }
+    }
+
+    for (const pattern of PatternSets.predicateDirectives) {
+      if (pattern.regex.test(directiveText)) {
+        return 'predicate_directive';
+      }
+    }
+
+    // Default to predicate directive for unknown directives
+    return 'predicate_directive';
   }
 
 }

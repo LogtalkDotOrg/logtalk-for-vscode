@@ -10,12 +10,12 @@ export const SymbolRegexes = {
   object: /^(?:\:- object\()([^(),.]+(\(.*\))?)/,
   protocol: /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/,
   category: /^(?:\:- category\()([^(),.]+(\(.*\))?)/,
-  
+
   // Entity ending directives
   endObject: /^(?:\:- end_object\.)/,
   endProtocol: /^(?:\:- end_protocol\.)/,
   endCategory: /^(?:\:- end_category\.)/,
-  
+
   // Predicate scope directives (single predicate/non-terminal)
   publicPredicate: /(?:\s*\:- public\()(\w+[/]\d+)/,
   protectedPredicate: /(?:\s*\:- protected\()(\w+[/]\d+)/,
@@ -31,10 +31,27 @@ export const SymbolRegexes = {
   publicScopeOpening: /^\s*\:- public\((?!\w+\/\/?\/?\d+\)\s*\.\s*$)/,
   protectedScopeOpening: /^\s*\:- protected\((?!\w+\/\/?\/?\d+\)\s*\.\s*$)/,
   privateScopeOpening: /^\s*\:- private\((?!\w+\/\/?\/?\d+\)\s*\.\s*$)/,
-  
+
+  // Predicate directive patterns
+  mode: /^\s*\:- mode\(/,
+  predicateInfo: /^\s*\:- info\((?!\[)/,
+  metaPredicate: /^\s*\:- meta_predicate\(/,
+  metaNonTerminal: /^\s*\:- meta_non_terminal\(/,
+  dynamic: /^\s*\:- dynamic\(/,
+  discontiguous: /^\s*\:- discontiguous\(/,
+  multifile: /^\s*\:- multifile\(/,
+  synchronized: /^\s*\:- synchronized\(/,
+  coinductive: /^\s*\:- coinductive\(/,
+
+  // Entity directive patterns
+  entityInfo: /^\s*\:- info\(\[/,
+
+  // General directive pattern (starts with :-)
+  directive: /^\s*\:-/,
+
   // Predicate clause (rule head or fact)
   predicateClause: /^\s*(\w+\([^)]*\))\s*(?::-|\.)$/,
-  
+
   // Non-terminal rule using the --> operator
   nonTerminalRule: /^\s*(\w+\([^)]*\))\s*-->/,
 
@@ -320,6 +337,28 @@ export const PatternSets = {
     { regex: SymbolRegexes.publicNonTerminal, type: SymbolTypes.PUBLIC_NON_TERMINAL },
     { regex: SymbolRegexes.protectedNonTerminal, type: SymbolTypes.PROTECTED_NON_TERMINAL },
     { regex: SymbolRegexes.privateNonTerminal, type: SymbolTypes.PRIVATE_NON_TERMINAL }
+  ],
+
+  /**
+   * Predicate directive patterns (non-scope)
+   */
+  predicateDirectives: [
+    { regex: SymbolRegexes.mode, type: 'mode' },
+    { regex: SymbolRegexes.predicateInfo, type: 'predicate_info' },
+    { regex: SymbolRegexes.metaPredicate, type: 'meta_predicate' },
+    { regex: SymbolRegexes.metaNonTerminal, type: 'meta_non_terminal' },
+    { regex: SymbolRegexes.dynamic, type: 'dynamic' },
+    { regex: SymbolRegexes.discontiguous, type: 'discontiguous' },
+    { regex: SymbolRegexes.multifile, type: 'multifile' },
+    { regex: SymbolRegexes.synchronized, type: 'synchronized' },
+    { regex: SymbolRegexes.coinductive, type: 'coinductive' }
+  ],
+
+  /**
+   * Entity directive patterns (non-opening/closing)
+   */
+  entityDirectives: [
+    { regex: SymbolRegexes.entityInfo, type: 'entity_info' }
   ],
 
   /**
