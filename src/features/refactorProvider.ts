@@ -21,7 +21,6 @@ import {
 } from "vscode";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
-import { SymbolUtils } from "../utils/symbols";
 import { PredicateUtils, PredicateTypeResult } from "../utils/predicateUtils";
 import { ArgumentUtils } from "../utils/argumentUtils";
 import { LogtalkDeclarationProvider } from "./declarationProvider";
