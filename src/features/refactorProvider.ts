@@ -2197,7 +2197,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Special handling for info directive argnames/arguments
       if (directiveType === 'info') {
         const newLineNum = this.updateInfoDirectiveArgumentsForAdding(
-          doc, lineNum, updatedLine, argumentName, argumentPosition, edits
+          doc, lineNum, updatedLine, predicateName, currentArity, argumentName, argumentPosition, edits
         );
         if (newLineNum !== lineNum) {
           // Multi-line structure was processed, jump to the new line
@@ -2259,7 +2259,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Special handling for info directive argnames/arguments
       if (directiveType === 'info') {
         const newLineNum = this.updateInfoDirectiveArgumentsForReorder(
-          doc, lineNum, updatedLine, newOrder, edits
+          doc, lineNum, updatedLine, predicateName, currentArity, newOrder, edits
         );
         if (newLineNum !== lineNum) {
           // Multi-line structure was processed, jump to the new line
@@ -2329,7 +2329,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Special handling for info directive argnames/arguments
       if (directiveType === 'info') {
         const newLineNum = this.updateInfoDirectiveArgumentsForRemoval(
-          doc, lineNum, updatedLine, argumentPosition, currentArity, edits
+          doc, lineNum, updatedLine, predicateName, argumentPosition, currentArity, edits
         );
         if (newLineNum !== lineNum) {
           // Multi-line structure was processed, jump to the new line
@@ -2550,6 +2550,222 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Construct multi-line examples list with new argument
+   */
+  private constructMultiLineExamples(doc: TextDocument, startLineNum: number, predicateName: string, currentArity: number, argumentName: string, argumentPosition: number): { edits: TextEdit[], endLineNum: number } {
+    this.logger.debug(`constructMultiLineExamples called: startLine=${startLineNum + 1}, argumentName=${argumentName}, position=${argumentPosition}`);
+    const edits: TextEdit[] = [];
+    const exampleLines: { lineNum: number; text: string; indent: string }[] = [];
+    let endLineNum = startLineNum;
+
+    // Find the end of the multi-line examples list and collect all example lines
+    for (let lineNum = startLineNum + 1; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if this is the closing bracket
+      if (trimmedLine === ']' || trimmedLine.startsWith(']')) {
+        endLineNum = lineNum;
+        this.logger.debug(`Found multi-line examples list ending at line ${lineNum + 1}`);
+        break;
+      }
+
+      // If this line contains an example (usually quoted strings or callable forms), collect it
+      if (trimmedLine.length > 0 && !trimmedLine.startsWith('%')) {
+        const indentMatch = lineText.match(/^(\s*)/);
+        const indent = indentMatch ? indentMatch[1] : '    ';
+        exampleLines.push({ lineNum, text: lineText, indent });
+        this.logger.debug(`Found example line ${lineNum + 1}: "${trimmedLine}"`);
+      }
+
+      // Stop if we hit another directive
+      if (trimmedLine.startsWith(':-')) {
+        this.logger.debug(`Hit another directive at line ${lineNum + 1}, stopping examples list search`);
+        break;
+      }
+    }
+
+    this.logger.debug(`Found ${exampleLines.length} example lines to update`);
+
+    // Update each example line that contains callable forms
+    for (const exampleLine of exampleLines) {
+      const updatedExampleText = this.updateExampleLineForAdding(exampleLine.text, predicateName, currentArity, argumentName, argumentPosition);
+      if (updatedExampleText !== exampleLine.text) {
+        const edit = TextEdit.replace(
+          new Range(
+            new Position(exampleLine.lineNum, 0),
+            new Position(exampleLine.lineNum, exampleLine.text.length)
+          ),
+          updatedExampleText
+        );
+        edits.push(edit);
+        this.logger.debug(`Updated example at line ${exampleLine.lineNum + 1}`);
+      }
+    }
+
+    this.logger.debug(`Created ${edits.length} edits for multi-line examples`);
+    return { edits, endLineNum };
+  }
+
+  /**
+   * Update an example line by adding an argument to callable forms
+   */
+  private updateExampleLineForAdding(lineText: string, predicateName: string, currentArity: number, argumentName: string, argumentPosition: number): string {
+    // Examples contain unquoted callable forms like:
+    // process_file(File, Options)
+    // analyze_data(Dataset, Parameters, Output)
+
+    // Find all callable forms in the line (predicate_name followed by parentheses)
+    const callablePattern = /(\w+)\s*\(([^)]*)\)/g;
+    let updatedLine = lineText;
+    let match: RegExpExecArray | null;
+    let offset = 0;
+
+    // Process all matches from left to right
+    while ((match = callablePattern.exec(lineText)) !== null) {
+      const fullMatch = match[0];
+      const foundPredicateName = match[1];
+      const currentArgs = match[2].trim();
+
+      // Parse the current arguments
+      let args: string[] = [];
+      if (currentArgs) {
+        args = ArgumentUtils.parseArguments(currentArgs);
+      }
+
+      // Only update if this matches the predicate being refactored (same name and arity)
+      if (foundPredicateName === predicateName && args.length === currentArity) {
+        // Insert the new argument at the specified position
+        const newArgs = [...args];
+        const insertIndex = Math.min(argumentPosition - 1, newArgs.length);
+        newArgs.splice(insertIndex, 0, argumentName);
+
+        // Reconstruct the callable form
+        const newCallableForm = `${predicateName}(${newArgs.join(', ')})`;
+
+        // Replace in the updated line (accounting for previous replacements)
+        const matchStart = match.index + offset;
+        const matchEnd = matchStart + fullMatch.length;
+        updatedLine = updatedLine.substring(0, matchStart) + newCallableForm + updatedLine.substring(matchEnd);
+
+        // Update offset for next replacement
+        offset += newCallableForm.length - fullMatch.length;
+
+        this.logger.debug(`Updated callable form: ${fullMatch} → ${newCallableForm}`);
+      }
+    }
+
+    return updatedLine;
+  }
+
+  /**
+   * Update an example line by removing an argument from callable forms
+   */
+  private updateExampleLineForRemoval(lineText: string, predicateName: string, argumentPosition: number, currentArity: number): string {
+    // Examples contain unquoted callable forms like:
+    // process_file(File, Options)
+    // analyze_data(Dataset, Parameters, Output)
+
+    // Find all callable forms in the line (predicate_name followed by parentheses)
+    const callablePattern = /(\w+)\s*\(([^)]*)\)/g;
+    let updatedLine = lineText;
+    let match: RegExpExecArray | null;
+    let offset = 0;
+
+    // Process all matches from left to right
+    while ((match = callablePattern.exec(lineText)) !== null) {
+      const fullMatch = match[0];
+      const foundPredicateName = match[1];
+      const currentArgs = match[2].trim();
+
+      // Parse the current arguments
+      let args: string[] = [];
+      if (currentArgs) {
+        args = ArgumentUtils.parseArguments(currentArgs);
+      }
+
+      // Only update if this matches the predicate being refactored (same name and arity)
+      if (foundPredicateName === predicateName && args.length === currentArity) {
+        // Remove the argument at the specified position
+        const newArgs = [...args];
+        if (argumentPosition > 0 && argumentPosition <= newArgs.length) {
+          newArgs.splice(argumentPosition - 1, 1);
+        }
+
+        // Reconstruct the callable form
+        const newCallableForm = `${predicateName}(${newArgs.join(', ')})`;
+
+        // Replace in the updated line (accounting for previous replacements)
+        const matchStart = match.index + offset;
+        const matchEnd = matchStart + fullMatch.length;
+        updatedLine = updatedLine.substring(0, matchStart) + newCallableForm + updatedLine.substring(matchEnd);
+
+        // Update offset for next replacement
+        offset += newCallableForm.length - fullMatch.length;
+
+        this.logger.debug(`Updated callable form: ${fullMatch} → ${newCallableForm}`);
+      }
+    }
+
+    return updatedLine;
+  }
+
+  /**
+   * Update an example line by reordering arguments in callable forms
+   */
+  private updateExampleLineForReorder(lineText: string, predicateName: string, currentArity: number, newOrder: number[]): string {
+    // Examples contain unquoted callable forms like:
+    // process_file(File, Options)
+    // analyze_data(Dataset, Parameters, Output)
+
+    // Find all callable forms in the line (predicate_name followed by parentheses)
+    const callablePattern = /(\w+)\s*\(([^)]*)\)/g;
+    let updatedLine = lineText;
+    let match: RegExpExecArray | null;
+    let offset = 0;
+
+    // Process all matches from left to right
+    while ((match = callablePattern.exec(lineText)) !== null) {
+      const fullMatch = match[0];
+      const foundPredicateName = match[1];
+      const currentArgs = match[2].trim();
+
+      // Parse the current arguments
+      let args: string[] = [];
+      if (currentArgs) {
+        args = ArgumentUtils.parseArguments(currentArgs);
+      }
+
+      // Only update if this matches the predicate being refactored (same name and arity)
+      if (foundPredicateName === predicateName && args.length === currentArity) {
+        // Reorder the arguments
+        const reorderedArgs: string[] = [];
+        for (let i = 0; i < newOrder.length; i++) {
+          const sourceIndex = newOrder[i] - 1; // Convert to 0-based
+          if (sourceIndex >= 0 && sourceIndex < args.length) {
+            reorderedArgs.push(args[sourceIndex]);
+          }
+        }
+
+        // Reconstruct the callable form
+        const newCallableForm = `${predicateName}(${reorderedArgs.join(', ')})`;
+
+        // Replace in the updated line (accounting for previous replacements)
+        const matchStart = match.index + offset;
+        const matchEnd = matchStart + fullMatch.length;
+        updatedLine = updatedLine.substring(0, matchStart) + newCallableForm + updatedLine.substring(matchEnd);
+
+        // Update offset for next replacement
+        offset += newCallableForm.length - fullMatch.length;
+
+        this.logger.debug(`Updated callable form: ${fullMatch} → ${newCallableForm}`);
+      }
+    }
+
+    return updatedLine;
+  }
+
+  /**
    * Remove argument from multi-line arguments list
    */
   private removeFromMultiLineArguments(doc: TextDocument, startLineNum: number, argumentPosition: number, currentArity: number, edits: TextEdit[]): number {
@@ -2662,6 +2878,62 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Remove argument from multi-line examples list
+   */
+  private removeFromMultiLineExamples(doc: TextDocument, startLineNum: number, predicateName: string, currentArity: number, argumentPosition: number, edits: TextEdit[]): number {
+    this.logger.debug(`removeFromMultiLineExamples called: startLine=${startLineNum + 1}, position=${argumentPosition}, currentArity=${currentArity}`);
+    const exampleLines: { lineNum: number; text: string; indent: string }[] = [];
+    let endLineNum = startLineNum;
+
+    // Find the end of the multi-line examples list and collect all example lines
+    for (let lineNum = startLineNum + 1; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if this is the closing bracket
+      if (trimmedLine === ']' || trimmedLine.startsWith(']')) {
+        endLineNum = lineNum;
+        this.logger.debug(`Found multi-line examples list ending at line ${lineNum + 1}`);
+        break;
+      }
+
+      // If this line contains an example (usually quoted strings or callable forms), collect it
+      if (trimmedLine.length > 0 && !trimmedLine.startsWith('%')) {
+        const indentMatch = lineText.match(/^(\s*)/);
+        const indent = indentMatch ? indentMatch[1] : '    ';
+        exampleLines.push({ lineNum, text: lineText, indent });
+        this.logger.debug(`Found example line ${lineNum + 1}: "${trimmedLine}"`);
+      }
+
+      // Stop if we hit another directive
+      if (trimmedLine.startsWith(':-')) {
+        this.logger.debug(`Hit another directive at line ${lineNum + 1}, stopping examples list search`);
+        break;
+      }
+    }
+
+    this.logger.debug(`Found ${exampleLines.length} example lines for removal`);
+
+    // Update each example line that contains callable forms
+    for (const exampleLine of exampleLines) {
+      const updatedExampleText = this.updateExampleLineForRemoval(exampleLine.text, predicateName, argumentPosition, currentArity);
+      if (updatedExampleText !== exampleLine.text) {
+        const edit = TextEdit.replace(
+          new Range(
+            new Position(exampleLine.lineNum, 0),
+            new Position(exampleLine.lineNum, exampleLine.text.length)
+          ),
+          updatedExampleText
+        );
+        edits.push(edit);
+        this.logger.debug(`Updated example at line ${exampleLine.lineNum + 1}`);
+      }
+    }
+
+    return endLineNum;
+  }
+
+  /**
    * Reorder arguments in multi-line arguments list
    */
   private reorderMultiLineArguments(doc: TextDocument, startLineNum: number, newOrder: number[], edits: TextEdit[]): number {
@@ -2746,12 +3018,70 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Reorder arguments in multi-line examples list
+   */
+  private reorderMultiLineExamples(doc: TextDocument, startLineNum: number, predicateName: string, currentArity: number, newOrder: number[], edits: TextEdit[]): number {
+    this.logger.debug(`reorderMultiLineExamples called: startLine=${startLineNum + 1}, newOrder=[${newOrder.join(',')}]`);
+    const exampleLines: { lineNum: number; text: string; indent: string }[] = [];
+    let endLineNum = startLineNum;
+
+    // Find the end of the multi-line examples list and collect all example lines
+    for (let lineNum = startLineNum + 1; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if this is the closing bracket
+      if (trimmedLine === ']' || trimmedLine.startsWith(']')) {
+        endLineNum = lineNum;
+        this.logger.debug(`Found multi-line examples list ending at line ${lineNum + 1}`);
+        break;
+      }
+
+      // If this line contains an example (usually quoted strings or callable forms), collect it
+      if (trimmedLine.length > 0 && !trimmedLine.startsWith('%')) {
+        const indentMatch = lineText.match(/^(\s*)/);
+        const indent = indentMatch ? indentMatch[1] : '    ';
+        exampleLines.push({ lineNum, text: lineText, indent });
+        this.logger.debug(`Found example line ${lineNum + 1}: "${trimmedLine}"`);
+      }
+
+      // Stop if we hit another directive
+      if (trimmedLine.startsWith(':-')) {
+        this.logger.debug(`Hit another directive at line ${lineNum + 1}, stopping examples list search`);
+        break;
+      }
+    }
+
+    this.logger.debug(`Found ${exampleLines.length} example lines for reordering`);
+
+    // Update each example line that contains callable forms
+    for (const exampleLine of exampleLines) {
+      const updatedExampleText = this.updateExampleLineForReorder(exampleLine.text, predicateName, currentArity, newOrder);
+      if (updatedExampleText !== exampleLine.text) {
+        const edit = TextEdit.replace(
+          new Range(
+            new Position(exampleLine.lineNum, 0),
+            new Position(exampleLine.lineNum, exampleLine.text.length)
+          ),
+          updatedExampleText
+        );
+        edits.push(edit);
+        this.logger.debug(`Updated example at line ${exampleLine.lineNum + 1}`);
+      }
+    }
+
+    return endLineNum;
+  }
+
+  /**
    * Update info directive arguments (argnames and arguments lists)
    */
   private updateInfoDirectiveArgumentsForAdding(
     doc: TextDocument,
     lineNum: number,
     lineText: string,
+    predicateName: string,
+    currentArity: number,
     argumentName: string,
     argumentPosition: number,
     edits: TextEdit[]
@@ -2765,6 +3095,17 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     if (multiLineArgumentsMatch) {
       this.logger.debug(`Detected multi-line arguments list starting at line ${lineNum + 1}`);
       const { edits: multiLineEdits, endLineNum } = this.constructMultiLineArguments(doc, lineNum, argumentName, argumentPosition);
+      edits.push(...multiLineEdits);
+      return endLineNum; // Return line after multi-line structure
+    }
+
+    // Handle multi-line examples lists
+    // Detect 'examples is [' without ']' on the same line
+    const multiLineExamplesPattern = /^(\s*)examples\s+is\s+\[([^\]]*)?$/;
+    const multiLineExamplesMatch = lineText.match(multiLineExamplesPattern);
+    if (multiLineExamplesMatch) {
+      this.logger.debug(`Detected multi-line examples list starting at line ${lineNum + 1}`);
+      const { edits: multiLineEdits, endLineNum } = this.constructMultiLineExamples(doc, lineNum, predicateName, currentArity, argumentName, argumentPosition);
       edits.push(...multiLineEdits);
       return endLineNum; // Return line after multi-line structure
     }
@@ -4068,6 +4409,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     doc: TextDocument,
     lineNum: number,
     lineText: string,
+    predicateName: string,
+    currentArity: number,
     newOrder: number[],
     edits: TextEdit[]
   ): number {
@@ -4080,6 +4423,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     if (multiLineArgumentsMatch) {
       this.logger.debug(`Detected multi-line arguments list starting at line ${lineNum + 1} for reordering`);
       const endLineNum = this.reorderMultiLineArguments(doc, lineNum, newOrder, edits);
+      return endLineNum; // Return line after multi-line structure
+    }
+
+    // Handle multi-line examples lists
+    // Detect 'examples is [' without ']' on the same line
+    const multiLineExamplesPattern = /^(\s*)examples\s+is\s+\[([^\]]*)?$/;
+    const multiLineExamplesMatch = lineText.match(multiLineExamplesPattern);
+    if (multiLineExamplesMatch) {
+      this.logger.debug(`Detected multi-line examples list starting at line ${lineNum + 1} for reordering`);
+      const endLineNum = this.reorderMultiLineExamples(doc, lineNum, predicateName, currentArity, newOrder, edits);
       return endLineNum; // Return line after multi-line structure
     }
 
@@ -4833,6 +5186,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     doc: TextDocument,
     lineNum: number,
     lineText: string,
+    predicateName: string,
     argumentPosition: number,
     currentArity: number,
     edits: TextEdit[]
@@ -4847,6 +5201,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.debug(`Detected multi-line arguments list starting at line ${lineNum + 1} for removal`);
       // For removal, we need to find the multi-line structure and remove the argument
       const endLineNum = this.removeFromMultiLineArguments(doc, lineNum, argumentPosition, currentArity, edits);
+      return endLineNum; // Return line after multi-line structure
+    }
+
+    // Handle multi-line examples lists
+    // Detect 'examples is [' without ']' on the same line
+    const multiLineExamplesPattern = /^(\s*)examples\s+is\s+\[([^\]]*)?$/;
+    const multiLineExamplesMatch = lineText.match(multiLineExamplesPattern);
+    if (multiLineExamplesMatch) {
+      this.logger.debug(`Detected multi-line examples list starting at line ${lineNum + 1} for removal`);
+      const endLineNum = this.removeFromMultiLineExamples(doc, lineNum, predicateName, currentArity, argumentPosition, edits);
       return endLineNum; // Return line after multi-line structure
     }
 
