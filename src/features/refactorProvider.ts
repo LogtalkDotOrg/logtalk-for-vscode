@@ -2090,6 +2090,36 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * Find and update consecutive directives that follow a scope directive
    */
   /**
+   * Determine if a directive is relevant for predicate refactoring
+   * @param trimmedLine The trimmed line text to check
+   * @param isNonTerminal Whether we're working with a non-terminal
+   * @returns The directive type if relevant, null otherwise
+   */
+  private isRelevantPredicateDirective(trimmedLine: string, isNonTerminal: boolean): string | null {
+    if (trimmedLine.includes('info(')) {
+      return 'info';
+    } else if (trimmedLine.includes('mode(')) {
+      return 'mode';
+    } else if (!isNonTerminal && trimmedLine.includes('meta_predicate(')) {
+      return 'meta_predicate';
+    } else if (isNonTerminal && trimmedLine.includes('meta_non_terminal(')) {
+      return 'meta_non_terminal';
+    } else if (trimmedLine.includes('synchronized(')) {
+      return 'synchronized';
+    } else if (trimmedLine.includes('coinductive(')) {
+      return 'coinductive';
+    } else if (trimmedLine.includes('multifile(')) {
+      return 'multifile';
+    } else if (trimmedLine.includes('dynamic(')) {
+      return 'dynamic';
+    } else if (trimmedLine.includes('discontiguous(')) {
+      return 'discontiguous';
+    }
+
+    return null;
+  }
+
+  /**
    * Get the range (start and end line) of a directive starting at the given line
    */
   private getDirectiveRange(doc: TextDocument, startLine: number): { start: number; end: number } {
@@ -2348,27 +2378,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Check if this starts a directive
       if (trimmedLine.startsWith(':-')) {
-        let directiveType = '';
-        let isRelevantDirective = false;
+        const directiveType = this.isRelevantPredicateDirective(trimmedLine, isNonTerminal);
 
-        // Determine directive type and relevance
-        if (trimmedLine.includes('info(')) {
-          directiveType = 'info';
-          // Info directives are always relevant (they reference the predicate by indicator)
-          isRelevantDirective = true;
-        } else if (trimmedLine.includes('mode(')) {
-          directiveType = 'mode';
-          // Mode directives are relevant if they contain the predicate name
-          isRelevantDirective = true; // We'll check the range for predicate name
-        } else if (!isNonTerminal && trimmedLine.includes('meta_predicate(')) {
-          directiveType = 'meta_predicate';
-          isRelevantDirective = true; // We'll check the range for predicate name
-        } else if (isNonTerminal && trimmedLine.includes('meta_non_terminal(')) {
-          directiveType = 'meta_non_terminal';
-          isRelevantDirective = true; // We'll check the range for predicate name
-        }
-
-        if (isRelevantDirective) {
+        if (directiveType) {
           this.logger.debug(`Found consecutive ${directiveType} directive at line ${lineNum + 1}`);
 
           // Get the range of this directive
@@ -4302,25 +4314,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Check if this starts a directive
       if (trimmedLine.startsWith(':-')) {
-        let directiveType = '';
-        let isRelevantDirective = false;
+        const directiveType = this.isRelevantPredicateDirective(trimmedLine, isNonTerminal);
 
-        // Determine directive type and relevance
-        if (trimmedLine.includes('info(')) {
-          directiveType = 'info';
-          isRelevantDirective = true;
-        } else if (trimmedLine.includes('mode(')) {
-          directiveType = 'mode';
-          isRelevantDirective = true;
-        } else if (!isNonTerminal && trimmedLine.includes('meta_predicate(')) {
-          directiveType = 'meta_predicate';
-          isRelevantDirective = true;
-        } else if (isNonTerminal && trimmedLine.includes('meta_non_terminal(')) {
-          directiveType = 'meta_non_terminal';
-          isRelevantDirective = true;
-        }
-
-        if (isRelevantDirective) {
+        if (directiveType) {
           this.logger.debug(`Found ${directiveType} directive at line ${lineNum + 1}`);
 
           // Get the complete directive range
@@ -4569,25 +4565,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Check if this starts a directive
       if (trimmedLine.startsWith(':-')) {
-        let directiveType = '';
-        let isRelevantDirective = false;
+        const directiveType = this.isRelevantPredicateDirective(trimmedLine, isNonTerminal);
 
-        // Determine directive type and relevance
-        if (trimmedLine.includes('info(')) {
-          directiveType = 'info';
-          isRelevantDirective = true;
-        } else if (trimmedLine.includes('mode(')) {
-          directiveType = 'mode';
-          isRelevantDirective = true;
-        } else if (!isNonTerminal && trimmedLine.includes('meta_predicate(')) {
-          directiveType = 'meta_predicate';
-          isRelevantDirective = true;
-        } else if (isNonTerminal && trimmedLine.includes('meta_non_terminal(')) {
-          directiveType = 'meta_non_terminal';
-          isRelevantDirective = true;
-        }
-
-        if (isRelevantDirective) {
+        if (directiveType) {
           this.logger.debug(`Found ${directiveType} directive at line ${lineNum + 1}`);
 
           // Get the complete directive range
