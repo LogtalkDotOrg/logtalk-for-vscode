@@ -1092,10 +1092,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         return; // User cancelled
       }
 
-      // Step 3: Ask user for argument position
-      const position_input = await this.promptForArgumentPosition(currentArity);
-      if (position_input === undefined) {
-        return; // User cancelled
+      // Step 3: Determine argument position
+      let position_input: number;
+      if (currentArity === 0) {
+        // No arguments - automatically add at position 1
+        position_input = 1;
+        this.logger.debug(`No arguments detected - automatically adding argument at position 1`);
+      } else {
+        // Has arguments - ask user for position
+        const userPosition = await this.promptForArgumentPosition(currentArity);
+        if (userPosition === undefined) {
+          return; // User cancelled
+        }
+        position_input = userPosition;
       }
 
       // Step 4: Perform the refactoring
@@ -1153,15 +1162,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const predicateName = parts[0];
       const currentArity = parseInt(parts[1]);
 
-      if (currentArity < 2) {
-        window.showErrorMessage("Cannot reorder arguments: predicate/non-terminal must have at least 2 arguments.");
-        return;
-      }
-
-      // Step 2: Ask user for new argument order
-      const newOrder = await this.promptForArgumentOrder(currentArity);
-      if (!newOrder) {
-        return; // User cancelled
+      // Step 2: Determine argument order
+      let newOrder: number[];
+      if (currentArity === 2) {
+        // For 2 arguments, automatically swap them (only one possible reordering)
+        newOrder = [2, 1];
+        this.logger.debug(`Automatically swapping 2 arguments: [2, 1]`);
+      } else {
+        // For 3+ arguments, ask user for new argument order
+        const userOrder = await this.promptForArgumentOrder(currentArity);
+        if (!userOrder) {
+          return; // User cancelled
+        }
+        newOrder = userOrder;
       }
 
       // Step 3: Perform the refactoring
@@ -3383,32 +3396,52 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return null;
     }
 
-    // For non-terminals, look for predicate_name(...) --> or predicate_name(...) :-
-    // For predicates, look for predicate_name(...) :- (rules) or predicate_name(...). (facts)
-    const clausePattern = isNonTerminal
-      ? new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]*)\\)\\s*((?:-->|:-))`, 'g')
-      : new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]*)\\)\\s*((?::-|\\.))`, 'g');
+    // Handle both zero-arity (no parentheses) and non-zero arity (with parentheses) predicates/non-terminals
+    let clausePattern: RegExp;
+    let match: RegExpExecArray | null;
+    let result: { fullMatch: string; arguments: string; terminator?: string; startIndex: number; endIndex: number } | null = null;
 
-    const match = clausePattern.exec(lineText);
-    if (match) {
-      const result = {
-        fullMatch: match[0],
-        arguments: match[1],
-        terminator: match[2], // :- or --> or .
-        startIndex: match.index,
-        endIndex: match.index + match[0].length
-      };
+    if (expectedArity === 0) {
+      // Zero arity: look for predicate_name :- or predicate_name. or predicate_name -->
+      clausePattern = isNonTerminal
+        ? new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*((?:-->|:-))`, 'g')
+        : new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*((?::-|\\.))`, 'g');
 
-      // Always check if the arity matches
-      const actualArity = this.countArguments(result.arguments);
-      if (actualArity !== expectedArity) {
-        return null; // Arity doesn't match
+      match = clausePattern.exec(lineText);
+      if (match) {
+        result = {
+          fullMatch: match[0],
+          arguments: '', // No arguments for zero arity
+          terminator: match[1], // :- or --> or .
+          startIndex: match.index,
+          endIndex: match.index + match[0].length
+        };
       }
+    } else {
+      // Non-zero arity: look for predicate_name(...) :- or predicate_name(...). or predicate_name(...) -->
+      clausePattern = isNonTerminal
+        ? new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]*)\\)\\s*((?:-->|:-))`, 'g')
+        : new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]*)\\)\\s*((?::-|\\.))`, 'g');
 
-      return result;
+      match = clausePattern.exec(lineText);
+      if (match) {
+        result = {
+          fullMatch: match[0],
+          arguments: match[1],
+          terminator: match[2], // :- or --> or .
+          startIndex: match.index,
+          endIndex: match.index + match[0].length
+        };
+
+        // Check if the arity matches
+        const actualArity = this.countArguments(result.arguments);
+        if (actualArity !== expectedArity) {
+          return null; // Arity doesn't match
+        }
+      }
     }
 
-    return null;
+    return result;
   }
 
   /**
@@ -3446,20 +3479,36 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     newArgs.splice(argumentPosition - 1, 0, argumentName);
 
     // Create the updated clause head
-    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-).*)$/);
-    if (predicateNameMatch) {
-      const [, leadingSpace, predName, openParen, , closingAndRest] = predicateNameMatch;
-      const newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
+    let newClauseHead: string;
 
-      const edit = TextEdit.replace(
-        new Range(
-          new Position(lineNum, clauseHead.startIndex),
-          new Position(lineNum, clauseHead.endIndex)
-        ),
-        newClauseHead
-      );
-      edits.push(edit);
+    if (existingArgs.length === 0) {
+      // Zero arity -> adding first argument: predicate_name. -> predicate_name(arg).
+      const zeroArityMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*)((?:-->|:-|\.).*)$/);
+      if (zeroArityMatch) {
+        const [/* fullMatch */, leadingSpace, predName, /* spacing */, terminator] = zeroArityMatch;
+        newClauseHead = `${leadingSpace}${predName}(${newArgs.join(', ')})${terminator.startsWith('.') ? terminator : ' ' + terminator}`;
+      } else {
+        return edits; // Failed to parse zero-arity clause head
+      }
+    } else {
+      // Non-zero arity -> adding argument: predicate_name(args). -> predicate_name(newArgs).
+      const nonZeroArityMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
+      if (nonZeroArityMatch) {
+        const [/* fullMatch */, leadingSpace, predName, openParen, /* arguments */, closingAndRest] = nonZeroArityMatch;
+        newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
+      } else {
+        return edits; // Failed to parse non-zero-arity clause head
+      }
     }
+
+    const edit = TextEdit.replace(
+      new Range(
+        new Position(lineNum, clauseHead.startIndex),
+        new Position(lineNum, clauseHead.endIndex)
+      ),
+      newClauseHead
+    );
+    edits.push(edit);
 
     return edits;
   }
@@ -3571,6 +3620,27 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       while ((factMatch = factPattern.exec(lineText)) !== null) {
         this.logger.debug(`Found fact at line ${lineNum + 1}, column ${factMatch.index}: ${predicateName}`);
         const insertPos = factMatch.index + predicateName.length;
+        edits.push(TextEdit.insert(
+          new Position(lineNum, insertPos),
+          `(${argumentName})`
+        ));
+      }
+
+      // Handle zero-arity predicate calls: predicateName (no parentheses, no dot)
+      const zeroArityCallPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b(?!\\s*[(.])`, 'g');
+      let zeroArityMatch: RegExpExecArray | null;
+      while ((zeroArityMatch = zeroArityCallPattern.exec(lineText)) !== null) {
+        // Skip if this is inside a comment
+        const beforeMatch = lineText.substring(0, zeroArityMatch.index);
+        if (beforeMatch.includes('%')) {
+          const commentPos = beforeMatch.lastIndexOf('%');
+          if (commentPos > beforeMatch.lastIndexOf('\n')) {
+            continue;
+          }
+        }
+
+        this.logger.debug(`Found zero-arity call at line ${lineNum + 1}, column ${zeroArityMatch.index}: ${predicateName}`);
+        const insertPos = zeroArityMatch.index + predicateName.length;
         edits.push(TextEdit.insert(
           new Position(lineNum, insertPos),
           `(${argumentName})`
@@ -4125,9 +4195,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const reorderedArgs = newOrder.map(pos => existingArgs[pos - 1]);
 
     // Create the updated clause head
-    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-).*)$/);
+    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
     if (predicateNameMatch) {
-      const [, leadingSpace, predName, openParen, , closingAndRest] = predicateNameMatch;
+      const [/* fullMatch */, leadingSpace, predName, openParen, /* arguments */, closingAndRest] = predicateNameMatch;
       const newClauseHead = `${leadingSpace}${predName}${openParen}${reorderedArgs.join(', ')}${closingAndRest}`;
 
       const edit = TextEdit.replace(
