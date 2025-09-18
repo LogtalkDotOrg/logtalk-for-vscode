@@ -1222,10 +1222,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         return;
       }
 
-      // Step 2: Ask user for argument position to remove
-      const argumentPosition = await this.promptForArgumentPositionToRemove(currentArity);
-      if (argumentPosition === undefined) {
-        return; // User cancelled
+      // Step 2: Determine argument position to remove
+      let argumentPosition: number;
+      if (currentArity === 1) {
+        // Only one argument - no need to ask user, automatically remove it
+        argumentPosition = 1;
+        this.logger.debug(`Single argument detected - automatically removing argument at position 1`);
+      } else {
+        // Multiple arguments - ask user which one to remove
+        const userPosition = await this.promptForArgumentPositionToRemove(currentArity);
+        if (userPosition === undefined) {
+          return; // User cancelled
+        }
+        argumentPosition = userPosition;
       }
 
       // Step 3: Perform the refactoring
@@ -2127,9 +2136,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     let endLine = startLine;
 
     // Find the end of the directive by looking for the closing ).
+    // Only match when ). is followed by whitespace and/or line comment
     for (let lineNum = startLine; lineNum < totalLines; lineNum++) {
       const lineText = doc.lineAt(lineNum).text;
-      if (lineText.includes(').')) {
+      // Match ). followed by optional whitespace and optional line comment
+      if (/\)\.(\s*(%.*)?)?$/.test(lineText)) {
         endLine = lineNum;
         break;
       }
@@ -2157,7 +2168,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     this.logger.debug(`Processing ${directiveType} directive range lines ${range.start + 1}-${range.end + 1}`);
 
-    for (let lineNum = range.start; lineNum <= range.end; lineNum++) {
+    let lineNum = range.start;
+    while (lineNum <= range.end) {
       const lineText = doc.lineAt(lineNum).text;
       const trimmedLine = lineText.trim();
       let updatedLine = lineText;
@@ -2184,11 +2196,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Special handling for info directive argnames/arguments
       if (directiveType === 'info') {
-        const argnamesUpdated = this.updateInfoDirectiveArguments(updatedLine, argumentName, argumentPosition);
-        if (argnamesUpdated !== updatedLine) {
-          this.logger.debug(`Updated argnames/arguments at line ${lineNum + 1}`);
-          updatedLine = argnamesUpdated;
-          hasChanges = true;
+        const newLineNum = this.updateInfoDirectiveArgumentsForAdding(
+          doc, lineNum, updatedLine, argumentName, argumentPosition, edits
+        );
+        if (newLineNum !== lineNum) {
+          // Multi-line structure was processed, jump to the new line
+          lineNum = newLineNum;
+          continue;
         }
       }
 
@@ -2199,6 +2213,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         );
         edits.push(edit);
       }
+
+      lineNum++;
     }
 
     return edits;
@@ -2221,7 +2237,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     this.logger.debug(`Processing ${directiveType} directive range for reordering: lines ${range.start + 1}-${range.end + 1}`);
 
-    for (let lineNum = range.start; lineNum <= range.end; lineNum++) {
+    let lineNum = range.start;
+    while (lineNum <= range.end) {
       const lineText = doc.lineAt(lineNum).text;
       const trimmedLine = lineText.trim();
       let updatedLine = lineText;
@@ -2241,11 +2258,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Special handling for info directive argnames/arguments
       if (directiveType === 'info') {
-        const argnamesUpdated = this.updateInfoDirectiveArgumentsForReorder(updatedLine, newOrder);
-        if (argnamesUpdated !== updatedLine) {
-          this.logger.debug(`Updated argnames/arguments for reordering at line ${lineNum + 1}`);
-          updatedLine = argnamesUpdated;
-          hasChanges = true;
+        const newLineNum = this.updateInfoDirectiveArgumentsForReorder(
+          doc, lineNum, updatedLine, newOrder, edits
+        );
+        if (newLineNum !== lineNum) {
+          // Multi-line structure was processed, jump to the new line
+          lineNum = newLineNum;
+          continue;
         }
       }
 
@@ -2256,6 +2275,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         );
         edits.push(edit);
       }
+
+      lineNum++;
     }
 
     return edits;
@@ -2279,7 +2300,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     this.logger.debug(`Processing ${directiveType} directive range for removal: lines ${range.start + 1}-${range.end + 1}`);
 
-    for (let lineNum = range.start; lineNum <= range.end; lineNum++) {
+    let lineNum = range.start;
+    while (lineNum <= range.end) {
       const lineText = doc.lineAt(lineNum).text;
       const trimmedLine = lineText.trim();
       let updatedLine = lineText;
@@ -2306,11 +2328,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Special handling for info directive argnames/arguments
       if (directiveType === 'info') {
-        const argnamesUpdated = this.updateInfoDirectiveArgumentsForRemoval(updatedLine, argumentPosition, currentArity);
-        if (argnamesUpdated !== updatedLine) {
-          this.logger.debug(`Updated argnames/arguments for removal at line ${lineNum + 1}`);
-          updatedLine = argnamesUpdated;
-          hasChanges = true;
+        const newLineNum = this.updateInfoDirectiveArgumentsForRemoval(
+          doc, lineNum, updatedLine, argumentPosition, currentArity, edits
+        );
+        if (newLineNum !== lineNum) {
+          // Multi-line structure was processed, jump to the new line
+          lineNum = newLineNum;
+          continue;
         }
       }
 
@@ -2321,6 +2345,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         );
         edits.push(edit);
       }
+
+      lineNum++;
     }
 
     return edits;
@@ -2430,7 +2456,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Construct multi-line arguments list with new argument inserted at correct position
    */
-  private constructMultiLineArguments(doc: TextDocument, startLineNum: number, argumentName: string, argumentPosition: number): TextEdit[] {
+  private constructMultiLineArguments(doc: TextDocument, startLineNum: number, argumentName: string, argumentPosition: number): { edits: TextEdit[], endLineNum: number } {
+    this.logger.debug(`constructMultiLineArguments called: startLine=${startLineNum + 1}, argumentName='${argumentName}', position=${argumentPosition}`);
     const edits: TextEdit[] = [];
     const argumentLines: { lineNum: number; text: string; indent: string }[] = [];
     let endLineNum = startLineNum;
@@ -2452,6 +2479,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         const indentMatch = lineText.match(/^(\s*)/);
         const indent = indentMatch ? indentMatch[1] : '    ';
         argumentLines.push({ lineNum, text: lineText, indent });
+        this.logger.debug(`Found argument line ${lineNum + 1}: "${trimmedLine}"`);
       }
 
       // Stop if we hit another directive
@@ -2484,6 +2512,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const newArgumentLine = `${indent}'${argumentName}' - '',\n`;
 
     this.logger.debug(`Constructing multi-line arguments: inserting new argument at position ${argumentPosition} (line ${insertLineNum + 1})`);
+    this.logger.debug(`Found ${argumentLines.length} existing argument lines`);
+    this.logger.debug(`New argument line: "${newArgumentLine.trim()}"`);
 
     // Insert the new argument at the calculated position
     edits.push(TextEdit.insert(
@@ -2491,14 +2521,190 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       newArgumentLine
     ));
 
-    return edits;
+    this.logger.debug(`Created ${edits.length} edits for multi-line arguments`);
+    return { edits, endLineNum };
+  }
+
+  /**
+   * Remove argument from multi-line arguments list
+   */
+  private removeFromMultiLineArguments(doc: TextDocument, startLineNum: number, argumentPosition: number, currentArity: number, edits: TextEdit[]): number {
+    this.logger.debug(`removeFromMultiLineArguments called: startLine=${startLineNum + 1}, position=${argumentPosition}, currentArity=${currentArity}`);
+    const argumentLines: { lineNum: number; text: string; indent: string }[] = [];
+    let endLineNum = startLineNum;
+
+    // Find the end of the multi-line arguments list and collect all argument lines
+    for (let lineNum = startLineNum + 1; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if this is the closing bracket
+      if (trimmedLine === ']' || trimmedLine.startsWith(']')) {
+        endLineNum = lineNum;
+        this.logger.debug(`Found multi-line arguments list ending at line ${lineNum + 1}`);
+        break;
+      }
+
+      // If this line contains an argument pair, collect it
+      if (trimmedLine.includes('-') && (trimmedLine.includes("'") || trimmedLine.includes('"'))) {
+        const indentMatch = lineText.match(/^(\s*)/);
+        const indent = indentMatch ? indentMatch[1] : '    ';
+        argumentLines.push({ lineNum, text: lineText, indent });
+        this.logger.debug(`Found argument line ${lineNum + 1}: "${trimmedLine}"`);
+      }
+
+      // Stop if we hit another directive
+      if (trimmedLine.startsWith(':-')) {
+        this.logger.debug(`Hit another directive at line ${lineNum + 1}, stopping arguments list search`);
+        break;
+      }
+    }
+
+    this.logger.debug(`Found ${argumentLines.length} argument lines for removal`);
+
+    if (currentArity === 1) {
+      // Remove the entire multi-line arguments structure
+      this.logger.debug(`Removing entire multi-line arguments structure (last argument)`);
+
+      // Check if we need to remove trailing comma from previous line
+      if (startLineNum > 0) {
+        const prevLineText = doc.lineAt(startLineNum - 1).text;
+        if (prevLineText.trim().endsWith(',')) {
+          const commaIndex = prevLineText.lastIndexOf(',');
+          const prevLineEdit = TextEdit.replace(
+            new Range(
+              new Position(startLineNum - 1, commaIndex),
+              new Position(startLineNum - 1, commaIndex + 1)
+            ),
+            ''
+          );
+          edits.push(prevLineEdit);
+          this.logger.debug(`Removed trailing comma from previous line ${startLineNum}`);
+        }
+      }
+
+      // Remove from start line to end line (inclusive)
+      const removeEdit = TextEdit.replace(
+        new Range(
+          new Position(startLineNum, 0),
+          new Position(endLineNum + 1, 0)
+        ),
+        ''
+      );
+      edits.push(removeEdit);
+
+      return endLineNum; // Return the line after the removed structure
+    } else if (argumentPosition <= argumentLines.length) {
+      // Remove specific argument from the multi-line structure
+      const targetArgLine = argumentLines[argumentPosition - 1];
+      this.logger.debug(`Removing argument at position ${argumentPosition} from line ${targetArgLine.lineNum + 1}`);
+
+      const removeEdit = TextEdit.replace(
+        new Range(
+          new Position(targetArgLine.lineNum, 0),
+          new Position(targetArgLine.lineNum + 1, 0)
+        ),
+        ''
+      );
+      edits.push(removeEdit);
+
+      return endLineNum; // Return the line after the structure
+    }
+
+    return endLineNum;
+  }
+
+  /**
+   * Reorder arguments in multi-line arguments list
+   */
+  private reorderMultiLineArguments(doc: TextDocument, startLineNum: number, newOrder: number[], edits: TextEdit[]): number {
+    this.logger.debug(`reorderMultiLineArguments called: startLine=${startLineNum + 1}, newOrder=[${newOrder.join(',')}]`);
+    const argumentLines: { lineNum: number; text: string; indent: string }[] = [];
+    let endLineNum = startLineNum;
+
+    // Find the end of the multi-line arguments list and collect all argument lines
+    for (let lineNum = startLineNum + 1; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if this is the closing bracket
+      if (trimmedLine === ']' || trimmedLine.startsWith(']')) {
+        endLineNum = lineNum;
+        this.logger.debug(`Found multi-line arguments list ending at line ${lineNum + 1}`);
+        break;
+      }
+
+      // If this line contains an argument pair, collect it
+      if (trimmedLine.includes('-') && (trimmedLine.includes("'") || trimmedLine.includes('"'))) {
+        const indentMatch = lineText.match(/^(\s*)/);
+        const indent = indentMatch ? indentMatch[1] : '    ';
+        argumentLines.push({ lineNum, text: lineText, indent });
+        this.logger.debug(`Found argument line ${lineNum + 1}: "${trimmedLine}"`);
+      }
+
+      // Stop if we hit another directive
+      if (trimmedLine.startsWith(':-')) {
+        this.logger.debug(`Hit another directive at line ${lineNum + 1}, stopping arguments list search`);
+        break;
+      }
+    }
+
+    this.logger.debug(`Found ${argumentLines.length} argument lines for reordering`);
+
+    if (argumentLines.length > 0 && newOrder.length === argumentLines.length) {
+      // Create reordered content
+      const reorderedLines: string[] = [];
+      for (let i = 0; i < newOrder.length; i++) {
+        const sourceIndex = newOrder[i] - 1; // Convert to 0-based
+        if (sourceIndex >= 0 && sourceIndex < argumentLines.length) {
+          const sourceLine = argumentLines[sourceIndex];
+          reorderedLines.push(sourceLine.text);
+        }
+      }
+
+      // Replace all argument lines with reordered content
+      if (argumentLines.length > 0) {
+        const firstArgLine = argumentLines[0].lineNum;
+        const lastArgLine = argumentLines[argumentLines.length - 1].lineNum;
+
+        const replaceEdit = TextEdit.replace(
+          new Range(
+            new Position(firstArgLine, 0),
+            new Position(lastArgLine + 1, 0)
+          ),
+          reorderedLines.join('\n') + '\n'
+        );
+        edits.push(replaceEdit);
+        this.logger.debug(`Reordered ${argumentLines.length} argument lines`);
+      }
+    }
+
+    return endLineNum;
   }
 
   /**
    * Update info directive arguments (argnames and arguments lists)
    */
-  private updateInfoDirectiveArguments(lineText: string, argumentName: string, argumentPosition: number): string {
+  private updateInfoDirectiveArgumentsForAdding(
+    doc: TextDocument,
+    lineNum: number,
+    lineText: string,
+    argumentName: string,
+    argumentPosition: number,
+    edits: TextEdit[]
+  ): number {
     let updatedLine = lineText;
+
+    // Handle multi-line arguments lists FIRST
+    // Detect 'arguments is [' without ']' on the same line
+    const multiLineArgumentsPattern = /^(\s*)arguments\s+is\s+\[([^\]]*)?$/;
+    const multiLineArgumentsMatch = lineText.match(multiLineArgumentsPattern);
+    if (multiLineArgumentsMatch) {
+      this.logger.debug(`Detected multi-line arguments list starting at line ${lineNum + 1}`);
+      const { edits: multiLineEdits, endLineNum } = this.constructMultiLineArguments(doc, lineNum, argumentName, argumentPosition);
+      edits.push(...multiLineEdits);
+      return endLineNum; // Return line after multi-line structure
+    }
 
     // Update argnames is List pattern
     // Example:     argnames is [Image, Final] -> argnames is [NewArg, Image, Final] (if position = 1)
@@ -2553,10 +2759,22 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.debug(`Updated single-line arguments list at position ${argumentPosition}: ${currentList} → ${newList}`);
     }
 
-    // Multi-line arguments lists are now handled directly in the while loop
-    // when we detect 'arguments is [' without ']' on the same line
 
-    return updatedLine;
+
+    // If the line was updated, create an edit
+    if (updatedLine !== lineText) {
+      this.logger.debug(`Updated argnames/arguments at line ${lineNum + 1}`);
+      const edit = TextEdit.replace(
+        new Range(
+          new Position(lineNum, 0),
+          new Position(lineNum, lineText.length)
+        ),
+        updatedLine
+      );
+      edits.push(edit);
+    }
+
+    return lineNum; // Return current line number
   }
 
   /**
@@ -3329,16 +3547,28 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
               // Remove argument at specified position
               const newArgs = [...args];
               newArgs.splice(argumentPosition - 1, 1);
-              const newArgsText = newArgs.join(', ');
 
-              edits.push(TextEdit.replace(
-                new Range(
-                  new Position(lineNum, openParenPos + 1),
-                  new Position(lineNum, closeParenPos)
-                ),
-                newArgsText
-              ));
-              this.logger.debug(`Removed argument ${argumentPosition} from non-terminal with exact arity ${currentArity}: "${newArgsText}"`);
+              if (newArgs.length === 0) {
+                // Remove parentheses entirely when no arguments remain
+                edits.push(TextEdit.replace(
+                  new Range(
+                    new Position(lineNum, openParenPos),
+                    new Position(lineNum, closeParenPos + 1)
+                  ),
+                  ''
+                ));
+                this.logger.debug(`Removed all arguments and parentheses from non-terminal with exact arity ${currentArity}`);
+              } else {
+                const newArgsText = newArgs.join(', ');
+                edits.push(TextEdit.replace(
+                  new Range(
+                    new Position(lineNum, openParenPos + 1),
+                    new Position(lineNum, closeParenPos)
+                  ),
+                  newArgsText
+                ));
+                this.logger.debug(`Removed argument ${argumentPosition} from non-terminal with exact arity ${currentArity}: "${newArgsText}"`);
+              }
             } else {
               this.logger.debug(`Skipping non-terminal with different arity (${currentArity} vs target ${targetArity})`);
             }
@@ -3378,15 +3608,28 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
               // Remove argument at specified position
               const newArgs = [...args];
               newArgs.splice(argumentPosition - 1, 1);
-              const newArgsText = newArgs.join(', ');
 
-              edits.push(TextEdit.replace(
-                new Range(
-                  new Position(lineNum, openParenPos + 1),
-                  new Position(lineNum, closeParenPos)
-                ),
-                newArgsText
-              ));
+              if (newArgs.length === 0) {
+                // Remove parentheses entirely when no arguments remain
+                edits.push(TextEdit.replace(
+                  new Range(
+                    new Position(lineNum, openParenPos),
+                    new Position(lineNum, closeParenPos + 1)
+                  ),
+                  ''
+                ));
+                this.logger.debug(`Removed all arguments and parentheses from predicate call with exact arity ${currentArity}`);
+              } else {
+                const newArgsText = newArgs.join(', ');
+                edits.push(TextEdit.replace(
+                  new Range(
+                    new Position(lineNum, openParenPos + 1),
+                    new Position(lineNum, closeParenPos)
+                  ),
+                  newArgsText
+                ));
+                this.logger.debug(`Removed argument ${argumentPosition} from predicate call with exact arity ${currentArity}: "${newArgsText}"`);
+              }
             } else {
               this.logger.debug(`Skipping predicate call with different arity (${currentArity} vs target ${targetArity})`);
             }
@@ -3460,7 +3703,17 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-).*)$/);
     if (predicateNameMatch) {
       const [, leadingSpace, predName, openParen, , closingAndRest] = predicateNameMatch;
-      const newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
+
+      // If no arguments remain, remove parentheses entirely
+      let newClauseHead: string;
+      if (newArgs.length === 0) {
+        // Extract the part after the closing parenthesis (e.g., " :- body" or " --> body")
+        const afterParenMatch = closingAndRest.match(/^\)\s*((?:-->|:-).*)$/);
+        const afterParen = afterParenMatch ? afterParenMatch[1] : closingAndRest.replace(/^\)\s*/, '');
+        newClauseHead = `${leadingSpace}${predName} ${afterParen}`;
+      } else {
+        newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
+      }
 
       const edit = TextEdit.replace(
         new Range(
@@ -3748,8 +4001,24 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update info directive arguments for reordering
    */
-  private updateInfoDirectiveArgumentsForReorder(lineText: string, newOrder: number[]): string {
+  private updateInfoDirectiveArgumentsForReorder(
+    doc: TextDocument,
+    lineNum: number,
+    lineText: string,
+    newOrder: number[],
+    edits: TextEdit[]
+  ): number {
     let updatedLine = lineText;
+
+    // Handle multi-line arguments lists FIRST
+    // Detect 'arguments is [' without ']' on the same line
+    const multiLineArgumentsPattern = /^(\s*)arguments\s+is\s+\[([^\]]*)?$/;
+    const multiLineArgumentsMatch = lineText.match(multiLineArgumentsPattern);
+    if (multiLineArgumentsMatch) {
+      this.logger.debug(`Detected multi-line arguments list starting at line ${lineNum + 1} for reordering`);
+      const endLineNum = this.reorderMultiLineArguments(doc, lineNum, newOrder, edits);
+      return endLineNum; // Return line after multi-line structure
+    }
 
     // Update argnames is List pattern
     const argnamesPattern = /^(\s*)argnames\s+is\s+(\[[^\]]*\])(.*)/;
@@ -3789,7 +4058,20 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     }
 
-    return updatedLine;
+    // If the line was updated, create an edit
+    if (updatedLine !== lineText) {
+      this.logger.debug(`Updated argnames/arguments for reordering at line ${lineNum + 1}`);
+      const edit = TextEdit.replace(
+        new Range(
+          new Position(lineNum, 0),
+          new Position(lineNum, lineText.length)
+        ),
+        updatedLine
+      );
+      edits.push(edit);
+    }
+
+    return lineNum; // Return current line number
   }
 
   /**
@@ -4484,14 +4766,70 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update info directive arguments for removal
    */
-  private updateInfoDirectiveArgumentsForRemoval(lineText: string, argumentPosition: number, currentArity: number): string {
+  private updateInfoDirectiveArgumentsForRemoval(
+    doc: TextDocument,
+    lineNum: number,
+    lineText: string,
+    argumentPosition: number,
+    currentArity: number,
+    edits: TextEdit[]
+  ): number {
     let updatedLine = lineText;
+
+    // Handle multi-line arguments lists FIRST
+    // Detect 'arguments is [' without ']' on the same line
+    const multiLineArgumentsPattern = /^(\s*)arguments\s+is\s+\[([^\]]*)?$/;
+    const multiLineArgumentsMatch = lineText.match(multiLineArgumentsPattern);
+    if (multiLineArgumentsMatch) {
+      this.logger.debug(`Detected multi-line arguments list starting at line ${lineNum + 1} for removal`);
+      // For removal, we need to find the multi-line structure and remove the argument
+      const endLineNum = this.removeFromMultiLineArguments(doc, lineNum, argumentPosition, currentArity, edits);
+      return endLineNum; // Return line after multi-line structure
+    }
 
     // Handle argnames and arguments lists
     if (lineText.includes('argnames') || lineText.includes('arguments')) {
-      // If removing the last argument and it would result in an empty list, we'll handle this in the consecutive directives method
+      // If removing the last argument and it would result in an empty list, remove the entire line
       if (currentArity === 1) {
-        return updatedLine; // Don't modify here, let consecutive directives handle deletion
+        this.logger.debug(`Removing entire argnames/arguments line at line ${lineNum + 1} (last argument)`);
+
+        // Check if the next line contains the closing directive (]).
+        let removeTrailingComma = false;
+        if (lineNum + 1 < doc.lineCount) {
+          const nextLineText = doc.lineAt(lineNum + 1).text.trim();
+          if (nextLineText.includes(']).')) {
+            removeTrailingComma = true;
+          }
+        }
+
+        // If we need to remove trailing comma, also check the previous line
+        if (removeTrailingComma && lineNum > 0) {
+          const prevLineText = doc.lineAt(lineNum - 1).text;
+          if (prevLineText.trim().endsWith(',')) {
+            // Remove trailing comma from previous line
+            const commaIndex = prevLineText.lastIndexOf(',');
+            const prevLineEdit = TextEdit.replace(
+              new Range(
+                new Position(lineNum - 1, commaIndex),
+                new Position(lineNum - 1, commaIndex + 1)
+              ),
+              ''
+            );
+            edits.push(prevLineEdit);
+            this.logger.debug(`Removed trailing comma from previous line ${lineNum}`);
+          }
+        }
+
+        // Remove the entire argnames/arguments line
+        const edit = TextEdit.replace(
+          new Range(
+            new Position(lineNum, 0),
+            new Position(lineNum + 1, 0)  // Include the newline to remove the entire line
+          ),
+          ''
+        );
+        edits.push(edit);
+        return lineNum; // Return current line, no multi-line processing
       }
 
       // Find the list and remove the specified argument
@@ -4508,7 +4846,20 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     }
 
-    return updatedLine;
+    // If the line was updated, create an edit
+    if (updatedLine !== lineText) {
+      this.logger.debug(`Updated argnames/arguments for removal at line ${lineNum + 1}`);
+      const edit = TextEdit.replace(
+        new Range(
+          new Position(lineNum, 0),
+          new Position(lineNum, lineText.length)
+        ),
+        updatedLine
+      );
+      edits.push(edit);
+    }
+
+    return lineNum; // Return current line number
   }
 
   /**
@@ -4665,8 +5016,14 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const args = ArgumentUtils.parseArguments(argsText);
       if (args.length >= argumentPosition) {
         args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
-        const newArgsText = args.join(', ');
-        return `mode(${predicateName}(${newArgsText}), ${modeInfo})`;
+
+        // If no arguments remain, remove parentheses entirely
+        if (args.length === 0) {
+          return `mode(${predicateName}, ${modeInfo})`;
+        } else {
+          const newArgsText = args.join(', ');
+          return `mode(${predicateName}(${newArgsText}), ${modeInfo})`;
+        }
       }
       return match;
     });
@@ -4689,8 +5046,14 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const args = ArgumentUtils.parseArguments(argsText);
       if (args.length >= argumentPosition) {
         args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
-        const newArgsText = args.join(', ');
-        return `${directiveType}(${predicateName}(${newArgsText}))`;
+
+        // If no arguments remain, remove parentheses entirely
+        if (args.length === 0) {
+          return `${directiveType}(${predicateName})`;
+        } else {
+          const newArgsText = args.join(', ');
+          return `${directiveType}(${predicateName}(${newArgsText}))`;
+        }
       }
       return match;
     });
