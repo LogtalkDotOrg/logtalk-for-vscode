@@ -2509,11 +2509,35 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     // Create the new argument line
-    const newArgumentLine = `${indent}'${argumentName}' - '',\n`;
+    // Don't add comma if inserting at the last position (after all existing arguments)
+    const isLastPosition = argumentPosition - 1 >= argumentLines.length;
+    const comma = isLastPosition ? '' : ',';
+    const newArgumentLine = `${indent}'${argumentName}' - ''${comma}\n`;
 
     this.logger.debug(`Constructing multi-line arguments: inserting new argument at position ${argumentPosition} (line ${insertLineNum + 1})`);
     this.logger.debug(`Found ${argumentLines.length} existing argument lines`);
     this.logger.debug(`New argument line: "${newArgumentLine.trim()}"`);
+    this.logger.debug(`Is last position: ${isLastPosition}`);
+
+    // If inserting at the last position, we need to add a comma to the previous last element
+    if (isLastPosition && argumentLines.length > 0) {
+      const lastArgLine = argumentLines[argumentLines.length - 1];
+      const lastLineText = lastArgLine.text;
+
+      // Check if the last line doesn't already have a comma
+      if (!lastLineText.trim().endsWith(',')) {
+        // Add comma to the previous last element
+        const commaEdit = TextEdit.replace(
+          new Range(
+            new Position(lastArgLine.lineNum, lastLineText.length),
+            new Position(lastArgLine.lineNum, lastLineText.length)
+          ),
+          ','
+        );
+        edits.push(commaEdit);
+        this.logger.debug(`Added comma to previous last argument at line ${lastArgLine.lineNum + 1}`);
+      }
+    }
 
     // Insert the new argument at the calculated position
     edits.push(TextEdit.insert(
@@ -2599,6 +2623,29 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const targetArgLine = argumentLines[argumentPosition - 1];
       this.logger.debug(`Removing argument at position ${argumentPosition} from line ${targetArgLine.lineNum + 1}`);
 
+      // If removing the last argument and it's not the only argument,
+      // we need to remove the comma from the new last argument
+      const isRemovingLastArg = argumentPosition === argumentLines.length;
+      if (isRemovingLastArg && argumentLines.length > 1) {
+        const newLastArgLine = argumentLines[argumentLines.length - 2]; // Previous to last
+        const newLastLineText = newLastArgLine.text;
+
+        // Remove comma from the new last argument if it has one
+        if (newLastLineText.trim().endsWith(',')) {
+          const commaIndex = newLastLineText.lastIndexOf(',');
+          const commaRemoveEdit = TextEdit.replace(
+            new Range(
+              new Position(newLastArgLine.lineNum, commaIndex),
+              new Position(newLastArgLine.lineNum, commaIndex + 1)
+            ),
+            ''
+          );
+          edits.push(commaRemoveEdit);
+          this.logger.debug(`Removed comma from new last argument at line ${newLastArgLine.lineNum + 1}`);
+        }
+      }
+
+      // Remove the target argument line
       const removeEdit = TextEdit.replace(
         new Range(
           new Position(targetArgLine.lineNum, 0),
@@ -2652,13 +2699,29 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     this.logger.debug(`Found ${argumentLines.length} argument lines for reordering`);
 
     if (argumentLines.length > 0 && newOrder.length === argumentLines.length) {
-      // Create reordered content
+      // Create reordered content with proper comma handling
       const reorderedLines: string[] = [];
       for (let i = 0; i < newOrder.length; i++) {
         const sourceIndex = newOrder[i] - 1; // Convert to 0-based
         if (sourceIndex >= 0 && sourceIndex < argumentLines.length) {
           const sourceLine = argumentLines[sourceIndex];
-          reorderedLines.push(sourceLine.text);
+          let lineText = sourceLine.text;
+
+          // Remove any existing comma from the source line
+          if (lineText.trim().endsWith(',')) {
+            const commaIndex = lineText.lastIndexOf(',');
+            lineText = lineText.substring(0, commaIndex) + lineText.substring(commaIndex + 1);
+          }
+
+          // Add comma if this is not the last line
+          if (i < newOrder.length - 1) {
+            // Find the position to insert comma (before any trailing whitespace/newline)
+            const trimmedLine = lineText.trimEnd();
+            const trailingWhitespace = lineText.substring(trimmedLine.length);
+            lineText = trimmedLine + ',' + trailingWhitespace;
+          }
+
+          reorderedLines.push(lineText);
         }
       }
 
@@ -2675,7 +2738,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           reorderedLines.join('\n') + '\n'
         );
         edits.push(replaceEdit);
-        this.logger.debug(`Reordered ${argumentLines.length} argument lines`);
+        this.logger.debug(`Reordered ${argumentLines.length} argument lines with proper comma handling`);
       }
     }
 
