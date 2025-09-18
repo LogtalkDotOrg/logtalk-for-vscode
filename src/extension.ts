@@ -396,6 +396,14 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.extractProtocol', async (document, range) => {
+      if (refactorProvider) {
+        await refactorProvider.extractProtocol(document, range);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

@@ -27,6 +27,7 @@ import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
+import { SymbolUtils, PatternSets } from "../utils/symbols";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -110,6 +111,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         };
         actions.push(replaceWithIncludeAction);
       }
+    }
+
+    // Check for extract protocol action (works with cursor position or entity name selection)
+    const entityInfo = this.detectEntityOpeningDirective(document, range);
+    if (entityInfo && (entityInfo.type === 'object' || entityInfo.type === 'category')) {
+      const extractProtocolAction = new CodeAction(
+        "Extract protocol",
+        CodeActionKind.RefactorExtract
+      );
+      extractProtocolAction.command = {
+        command: "logtalk.refactor.extractProtocol",
+        title: "Extract protocol",
+        arguments: [document, range]
+      };
+      actions.push(extractProtocolAction);
     }
 
     // Check for cancellation before potentially expensive predicate call analysis
@@ -571,6 +587,588 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     lines.push(entityType.endDirective);
     lines.push('');
     
+    return lines.join('\n');
+  }
+
+  /**
+   * Detect if the range starts with an object or category opening directive
+   * @param document The text document
+   * @param range The selected range
+   * @returns Entity information if detected, null otherwise
+   */
+  private detectEntityOpeningDirective(document: TextDocument, range: Range | Selection): { type: string; name: string; nameWithoutParams: string; line: number } | null {
+    // Only check the line where the selection starts - no searching around
+    const startLine = range.start.line;
+    const lineText = document.lineAt(startLine).text;
+
+    // Check if this line contains an entity opening directive
+    const entityMatch = SymbolUtils.matchFirst(lineText.trim(), PatternSets.entityOpening);
+    if (!entityMatch) {
+      return null;
+    }
+
+    // Extract entity name from the match
+    const fullMatch = entityMatch.match[1]; // This includes the name and any parameters
+    if (!fullMatch) {
+      return null;
+    }
+
+    // Extract just the entity name without parameters
+    const nameWithoutParams = fullMatch.split('(')[0].trim();
+
+    // Require that the selection actually contains the entity name
+    // This ensures the user has explicitly selected the entity name
+    const selectedText = document.getText(range);
+    if (!selectedText.includes(nameWithoutParams)) {
+      return null;
+    }
+
+    return {
+      type: entityMatch.type,
+      name: fullMatch,
+      nameWithoutParams: nameWithoutParams,
+      line: startLine
+    };
+  }
+
+  /**
+   * Extract protocol refactoring - extracts predicate declarations from object/category to new protocol
+   */
+  public async extractProtocol(document: TextDocument, range: Range | Selection): Promise<void> {
+    try {
+      this.logger.debug(`Extract protocol called with range: lines ${range.start.line + 1}-${range.end.line + 1}`);
+
+      // Detect the entity opening directive
+      const entityInfo = this.detectEntityOpeningDirective(document, range);
+      this.logger.debug(`Entity info detected:`, entityInfo);
+
+      if (!entityInfo || (entityInfo.type !== 'object' && entityInfo.type !== 'category')) {
+        window.showErrorMessage("Extract protocol is only available for objects and categories.");
+        return;
+      }
+
+      // Generate protocol name
+      const protocolName = `${entityInfo.nameWithoutParams}_protocol`;
+      this.logger.debug(`Generated protocol name: ${protocolName}`);
+
+      // Ask user for file location and name
+      const fileUri = await this.promptForFileSave(protocolName, document);
+      if (!fileUri) {
+        return; // User cancelled
+      }
+
+      // Create a range for the entire entity starting from the detected entity line
+      const entityRange = new Range(
+        new Position(entityInfo.line, 0),
+        new Position(entityInfo.line, 0)
+      );
+
+      // Extract predicate declarations from the entity
+      this.logger.debug(`Extracting predicate declarations...`);
+      const declarations = await this.extractPredicateDeclarations(document, entityRange);
+      this.logger.debug(`Found ${declarations.length} declarations`);
+
+      if (declarations.length === 0) {
+        window.showErrorMessage("No predicate declarations found to extract.");
+        return;
+      }
+
+      // Get current date and user info
+      const currentDate = new Date();
+      const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+      const author = await this.getAuthorName();
+
+      // Adapt existing info/1 directive if present
+      const adaptedInfo = await this.adaptEntityInfoDirective(document, entityRange, entityInfo.type);
+
+      // Generate the protocol file content
+      const protocolContent = this.generateProtocolFileContent(
+        protocolName,
+        declarations,
+        author,
+        dateString,
+        adaptedInfo
+      );
+
+      // Create the new protocol file and remove declarations from original
+      const edit = new WorkspaceEdit();
+      edit.createFile(fileUri, { ignoreIfExists: false });
+      edit.insert(fileUri, new Position(0, 0), protocolContent);
+
+      // Modify the original entity opening directive to add implements(protocol_name)
+      await this.addImplementsToEntityDirective(document, entityInfo, protocolName, edit);
+
+      // Remove the extracted declarations from the original document
+      // Sort declarations by line number in reverse order to avoid range shifting issues
+      const sortedDeclarations = declarations.sort((a, b) => b.range.start.line - a.range.start.line);
+
+      // Group consecutive declarations to handle empty lines properly
+      const declarationGroups = this.groupConsecutiveDeclarations(sortedDeclarations);
+
+      for (const group of declarationGroups) {
+        // Create a range that encompasses the entire group including surrounding empty lines
+        const groupStartLine = group[group.length - 1].range.start.line; // Last in group (lowest line number)
+        const groupEndLine = group[0].range.end.line; // First in group (highest line number)
+
+        const groupRange = new Range(
+          new Position(groupStartLine, 0),
+          new Position(groupEndLine, document.lineAt(groupEndLine).text.length)
+        );
+
+        // Extend to include surrounding empty lines
+        const extendedRange = this.extendRangeToIncludeEmptyLines(document, groupRange);
+        edit.delete(document.uri, extendedRange);
+      }
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        // Open the new file
+        const newDocument = await workspace.openTextDocument(fileUri);
+        await window.showTextDocument(newDocument);
+
+        this.logger.info(`Successfully extracted protocol: ${fileUri.fsPath}`);
+        window.showInformationMessage(`Protocol extracted to: ${path.basename(fileUri.fsPath)}. Declarations removed from source ${entityInfo.type}.`);
+      } else {
+        window.showErrorMessage("Failed to create the protocol file.");
+      }
+    } catch (error) {
+      this.logger.error(`Error extracting protocol: ${error}`);
+      window.showErrorMessage(`Error extracting protocol: ${error}`);
+    }
+  }
+
+  /**
+   * Extract predicate declarations from the entity
+   * @param document The text document
+   * @param range The selected range containing the entity
+   * @returns Array of declaration ranges to extract
+   */
+  private async extractPredicateDeclarations(document: TextDocument, range: Range | Selection): Promise<{ range: Range; text: string }[]> {
+    const declarations: { range: Range; text: string }[] = [];
+    const startLine = range.start.line;
+
+    // Find the end of the entity by looking for the closing directive
+    let endLine = document.lineCount - 1;
+    for (let lineNum = startLine + 1; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text.trim();
+      if (SymbolUtils.matchFirst(lineText, PatternSets.entityEnding) !== null) {
+        endLine = lineNum;
+        break;
+      }
+    }
+
+    this.logger.debug(`Extracting predicate declarations from lines ${startLine + 1} to ${endLine + 1} (entity boundary)`);
+
+    // Find all scope directives and their consecutive directives within the entity
+    for (let lineNum = startLine + 1; lineNum < endLine; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Skip empty lines and comments
+      if (trimmedLine === '' || trimmedLine.startsWith('%')) {
+        continue;
+      }
+
+      this.logger.debug(`Checking line ${lineNum + 1}: "${trimmedLine}"`);
+
+      // Check if this is any kind of scope directive (single predicate, non-terminal, or multi-predicate)
+      const singleScopeMatch = SymbolUtils.matchFirst(trimmedLine, PatternSets.allScopes);
+      const multiScopeMatch = SymbolUtils.matchFirst(trimmedLine, PatternSets.scopeOpenings);
+
+      this.logger.debug(`  singleScopeMatch: ${singleScopeMatch ? singleScopeMatch.type : 'null'}`);
+      this.logger.debug(`  multiScopeMatch: ${multiScopeMatch ? multiScopeMatch.type : 'null'}`);
+
+      if (singleScopeMatch || multiScopeMatch) {
+        this.logger.debug(`  Found scope directive, finding consecutive directives...`);
+        // Find all consecutive directives for this scope
+        const consecutiveRanges = await this.findConsecutiveDirectivesFromScope(document, lineNum);
+        this.logger.debug(`  Found ${consecutiveRanges.length} consecutive directive ranges`);
+        declarations.push(...consecutiveRanges);
+
+        // Skip ahead to avoid processing the same directives again
+        if (consecutiveRanges.length > 0) {
+          const lastRange = consecutiveRanges[consecutiveRanges.length - 1];
+          lineNum = lastRange.range.end.line;
+          this.logger.debug(`  Skipping ahead to line ${lineNum + 1}`);
+        }
+      }
+    }
+
+    this.logger.debug(`Total declarations found: ${declarations.length}`);
+    return declarations;
+  }
+
+  /**
+   * Find all consecutive directives starting from a scope directive
+   * @param document The text document
+   * @param scopeLine The line number of the scope directive
+   * @returns Array of directive ranges
+   */
+  private async findConsecutiveDirectivesFromScope(document: TextDocument, scopeLine: number): Promise<{ range: Range; text: string }[]> {
+    const directives: { range: Range; text: string }[] = [];
+    let currentLine = scopeLine;
+
+    this.logger.debug(`Finding consecutive directives starting from line ${scopeLine + 1}`);
+
+    while (currentLine < document.lineCount) {
+      const lineText = document.lineAt(currentLine).text;
+      const trimmedLine = lineText.trim();
+
+      this.logger.debug(`  Checking line ${currentLine + 1}: "${trimmedLine}"`);
+
+      // Stop if we hit an entity ending
+      if (SymbolUtils.matchFirst(trimmedLine, PatternSets.entityEnding) !== null) {
+        this.logger.debug(`  Hit entity ending, stopping`);
+        break;
+      }
+
+      // Skip empty lines and comments, but continue searching
+      if (trimmedLine === '' || trimmedLine.startsWith('%')) {
+        this.logger.debug(`  Skipping empty line or comment`);
+        currentLine++;
+        continue;
+      }
+
+      // Check if this is a directive
+      if (trimmedLine.startsWith(':-')) {
+        // Check if this is a predicate-related directive
+        if (this.isPredicateDirective(trimmedLine)) {
+          this.logger.debug(`  Found predicate directive`);
+          // Use existing getDirectiveRange function
+          const range = this.getDirectiveRange(document, currentLine);
+          this.logger.debug(`  Directive range: lines ${range.start + 1}-${range.end + 1}`);
+
+          // Get the full directive text
+          const directiveRange = new Range(
+            new Position(range.start, 0),
+            new Position(range.end, document.lineAt(range.end).text.length)
+          );
+          const directiveText = document.getText(directiveRange);
+
+          directives.push({
+            range: directiveRange,
+            text: directiveText
+          });
+
+          // Move to the next line after this directive
+          currentLine = range.end + 1;
+          this.logger.debug(`  Moving to line ${currentLine + 1}`);
+        } else {
+          // This is a different type of directive, stop
+          this.logger.debug(`  Found non-predicate directive, stopping`);
+          break;
+        }
+      } else {
+        // This is not a directive, stop
+        this.logger.debug(`  Not a directive, stopping`);
+        break;
+      }
+    }
+
+    this.logger.debug(`Found ${directives.length} consecutive directives`);
+    return directives;
+  }
+
+  /**
+   * Group consecutive declarations to handle empty lines properly when deleting
+   */
+  private groupConsecutiveDeclarations(declarations: { range: Range; text: string }[]): { range: Range; text: string }[][] {
+    if (declarations.length === 0) {
+      return [];
+    }
+
+    const groups: { range: Range; text: string }[][] = [];
+    let currentGroup: { range: Range; text: string }[] = [declarations[0]];
+
+    for (let i = 1; i < declarations.length; i++) {
+      const current = declarations[i];
+      const previous = declarations[i - 1];
+
+      // Check if current declaration is consecutive to the previous one
+      // (allowing for a few lines gap for related directives)
+      const lineGap = previous.range.start.line - current.range.end.line;
+
+      if (lineGap <= 3) {
+        // Consecutive or close enough - add to current group
+        currentGroup.push(current);
+      } else {
+        // Gap too large - start new group
+        groups.push(currentGroup);
+        currentGroup = [current];
+      }
+    }
+
+    // Add the last group
+    groups.push(currentGroup);
+    return groups;
+  }
+
+  /**
+   * Group declarations by predicate to avoid empty lines between related directives
+   */
+  private groupDeclarationsByPredicate(declarations: { range: Range; text: string }[]): { range: Range; text: string }[][] {
+    if (declarations.length === 0) {
+      return [];
+    }
+
+    const groups: { range: Range; text: string }[][] = [];
+    let currentGroup: { range: Range; text: string }[] = [declarations[0]];
+
+    for (let i = 1; i < declarations.length; i++) {
+      const current = declarations[i];
+      const previous = declarations[i - 1];
+
+      // Check if current declaration is consecutive to the previous one (same predicate group)
+      // Allow for small gaps (1 line) for related directives like mode, info after scope
+      const lineGap = current.range.start.line - previous.range.end.line;
+
+      if (lineGap <= 1) {
+        // Consecutive or very close - likely same predicate group
+        currentGroup.push(current);
+      } else {
+        // Gap of 2+ lines - likely different predicate, start new group
+        groups.push(currentGroup);
+        currentGroup = [current];
+      }
+    }
+
+    // Add the last group
+    groups.push(currentGroup);
+    return groups;
+  }
+
+  /**
+   * Add implements(protocol_name) to the entity opening directive
+   */
+  private async addImplementsToEntityDirective(
+    document: TextDocument,
+    entityInfo: { type: string; name: string; line: number },
+    protocolName: string,
+    edit: WorkspaceEdit
+  ): Promise<void> {
+    // Get the range of the entity opening directive
+    const directiveRange = this.getDirectiveRange(document, entityInfo.line);
+
+    // Get the full directive text
+    const directiveText = document.getText(new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    ));
+
+    // Check if this is a single-line or multi-line directive
+    const lines = directiveText.split('\n');
+
+    if (lines.length === 1) {
+      // Single-line directive: :- object(name).
+      // Convert to: :- object(name,\n\timplements(protocol)).
+      const line = lines[0];
+      const match = line.match(/^(\s*:-\s*(?:object|category)\s*\(\s*[^,)]+)\s*\)\s*\.?\s*$/);
+
+      if (match) {
+        const entityPart = match[1]; // ":- object(name"
+        const newDirective = `${entityPart},\n\timplements(${protocolName})).`;
+
+        const fullRange = new Range(
+          new Position(directiveRange.start, 0),
+          new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+        );
+        edit.replace(document.uri, fullRange, newDirective);
+      }
+    } else {
+      // Multi-line directive - insert implements after the entity name line
+      // Find the first line (entity name line) and modify it to add comma if needed
+      const firstLine = lines[0];
+      const firstLineRange = new Range(
+        new Position(directiveRange.start, 0),
+        new Position(directiveRange.start, document.lineAt(directiveRange.start).text.length)
+      );
+
+      // Check if first line already ends with comma
+      if (firstLine.trim().endsWith(',')) {
+        // Already has comma, just insert implements line after it
+        const insertPosition = new Position(directiveRange.start + 1, 0);
+        edit.insert(document.uri, insertPosition, `\timplements(${protocolName}),\n`);
+      } else {
+        // Need to add comma to first line and insert implements
+        const modifiedFirstLine = firstLine.replace(/\s*$/, ',');
+        edit.replace(document.uri, firstLineRange, modifiedFirstLine);
+
+        const insertPosition = new Position(directiveRange.start + 1, 0);
+        edit.insert(document.uri, insertPosition, `\timplements(${protocolName}),\n`);
+      }
+    }
+  }
+
+  /**
+   * Clean declaration text by removing only leading/trailing empty lines, preserving original formatting
+   */
+  private cleanDeclarationText(text: string): string {
+    const lines = text.split('\n');
+
+    // Remove leading empty lines
+    while (lines.length > 0 && lines[0].trim() === '') {
+      lines.shift();
+    }
+
+    // Remove trailing empty lines
+    while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+      lines.pop();
+    }
+
+    // Return as-is, preserving original formatting
+    return lines.join('\n');
+  }
+
+  /**
+   * Extend a range to include empty lines before and after
+   */
+  private extendRangeToIncludeEmptyLines(document: TextDocument, range: Range): Range {
+    let startLine = range.start.line;
+    let endLine = range.end.line;
+
+    // Look for empty lines before the range
+    while (startLine > 0) {
+      const prevLine = startLine - 1;
+      const lineText = document.lineAt(prevLine).text.trim();
+      if (lineText === '') {
+        startLine = prevLine;
+      } else {
+        break;
+      }
+    }
+
+    // Look for empty lines after the range
+    while (endLine < document.lineCount - 1) {
+      const nextLine = endLine + 1;
+      const lineText = document.lineAt(nextLine).text.trim();
+      if (lineText === '') {
+        endLine = nextLine;
+      } else {
+        break;
+      }
+    }
+
+    return new Range(
+      new Position(startLine, 0),
+      new Position(endLine, document.lineAt(endLine).text.length)
+    );
+  }
+
+  /**
+   * Check if a directive is predicate-related
+   */
+  private isPredicateDirective(trimmedLine: string): boolean {
+    const predicateDirectiveTypes = [
+      'public', 'protected', 'private',
+      'mode', 'info', 'meta_predicate', 'meta_non_terminal',
+      'dynamic', 'discontiguous', 'multifile', 'synchronized', 'coinductive'
+    ];
+
+    return predicateDirectiveTypes.some(type => trimmedLine.includes(`${type}(`));
+  }
+
+  /**
+   * Adapt existing entity info/1 directive for protocol use
+   * @param document The text document
+   * @param range The selected range containing the entity
+   * @param entityType The type of entity (object or category)
+   * @returns Adapted info directive content or null if none found
+   */
+  private async adaptEntityInfoDirective(document: TextDocument, range: Range | Selection, entityType: string): Promise<string | null> {
+    const startLine = range.start.line;
+    const endLine = range.end.line;
+
+    // Look for entity info/1 directive within the entity
+    for (let lineNum = startLine + 1; lineNum < endLine; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if this is an entity info directive
+      if (trimmedLine.match(/^\s*:-\s*info\s*\(\s*\[/)) {
+        // Use existing getDirectiveRange function
+        const range = this.getDirectiveRange(document, lineNum);
+        const infoRange = new Range(
+          new Position(range.start, 0),
+          new Position(range.end, document.lineAt(range.end).text.length)
+        );
+        const infoText = document.getText(infoRange);
+
+        // Adapt the comment to mention it's extracted from the original entity
+        const adaptedInfo = infoText.replace(
+          /comment\s+is\s+'([^']*)'/,
+          `comment is 'Protocol extracted from ${entityType} $1'`
+        );
+
+        return adaptedInfo;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Generate the content for the new protocol file
+   * @param protocolName The name of the protocol
+   * @param declarations Array of predicate declarations
+   * @param author Author name
+   * @param date Date string
+   * @param adaptedInfo Adapted info directive or null
+   * @returns The complete protocol file content
+   */
+  private generateProtocolFileContent(
+    protocolName: string,
+    declarations: { range: Range; text: string }[],
+    author: string,
+    date: string,
+    adaptedInfo: string | null
+  ): string {
+    const lines: string[] = [];
+
+    // Protocol opening directive
+    lines.push(`:- protocol(${protocolName}).`);
+    lines.push('');
+
+    // Info directive - use adapted info if available, otherwise create default
+    if (adaptedInfo) {
+      lines.push(adaptedInfo);
+    } else {
+      lines.push('\t:- info([');
+      lines.push('\t\tversion is 1:0:0,');
+      lines.push(`\t\tauthor is '${author}',`);
+      lines.push(`\t\tdate is ${date},`);
+      lines.push('\t\tcomment is \'Extracted protocol entity\'');
+      lines.push('\t]).');
+    }
+    lines.push('');
+
+    // Group declarations by predicate and add them with proper spacing
+    const predicateGroups = this.groupDeclarationsByPredicate(declarations);
+
+    for (let i = 0; i < predicateGroups.length; i++) {
+      const group = predicateGroups[i];
+
+      // Add each directive in the predicate group
+      for (let j = 0; j < group.length; j++) {
+        const declaration = group[j];
+        const cleanedText = this.cleanDeclarationText(declaration.text);
+        lines.push(cleanedText);
+      }
+
+      // Add empty line between predicate groups
+      if (i < predicateGroups.length - 1) {
+        lines.push('');
+      }
+    }
+
+    // Add empty line after the last predicate group before the protocol ending
+    if (predicateGroups.length > 0) {
+      lines.push('');
+    }
+
+    // Protocol closing directive
+    lines.push(':- end_protocol.');
+    lines.push('');
+
     return lines.join('\n');
   }
 

@@ -235,8 +235,11 @@ Several refactoring operations are supported. Users should commit their work bef
 
 #### Code extraction
 
-Three types of code extraction are supported when the user selects one or more lines and uses the "Refactor" context menu item or the "Refactor" command palette item:
+An "Extract protocol" refactoring operation is available when the user selects an object or category name in their opening entity directive and uses the "Refactor" context menu item or the "Refactor" command palette item. The name of the protocol is derived from the name of the selected entity. The user is asked to confirm the file name and file location. The extracted code includes all predicate declarations for the selected entity. The extracted code is always copied verbatim, with no changes to the indentation or whitespace.
 
+Three other code extraction refactoring operations are supported when the user selects one or more lines and uses the "Refactor" context menu item or the "Refactor" command palette item:
+
+- "Extract protocol" (the user is asked to confirm the file name and file location)
 - "Extract to new Logtalk entity" (the user is asked to select the entity type, entity name, file name, and file location)
 - "Extract to new Logtalk file" (the user is asked to select the file name and file location)
 - "Replace with include/1 directive" (the user is asked to select the file name and file location)
