@@ -1269,6 +1269,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // Find all locations that need to be updated
     const locationResult = await this.findAllLocationsToUpdate(document, position, currentIndicator, isNonTerminal);
     const uniqueLocations = locationResult.locations; // Already deduplicated
+    const declarationLocation = locationResult.declarationLocation;
     this.logger.debug(`Found ${uniqueLocations.length} unique locations to update`);
 
     if (uniqueLocations.length === 0) {
@@ -1281,6 +1282,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     await this.createRemoveArgumentEdits(
       workspaceEdit,
       uniqueLocations,
+      declarationLocation,
       predicateName,
       currentIndicator,
       newIndicator,
@@ -1306,6 +1308,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   private async createRemoveArgumentEdits(
     workspaceEdit: WorkspaceEdit,
     locations: { uri: Uri; range: Range }[],
+    declarationLocation: Location | null,
     predicateName: string,
     currentIndicator: string,
     newIndicator: string,
@@ -1332,81 +1335,29 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const doc = await workspace.openTextDocument(uri);
       const textEdits: TextEdit[] = [];
 
-      // Track scope directive locations to search for consecutive directives
-      const scopeDirectiveLines = new Set<number>();
-
       for (const location of fileLocations) {
         const lineText = doc.lineAt(location.range.start.line).text;
 
-        // Check if this line contains a directive (scope, mode, info)
-        const isDirective = lineText.trim().startsWith(':-');
+        // Check if this is a declaration location (scope directive)
+        const isDeclaration = declarationLocation &&
+                             location.uri.toString() === declarationLocation.uri.toString() &&
+                             location.range.start.line === declarationLocation.range.start.line;
 
-        // Check if this directive is related to our predicate
-        const isRelatedDirective = isDirective && (
-          lineText.includes(currentIndicator) ||  // info(process/3, ...) or info(parse//2, ...)
-          lineText.includes(predicateName + '(') || // mode(process(...), ...) or mode(parse(...), ...)
-          (lineText.includes('public(') && lineText.includes(currentIndicator)) ||  // public(process/3) or public(parse//2)
-          (lineText.includes('protected(') && lineText.includes(currentIndicator)) ||  // protected(process/3) or protected(parse//2)
-          (lineText.includes('private(') && lineText.includes(currentIndicator))  // private(process/3) or private(parse//2)
-        );
+        this.logger.debug(`Processing location at line ${location.range.start.line + 1}: isDeclaration=${isDeclaration}, lineText="${lineText.trim()}"`);
 
-        if (isRelatedDirective) {
-          // Handle directive - remove arguments in directives
-          this.logger.debug(`Processing directive at line ${location.range.start.line + 1}: "${lineText.trim()}"`);
-          let updatedLine = lineText;
-
-          // Update indicator in scope directives
-          if (lineText.includes(currentIndicator)) {
-            this.logger.debug(`Updating indicator in directive: ${currentIndicator} → ${newIndicator}`);
-            updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
-          }
-
-          // Track scope directives for consecutive directive search
-          if ((lineText.includes('public(') || lineText.includes('protected(') || lineText.includes('private(')) &&
-              lineText.includes(currentIndicator)) {
-            scopeDirectiveLines.add(location.range.start.line);
-            this.logger.debug(`Found scope directive at line ${location.range.start.line + 1}, will search for consecutive directives`);
-          }
-
-          // Update mode directives: mode(predicate_name(args), mode_info)
-          if (lineText.includes('mode(') && lineText.includes(predicateName + '(')) {
-            this.logger.debug(`Updating mode directive for predicate: ${predicateName}`);
-            updatedLine = this.updateModeDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity);
-          }
-
-          // Update meta_predicate/meta_non_terminal directives
-          if (!isNonTerminal && lineText.includes('meta_predicate(') && lineText.includes(predicateName + '(')) {
-            this.logger.debug(`Updating meta_predicate directive for predicate: ${predicateName}`);
-            updatedLine = this.updateMetaDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity, isNonTerminal);
-          }
-
-          if (isNonTerminal && lineText.includes('meta_non_terminal(') && lineText.includes(predicateName + '(')) {
-            this.logger.debug(`Updating meta_non_terminal directive for predicate: ${predicateName}`);
-            updatedLine = this.updateMetaDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity, isNonTerminal);
-          }
-
-          const edit = TextEdit.replace(
-            new Range(
-              new Position(location.range.start.line, 0),
-              new Position(location.range.start.line, lineText.length)
-            ),
-            updatedLine
+        if (isDeclaration) {
+          // This is a scope directive - process it and all consecutive directives
+          this.logger.debug(`Found scope directive at line ${location.range.start.line + 1}, processing with consecutive directives`);
+          const consecutiveEdits = this.findAndUpdateConsecutiveDirectivesForRemoval(
+            doc, location.range.start.line, predicateName, currentIndicator, newIndicator, argumentPosition, currentArity, isNonTerminal
           );
-          textEdits.push(edit);
+          this.logger.debug(`Consecutive directive processing returned ${consecutiveEdits.length} edits`);
+          textEdits.push(...consecutiveEdits);
         } else {
           // Handle predicate call/definition - remove the argument
           const edits = this.createArgumentRemovalEdit(doc, location, argumentPosition, currentArity, isNonTerminal, predicateName);
           textEdits.push(...edits);
         }
-      }
-
-      // Search for consecutive directives after each scope directive
-      for (const scopeLine of scopeDirectiveLines) {
-        this.logger.debug(`Searching for consecutive directives after scope directive at line ${scopeLine + 1}`);
-        const consecutiveEdits = this.findAndUpdateConsecutiveDirectivesForRemoval(
-          doc, scopeLine, predicateName, currentIndicator, newIndicator, argumentPosition, currentArity, isNonTerminal
-        );
-        textEdits.push(...consecutiveEdits);
       }
 
       workspaceEdit.set(uri, textEdits);
@@ -1708,6 +1659,218 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Check if a location is part of a multi-line scope directive
+   * Returns the line number of the scope directive start if found, null otherwise
+   */
+  private findMultiLineScopeDirectiveStart(doc: TextDocument, lineNum: number, currentIndicator: string): number | null {
+    this.logger.debug(`Checking if line ${lineNum + 1} is part of a multi-line scope directive for ${currentIndicator}`);
+
+    // Check if the current line contains the scope directive keyword
+    const currentLineText = doc.lineAt(lineNum).text;
+    if (currentLineText.includes('public(') || currentLineText.includes('protected(') || currentLineText.includes('private(')) {
+      // Check if this is a single-line directive (contains both keyword and closing parenthesis)
+      if (currentLineText.includes(').')) {
+        // This is a single-line directive, not multi-line
+        return null;
+      }
+      // This line contains scope directive keyword but no closing - could be multi-line
+      // Check if our predicate is in this multi-line directive by searching for it
+      if (this.containsPredicateInMultiLineDirective(doc, lineNum, currentIndicator)) {
+        return lineNum;
+      }
+      return null;
+    }
+
+    // Search backwards for a scope directive that might contain this predicate
+    const maxLinesToSearch = 10; // Reasonable limit for multi-line directives
+    for (let searchLine = lineNum - 1; searchLine >= Math.max(0, lineNum - maxLinesToSearch); searchLine--) {
+      const searchLineText = doc.lineAt(searchLine).text.trim();
+
+      // Check if this line starts a scope directive
+      if (searchLineText.startsWith(':- public([') ||
+          searchLineText.startsWith(':- protected([') ||
+          searchLineText.startsWith(':- private([')) {
+
+        // Found a potential multi-line scope directive start
+        // Now check if our predicate indicator is within this directive
+        if (this.isPredicateInMultiLineScopeDirective(doc, searchLine, lineNum, currentIndicator)) {
+          this.logger.debug(`Found multi-line scope directive starting at line ${searchLine + 1} containing ${currentIndicator}`);
+          return searchLine;
+        }
+      }
+
+      // If we hit another directive or non-directive code, stop searching
+      if (searchLineText.startsWith(':-') &&
+          !(searchLineText.includes('public(') || searchLineText.includes('protected(') || searchLineText.includes('private('))) {
+        break;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if a multi-line directive starting at the given line contains the predicate indicator
+   */
+  private containsPredicateInMultiLineDirective(
+    doc: TextDocument,
+    directiveStartLine: number,
+    currentIndicator: string
+  ): boolean {
+    // Search from directive start until we find the closing bracket
+    for (let lineNum = directiveStartLine; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      // Check if we've reached the end of the directive
+      if (lineText.includes(').')) {
+        // We've reached the end without finding the predicate
+        return false;
+      }
+
+      // Check if this line contains our predicate indicator
+      if (lineText.includes(currentIndicator)) {
+        return true;
+      }
+    }
+
+    // If we reach the end of the document without finding a closing bracket,
+    // this is likely a malformed directive, so return false
+    return false;
+  }
+
+  /**
+   * Check if a predicate indicator is within a multi-line scope directive
+   */
+  private isPredicateInMultiLineScopeDirective(
+    doc: TextDocument,
+    directiveStartLine: number,
+    predicateLine: number,
+    currentIndicator: string
+  ): boolean {
+    // Search from directive start until we find the closing bracket
+    let foundPredicate = false;
+
+    for (let lineNum = directiveStartLine; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      // If this is the predicate line, check if it contains our indicator
+      if (lineNum === predicateLine && lineText.includes(currentIndicator)) {
+        foundPredicate = true;
+      }
+
+      // Check if we've reached the end of the directive
+      if (lineText.includes(').') || lineText.includes('].)')) {
+        // Return true if we found the predicate before reaching the end
+        return foundPredicate;
+      }
+    }
+
+    // If we reach the end of the document without finding a closing bracket,
+    // this is likely a malformed directive, so return false
+    return false;
+  }
+
+  /**
+   * Update a multi-line directive by replacing the current indicator with the new one
+   * This works for any directive type (scope, info, mode, etc.)
+   */
+  private updateMultiLineDirective(
+    doc: TextDocument,
+    directiveStartLine: number,
+    currentIndicator: string,
+    newIndicator: string
+  ): TextEdit[] {
+    // Search from directive start until we find the closing bracket/parenthesis
+    const edits: TextEdit[] = [];
+    this.logger.debug(`updateMultiLineDirective: searching from line ${directiveStartLine + 1} for indicator "${currentIndicator}"`);
+
+    for (let lineNum = directiveStartLine; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      this.logger.debug(`updateMultiLineDirective: line ${lineNum + 1}: "${lineText.trim()}"`);
+
+      // Check if we've reached the end of the directive
+      if (lineText.includes(').')) {
+        this.logger.debug(`updateMultiLineDirective: found end of directive at line ${lineNum + 1}`);
+        // Check if this line contains our indicator and update it
+        if (lineText.includes(currentIndicator)) {
+          this.logger.debug(`updateMultiLineDirective: updating indicator on final line ${lineNum + 1}`);
+          const updatedLine = lineText.replace(
+            new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+            newIndicator
+          );
+          edits.push(TextEdit.replace(
+            new Range(new Position(lineNum, 0), new Position(lineNum, lineText.length)),
+            updatedLine
+          ));
+        }
+        // We've reached the end of the directive
+        break;
+      }
+
+      // Check if this line contains our indicator and update it
+      if (lineText.includes(currentIndicator)) {
+        this.logger.debug(`updateMultiLineDirective: updating indicator on line ${lineNum + 1}`);
+        const updatedLine = lineText.replace(
+          new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+          newIndicator
+        );
+        edits.push(TextEdit.replace(
+          new Range(new Position(lineNum, 0), new Position(lineNum, lineText.length)),
+          updatedLine
+        ));
+      }
+    }
+
+    this.logger.debug(`updateMultiLineDirective: returning ${edits.length} edits`);
+    return edits;
+  }
+
+  /**
+   * Update a multi-line scope directive by replacing the current indicator with the new one
+   */
+  private updateMultiLineScopeDirective(
+    doc: TextDocument,
+    directiveStartLine: number,
+    currentIndicator: string,
+    newIndicator: string
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+    const maxLinesToSearch = Math.min(directiveStartLine + 10, doc.lineCount);
+
+    this.logger.debug(`Updating multi-line scope directive starting at line ${directiveStartLine + 1}: ${currentIndicator} → ${newIndicator}`);
+
+    for (let lineNum = directiveStartLine; lineNum < maxLinesToSearch; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      // Check if we've reached the end of the directive
+      if (lineText.includes(').') || lineText.includes('].)')) {
+        // Check this line for the indicator and update if found
+        if (lineText.includes(currentIndicator)) {
+          const updatedLine = lineText.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
+          edits.push(TextEdit.replace(
+            new Range(new Position(lineNum, 0), new Position(lineNum, lineText.length)),
+            updatedLine
+          ));
+          this.logger.debug(`Updated indicator in multi-line directive at line ${lineNum + 1}`);
+        }
+        break;
+      }
+
+      // Check if this line contains our indicator and update it
+      if (lineText.includes(currentIndicator)) {
+        const updatedLine = lineText.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
+        edits.push(TextEdit.replace(
+          new Range(new Position(lineNum, 0), new Position(lineNum, lineText.length)),
+          updatedLine
+        ));
+        this.logger.debug(`Updated indicator in multi-line directive at line ${lineNum + 1}`);
+      }
+    }
+
+    return edits;
+  }
+
+  /**
    * Find predicate position in declaration line
    */
   private findPredicatePositionInDeclaration(doc: TextDocument, declarationLine: number, predicateIndicator: string): Position {
@@ -1835,9 +1998,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const doc = await workspace.openTextDocument(uri);
       const textEdits: TextEdit[] = [];
 
-      // Track scope directive locations to search for consecutive directives
-      const scopeDirectiveLines = new Set<number>();
-
       for (const location of locations) {
         const lineText = doc.lineAt(location.range.start.line).text;
 
@@ -1846,76 +2006,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
                              location.uri.toString() === declarationLocation.uri.toString() &&
                              location.range.start.line === declarationLocation.range.start.line;
 
-        // Check if this line contains a directive (scope, mode, info)
-        const isDirective = lineText.trim().startsWith(':-');
+        this.logger.debug(`Processing location at line ${location.range.start.line + 1}: isDeclaration=${isDeclaration}, lineText="${lineText.trim()}"`);
 
-        // Check if this directive is related to our predicate
-        const isRelatedDirective = isDirective && (
-          lineText.includes(currentIndicator) ||  // info(process_image/2, ...) or info(parse//2, ...)
-          lineText.includes(predicateName + '(') || // mode(process_image(...), ...) or mode(parse(...), ...)
-          (lineText.includes('public(') && lineText.includes(currentIndicator)) ||  // public(process_image/2) or public(parse//2)
-          (lineText.includes('protected(') && lineText.includes(currentIndicator)) ||  // protected(process_image/2) or protected(parse//2)
-          (lineText.includes('private(') && lineText.includes(currentIndicator))  // private(process_image/2) or private(parse//2)
-        );
-
-        if (isDeclaration || isRelatedDirective) {
-          // Handle directive - update indicators and predicate calls in directives
-          this.logger.debug(`Processing directive at line ${location.range.start.line + 1}: "${lineText.trim()}"`);
-          let updatedLine = lineText;
-
-          // Track scope directives for consecutive directive search
-          if (isDeclaration || ((lineText.includes('public(') || lineText.includes('protected(') || lineText.includes('private(')) &&
-              lineText.includes(currentIndicator))) {
-            scopeDirectiveLines.add(location.range.start.line);
-            this.logger.debug(`Found scope directive at line ${location.range.start.line + 1}, will search for consecutive directives`);
-          }
-
-          // Update predicate indicators (name/arity) - for info directives
-          if (lineText.includes(currentIndicator)) {
-            this.logger.debug(`Updating indicator in info/scope directive: ${currentIndicator} → ${newIndicator}`);
-            updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
-
-            // Also update argnames and arguments lists in info directives
-            if (lineText.includes('info(')) {
-              updatedLine = this.updateInfoDirectiveArguments(updatedLine, argumentName, argumentPosition);
-            }
-          }
-
-          // Update mode directives: mode(predicate_name(args), mode_info)
-          if (lineText.includes('mode(') && lineText.includes(predicateName + '(')) {
-            this.logger.debug(`Updating mode directive for predicate: ${predicateName}`);
-            updatedLine = this.updateModeDirective(updatedLine, predicateName, argumentName, argumentPosition, currentArity);
-          }
-
-          // Update scope directives: public/protected/private(predicate_name/arity)
-          if ((lineText.includes('public(') || lineText.includes('protected(') || lineText.includes('private(')) &&
-              lineText.includes(currentIndicator)) {
-            this.logger.debug(`Updating scope directive: ${currentIndicator} → ${newIndicator}`);
-            updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
-          }
-
-          const edit = TextEdit.replace(
-            new Range(
-              new Position(location.range.start.line, 0),
-              new Position(location.range.start.line, lineText.length)
-            ),
-            updatedLine
+        if (isDeclaration) {
+          // This is a scope directive - process it and all consecutive directives
+          this.logger.debug(`Found scope directive at line ${location.range.start.line + 1}, processing with consecutive directives`);
+          const consecutiveEdits = this.findAndUpdateConsecutiveDirectivesForAdding(
+            doc, location.range.start.line, predicateName, currentIndicator, newIndicator, argumentName, argumentPosition, currentArity, isNonTerminal
           );
-          textEdits.push(edit);
+          this.logger.debug(`Consecutive directive processing returned ${consecutiveEdits.length} edits`);
+          textEdits.push(...consecutiveEdits);
         } else {
           // Handle predicate call/definition - add the argument
           const edits = this.createArgumentAdditionEdit(doc, location, argumentName, argumentPosition, currentArity, isNonTerminal, predicateName);
           textEdits.push(...edits);
         }
-      }
-
-      // Search for consecutive directives after each scope directive
-      for (const scopeLine of scopeDirectiveLines) {
-        this.logger.debug(`Searching for consecutive directives after scope directive at line ${scopeLine + 1}`);
-        const consecutiveEdits = this.findAndUpdateConsecutiveDirectives(
-          doc, scopeLine, predicateName, currentIndicator, newIndicator, argumentName, argumentPosition, currentArity, isNonTerminal
-        );
-        textEdits.push(...consecutiveEdits);
       }
 
       workspaceEdit.set(uri, textEdits);
@@ -1952,9 +2057,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const doc = await workspace.openTextDocument(uri);
       const textEdits: TextEdit[] = [];
 
-      // Track scope directive locations to search for consecutive directives
-      const scopeDirectiveLines = new Set<number>();
-
       for (const location of locations) {
         const lineText = doc.lineAt(location.range.start.line).text;
 
@@ -1963,74 +2065,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
                              location.uri.toString() === declarationLocation.uri.toString() &&
                              location.range.start.line === declarationLocation.range.start.line;
 
-        // Check if this line contains a directive (scope, mode, info)
-        const isDirective = lineText.trim().startsWith(':-');
+        this.logger.debug(`Processing location at line ${location.range.start.line + 1}: isDeclaration=${isDeclaration}, lineText="${lineText.trim()}"`);
 
-        // Check if this directive is related to our predicate
-        const isRelatedDirective = isDirective && (
-          lineText.includes(currentIndicator) ||  // info(process_image/2, ...) or info(parse//2, ...)
-          lineText.includes(predicateName + '(') || // mode(process_image(...), ...) or mode(parse(...), ...)
-          (lineText.includes('public(') && lineText.includes(currentIndicator)) ||  // public(process_image/2) or public(parse//2)
-          (lineText.includes('protected(') && lineText.includes(currentIndicator)) ||  // protected(process_image/2) or protected(parse//2)
-          (lineText.includes('private(') && lineText.includes(currentIndicator))  // private(process_image/2) or private(parse//2)
-        );
-
-        if (isDeclaration || isRelatedDirective) {
-          // Handle directive - reorder arguments in directives
-          this.logger.debug(`Processing directive at line ${location.range.start.line + 1}: "${lineText.trim()}"`);
-          let updatedLine = lineText;
-
-          // Track scope directives for consecutive directive search
-          if (isDeclaration || ((lineText.includes('public(') || lineText.includes('protected(') || lineText.includes('private(')) &&
-              lineText.includes(currentIndicator))) {
-            scopeDirectiveLines.add(location.range.start.line);
-            this.logger.debug(`Found scope directive at line ${location.range.start.line + 1}, will search for consecutive directives`);
-          }
-
-          // Update argnames and arguments lists in info directives
-          if (lineText.includes('info(')) {
-            updatedLine = this.updateInfoDirectiveArgumentsForReorder(updatedLine, newOrder);
-          }
-
-          // Update mode directives: mode(predicate_name(args), mode_info)
-          if (lineText.includes('mode(') && lineText.includes(predicateName + '(')) {
-            this.logger.debug(`Updating mode directive for predicate: ${predicateName}`);
-            updatedLine = this.updateModeDirectiveForReorder(updatedLine, predicateName, newOrder);
-          }
-
-          // Update meta_predicate/meta_non_terminal directives
-          if (!isNonTerminal && lineText.includes('meta_predicate(') && lineText.includes(predicateName + '(')) {
-            this.logger.debug(`Updating meta_predicate directive for predicate: ${predicateName}`);
-            updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, 'meta_predicate');
-          }
-
-          if (isNonTerminal && lineText.includes('meta_non_terminal(') && lineText.includes(predicateName + '(')) {
-            this.logger.debug(`Updating meta_non_terminal directive for predicate: ${predicateName}`);
-            updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, 'meta_non_terminal');
-          }
-
-          const edit = TextEdit.replace(
-            new Range(
-              new Position(location.range.start.line, 0),
-              new Position(location.range.start.line, lineText.length)
-            ),
-            updatedLine
+        if (isDeclaration) {
+          // This is a scope directive - process it and all consecutive directives
+          this.logger.debug(`Found scope directive at line ${location.range.start.line + 1}, processing with consecutive directives`);
+          const consecutiveEdits = this.findAndUpdateConsecutiveDirectivesForReorder(
+            doc, location.range.start.line, predicateName, currentIndicator, newOrder, currentArity, isNonTerminal
           );
-          textEdits.push(edit);
+          this.logger.debug(`Consecutive directive processing returned ${consecutiveEdits.length} edits`);
+          textEdits.push(...consecutiveEdits);
         } else {
           // Handle predicate call/definition - reorder the arguments
           const edits = this.createArgumentReorderEdit(doc, location, newOrder, isNonTerminal, predicateName);
           textEdits.push(...edits);
         }
-      }
-
-      // Search for consecutive directives after each scope directive
-      for (const scopeLine of scopeDirectiveLines) {
-        this.logger.debug(`Searching for consecutive directives after scope directive at line ${scopeLine + 1}`);
-        const consecutiveEdits = this.findAndUpdateConsecutiveDirectivesForReorder(
-          doc, scopeLine, predicateName, currentIndicator, newOrder, currentArity, isNonTerminal
-        );
-        textEdits.push(...consecutiveEdits);
       }
 
       workspaceEdit.set(uri, textEdits);
@@ -2040,7 +2089,214 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Find and update consecutive directives that follow a scope directive
    */
-  private findAndUpdateConsecutiveDirectives(
+  /**
+   * Get the range (start and end line) of a directive starting at the given line
+   */
+  private getDirectiveRange(doc: TextDocument, startLine: number): { start: number; end: number } {
+    const totalLines = doc.lineCount;
+    let endLine = startLine;
+
+    // Find the end of the directive by looking for the closing ).
+    for (let lineNum = startLine; lineNum < totalLines; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      if (lineText.includes(').')) {
+        endLine = lineNum;
+        break;
+      }
+    }
+
+    return { start: startLine, end: endLine };
+  }
+
+  /**
+   * Process a directive range and create edits for indicator/callable form updates
+   */
+  private processDirectiveRange(
+    doc: TextDocument,
+    range: { start: number; end: number },
+    predicateName: string,
+    currentIndicator: string,
+    newIndicator: string,
+    argumentName: string,
+    argumentPosition: number,
+    currentArity: number,
+    isNonTerminal: boolean,
+    directiveType: string
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+
+    this.logger.debug(`Processing ${directiveType} directive range lines ${range.start + 1}-${range.end + 1}`);
+
+    for (let lineNum = range.start; lineNum <= range.end; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+      let updatedLine = lineText;
+      let hasChanges = false;
+
+      // Update indicator if present
+      if (trimmedLine.includes(currentIndicator)) {
+        this.logger.debug(`Found indicator "${currentIndicator}" at line ${lineNum + 1}`);
+        updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
+        hasChanges = true;
+      }
+
+      // Update callable form if present (for mode, meta_predicate, etc.)
+      if (trimmedLine.includes(predicateName + '(')) {
+        this.logger.debug(`Found callable form "${predicateName}(" at line ${lineNum + 1}`);
+        if (directiveType === 'mode') {
+          updatedLine = this.updateModeDirective(updatedLine, predicateName, argumentName, argumentPosition, currentArity);
+          hasChanges = true;
+        } else if (directiveType === 'meta_predicate' || directiveType === 'meta_non_terminal') {
+          updatedLine = this.updateMetaDirective(updatedLine, predicateName, argumentPosition, directiveType);
+          hasChanges = true;
+        }
+      }
+
+      // Special handling for info directive argnames/arguments
+      if (directiveType === 'info') {
+        const argnamesUpdated = this.updateInfoDirectiveArguments(updatedLine, argumentName, argumentPosition);
+        if (argnamesUpdated !== updatedLine) {
+          this.logger.debug(`Updated argnames/arguments at line ${lineNum + 1}`);
+          updatedLine = argnamesUpdated;
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        const edit = TextEdit.replace(
+          new Range(new Position(lineNum, 0), new Position(lineNum, lineText.length)),
+          updatedLine
+        );
+        edits.push(edit);
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Process a directive range and create edits for reordering arguments
+   */
+  private processDirectiveRangeForReorder(
+    doc: TextDocument,
+    range: { start: number; end: number },
+    predicateName: string,
+    currentIndicator: string,
+    newOrder: number[],
+    currentArity: number,
+    isNonTerminal: boolean,
+    directiveType: string
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+
+    this.logger.debug(`Processing ${directiveType} directive range for reordering: lines ${range.start + 1}-${range.end + 1}`);
+
+    for (let lineNum = range.start; lineNum <= range.end; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+      let updatedLine = lineText;
+      let hasChanges = false;
+
+      // Update callable form if present (for mode, meta_predicate, etc.)
+      if (trimmedLine.includes(predicateName + '(')) {
+        this.logger.debug(`Found callable form "${predicateName}(" at line ${lineNum + 1}`);
+        if (directiveType === 'mode') {
+          updatedLine = this.updateModeDirectiveForReorder(updatedLine, predicateName, newOrder);
+          hasChanges = true;
+        } else if (directiveType === 'meta_predicate' || directiveType === 'meta_non_terminal') {
+          updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, directiveType);
+          hasChanges = true;
+        }
+      }
+
+      // Special handling for info directive argnames/arguments
+      if (directiveType === 'info') {
+        const argnamesUpdated = this.updateInfoDirectiveArgumentsForReorder(updatedLine, newOrder);
+        if (argnamesUpdated !== updatedLine) {
+          this.logger.debug(`Updated argnames/arguments for reordering at line ${lineNum + 1}`);
+          updatedLine = argnamesUpdated;
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        const edit = TextEdit.replace(
+          new Range(new Position(lineNum, 0), new Position(lineNum, lineText.length)),
+          updatedLine
+        );
+        edits.push(edit);
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Process a directive range and create edits for removing arguments
+   */
+  private processDirectiveRangeForRemoval(
+    doc: TextDocument,
+    range: { start: number; end: number },
+    predicateName: string,
+    currentIndicator: string,
+    newIndicator: string,
+    argumentPosition: number,
+    currentArity: number,
+    isNonTerminal: boolean,
+    directiveType: string
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+
+    this.logger.debug(`Processing ${directiveType} directive range for removal: lines ${range.start + 1}-${range.end + 1}`);
+
+    for (let lineNum = range.start; lineNum <= range.end; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+      let updatedLine = lineText;
+      let hasChanges = false;
+
+      // Update indicator if present
+      if (trimmedLine.includes(currentIndicator)) {
+        this.logger.debug(`Found indicator "${currentIndicator}" at line ${lineNum + 1}, updating to "${newIndicator}"`);
+        updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
+        hasChanges = true;
+      }
+
+      // Update callable form if present (for mode, meta_predicate, etc.)
+      if (trimmedLine.includes(predicateName + '(')) {
+        this.logger.debug(`Found callable form "${predicateName}(" at line ${lineNum + 1}`);
+        if (directiveType === 'mode') {
+          updatedLine = this.updateModeDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity);
+          hasChanges = true;
+        } else if (directiveType === 'meta_predicate' || directiveType === 'meta_non_terminal') {
+          updatedLine = this.updateMetaDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity, isNonTerminal);
+          hasChanges = true;
+        }
+      }
+
+      // Special handling for info directive argnames/arguments
+      if (directiveType === 'info') {
+        const argnamesUpdated = this.updateInfoDirectiveArgumentsForRemoval(updatedLine, argumentPosition, currentArity);
+        if (argnamesUpdated !== updatedLine) {
+          this.logger.debug(`Updated argnames/arguments for removal at line ${lineNum + 1}`);
+          updatedLine = argnamesUpdated;
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        const edit = TextEdit.replace(
+          new Range(new Position(lineNum, 0), new Position(lineNum, lineText.length)),
+          updatedLine
+        );
+        edits.push(edit);
+      }
+    }
+
+    return edits;
+  }
+
+  private findAndUpdateConsecutiveDirectivesForAdding(
     doc: TextDocument,
     scopeLine: number,
     predicateName: string,
@@ -2053,144 +2309,107 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   ): TextEdit[] {
     const edits: TextEdit[] = [];
     const totalLines = doc.lineCount;
-    let insideInfoDirective = false;
-    let infoDirectiveStartLine = -1;
 
-    // Start searching from the line after the scope directive
-    let lineNum = scopeLine + 1;
+    this.logger.debug(`findAndUpdateConsecutiveDirectives: processing scope directive at line ${scopeLine + 1} and consecutive directives`);
+    this.logger.debug(`findAndUpdateConsecutiveDirectives: looking for predicateName="${predicateName}", currentIndicator="${currentIndicator}"`);
+
+    // First, process the scope directive itself
+    this.logger.debug(`Processing scope directive at line ${scopeLine + 1}`);
+    const scopeRange = this.getDirectiveRange(doc, scopeLine);
+    this.logger.debug(`Scope directive range: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
+
+    const scopeEdits = this.processDirectiveRange(
+      doc, scopeRange, predicateName, currentIndicator, newIndicator,
+      argumentName, argumentPosition, currentArity, isNonTerminal, 'scope'
+    );
+    edits.push(...scopeEdits);
+
+    // Start searching for consecutive directives from the line after the scope directive
+    let lineNum = scopeRange.end + 1;
     while (lineNum < totalLines) {
       const lineText = doc.lineAt(lineNum).text;
       const trimmedLine = lineText.trim();
 
-      // Stop if we hit an empty line (unless we're inside an info directive)
-      if (trimmedLine === '' && !insideInfoDirective) {
-        this.logger.debug(`Stopping consecutive directive search at empty line ${lineNum + 1}`);
-        break;
+      this.logger.debug(`findAndUpdateConsecutiveDirectives: line ${lineNum + 1}: "${trimmedLine}"`);
+
+      // Skip empty lines and comments
+      if (trimmedLine === '' || trimmedLine.startsWith('%')) {
+        this.logger.debug(`Skipping ${trimmedLine === '' ? 'empty line' : 'comment'} at line ${lineNum + 1}`);
+        lineNum++;
+        continue;
       }
 
-      // Stop if we hit another scope directive (unless we're inside an info directive)
-      if (!insideInfoDirective && trimmedLine.startsWith(':-') &&
+      // Stop if we hit another scope directive
+      if (trimmedLine.startsWith(':-') &&
           (trimmedLine.includes('public(') || trimmedLine.includes('protected(') || trimmedLine.includes('private('))) {
         this.logger.debug(`Stopping consecutive directive search at scope directive line ${lineNum + 1}`);
         break;
       }
 
-      // Check if this starts a new directive
+      // Check if this starts a directive
       if (trimmedLine.startsWith(':-')) {
-        let updatedLine = lineText;
-        let hasChanges = false;
+        let directiveType = '';
+        let isRelevantDirective = false;
 
-        // Update info directives: info(predicate_name/arity, ...)
-        if (trimmedLine.includes('info(') && trimmedLine.includes(currentIndicator)) {
-          this.logger.debug(`Found consecutive info directive at line ${lineNum + 1}: "${trimmedLine}"`);
-          updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
-          hasChanges = true;
-
-          // Mark that we're inside an info directive
-          insideInfoDirective = true;
-          infoDirectiveStartLine = lineNum;
-
-          // Also check this line for argnames/arguments patterns
-          const argnamesUpdated = this.updateInfoDirectiveArguments(updatedLine, argumentName, argumentPosition);
-          if (argnamesUpdated !== updatedLine) {
-            updatedLine = argnamesUpdated;
-          }
+        // Determine directive type and relevance
+        if (trimmedLine.includes('info(')) {
+          directiveType = 'info';
+          // Info directives are always relevant (they reference the predicate by indicator)
+          isRelevantDirective = true;
+        } else if (trimmedLine.includes('mode(')) {
+          directiveType = 'mode';
+          // Mode directives are relevant if they contain the predicate name
+          isRelevantDirective = true; // We'll check the range for predicate name
+        } else if (!isNonTerminal && trimmedLine.includes('meta_predicate(')) {
+          directiveType = 'meta_predicate';
+          isRelevantDirective = true; // We'll check the range for predicate name
+        } else if (isNonTerminal && trimmedLine.includes('meta_non_terminal(')) {
+          directiveType = 'meta_non_terminal';
+          isRelevantDirective = true; // We'll check the range for predicate name
         }
 
-        // Update mode directives: mode(predicate_name(args), mode_info)
-        // Note: mode directives use predicate name without // even for non-terminals
-        if (trimmedLine.includes('mode(') && trimmedLine.includes(predicateName + '(')) {
-          this.logger.debug(`Found consecutive mode directive at line ${lineNum + 1}: "${trimmedLine}"`);
-          updatedLine = this.updateModeDirective(updatedLine, predicateName, argumentName, argumentPosition, currentArity);
-          hasChanges = true;
-        }
+        if (isRelevantDirective) {
+          this.logger.debug(`Found consecutive ${directiveType} directive at line ${lineNum + 1}`);
 
-        // Update meta_predicate directives: meta_predicate(predicate_name(meta_template))
-        // Note: meta_predicate directives use predicate name without //
-        if (!isNonTerminal && trimmedLine.includes('meta_predicate(') && trimmedLine.includes(predicateName + '(')) {
-          this.logger.debug(`Found consecutive meta_predicate directive at line ${lineNum + 1}: "${trimmedLine}"`);
-          updatedLine = this.updateMetaDirective(updatedLine, predicateName, argumentPosition, 'meta_predicate');
-          hasChanges = true;
-        }
+          // Get the range of this directive
+          const range = this.getDirectiveRange(doc, lineNum);
+          this.logger.debug(`Directive range: lines ${range.start + 1}-${range.end + 1}`);
 
-        // Update meta_non_terminal directives: meta_non_terminal(predicate_name(meta_template))
-        // Note: meta_non_terminal directives use predicate name without // in the template
-        if (isNonTerminal && trimmedLine.includes('meta_non_terminal(') && trimmedLine.includes(predicateName + '(')) {
-          this.logger.debug(`Found consecutive meta_non_terminal directive at line ${lineNum + 1}: "${trimmedLine}"`);
-          updatedLine = this.updateMetaDirective(updatedLine, predicateName, argumentPosition, 'meta_non_terminal');
-          hasChanges = true;
-        }
-
-        if (hasChanges) {
-          const edit = TextEdit.replace(
-            new Range(
-              new Position(lineNum, 0),
-              new Position(lineNum, lineText.length)
-            ),
-            updatedLine
-          );
-          edits.push(edit);
-        }
-      } else if (insideInfoDirective) {
-        // We're inside an info directive, check for argnames/arguments patterns
-        const argnamesUpdated = this.updateInfoDirectiveArguments(lineText, argumentName, argumentPosition);
-        if (argnamesUpdated !== lineText) {
-          this.logger.debug(`Found argnames/arguments pattern at line ${lineNum + 1}: "${trimmedLine}"`);
-
-          // The updateInfoDirectiveArguments method preserves the original line structure,
-          // so we can replace the entire line
-          const edit = TextEdit.replace(
-            new Range(
-              new Position(lineNum, 0),
-              new Position(lineNum, lineText.length)
-            ),
-            argnamesUpdated
-          );
-          edits.push(edit);
-        }
-
-        // Check for multi-line arguments list start and handle it immediately
-        if (trimmedLine.includes('arguments is [') && !trimmedLine.includes(']')) {
-          this.logger.debug(`Found multi-line arguments list start at line ${lineNum + 1}, constructing full multi-line arguments`);
-
-          // Handle the entire multi-line arguments list construction
-          const multiLineEdits = this.constructMultiLineArguments(doc, lineNum, argumentName, argumentPosition);
-          edits.push(...multiLineEdits);
-
-          // Skip ahead past the multi-line arguments list to avoid processing it again
-          // Find the closing bracket
-          let skipToLine = lineNum + 1;
-          while (skipToLine < totalLines) {
-            const skipLineText = doc.lineAt(skipToLine).text;
-            const skipTrimmedLine = skipLineText.trim();
-            if (skipTrimmedLine === ']' || skipTrimmedLine.startsWith(']')) {
+          // Check if this directive actually references our predicate/non-terminal
+          let containsOurPredicate = false;
+          for (let checkLine = range.start; checkLine <= range.end; checkLine++) {
+            const checkText = doc.lineAt(checkLine).text;
+            if (checkText.includes(currentIndicator) || checkText.includes(predicateName + '(')) {
+              containsOurPredicate = true;
               break;
             }
-            skipToLine++;
           }
-          lineNum = skipToLine; // Skip to the closing bracket line
-        }
 
-        // Multi-line arguments lists are now handled proactively when we detect 'arguments is ['
-        // so we don't need to handle closing brackets here anymore
+          if (containsOurPredicate) {
+            this.logger.debug(`Directive contains our predicate, processing range`);
+            // Process the entire directive range
+            const directiveEdits = this.processDirectiveRange(
+              doc, range, predicateName, currentIndicator, newIndicator,
+              argumentName, argumentPosition, currentArity, isNonTerminal, directiveType
+            );
+            edits.push(...directiveEdits);
+          } else {
+            this.logger.debug(`Directive does not contain our predicate, skipping`);
+          }
 
-        // Check if this line ends the info directive (contains closing bracket and period)
-        if (trimmedLine.includes(']).')) {
-          this.logger.debug(`Info directive ends at line ${lineNum + 1}`);
-          insideInfoDirective = false;
-          infoDirectiveStartLine = -1;
+          // Skip to the end of this directive
+          lineNum = range.end + 1;
+          continue;
+        } else {
+          // This is some other directive not relevant to our predicate, stop searching
+          this.logger.debug(`Stopping consecutive directive search at unrelated directive line ${lineNum + 1}: "${trimmedLine}"`);
+          break;
         }
-      } else if (trimmedLine.startsWith(':-')) {
-        // This is some other directive, continue searching
-        lineNum++;
-        continue;
       } else {
-        // This is not a directive and we're not inside an info directive, stop searching
+        // This is not a directive, stop searching
         this.logger.debug(`Stopping consecutive directive search at non-directive line ${lineNum + 1}`);
         break;
       }
-
-      lineNum++;
     }
 
     return edits;
@@ -4050,98 +4269,96 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   ): TextEdit[] {
     const edits: TextEdit[] = [];
     const totalLines = doc.lineCount;
-    let insideInfoDirective = false;
 
-    // Start searching from the line after the scope directive
-    let lineNum = scopeLine + 1;
+    this.logger.debug(`findAndUpdateConsecutiveDirectivesForReorder: processing scope directive at line ${scopeLine + 1} and consecutive directives`);
+    this.logger.debug(`findAndUpdateConsecutiveDirectivesForReorder: looking for predicateName="${predicateName}", currentIndicator="${currentIndicator}"`);
+
+    // First, process the scope directive itself (for reorder, scope directive doesn't change)
+    this.logger.debug(`Processing scope directive at line ${scopeLine + 1} (no changes needed for reorder)`);
+    const scopeRange = this.getDirectiveRange(doc, scopeLine);
+    this.logger.debug(`Scope directive range: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
+
+    // Start searching for consecutive directives from the line after the scope directive
+    let lineNum = scopeRange.end + 1;
     while (lineNum < totalLines) {
       const lineText = doc.lineAt(lineNum).text;
       const trimmedLine = lineText.trim();
 
-      // Stop if we hit an empty line (unless we're inside an info directive)
-      if (trimmedLine === '' && !insideInfoDirective) {
-        this.logger.debug(`Stopping consecutive directive search at empty line ${lineNum + 1}`);
-        break;
+      this.logger.debug(`findAndUpdateConsecutiveDirectivesForReorder: line ${lineNum + 1}: "${trimmedLine}"`);
+
+      // Skip empty lines and comments
+      if (trimmedLine === '' || trimmedLine.startsWith('%')) {
+        this.logger.debug(`Skipping ${trimmedLine === '' ? 'empty line' : 'comment'} at line ${lineNum + 1}`);
+        lineNum++;
+        continue;
       }
 
-      // Stop if we hit another scope directive (unless we're inside an info directive)
-      if (!insideInfoDirective && trimmedLine.startsWith(':-') &&
+      // Stop if we hit another scope directive
+      if (trimmedLine.startsWith(':-') &&
           (trimmedLine.includes('public(') || trimmedLine.includes('protected(') || trimmedLine.includes('private('))) {
         this.logger.debug(`Stopping consecutive directive search at scope directive line ${lineNum + 1}`);
         break;
       }
 
-      // Check if this starts a new directive
+      // Check if this starts a directive
       if (trimmedLine.startsWith(':-')) {
-        let updatedLine = lineText;
-        let hasChanges = false;
+        let directiveType = '';
+        let isRelevantDirective = false;
 
-        // Update info directives
-        if (trimmedLine.includes('info(') && trimmedLine.includes(currentIndicator)) {
-          this.logger.debug(`Found consecutive info directive at line ${lineNum + 1}: "${trimmedLine}"`);
-          insideInfoDirective = true;
-          updatedLine = this.updateInfoDirectiveArgumentsForReorder(updatedLine, newOrder);
-          hasChanges = true;
+        // Determine directive type and relevance
+        if (trimmedLine.includes('info(')) {
+          directiveType = 'info';
+          isRelevantDirective = true;
+        } else if (trimmedLine.includes('mode(')) {
+          directiveType = 'mode';
+          isRelevantDirective = true;
+        } else if (!isNonTerminal && trimmedLine.includes('meta_predicate(')) {
+          directiveType = 'meta_predicate';
+          isRelevantDirective = true;
+        } else if (isNonTerminal && trimmedLine.includes('meta_non_terminal(')) {
+          directiveType = 'meta_non_terminal';
+          isRelevantDirective = true;
         }
 
-        // Update mode directives
-        if (trimmedLine.includes('mode(') && trimmedLine.includes(predicateName + '(')) {
-          this.logger.debug(`Found consecutive mode directive at line ${lineNum + 1}: "${trimmedLine}"`);
-          updatedLine = this.updateModeDirectiveForReorder(updatedLine, predicateName, newOrder);
-          hasChanges = true;
-        }
+        if (isRelevantDirective) {
+          this.logger.debug(`Found ${directiveType} directive at line ${lineNum + 1}`);
 
-        // Update meta_predicate/meta_non_terminal directives
-        if (!isNonTerminal && trimmedLine.includes('meta_predicate(') && trimmedLine.includes(predicateName + '(')) {
-          this.logger.debug(`Found consecutive meta_predicate directive at line ${lineNum + 1}: "${trimmedLine}"`);
-          updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, 'meta_predicate');
-          hasChanges = true;
-        }
+          // Get the complete directive range
+          const range = this.getDirectiveRange(doc, lineNum);
+          this.logger.debug(`${directiveType} directive range: lines ${range.start + 1}-${range.end + 1}`);
 
-        if (isNonTerminal && trimmedLine.includes('meta_non_terminal(') && trimmedLine.includes(predicateName + '(')) {
-          this.logger.debug(`Found consecutive meta_non_terminal directive at line ${lineNum + 1}: "${trimmedLine}"`);
-          updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, 'meta_non_terminal');
-          hasChanges = true;
-        }
+          // Check if this directive contains our predicate
+          let containsOurPredicate = false;
+          for (let checkLine = range.start; checkLine <= range.end; checkLine++) {
+            const checkText = doc.lineAt(checkLine).text;
+            if (checkText.includes(currentIndicator) || checkText.includes(predicateName + '(')) {
+              containsOurPredicate = true;
+              break;
+            }
+          }
 
-        if (hasChanges) {
-          const edit = TextEdit.replace(
-            new Range(
-              new Position(lineNum, 0),
-              new Position(lineNum, lineText.length)
-            ),
-            updatedLine
-          );
-          edits.push(edit);
-        }
-      } else if (insideInfoDirective) {
-        // We're inside an info directive, check for argnames/arguments patterns
-        const argnamesUpdated = this.updateInfoDirectiveArgumentsForReorder(lineText, newOrder);
-        if (argnamesUpdated !== lineText) {
-          this.logger.debug(`Found argnames/arguments pattern at line ${lineNum + 1}: "${trimmedLine}"`);
+          if (containsOurPredicate) {
+            this.logger.debug(`${directiveType} directive contains our predicate, processing range`);
+            const directiveEdits = this.processDirectiveRangeForReorder(
+              doc, range, predicateName, currentIndicator, newOrder,
+              currentArity, isNonTerminal, directiveType
+            );
+            edits.push(...directiveEdits);
+          } else {
+            this.logger.debug(`${directiveType} directive does not contain our predicate, skipping`);
+          }
 
-          const edit = TextEdit.replace(
-            new Range(
-              new Position(lineNum, 0),
-              new Position(lineNum, lineText.length)
-            ),
-            argnamesUpdated
-          );
-          edits.push(edit);
+          // Skip to the end of this directive
+          lineNum = range.end + 1;
+          continue;
+        } else {
+          // This is some other directive not relevant to our predicate, stop searching
+          this.logger.debug(`Stopping consecutive directive search at unrelated directive line ${lineNum + 1}: "${trimmedLine}"`);
+          break;
         }
-
-        // Check if this line ends the info directive
-        if (trimmedLine.includes(']).')) {
-          this.logger.debug(`Info directive ends at line ${lineNum + 1}`);
-          insideInfoDirective = false;
-        }
-      } else if (trimmedLine.startsWith(':-')) {
-        // This is some other directive, continue searching
-        lineNum++;
-        continue;
       } else {
-        // This is not a directive and we're not inside an info directive, stop searching
-        this.logger.debug(`Stopping consecutive directive search at non-directive line ${lineNum + 1}`);
+        // This is not a directive, stop searching
+        this.logger.debug(`Stopping consecutive directive search at non-directive line ${lineNum + 1}: "${trimmedLine}"`);
         break;
       }
 
@@ -4170,7 +4387,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const declarationLocation = await this.declarationProvider.provideDeclaration(document, position, token);
 
     if (declarationLocation && this.isValidLocation(declarationLocation)) {
-      // Add declaration location
+      // Add declaration location so that we can process related directives that follow it
       allLocations.push({ uri: declarationLocation.uri, range: declarationLocation.range });
       this.logger.debug(`Found declaration at: ${declarationLocation.uri.fsPath}:${declarationLocation.range.start.line + 1}`);
 
@@ -4313,104 +4530,102 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   ): TextEdit[] {
     const edits: TextEdit[] = [];
     const totalLines = doc.lineCount;
-    let insideInfoDirective = false;
 
-    // Start searching from the line after the scope directive
-    let lineNum = scopeLine + 1;
+    this.logger.debug(`findAndUpdateConsecutiveDirectivesForRemoval: processing scope directive at line ${scopeLine + 1} and consecutive directives`);
+    this.logger.debug(`findAndUpdateConsecutiveDirectivesForRemoval: looking for predicateName="${predicateName}", currentIndicator="${currentIndicator}"`);
 
+    // First, process the scope directive itself
+    this.logger.debug(`Processing scope directive at line ${scopeLine + 1}`);
+    const scopeRange = this.getDirectiveRange(doc, scopeLine);
+    this.logger.debug(`Scope directive range: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
+
+    const scopeEdits = this.processDirectiveRangeForRemoval(
+      doc, scopeRange, predicateName, currentIndicator, newIndicator,
+      argumentPosition, currentArity, isNonTerminal, 'scope'
+    );
+    edits.push(...scopeEdits);
+
+    // Start searching for consecutive directives from the line after the scope directive
+    let lineNum = scopeRange.end + 1;
     while (lineNum < totalLines) {
       const lineText = doc.lineAt(lineNum).text;
       const trimmedLine = lineText.trim();
 
+      this.logger.debug(`findAndUpdateConsecutiveDirectivesForRemoval: line ${lineNum + 1}: "${trimmedLine}"`);
+
       // Skip empty lines and comments
       if (trimmedLine === '' || trimmedLine.startsWith('%')) {
+        this.logger.debug(`Skipping ${trimmedLine === '' ? 'empty line' : 'comment'} at line ${lineNum + 1}`);
         lineNum++;
         continue;
       }
 
+      // Stop if we hit another scope directive
+      if (trimmedLine.startsWith(':-') &&
+          (trimmedLine.includes('public(') || trimmedLine.includes('protected(') || trimmedLine.includes('private('))) {
+        this.logger.debug(`Stopping consecutive directive search at scope directive line ${lineNum + 1}`);
+        break;
+      }
+
+      // Check if this starts a directive
       if (trimmedLine.startsWith(':-')) {
-        // This is a directive
-        let updatedLine = lineText;
+        let directiveType = '';
+        let isRelevantDirective = false;
 
-        // Update indicator if present
-        if (lineText.includes(currentIndicator)) {
-          this.logger.debug(`Updating indicator in directive: ${currentIndicator} → ${newIndicator}`);
-          updatedLine = updatedLine.replace(new RegExp(currentIndicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newIndicator);
+        // Determine directive type and relevance
+        if (trimmedLine.includes('info(')) {
+          directiveType = 'info';
+          isRelevantDirective = true;
+        } else if (trimmedLine.includes('mode(')) {
+          directiveType = 'mode';
+          isRelevantDirective = true;
+        } else if (!isNonTerminal && trimmedLine.includes('meta_predicate(')) {
+          directiveType = 'meta_predicate';
+          isRelevantDirective = true;
+        } else if (isNonTerminal && trimmedLine.includes('meta_non_terminal(')) {
+          directiveType = 'meta_non_terminal';
+          isRelevantDirective = true;
         }
 
-        // Handle specific directive types
-        if (lineText.includes('info(')) {
-          insideInfoDirective = true;
+        if (isRelevantDirective) {
+          this.logger.debug(`Found ${directiveType} directive at line ${lineNum + 1}`);
 
-          // Check for argnames/arguments patterns and handle removal
-          if (currentArity === 1 && (lineText.includes('argnames') || lineText.includes('arguments'))) {
-            // If this is the only argument and we're removing it, delete the entire line
-            const edit = TextEdit.delete(new Range(
-              new Position(lineNum, 0),
-              new Position(lineNum + 1, 0)
-            ));
-            edits.push(edit);
-            lineNum++;
-            continue;
-          } else {
-            // Update the arguments list
-            updatedLine = this.updateInfoDirectiveArgumentsForRemoval(updatedLine, argumentPosition, currentArity);
+          // Get the complete directive range
+          const range = this.getDirectiveRange(doc, lineNum);
+          this.logger.debug(`${directiveType} directive range: lines ${range.start + 1}-${range.end + 1}`);
+
+          // Check if this directive contains our predicate
+          let containsOurPredicate = false;
+          for (let checkLine = range.start; checkLine <= range.end; checkLine++) {
+            const checkText = doc.lineAt(checkLine).text;
+            if (checkText.includes(currentIndicator) || checkText.includes(predicateName + '(')) {
+              containsOurPredicate = true;
+              break;
+            }
           }
-        } else if (lineText.includes('mode(')) {
-          updatedLine = this.updateModeDirectiveForRemoval(lineText, predicateName, argumentPosition, currentArity);
-        } else if (lineText.includes('meta_predicate(') || lineText.includes('meta_non_terminal(')) {
-          updatedLine = this.updateMetaDirectiveForRemoval(lineText, predicateName, argumentPosition, currentArity, isNonTerminal);
-        }
 
-        // Add edit if line was modified
-        if (updatedLine !== lineText) {
-          const edit = TextEdit.replace(
-            new Range(
-              new Position(lineNum, 0),
-              new Position(lineNum, lineText.length)
-            ),
-            updatedLine
-          );
-          edits.push(edit);
-        }
-
-        // Check if this line ends the info directive
-        if (trimmedLine.includes(']).')) {
-          this.logger.debug(`Info directive ends at line ${lineNum + 1}`);
-          insideInfoDirective = false;
-        }
-      } else if (insideInfoDirective) {
-        // We're inside an info directive, check for argnames/arguments patterns
-        if (currentArity === 1 && (lineText.includes('argnames') || lineText.includes('arguments'))) {
-          // Delete the entire line if it contains argnames/arguments and we're removing the only argument
-          const edit = TextEdit.delete(new Range(
-            new Position(lineNum, 0),
-            new Position(lineNum + 1, 0)
-          ));
-          edits.push(edit);
-        } else {
-          // Update the arguments list
-          const updatedLine = this.updateInfoDirectiveArgumentsForRemoval(lineText, argumentPosition, currentArity);
-          if (updatedLine !== lineText) {
-            const edit = TextEdit.replace(
-              new Range(
-                new Position(lineNum, 0),
-                new Position(lineNum, lineText.length)
-              ),
-              updatedLine
+          if (containsOurPredicate) {
+            this.logger.debug(`${directiveType} directive contains our predicate, processing range`);
+            const directiveEdits = this.processDirectiveRangeForRemoval(
+              doc, range, predicateName, currentIndicator, newIndicator,
+              argumentPosition, currentArity, isNonTerminal, directiveType
             );
-            edits.push(edit);
+            edits.push(...directiveEdits);
+          } else {
+            this.logger.debug(`${directiveType} directive does not contain our predicate, skipping`);
           }
-        }
 
-        // Check if this line ends the info directive
-        if (trimmedLine.includes(']).')) {
-          this.logger.debug(`Info directive ends at line ${lineNum + 1}`);
-          insideInfoDirective = false;
+          // Skip to the end of this directive
+          lineNum = range.end + 1;
+          continue;
+        } else {
+          // This is some other directive not relevant to our predicate, stop searching
+          this.logger.debug(`Stopping consecutive directive search at unrelated directive line ${lineNum + 1}: "${trimmedLine}"`);
+          break;
         }
       } else {
-        // This is not a directive and we're not inside an info directive, stop searching
-        this.logger.debug(`Stopping consecutive directive search at non-directive line ${lineNum + 1}`);
+        // This is not a directive, stop searching
+        this.logger.debug(`Stopping consecutive directive search at non-directive line ${lineNum + 1}: "${trimmedLine}"`);
         break;
       }
 
