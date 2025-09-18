@@ -235,7 +235,7 @@ Several refactoring operations are supported. Users should commit their work bef
 
 #### Code extraction
 
-Three types of code extraction are supported when the user selects a region of code and uses the "Refactor" context menu item or the "Refactor" command palette item:
+Three types of code extraction are supported when the user selects one or more lines and uses the "Refactor" context menu item or the "Refactor" command palette item:
 
 - "Extract to new Logtalk entity" (the user is asked to select the entity type, entity name, file name, and file location)
 - "Extract to new Logtalk file" (the user is asked to select the file name and file location)

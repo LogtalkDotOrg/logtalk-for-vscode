@@ -73,8 +73,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           arguments: [document, includePosition, selection]
         };
         actions.push(replaceIncludeAction);
-      } else {
-        // Selection doesn't contain include directive - provide extract actions
+      } else if (selection.start.line !== selection.end.line ||
+                 (selection.start.character === 0 &&
+                  selection.end.character > document.lineAt(selection.end.line).text.length)) {
+        // Selection spans multiple lines OR includes at least one complete line - provide extract actions
         const extractToEntityAction = new CodeAction(
           "Extract to new Logtalk entity",
           CodeActionKind.RefactorExtract
