@@ -8,6 +8,7 @@
 * Add "Extract protocol" refactoring support
 * Add "Extract to new Logtalk entity" refactoring support
 * Add "Extract to new Logtalk file" refactoring support
+* Add "Replace magic number with predicate call" refactoring support
 * Add "Replace with include/1 directive" refactoring support
 * Add "Replace include/1 directive with file contents" refactoring support
 * Add experimental entity, predicate, and non-terminal rename support

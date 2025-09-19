@@ -404,6 +404,14 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.replaceMagicNumber', async (document, selection) => {
+      if (refactorProvider) {
+        await refactorProvider.replaceMagicNumber(document, selection);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

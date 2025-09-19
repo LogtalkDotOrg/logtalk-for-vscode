@@ -133,6 +133,29 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return actions;
     }
 
+    // Check for replace magic number refactoring
+    if (!selection.isEmpty) {
+      const selectedText = document.getText(selection);
+      const isNumeric = this.isNumericLiteral(selectedText);
+      const isInRuleBody = this.isInsideRuleBody(document, selection.start);
+
+      this.logger.debug(`Replace magic number check: selectedText="${selectedText}", isNumeric=${isNumeric}, isInRuleBody=${isInRuleBody}`);
+
+      if (isNumeric && isInRuleBody) {
+        const replaceMagicNumberAction = new CodeAction(
+          "Replace magic number with predicate call",
+          CodeActionKind.RefactorExtract
+        );
+        replaceMagicNumberAction.command = {
+          command: "logtalk.refactor.replaceMagicNumber",
+          title: "Replace magic number with predicate call",
+          arguments: [document, selection]
+        };
+        actions.push(replaceMagicNumberAction);
+        this.logger.debug(`Added replace magic number action for "${selectedText}"`);
+      }
+    }
+
     // Check if we're on a predicate call for add argument refactoring
     const position = range instanceof Selection ? range.active : range.start;
     const indicator = await this.isPredicateCall(document, position);
@@ -360,6 +383,157 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         return null;
       }
     });
+  }
+
+  /**
+   * Prompt user for predicate name
+   */
+  private async promptForPredicateName(): Promise<string | undefined> {
+    return await window.showInputBox({
+      prompt: "Enter the name for the predicate",
+      placeHolder: "predicate_name",
+      validateInput: (value: string) => {
+        if (!value.trim()) {
+          return "Predicate name cannot be empty";
+        }
+        // Basic validation for Logtalk atom names
+        if (!/^[a-z][a-zA-Z0-9_]*$/.test(value.trim())) {
+          return "Predicate name must start with lowercase letter and contain only letters, digits, and underscores";
+        }
+        return null;
+      }
+    });
+  }
+
+  /**
+   * Convert predicate name to camelCase variable name
+   */
+  private toCamelCase(predicateName: string): string {
+    // Split by underscores and capitalize each part except the first
+    const parts = predicateName.split('_');
+    if (parts.length === 1) {
+      // No underscores, just capitalize first letter
+      return predicateName.charAt(0).toUpperCase() + predicateName.slice(1);
+    }
+
+    // Multiple parts: capitalize first letter of each part except the first
+    return parts.map((part, index) => {
+      if (index === 0) {
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    }).join('');
+  }
+
+  /**
+   * Find entity opening directive in the document
+   */
+  private findEntityOpeningDirective(document: TextDocument): { line: number; type: string } | null {
+    for (let lineNum = 0; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Check for entity opening directives
+      const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpening);
+      if (entityMatch) {
+        return {
+          line: lineNum,
+          type: entityMatch.type
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find insertion point after entity opening directive and info/1 directive
+   */
+  private findInsertionPointAfterInfo(document: TextDocument, entityLine: number): number {
+    let insertionLine = entityLine;
+
+    // Skip the entity opening directive (may be multi-line)
+    const entityRange = this.getDirectiveRange(document, entityLine);
+    insertionLine = entityRange.end;
+
+    // Look for info/1 directive after entity opening
+    for (let lineNum = insertionLine + 1; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Skip empty lines and comments
+      if (lineText === '' || lineText.startsWith('%')) {
+        continue;
+      }
+
+      // Check if this is an info/1 directive
+      if (lineText.match(/^\s*:-\s*info\s*\(\s*\[/)) {
+        const infoRange = this.getDirectiveRange(document, lineNum);
+        insertionLine = infoRange.end;
+        break;
+      } else {
+        // Hit non-info directive or other content, stop looking
+        break;
+      }
+    }
+
+    return insertionLine + 1;
+  }
+
+  /**
+   * Find the clause containing the given position
+   */
+  private findClauseContaining(document: TextDocument, position: Position): Range | null {
+    const startLine = position.line;
+
+    // Find the start of the clause by looking backwards for a clause head
+    let clauseStart = startLine;
+    for (let lineNum = startLine; lineNum >= 0; lineNum--) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Skip empty lines and comments
+      if (lineText === '' || lineText.startsWith('%')) {
+        continue;
+      }
+
+      // Check if this looks like a clause rule head (predicate name followed by ( or :-)
+      if (/^[a-z][a-zA-Z0-9_]+(\()?.*:-/.test(lineText)) {
+        clauseStart = lineNum;
+        break;
+      }
+    }
+
+    // Find the end of the clause by looking for the terminating period
+    const clauseRange = this.getClauseRange(document, clauseStart);
+
+    return new Range(
+      new Position(clauseRange.start, 0),
+      new Position(clauseRange.end, document.lineAt(clauseRange.end).text.length)
+    );
+  }
+
+  /**
+   * Find the end of the clause head (position after :- or before .)
+   */
+  private findClauseHeadEnd(document: TextDocument, clauseStart: Position): Position | null {
+    const clauseRange = this.getClauseRange(document, clauseStart.line);
+    this.logger.debug(`Finding clause head end for clause range: lines ${clauseRange.start + 1}-${clauseRange.end + 1}`);
+
+    // Look for :- operator in the clause
+    for (let lineNum = clauseRange.start; lineNum <= clauseRange.end; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      const colonDashIndex = lineText.indexOf(':-');
+      this.logger.debug(`  Checking line ${lineNum + 1}: "${lineText}", :- at index ${colonDashIndex}`);
+
+      if (colonDashIndex !== -1) {
+        // Found :- operator, return position at the end of this line
+        // This is where we'll insert the predicate call (after the clause head)
+        const position = new Position(lineNum, lineText.length);
+        this.logger.debug(`  Found :- operator, returning position line ${lineNum + 1}, char ${lineText.length}`);
+        return position;
+      }
+    }
+
+    // No :- found, this is a fact, return null
+    this.logger.debug(`  No :- found in clause, returning null`);
+    return null;
   }
 
   /**
@@ -1170,6 +1344,147 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     lines.push('');
 
     return lines.join('\n');
+  }
+
+  /**
+   * Check if a string is a numeric literal (integer or float)
+   */
+  private isNumericLiteral(text: string): boolean {
+    const trimmed = text.trim();
+    // Match integers (positive, negative, or zero) and floats
+    const numericPattern = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+    return numericPattern.test(trimmed);
+  }
+
+  /**
+   * Check if a position is inside a rule body (after :- operator)
+   */
+  private isInsideRuleBody(document: TextDocument, position: Position): boolean {
+    const currentLine = position.line;
+
+    this.logger.debug(`Checking if position line ${currentLine + 1}, char ${position.character} is inside rule body`);
+
+    // Look backwards from current position to find a line containing :-
+    for (let lineNum = currentLine; lineNum >= 0; lineNum--) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmed = lineText.trim();
+
+      this.logger.debug(`  Checking line ${lineNum + 1}: "${lineText}"`);
+
+      // Skip empty lines and comments
+      if (trimmed === '' || trimmed.startsWith('%')) {
+        this.logger.debug(`    Skipping empty/comment line`);
+        continue;
+      }
+
+      // Found a directive start, not in rule body
+      if (trimmed.startsWith(':-')) {
+        this.logger.debug(`    Found :- at start of line, not in rule body`);
+        return false;
+      }
+
+      // Check if this line contains :- operator
+      const colonDashIndex = lineText.indexOf(':-');
+      if (colonDashIndex !== -1) {
+        this.logger.debug(`    Found :- at position ${colonDashIndex}`);
+        // Found :- operator, check if our position is after it
+        if (lineNum === currentLine) {
+          // Same line: check if position is after the :- operator
+          const result = position.character > colonDashIndex + 1;
+          this.logger.debug(`    Same line: position ${position.character} > ${colonDashIndex + 1} = ${result}`);
+          return result;
+        } else {
+          // Different line: we're definitely after the :- operator
+          this.logger.debug(`    Different line: definitely in rule body`);
+          return true;
+        }
+      }
+    }
+
+    this.logger.debug(`  No :- found, not in rule body`);
+    return false;
+  }
+
+  /**
+   * Replace magic number refactoring
+   */
+  public async replaceMagicNumber(document: TextDocument, selection: Selection): Promise<void> {
+    try {
+      const selectedText = document.getText(selection);
+      const magicNumber = selectedText.trim();
+
+      // Ask user for predicate name
+      const predicateName = await this.promptForPredicateName();
+      if (!predicateName) {
+        return; // User cancelled
+      }
+
+      // Generate variable name from predicate name (camelCase)
+      const variableName = this.toCamelCase(predicateName);
+
+      // Find the entity opening directive and info/1 directive
+      const entityInfo = this.findEntityOpeningDirective(document);
+      if (!entityInfo) {
+        window.showErrorMessage("Could not find entity opening directive.");
+        return;
+      }
+
+      // Find insertion point after entity opening and info/1 directive
+      const insertionPoint = this.findInsertionPointAfterInfo(document, entityInfo.line);
+
+      // Create the fact predicate
+      const factPredicate = `\t${predicateName}(${magicNumber}).`;
+
+      // Find the clause containing the magic number
+      const clauseRange = this.findClauseContaining(document, selection.start);
+      if (!clauseRange) {
+        window.showErrorMessage("Could not find clause containing the magic number.");
+        return;
+      }
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Apply edits from bottom to top to avoid line number shifts affecting later edits
+
+      // 1. Replace the magic number with the variable (do this first, it's at the bottom)
+      edit.replace(document.uri, selection, variableName);
+
+      // 2. Add predicate call before the selection line (do this before inserting fact at top)
+      this.logger.debug(`Checking if clause is multi-line: ${clauseRange.start.line} !== ${selection.start.line}`);
+      if (clauseRange.start.line !== selection.start.line) {
+        // Multi-line clause: insert predicate call immediately before the selection line
+        const indent = document.lineAt(selection.start.line).text.match(/^\s*/)[0];
+        const callLine = `${indent}${predicateName}(${variableName}),\n`;
+        this.logger.debug(`Inserting predicate call before selection line ${selection.start.line + 1}: "${callLine.trim()}"`);
+        edit.insert(document.uri, new Position(selection.start.line, 0), callLine);
+      } else {
+        // Single-line clause: find the :- and insert after it
+        const lineText = document.lineAt(clauseRange.start.line).text;
+        const colonDashIndex = lineText.indexOf(':-');
+        if (colonDashIndex !== -1) {
+          const insertPosition = new Position(clauseRange.start.line, colonDashIndex + 2);
+          const callLine = ` ${predicateName}(${variableName}),`;
+          this.logger.debug(`Inserting predicate call after :- at position ${clauseRange.start.line + 1}:${colonDashIndex + 2}`);
+          edit.insert(document.uri, insertPosition, callLine);
+        } else {
+          this.logger.warn(`Could not find :- in single-line clause at line ${clauseRange.start.line + 1}`);
+        }
+      }
+
+      // 3. Insert the fact predicate after entity opening and info directive (do this last, it's at the top)
+      edit.insert(document.uri, new Position(insertionPoint, 0), `\n${factPredicate}\n`);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        window.showInformationMessage(`Magic number replaced with predicate ${predicateName}/1 and variable ${variableName}.`);
+      } else {
+        window.showErrorMessage("Failed to apply magic number replacement.");
+      }
+    } catch (error) {
+      this.logger.error(`Error replacing magic number: ${error}`);
+      window.showErrorMessage(`Error replacing magic number: ${error}`);
+    }
   }
 
   /**
