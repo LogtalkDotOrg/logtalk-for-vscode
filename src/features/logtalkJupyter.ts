@@ -27,7 +27,7 @@ export default class LogtalkJupyter {
     context.subscriptions.push(LogtalkJupyter.outputChannel);
 
     const section = workspace.getConfiguration("logtalk");
-    LogtalkJupyter.jupytextPath = section.get<string>("jupytext.path", "jupytext");
+    LogtalkJupyter.jupytextPath = section.get<string>("jupytext.path", "python3 -m jupytext");
     
     LogtalkJupyter.jupytextAvailable = await LogtalkJupyter.checkJupytextAvailability();
     commands.executeCommand('setContext', 'logtalk.jupytext.available', LogtalkJupyter.jupytextAvailable);

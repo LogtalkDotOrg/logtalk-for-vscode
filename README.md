@@ -239,7 +239,6 @@ An "Extract protocol" refactoring operation is available when the user selects a
 
 Three other code extraction refactoring operations are supported when the user selects one or more lines and uses the "Refactor" context menu item or the "Refactor" command palette item:
 
-- "Extract protocol" (the user is asked to confirm the file name and file location)
 - "Extract to new Logtalk entity" (the user is asked to select the entity type, entity name, file name, and file location)
 - "Extract to new Logtalk file" (the user is asked to select the file name and file location)
 - "Replace with include/1 directive" (the user is asked to select the file name and file location)
