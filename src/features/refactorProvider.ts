@@ -464,7 +464,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
 
       // Check if this is an info/1 directive
-      if (lineText.match(/^\s*:-\s*info\s*\(\s*\[/)) {
+      if (lineText.match(/^:-\s*info\(\s*\[/)) {
         const infoRange = this.getDirectiveRange(document, lineNum);
         insertionLine = infoRange.end;
         break;
@@ -1136,7 +1136,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Single-line directive: :- object(name).
       // Convert to: :- object(name,\n\timplements(protocol)).
       const line = lines[0];
-      const match = line.match(/^(\s*:-\s*(?:object|category)\s*\(\s*[^,)]+)\s*\)\s*\.?\s*$/);
+      const match = line.match(/^(\s*:-\s*(?:object|category)\(\s*[^,)]+)\s*\)\s*\.?\s*$/);
 
       if (match) {
         const entityPart = match[1]; // ":- object(name"
@@ -1258,7 +1258,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const trimmedLine = lineText.trim();
 
       // Check if this is an entity info directive
-      if (trimmedLine.match(/^\s*:-\s*info\s*\(\s*\[/)) {
+      if (trimmedLine.match(/^\s*:-\s*info\(\s*\[/)) {
         // Use existing getDirectiveRange function
         const range = this.getDirectiveRange(document, lineNum);
         const infoRange = new Range(
@@ -1540,7 +1540,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const endLine = selection.end.line;
 
     // Check for include directive pattern: :- include(...) or :-include(...)
-    const includePattern = /^\s*:-\s*include\s*\(/;
+    const includePattern = /^\s*:-\s*include\(/;
     const commentPattern = /^\s*%/;
     const emptyLinePattern = /^\s*$/;
 
@@ -1645,7 +1645,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // Match include directive pattern and extract the file path
     // Handles: :- include('file.lgt'). or :- include("file.lgt").
     // Note: The file argument must be quoted (an atom) in valid Logtalk syntax
-    const includePattern = /^\s*:-\s*include\s*\(\s*['"]([^'"()]*)['"]\s*\)/;
+    const includePattern = /^\s*:-\s*include\(\s*['"]([^'"()]*)['"]\s*\)/;
     const match = lineText.match(includePattern);
 
     if (match && match[1]) {
@@ -3611,7 +3611,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // analyze_data(Dataset, Parameters, Output)
 
     // Find all callable forms in the line (predicate_name followed by parentheses)
-    const callablePattern = /(\w+)\s*\(([^)]*)\)/g;
+    const callablePattern = /(\w+)\(([^)]*)\)/g;
     let updatedLine = lineText;
     let match: RegExpExecArray | null;
     let offset = 0;
@@ -3662,7 +3662,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // analyze_data(Dataset, Parameters, Output)
 
     // Find all callable forms in the line (predicate_name followed by parentheses)
-    const callablePattern = /(\w+)\s*\(([^)]*)\)/g;
+    const callablePattern = /(\w+)\(([^)]*)\)/g;
     let updatedLine = lineText;
     let match: RegExpExecArray | null;
     let offset = 0;
@@ -3714,7 +3714,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // analyze_data(Dataset, Parameters, Output)
 
     // Find all callable forms in the line (predicate_name followed by parentheses)
-    const callablePattern = /(\w+)\s*\(([^)]*)\)/g;
+    const callablePattern = /(\w+)\(([^)]*)\)/g;
     let updatedLine = lineText;
     let match: RegExpExecArray | null;
     let offset = 0;
@@ -4407,7 +4407,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     } else {
       // Non-zero arity -> adding argument: predicate_name(args). -> predicate_name(newArgs).
-      const nonZeroArityMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
+      const nonZeroArityMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
       if (nonZeroArityMatch) {
         const [/* fullMatch */, leadingSpace, predName, openParen, /* arguments */, closingAndRest] = nonZeroArityMatch;
         newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
@@ -5110,7 +5110,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const reorderedArgs = newOrder.map(pos => existingArgs[pos - 1]);
 
     // Create the updated clause head
-    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
+    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
     if (predicateNameMatch) {
       const [/* fullMatch */, leadingSpace, predName, openParen, /* arguments */, closingAndRest] = predicateNameMatch;
       const newClauseHead = `${leadingSpace}${predName}${openParen}${reorderedArgs.join(', ')}${closingAndRest}`;
@@ -5149,7 +5149,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     newArgs.splice(argumentPosition - 1, 1);
 
     // Create the updated clause head
-    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\s*\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
+    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
     if (predicateNameMatch) {
       const [/* fullMatch */, leadingSpace, predName, openParen, /* arguments */, closingAndRest] = predicateNameMatch;
 
@@ -6586,7 +6586,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     currentArity: number
   ): string {
     // Pattern: mode(predicate_name(arg1, arg2), mode_info)
-    const modePattern = new RegExp(`mode\\s*\\(\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]+)\\)\\s*,\\s*([^)]+)\\)`, 'g');
+    const modePattern = new RegExp(`mode\\(\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]+)\\)\\s*,\\s*([^)]+)\\)`, 'g');
 
     return lineText.replace(modePattern, (match, argsText, modeInfo) => {
       const args = ArgumentUtils.parseArguments(argsText);
