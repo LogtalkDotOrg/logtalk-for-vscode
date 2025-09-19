@@ -47,7 +47,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   public async provideCodeActions(
     document: TextDocument,
     range: Range | Selection,
-    context: CodeActionContext,
+    _context: CodeActionContext,
     token: CancellationToken
   ): Promise<CodeAction[]> {
     const actions: CodeAction[] = [];
@@ -1235,7 +1235,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const predicateDirectiveTypes = [
       'public', 'protected', 'private',
       'mode', 'info', 'meta_predicate', 'meta_non_terminal',
-      'dynamic', 'discontiguous', 'multifile', 'synchronized', 'coinductive'
+      'dynamic', 'discontiguous', 'multifile', 'synchronized', 'coinductive', 'uses'
     ];
 
     return predicateDirectiveTypes.some(type => trimmedLine.includes(`${type}(`));
@@ -2291,24 +2291,43 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           this.logger.debug(`Consecutive directive processing returned ${consecutiveEdits.length} edits`);
           textEdits.push(...consecutiveEdits);
         } else {
-          // Handle predicate call/definition - remove the argument
-          const targetArity = currentArity - 1; // Arity after removal
+          // Check if this location is within a directive (not a scope directive)
           const startLine = location.range.start.line;
-          const firstLineText = doc.lineAt(startLine).text;
-          const clauseHeadMatch = this.findClauseHead(firstLineText, predicateName, isNonTerminal, currentArity);
+          const lineText = doc.lineAt(startLine).text;
+          const trimmedLine = lineText.trim();
 
-          let clauseRange: { start: number; end: number };
-          if (clauseHeadMatch) {
-            // This is a definition location - find all consecutive clauses of the same predicate/non-terminal
-            const endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, currentArity, isNonTerminal);
-            clauseRange = { start: startLine, end: endLine };
+          if (trimmedLine.startsWith(':-') && this.isPredicateDirective(trimmedLine)) {
+            // This is a directive location - process it as a directive
+            this.logger.debug(`Found directive location at line ${startLine + 1}, processing as directive`);
+            const directiveRange = this.getDirectiveRange(doc, startLine);
+            const directiveType = this.getDirectiveType(trimmedLine);
+
+            if (directiveType) {
+              const directiveEdits = this.processDirectiveRangeForRemoval(
+                doc, directiveRange, predicateName, currentIndicator, newIndicator,
+                argumentPosition, currentArity, isNonTerminal, directiveType
+              );
+              textEdits.push(...directiveEdits);
+            }
           } else {
-            // This is a call location - find the end of the current clause that contains the calls
-            clauseRange = this.getClauseRange(doc, startLine);
-          }
+            // Handle predicate call/definition - remove the argument
+            const targetArity = currentArity - 1; // Arity after removal
+            const firstLineText = doc.lineAt(startLine).text;
+            const clauseHeadMatch = this.findClauseHead(firstLineText, predicateName, isNonTerminal, currentArity);
 
-          const edits = this.createArgumentRemovalEdit(doc, clauseRange, argumentPosition, targetArity, isNonTerminal, predicateName);
-          textEdits.push(...edits);
+            let clauseRange: { start: number; end: number };
+            if (clauseHeadMatch) {
+              // This is a definition location - find all consecutive clauses of the same predicate/non-terminal
+              const endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, currentArity, isNonTerminal);
+              clauseRange = { start: startLine, end: endLine };
+            } else {
+              // This is a call location - find the end of the current clause that contains the calls
+              clauseRange = this.getClauseRange(doc, startLine);
+            }
+
+            const edits = this.createArgumentRemovalEdit(doc, clauseRange, argumentPosition, targetArity, isNonTerminal, predicateName);
+            textEdits.push(...edits);
+          }
         }
       }
 
@@ -2969,23 +2988,42 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           this.logger.debug(`Consecutive directive processing returned ${consecutiveEdits.length} edits`);
           textEdits.push(...consecutiveEdits);
         } else {
-          // Handle predicate call/definition - add the argument
+          // Check if this location is within a directive (not a scope directive)
           const startLine = location.range.start.line;
-          const firstLineText = doc.lineAt(startLine).text;
-          const clauseHeadMatch = this.findClauseHead(firstLineText, predicateName, isNonTerminal, currentArity);
+          const lineText = doc.lineAt(startLine).text;
+          const trimmedLine = lineText.trim();
 
-          let clauseRange: { start: number; end: number };
-          if (clauseHeadMatch) {
-            // This is a definition location - find all consecutive clauses of the same predicate/non-terminal
-            const endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, currentArity, isNonTerminal);
-            clauseRange = { start: startLine, end: endLine };
+          if (trimmedLine.startsWith(':-') && this.isPredicateDirective(trimmedLine)) {
+            // This is a directive location - process it as a directive
+            this.logger.debug(`Found directive location at line ${startLine + 1}, processing as directive`);
+            const directiveRange = this.getDirectiveRange(doc, startLine);
+            const directiveType = this.getDirectiveType(trimmedLine);
+
+            if (directiveType) {
+              const directiveEdits = this.processDirectiveRangeForAdding(
+                doc, directiveRange, predicateName, currentIndicator, newIndicator,
+                argumentName, argumentPosition, currentArity, isNonTerminal, directiveType
+              );
+              textEdits.push(...directiveEdits);
+            }
           } else {
-            // This is a call location - find the end of the current clause that contains the calls
-            clauseRange = this.getClauseRange(doc, startLine);
-          }
+            // Handle predicate call/definition - add the argument
+            const firstLineText = doc.lineAt(startLine).text;
+            const clauseHeadMatch = this.findClauseHead(firstLineText, predicateName, isNonTerminal, currentArity);
 
-          const edits = this.createArgumentAdditionEdit(doc, clauseRange, argumentName, argumentPosition, currentArity, isNonTerminal, predicateName);
-          textEdits.push(...edits);
+            let clauseRange: { start: number; end: number };
+            if (clauseHeadMatch) {
+              // This is a definition location - find all consecutive clauses of the same predicate/non-terminal
+              const endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, currentArity, isNonTerminal);
+              clauseRange = { start: startLine, end: endLine };
+            } else {
+              // This is a call location - find the end of the current clause that contains the calls
+              clauseRange = this.getClauseRange(doc, startLine);
+            }
+
+            const edits = this.createArgumentAdditionEdit(doc, clauseRange, argumentName, argumentPosition, currentArity, isNonTerminal, predicateName);
+            textEdits.push(...edits);
+          }
         }
       }
 
@@ -3042,23 +3080,42 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           this.logger.debug(`Consecutive directive processing returned ${consecutiveEdits.length} edits`);
           textEdits.push(...consecutiveEdits);
         } else {
-          // Handle predicate call/definition - reorder the arguments
+          // Check if this location is within a directive (not a scope directive)
           const startLine = location.range.start.line;
-          const firstLineText = doc.lineAt(startLine).text;
-          const clauseHeadMatch = this.findClauseHead(firstLineText, predicateName, isNonTerminal, currentArity);
+          const lineText = doc.lineAt(startLine).text;
+          const trimmedLine = lineText.trim();
 
-          let clauseRange: { start: number; end: number };
-          if (clauseHeadMatch) {
-            // This is a definition location - find all consecutive clauses of the same predicate/non-terminal
-            const endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, currentArity, isNonTerminal);
-            clauseRange = { start: startLine, end: endLine };
+          if (trimmedLine.startsWith(':-') && this.isPredicateDirective(trimmedLine)) {
+            // This is a directive location - process it as a directive
+            this.logger.debug(`Found directive location at line ${startLine + 1}, processing as directive`);
+            const directiveRange = this.getDirectiveRange(doc, startLine);
+            const directiveType = this.getDirectiveType(trimmedLine);
+
+            if (directiveType) {
+              const directiveEdits = this.processDirectiveRangeForArgumentsReorder(
+                doc, directiveRange, predicateName, currentIndicator, newOrder,
+                currentArity, isNonTerminal, directiveType
+              );
+              textEdits.push(...directiveEdits);
+            }
           } else {
-            // This is a call location - find the end of the current clause that contains the calls
-            clauseRange = this.getClauseRange(doc, startLine);
-          }
+            // Handle predicate call/definition - reorder the arguments
+            const firstLineText = doc.lineAt(startLine).text;
+            const clauseHeadMatch = this.findClauseHead(firstLineText, predicateName, isNonTerminal, currentArity);
 
-          const edits = this.createArgumentReorderEdit(doc, clauseRange, newOrder, isNonTerminal, predicateName);
-          textEdits.push(...edits);
+            let clauseRange: { start: number; end: number };
+            if (clauseHeadMatch) {
+              // This is a definition location - find all consecutive clauses of the same predicate/non-terminal
+              const endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, currentArity, isNonTerminal);
+              clauseRange = { start: startLine, end: endLine };
+            } else {
+              // This is a call location - find the end of the current clause that contains the calls
+              clauseRange = this.getClauseRange(doc, startLine);
+            }
+
+            const edits = this.createArgumentsReorderEdit(doc, clauseRange, newOrder, isNonTerminal, predicateName);
+            textEdits.push(...edits);
+          }
         }
       }
 
@@ -3094,6 +3151,27 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return 'dynamic';
     } else if (trimmedLine.includes('discontiguous(')) {
       return 'discontiguous';
+    } else if (trimmedLine.includes('uses(')) {
+      return 'uses';
+    }
+
+    return null;
+  }
+
+  /**
+   * Get the directive type from a directive line
+   */
+  private getDirectiveType(trimmedLine: string): string | null {
+    const directiveTypes = [
+      'public', 'protected', 'private',
+      'mode', 'info', 'meta_predicate', 'meta_non_terminal',
+      'dynamic', 'discontiguous', 'multifile', 'synchronized', 'coinductive', 'uses'
+    ];
+
+    for (const directiveType of directiveTypes) {
+      if (trimmedLine.includes(`${directiveType}(`)) {
+        return directiveType;
+      }
     }
 
     return null;
@@ -3156,7 +3234,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     argumentName: string,
     argumentPosition: number,
     currentArity: number,
-    isNonTerminal: boolean,
+    _isNonTerminal: boolean,
     directiveType: string
   ): TextEdit[] {
     const edits: TextEdit[] = [];
@@ -3181,12 +3259,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (trimmedLine.includes(predicateName + '(')) {
         this.logger.debug(`Found callable form "${predicateName}(" at line ${lineNum + 1}`);
         if (directiveType === 'mode') {
-          updatedLine = this.updateModeDirective(updatedLine, predicateName, argumentName, argumentPosition, currentArity);
+          updatedLine = this.updateModeDirectiveForArgumentAdding(updatedLine, predicateName, currentArity, argumentPosition);
           hasChanges = true;
         } else if (directiveType === 'meta_predicate' || directiveType === 'meta_non_terminal') {
-          updatedLine = this.updateMetaDirective(updatedLine, predicateName, argumentPosition, directiveType);
+          updatedLine = this.updateMetaDirectiveForArgumentAdding(updatedLine, predicateName, argumentPosition, directiveType);
           hasChanges = true;
         }
+      }
+
+      // Special handling for uses/2 directive
+      if (directiveType === 'uses') {
+        // For uses/2 directives, we only need to update the indicator, no special argument handling
+        // The indicator update is already handled above
+        this.logger.debug(`Processing uses/2 directive line ${lineNum + 1}`);
       }
 
       // Special handling for info directive argnames/arguments
@@ -3218,14 +3303,14 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Process a directive range and create edits for reordering arguments
    */
-  private processDirectiveRangeForReorder(
+  private processDirectiveRangeForArgumentsReorder(
     doc: TextDocument,
     range: { start: number; end: number },
     predicateName: string,
-    currentIndicator: string,
+    _currentIndicator: string,
     newOrder: number[],
     currentArity: number,
-    isNonTerminal: boolean,
+    _isNonTerminal: boolean,
     directiveType: string
   ): TextEdit[] {
     const edits: TextEdit[] = [];
@@ -3243,10 +3328,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (trimmedLine.includes(predicateName + '(')) {
         this.logger.debug(`Found callable form "${predicateName}(" at line ${lineNum + 1}`);
         if (directiveType === 'mode') {
-          updatedLine = this.updateModeDirectiveForReorder(updatedLine, predicateName, newOrder);
+          updatedLine = this.updateModeDirectiveForArgumentsReorder(updatedLine, predicateName, newOrder);
           hasChanges = true;
         } else if (directiveType === 'meta_predicate' || directiveType === 'meta_non_terminal') {
-          updatedLine = this.updateMetaDirectiveForReorder(updatedLine, predicateName, newOrder, directiveType);
+          updatedLine = this.updateMetaDirectiveForArgumentsReorder(updatedLine, predicateName, newOrder, directiveType);
           hasChanges = true;
         }
       }
@@ -3313,10 +3398,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (trimmedLine.includes(predicateName + '(')) {
         this.logger.debug(`Found callable form "${predicateName}(" at line ${lineNum + 1}`);
         if (directiveType === 'mode') {
-          updatedLine = this.updateModeDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity);
+          updatedLine = this.updateModeDirectiveForArgumentRemoval(updatedLine, predicateName, argumentPosition, currentArity);
           hasChanges = true;
         } else if (directiveType === 'meta_predicate' || directiveType === 'meta_non_terminal') {
-          updatedLine = this.updateMetaDirectiveForRemoval(updatedLine, predicateName, argumentPosition, currentArity, isNonTerminal);
+          updatedLine = this.updateMetaDirectiveForArgumentRemoval(updatedLine, predicateName, argumentPosition, currentArity, isNonTerminal);
           hasChanges = true;
         }
       }
@@ -3368,7 +3453,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     this.logger.debug(`Processing scope directive at line ${scopeLine + 1}`);
     const scopeRange = this.getDirectiveRange(doc, scopeLine);
     this.logger.debug(`Scope directive range: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
-
     const scopeEdits = this.processDirectiveRangeForAdding(
       doc, scopeRange, predicateName, currentIndicator, newIndicator,
       argumentName, argumentPosition, currentArity, isNonTerminal, 'scope'
@@ -3708,7 +3792,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update an example line by reordering arguments in callable forms
    */
-  private updateExampleLineForReorder(lineText: string, predicateName: string, currentArity: number, newOrder: number[]): string {
+  private updateExampleLineForArgumentsReorder(lineText: string, predicateName: string, currentArity: number, newOrder: number[]): string {
     // Examples contain unquoted callable forms like:
     // process_file(File, Options)
     // analyze_data(Dataset, Parameters, Output)
@@ -4051,7 +4135,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     // Update each example line that contains callable forms
     for (const exampleLine of exampleLines) {
-      const updatedExampleText = this.updateExampleLineForReorder(exampleLine.text, predicateName, currentArity, newOrder);
+      const updatedExampleText = this.updateExampleLineForArgumentsReorder(exampleLine.text, predicateName, currentArity, newOrder);
       if (updatedExampleText !== exampleLine.text) {
         const edit = TextEdit.replace(
           new Range(
@@ -4158,8 +4242,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.debug(`Updated single-line arguments list at position ${argumentPosition}: ${currentList} → ${newList}`);
     }
 
-
-
     // If the line was updated, create an edit
     if (updatedLine !== lineText) {
       this.logger.debug(`Updated argnames/arguments at line ${lineNum + 1}`);
@@ -4179,12 +4261,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update mode directive to add the new argument
    */
-  private updateModeDirective(
+  private updateModeDirectiveForArgumentAdding(
     lineText: string,
     predicateName: string,
-    argumentName: string,
-    argumentPosition: number,
-    currentArity: number
+    _currentArity: number,
+    argumentPosition: number
   ): string {
     // Pattern: mode(predicate_name(arg1, arg2), mode_info)
     // We need to handle nested parentheses in arguments like ?list(integer)
@@ -4228,7 +4309,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update meta_predicate or meta_non_terminal directive
    */
-  private updateMetaDirective(
+  private updateMetaDirectiveForArgumentAdding(
     lineText: string,
     predicateName: string,
     argumentPosition: number,
@@ -4291,7 +4372,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         );
       } else {
         // No clause head found - this means we're processing calls/references
-        const lineEdits = this.findAndAddPredicateCallsInLine(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
+        const lineEdits = this.findAndAddPredicateCallArgumentInLine(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
         edits.push(...lineEdits);
         lineNum++;
       }
@@ -4375,13 +4456,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update clause head by adding argument
    */
-  private updateClauseHead(
-    lineText: string,
+  private updateClauseHeadForArgumentAdding(
+    _lineText: string,
     lineNum: number,
     clauseHead: { fullMatch: string; arguments: string; startIndex: number; endIndex: number },
     argumentName: string,
     argumentPosition: number,
-    isNonTerminal: boolean
+    _isNonTerminal: boolean
   ): TextEdit[] {
     const edits: TextEdit[] = [];
 
@@ -4429,9 +4510,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Find and add predicate calls in clause body (after :- or -->)
+   * Find and add predicate call argument in clause body (after :- or -->)
    */
-  private findAndAddPredicateCallsInClauseBody(
+  private findAndAddPredicateCallArgumentInClauseBody(
     lineText: string,
     lineNum: number,
     predicateName: string,
@@ -4450,7 +4531,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const bodyText = lineText.substring(bodyStartIndex);
 
     // Find predicate calls in the body with arity checking
-    const bodyEdits = this.findAndAddPredicateCallsInLine(bodyText, lineNum, predicateName, arity, argumentName, argumentPosition, isNonTerminal);
+    const bodyEdits = this.findAndAddPredicateCallArgumentInLine(bodyText, lineNum, predicateName, arity, argumentName, argumentPosition, isNonTerminal);
 
     // Adjust edit positions to account for body offset
     return bodyEdits.map((edit: TextEdit) => {
@@ -4463,9 +4544,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Find and add predicate calls in a line
+   * Find and add predicate call argument in a line
    */
-  private findAndAddPredicateCallsInLine(
+  private findAndAddPredicateCallArgumentInLine(
     lineText: string,
     lineNum: number,
     predicateName: string,
@@ -4474,7 +4555,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     argumentPosition: number,
     isNonTerminal: boolean
   ): TextEdit[] {
-    this.logger.debug(`findAndAddPredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} with arity ${arity} in line: "${lineText}"`);
+    this.logger.debug(`findAndAddPredicateCallArgumentInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} with arity ${arity} in line: "${lineText}"`);
     const edits: TextEdit[] = [];
 
     if (isNonTerminal) {
@@ -4626,19 +4707,17 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     return edits;
   }
 
-
-
   /**
-   * Find and reorder predicate calls in a line with arity checking
+   * Find and reorder predicate call arguments in a line with arity checking
    */
-  private findAndReorderPredicateCallsInLineWithArityCheck(
+  private findAndReorderPredicateCallArgumentsInLine(
     lineText: string,
     lineNum: number,
     predicateName: string,
     newOrder: number[],
     isNonTerminal: boolean
   ): TextEdit[] {
-    this.logger.debug(`findAndReorderPredicateCallsInLineWithArityCheck: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
+    this.logger.debug(`findAndReorderPredicateCallArgumentsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
     const edits: TextEdit[] = [];
     const targetArity = newOrder.length;
 
@@ -4648,6 +4727,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       let match: RegExpExecArray | null;
 
       while ((match = nonTerminalPattern.exec(lineText)) !== null) {
+        // Skip if this is inside a comment
+        const beforeMatch = lineText.substring(0, match.index);
+        if (beforeMatch.includes('%')) {
+          const commentPos = beforeMatch.lastIndexOf('%');
+          if (commentPos > beforeMatch.lastIndexOf('\n')) {
+            continue;
+          }
+        }
+
+        this.logger.debug(`Found non-terminal occurrence at line ${lineNum + 1}, column ${match.index}: ${predicateName}`);
         const startPos = match.index;
         const nameEndPos = startPos + predicateName.length;
 
@@ -4667,7 +4756,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
             // Only update if current arity matches target arity
             if (currentArity === targetArity) {
               // Reorder arguments according to newOrder
-              const reorderedArgs = newOrder.map(pos => args[pos - 1]);
+              const reorderedArgs = this.reorderArray(args, newOrder);
               const newArgsText = reorderedArgs.join(', ');
 
               edits.push(TextEdit.replace(
@@ -4699,6 +4788,15 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       let match: RegExpExecArray | null;
 
       while ((match = predicatePattern.exec(lineText)) !== null) {
+        // Skip if this is inside a comment
+        const beforeMatch = lineText.substring(0, match.index);
+        if (beforeMatch.includes('%')) {
+          const commentPos = beforeMatch.lastIndexOf('%');
+          if (commentPos > beforeMatch.lastIndexOf('\n')) {
+            continue;
+          }
+        }
+
         const startPos = match.index;
         const openParenPos = lineText.indexOf('(', startPos);
 
@@ -4716,7 +4814,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
               this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${startPos}: ${predicateName}(...) with matching arity ${currentArity}`);
 
               // Reorder arguments according to newOrder
-              const reorderedArgs = newOrder.map(pos => args[pos - 1]);
+              const reorderedArgs = this.reorderArray(args, newOrder);
               const newArgsText = reorderedArgs.join(', ');
 
               edits.push(TextEdit.replace(
@@ -4738,120 +4836,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Find and remove predicate calls in a line with arity checking
+   * Find and remove predicate call argument in a line with exact arity checking
    */
-  private findAndRemovePredicateCallsInLineWithArityCheck(
-    lineText: string,
-    lineNum: number,
-    predicateName: string,
-    argumentPosition: number,
-    isNonTerminal: boolean
-  ): TextEdit[] {
-    this.logger.debug(`findAndRemovePredicateCallsInLineWithArityCheck: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
-    const edits: TextEdit[] = [];
-
-    // We need to determine the target arity (before removal)
-    // This should be passed from the calling context, but for now we need to infer it
-    // The target arity is the arity of the predicate we're removing an argument from
-    // We'll get this from the clause head or use a reasonable assumption
-
-    if (isNonTerminal) {
-      // For non-terminals, find all occurrences of the non-terminal name
-      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
-      let match: RegExpExecArray | null;
-
-      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
-        const startPos = match.index;
-        const nameEndPos = startPos + predicateName.length;
-
-        // Check if it has arguments: predicateName(args)
-        const afterName = lineText.substring(nameEndPos);
-        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
-
-        if (argsMatch) {
-          // Already has arguments: predicateName(arg1, arg2)
-          const openParenPos = nameEndPos + afterName.indexOf('(');
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-          if (closeParenPos !== -1) {
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-            const currentArity = args.length;
-
-            // Only update if current arity has the argument position we want to remove
-            // and the argument position is valid
-            if (currentArity >= argumentPosition && argumentPosition > 0) {
-              // Remove argument at specified position
-              const newArgs = [...args];
-              newArgs.splice(argumentPosition - 1, 1);
-              const newArgsText = newArgs.join(', ');
-
-              edits.push(TextEdit.replace(
-                new Range(
-                  new Position(lineNum, openParenPos + 1),
-                  new Position(lineNum, closeParenPos)
-                ),
-                newArgsText
-              ));
-              this.logger.debug(`Removed argument ${argumentPosition} from non-terminal with arity ${currentArity}: "${newArgsText}"`);
-            } else {
-              this.logger.debug(`Skipping non-terminal with arity ${currentArity} (argument position ${argumentPosition} not valid)`);
-            }
-          }
-        } else {
-          this.logger.debug(`Skipping non-terminal without args (cannot remove from arity 0)`);
-        }
-      }
-
-    } else {
-      // For predicates, find all occurrences of the predicate name
-      const predicatePattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
-      let match: RegExpExecArray | null;
-
-      while ((match = predicatePattern.exec(lineText)) !== null) {
-        const startPos = match.index;
-        const openParenPos = lineText.indexOf('(', startPos);
-
-        if (openParenPos !== -1) {
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-
-          if (closeParenPos !== -1) {
-            // Extract current arguments
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-            const currentArity = args.length;
-
-            // Only update if current arity has the argument position we want to remove
-            // and the argument position is valid
-            if (currentArity >= argumentPosition && argumentPosition > 0) {
-              this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${startPos}: ${predicateName}(...) with arity ${currentArity}`);
-
-              // Remove argument at specified position
-              const newArgs = [...args];
-              newArgs.splice(argumentPosition - 1, 1);
-              const newArgsText = newArgs.join(', ');
-
-              edits.push(TextEdit.replace(
-                new Range(
-                  new Position(lineNum, openParenPos + 1),
-                  new Position(lineNum, closeParenPos)
-                ),
-                newArgsText
-              ));
-            } else {
-              this.logger.debug(`Skipping predicate call with arity ${currentArity} (argument position ${argumentPosition} not valid)`);
-            }
-          }
-        }
-      }
-    }
-
-    return edits;
-  }
-
-  /**
-   * Find and remove predicate calls in a line with exact arity checking
-   */
-  private findAndRemovePredicateCallsInLineWithExactArity(
+  private findAndRemovePredicateCallArgumentInLine(
     lineText: string,
     lineNum: number,
     predicateName: string,
@@ -4859,7 +4846,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     targetArity: number,
     isNonTerminal: boolean
   ): TextEdit[] {
-    this.logger.debug(`findAndRemovePredicateCallsInLineWithExactArity: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}", target arity: ${targetArity}`);
+    this.logger.debug(`findAndRemovePredicateCallArgumentInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}", target arity: ${targetArity}`);
     const edits: TextEdit[] = [];
 
     if (isNonTerminal) {
@@ -4986,12 +4973,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update clause head by reordering arguments
    */
-  private updateClauseHeadForReorder(
-    lineText: string,
+  private updateClauseHeadForArgumentsReorder(
+    _lineText: string,
     lineNum: number,
     clauseHead: { fullMatch: string; arguments: string; startIndex: number; endIndex: number },
     newOrder: number[],
-    isNonTerminal: boolean
+    _isNonTerminal: boolean
   ): TextEdit[] {
     const edits: TextEdit[] = [];
 
@@ -5000,7 +4987,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       ArgumentUtils.parseArguments(clauseHead.arguments);
 
     // Reorder arguments according to newOrder
-    const reorderedArgs = newOrder.map(pos => existingArgs[pos - 1]);
+    const reorderedArgs = this.reorderArray(existingArgs, newOrder);
 
     // Create the updated clause head
     const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
@@ -5024,12 +5011,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update clause head by removing argument
    */
-  private updateClauseHeadForRemoval(
-    lineText: string,
+  private updateClauseHeadForArgumentRemoval(
+    _lineText: string,
     lineNum: number,
     clauseHead: { fullMatch: string; arguments: string; startIndex: number; endIndex: number },
     argumentPosition: number,
-    isNonTerminal: boolean
+    _isNonTerminal: boolean
   ): TextEdit[] {
     const edits: TextEdit[] = [];
 
@@ -5071,9 +5058,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Find and reorder predicate calls in clause body (after :- or -->)
+   * Find and reorder predicate call arguments in clause body (after :- or -->)
    */
-  private findAndReorderPredicateCallsInClauseBody(
+  private findAndReorderPredicateCallArgumentsInClauseBody(
     lineText: string,
     lineNum: number,
     predicateName: string,
@@ -5090,7 +5077,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const bodyText = lineText.substring(bodyStartIndex);
 
     // Find predicate calls in the body with arity checking
-    const bodyEdits = this.findAndReorderPredicateCallsInLineWithArityCheck(bodyText, lineNum, predicateName, newOrder, isNonTerminal);
+    const bodyEdits = this.findAndReorderPredicateCallArgumentsInLine(bodyText, lineNum, predicateName, newOrder, isNonTerminal);
 
     // Adjust edit positions to account for body offset
     return bodyEdits.map((edit: TextEdit) => {
@@ -5103,9 +5090,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Find and remove predicate calls in clause body (after :- or -->) with exact arity checking
+   * Find and remove predicate call argument in clause body (after :- or -->) with exact arity checking
    */
-  private findAndRemovePredicateCallsInClauseBodyWithArity(
+  private findAndRemovePredicateCallArgumentInClauseBody(
     lineText: string,
     lineNum: number,
     predicateName: string,
@@ -5123,7 +5110,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const bodyText = lineText.substring(bodyStartIndex);
 
     // Find predicate calls in the body with exact arity checking
-    const bodyEdits = this.findAndRemovePredicateCallsInLineWithExactArity(bodyText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
+    const bodyEdits = this.findAndRemovePredicateCallArgumentInLine(bodyText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
 
     // Adjust edit positions to account for body offset
     return bodyEdits.map((edit: TextEdit) => {
@@ -5133,211 +5120,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       );
       return TextEdit.replace(adjustedRange, edit.newText);
     });
-  }
-
-  /**
-   * Find and remove predicate calls in clause body (after :- or -->)
-   */
-  private findAndRemovePredicateCallsInClauseBody(
-    lineText: string,
-    lineNum: number,
-    predicateName: string,
-    argumentPosition: number,
-    isNonTerminal: boolean
-  ): TextEdit[] {
-    // Find the body part (after :- or -->)
-    const bodyStartMatch = lineText.match(/(:-|-->)/);
-    if (!bodyStartMatch) {
-      return []; // No body found
-    }
-
-    const bodyStartIndex = bodyStartMatch.index! + bodyStartMatch[0].length;
-    const bodyText = lineText.substring(bodyStartIndex);
-
-    // Find predicate calls in the body with arity checking
-    const bodyEdits = this.findAndRemovePredicateCallsInLineWithArityCheck(bodyText, lineNum, predicateName, argumentPosition, isNonTerminal);
-
-    // Adjust edit positions to account for body offset
-    return bodyEdits.map((edit: TextEdit) => {
-      const adjustedRange = new Range(
-        new Position(edit.range.start.line, edit.range.start.character + bodyStartIndex),
-        new Position(edit.range.end.line, edit.range.end.character + bodyStartIndex)
-      );
-      return TextEdit.replace(adjustedRange, edit.newText);
-    });
-  }
-
-  /**
-   * Find and update all predicate calls in a single line
-   */
-  private findAndUpdatePredicateCallsInLine(
-    lineText: string,
-    lineNum: number,
-    predicateName: string,
-    argumentName: string,
-    argumentPosition: number,
-    isNonTerminal: boolean
-  ): TextEdit[] {
-    this.logger.debug(`findAndUpdatePredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
-    const edits: TextEdit[] = [];
-
-    if (isNonTerminal) {
-      // For non-terminals, find all occurrences of the non-terminal name
-      // This includes both rule heads (with -->) and calls (without -->)
-      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
-      let match: RegExpExecArray | null;
-      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
-        // Skip if this is inside a comment
-        const beforeMatch = lineText.substring(0, match.index);
-        if (beforeMatch.includes('%')) {
-          const commentPos = beforeMatch.lastIndexOf('%');
-          if (commentPos > beforeMatch.lastIndexOf('\n')) {
-            continue;
-          }
-        }
-
-        this.logger.debug(`Found non-terminal occurrence at line ${lineNum + 1}, column ${match.index}: ${predicateName}`);
-        const nameEndPos = match.index + predicateName.length;
-
-        // Check if it has arguments: predicateName(args)
-        const afterName = lineText.substring(nameEndPos);
-        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
-
-        if (argsMatch) {
-          // Already has arguments: predicateName(arg1, arg2)
-          const openParenPos = nameEndPos + afterName.indexOf('(');
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-          if (closeParenPos !== -1) {
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-
-            // Insert new argument at specified position
-            args.splice(argumentPosition - 1, 0, argumentName);
-            const newArgsText = args.join(', ');
-
-            edits.push(TextEdit.replace(
-              new Range(
-                new Position(lineNum, openParenPos + 1),
-                new Position(lineNum, closeParenPos)
-              ),
-              newArgsText
-            ));
-            this.logger.debug(`Added argument to non-terminal with args: "${newArgsText}"`);
-          }
-        } else {
-          // No arguments: predicateName
-          edits.push(TextEdit.insert(
-            new Position(lineNum, nameEndPos),
-            `(${argumentName})`
-          ));
-          this.logger.debug(`Added argument to non-terminal without args: "(${argumentName})"`);
-        }
-      }
-
-    } else {
-      // Handle predicate facts: predicateName.
-      const factPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\.`, 'g');
-      let factMatch: RegExpExecArray | null;
-      while ((factMatch = factPattern.exec(lineText)) !== null) {
-        this.logger.debug(`Found fact at line ${lineNum + 1}, column ${factMatch.index}: ${predicateName}`);
-        const insertPos = factMatch.index + predicateName.length;
-        edits.push(TextEdit.insert(
-          new Position(lineNum, insertPos),
-          `(${argumentName})`
-        ));
-      }
-
-      // Look for predicate calls with arguments
-      const callPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
-      let callMatch: RegExpExecArray | null;
-      while ((callMatch = callPattern.exec(lineText)) !== null) {
-        const startPos = callMatch.index + predicateName.length;
-        const openParenPos = lineText.indexOf('(', startPos);
-
-        if (openParenPos !== -1) {
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-
-          if (closeParenPos !== -1) {
-            this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...)`);
-
-            // Extract current arguments
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-
-            // Insert new argument at specified position
-            args.splice(argumentPosition - 1, 0, argumentName);
-            const newArgsText = args.join(', ');
-
-            edits.push(TextEdit.replace(
-              new Range(
-                new Position(lineNum, openParenPos + 1),
-                new Position(lineNum, closeParenPos)
-              ),
-              newArgsText
-            ));
-          }
-        }
-      }
-    }
-
-    return edits;
-  }
-
-  /**
-   * Find matching closing parenthesis
-   */
-  private findMatchingCloseParen(text: string, openPos: number): number {
-    let depth = 1;
-    let pos = openPos + 1;
-
-    while (pos < text.length && depth > 0) {
-      if (text[pos] === '(') {
-        depth++;
-      } else if (text[pos] === ')') {
-        depth--;
-      }
-      pos++;
-    }
-
-    return depth === 0 ? pos - 1 : -1;
-  }
-
-  /**
-   * Parse arguments handling nested structures
-   */
-  private parseArguments(argsText: string): string[] {
-    const args: string[] = [];
-    let current = '';
-    let depth = 0;
-    let inQuotes = false;
-
-    for (let i = 0; i < argsText.length; i++) {
-      const char = argsText[i];
-
-      if (char === "'" && (i === 0 || argsText[i-1] !== '\\')) {
-        inQuotes = !inQuotes;
-      }
-
-      if (!inQuotes) {
-        if (char === '(' || char === '[') {
-          depth++;
-        } else if (char === ')' || char === ']') {
-          depth--;
-        } else if (char === ',' && depth === 0) {
-          args.push(current.trim());
-          current = '';
-          continue;
-        }
-      }
-
-      current += char;
-    }
-
-    if (current.trim()) {
-      args.push(current.trim());
-    }
-
-    return args;
   }
 
   /**
@@ -5429,9 +5211,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Update mode directive for reordering
+   * Update mode directive for argument reordering
    */
-  private updateModeDirectiveForReorder(
+  private updateModeDirectiveForArgumentsReorder(
     lineText: string,
     predicateName: string,
     newOrder: number[]
@@ -5477,7 +5259,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Update meta_predicate or meta_non_terminal directive for reordering
    */
-  private updateMetaDirectiveForReorder(
+  private updateMetaDirectiveForArgumentsReorder(
     lineText: string,
     predicateName: string,
     newOrder: number[],
@@ -5527,14 +5309,14 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Create edit for reordering arguments in a predicate call or definition
    */
-  private createArgumentReorderEdit(
+  private createArgumentsReorderEdit(
     doc: TextDocument,
     clauseRange: { start: number; end: number },
     newOrder: number[],
     isNonTerminal: boolean,
     predicateName: string
   ): TextEdit[] {
-    this.logger.debug(`createArgumentReorderEdit: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} from line ${clauseRange.start + 1} to ${clauseRange.end + 1}`);
+    this.logger.debug(`createArgumentsReorderEdit: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} from line ${clauseRange.start + 1} to ${clauseRange.end + 1}`);
     const edits: TextEdit[] = [];
     const currentArity = newOrder.length;
 
@@ -5548,12 +5330,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       if (clauseHeadMatch) {
         // This is a clause head - process the entire clause
-        lineNum = this.processClauseRangeForReorder(
+        lineNum = this.processClauseRangeForArgumentsReorder(
           doc, lineNum, predicateName, newOrder, currentArity, isNonTerminal, edits
         );
       } else {
         // No clause head found - this means we're processing calls/references
-        const lineEdits = this.findAndReorderPredicateCallsInLine(lineText, lineNum, predicateName, newOrder, isNonTerminal);
+        const lineEdits = this.findAndReorderPredicateCallArgumentsInLine(lineText, lineNum, predicateName, newOrder, isNonTerminal);
         edits.push(...lineEdits);
         lineNum++;
       }
@@ -5586,13 +5368,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       if (clauseHeadMatch) {
         // This is a clause head - process the entire clause
-        lineNum = this.processClauseRangeForRemoval(
+        lineNum = this.processClauseRangeForArgumentRemoval(
           doc, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal, edits
         );
       } else {
         // No clause head found - this means we're processing calls/references
         // Use the target arity from the method parameter (determined from predicate indicator)
-        const lineEdits = this.findAndRemovePredicateCallsInLineWithExactArity(lineText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
+        const lineEdits = this.findAndRemovePredicateCallArgumentInLine(lineText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
         edits.push(...lineEdits);
         lineNum++;
       }
@@ -5605,7 +5387,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * Process a complete clause range for argument reordering
    * Returns the next line number to process
    */
-  private processClauseRangeForReorder(
+  private processClauseRangeForArgumentsReorder(
     doc: TextDocument,
     startLine: number,
     predicateName: string,
@@ -5631,19 +5413,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           if (headArity === currentArity) {
             // Update the clause head (reorder arguments)
             this.logger.debug(`Updating clause head: ${clauseHeadMatch.fullMatch}`);
-            const headEdits = this.updateClauseHeadForReorder(lineText, lineNum, clauseHeadMatch, newOrder, isNonTerminal);
+            const headEdits = this.updateClauseHeadForArgumentsReorder(lineText, lineNum, clauseHeadMatch, newOrder, isNonTerminal);
             edits.push(...headEdits);
           } else {
             this.logger.debug(`Skipping clause head with different arity (${headArity} vs ${currentArity})`);
           }
 
           // Also check for calls in the clause body part (after :- or -->)
-          const bodyEdits = this.findAndReorderPredicateCallsInClauseBody(lineText, lineNum, predicateName, newOrder, isNonTerminal);
+          const bodyEdits = this.findAndReorderPredicateCallArgumentsInClauseBody(lineText, lineNum, predicateName, newOrder, isNonTerminal);
           edits.push(...bodyEdits);
         }
       } else {
         // This is a clause body line - check for recursive calls
-        const bodyEdits = this.findAndReorderPredicateCallsInLine(lineText, lineNum, predicateName, newOrder, isNonTerminal);
+        const bodyEdits = this.findAndReorderPredicateCallArgumentsInLine(lineText, lineNum, predicateName, newOrder, isNonTerminal);
         edits.push(...bodyEdits);
       }
     }
@@ -5683,19 +5465,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           if (headArity === currentArity) {
             // Update the clause head (add argument)
             this.logger.debug(`Updating clause head: ${clauseHeadMatch.fullMatch}`);
-            const headEdits = this.updateClauseHead(lineText, lineNum, clauseHeadMatch, argumentName, argumentPosition, isNonTerminal);
+            const headEdits = this.updateClauseHeadForArgumentAdding(lineText, lineNum, clauseHeadMatch, argumentName, argumentPosition, isNonTerminal);
             edits.push(...headEdits);
           } else {
             this.logger.debug(`Skipping clause head with different arity (${headArity} vs ${currentArity})`);
           }
 
           // Also check for calls in the clause body part (after :- or -->)
-          const bodyEdits = this.findAndAddPredicateCallsInClauseBody(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
+          const bodyEdits = this.findAndAddPredicateCallArgumentInClauseBody(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
           edits.push(...bodyEdits);
         }
       } else {
         // This is a clause body line - check for recursive calls
-        const bodyEdits = this.findAndAddPredicateCallsInLine(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
+        const bodyEdits = this.findAndAddPredicateCallArgumentInLine(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
         edits.push(...bodyEdits);
       }
     }
@@ -5708,7 +5490,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * Process a complete clause range for argument removal
    * Returns the next line number to process
    */
-  private processClauseRangeForRemoval(
+  private processClauseRangeForArgumentRemoval(
     doc: TextDocument,
     startLine: number,
     predicateName: string,
@@ -5734,19 +5516,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           if (headArity > 0) {
             // Update the clause head (remove argument)
             this.logger.debug(`Updating clause head: ${clauseHeadMatch.fullMatch}`);
-            const headEdits = this.updateClauseHeadForRemoval(lineText, lineNum, clauseHeadMatch, argumentPosition, isNonTerminal);
+            const headEdits = this.updateClauseHeadForArgumentRemoval(lineText, lineNum, clauseHeadMatch, argumentPosition, isNonTerminal);
             edits.push(...headEdits);
           } else {
             this.logger.debug(`Skipping clause head with no arguments`);
           }
 
           // Also check for calls in the clause body part (after :- or -->)
-          const bodyEdits = this.findAndRemovePredicateCallsInClauseBodyWithArity(lineText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
+          const bodyEdits = this.findAndRemovePredicateCallArgumentInClauseBody(lineText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
           edits.push(...bodyEdits);
         }
       } else {
         // This is a clause body line - check for recursive calls
-        const bodyEdits = this.findAndRemovePredicateCallsInLineWithExactArity(lineText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
+        const bodyEdits = this.findAndRemovePredicateCallArgumentInLine(lineText, lineNum, predicateName, argumentPosition, targetArity, isNonTerminal);
         edits.push(...bodyEdits);
       }
     }
@@ -5821,191 +5603,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     return trimmedLine.includes(':-') || trimmedLine.includes('-->') || /\.\s*(?:%.*)?$/.test(trimmedLine);
   }
 
-  /**
-   * Find and reorder all predicate calls in a single line
-   */
-  private findAndReorderPredicateCallsInLine(
-    lineText: string,
-    lineNum: number,
-    predicateName: string,
-    newOrder: number[],
-    isNonTerminal: boolean
-  ): TextEdit[] {
-    this.logger.debug(`findAndReorderPredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
-    const edits: TextEdit[] = [];
 
-    if (isNonTerminal) {
-      // For non-terminals, find all occurrences of the non-terminal name
-      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
-      let match: RegExpExecArray | null;
-      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
-        // Skip if this is inside a comment
-        const beforeMatch = lineText.substring(0, match.index);
-        if (beforeMatch.includes('%')) {
-          const commentPos = beforeMatch.lastIndexOf('%');
-          if (commentPos > beforeMatch.lastIndexOf('\n')) {
-            continue;
-          }
-        }
-
-        this.logger.debug(`Found non-terminal occurrence at line ${lineNum + 1}, column ${match.index}: ${predicateName}`);
-        const nameEndPos = match.index + predicateName.length;
-
-        // Check if it has arguments: predicateName(args)
-        const afterName = lineText.substring(nameEndPos);
-        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
-
-        if (argsMatch) {
-          // Already has arguments: predicateName(arg1, arg2)
-          const openParenPos = nameEndPos + afterName.indexOf('(');
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-          if (closeParenPos !== -1) {
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-
-            if (args.length === newOrder.length) {
-              // Reorder arguments
-              const reorderedArgs = this.reorderArray(args, newOrder);
-              const newArgsText = reorderedArgs.join(', ');
-
-              edits.push(TextEdit.replace(
-                new Range(
-                  new Position(lineNum, openParenPos + 1),
-                  new Position(lineNum, closeParenPos)
-                ),
-                newArgsText
-              ));
-              this.logger.debug(`Reordered non-terminal args: "${newArgsText}"`);
-            }
-          }
-        }
-      }
-
-    } else {
-      // Look for predicate calls with arguments
-      const callPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
-      let callMatch: RegExpExecArray | null;
-      while ((callMatch = callPattern.exec(lineText)) !== null) {
-        const startPos = callMatch.index + predicateName.length;
-        const openParenPos = lineText.indexOf('(', startPos);
-
-        if (openParenPos !== -1) {
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-
-          if (closeParenPos !== -1) {
-            this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...)`);
-
-            // Extract current arguments
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-
-            if (args.length === newOrder.length) {
-              // Reorder arguments
-              const reorderedArgs = this.reorderArray(args, newOrder);
-              const newArgsText = reorderedArgs.join(', ');
-
-              edits.push(TextEdit.replace(
-                new Range(
-                  new Position(lineNum, openParenPos + 1),
-                  new Position(lineNum, closeParenPos)
-                ),
-                newArgsText
-              ));
-              this.logger.debug(`Reordered predicate args: "${newArgsText}"`);
-            }
-          }
-        }
-      }
-    }
-
-    return edits;
-  }
-
-  /**
-   * Find and remove all predicate calls in a single line
-   */
-  private findAndRemovePredicateCallsInLine(
-    lineText: string,
-    lineNum: number,
-    predicateName: string,
-    argumentPosition: number,
-    isNonTerminal: boolean
-  ): TextEdit[] {
-    this.logger.debug(`findAndRemovePredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
-    const edits: TextEdit[] = [];
-
-    if (isNonTerminal) {
-      // For non-terminals, find all occurrences of the non-terminal name
-      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
-      let match;
-
-      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
-        const startPos = match.index;
-        const endPos = startPos + match[0].length;
-
-        // Check if this is followed by an opening parenthesis
-        if (endPos < lineText.length && lineText[endPos] === '(') {
-          const openParenPos = endPos;
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-
-          if (closeParenPos !== -1) {
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-
-            if (args.length > 0 && argumentPosition <= args.length) {
-              // Remove the specified argument
-              const newArgs = [...args];
-              newArgs.splice(argumentPosition - 1, 1); // Convert to 0-based index
-              const newArgsText = newArgs.join(', ');
-
-              edits.push(TextEdit.replace(
-                new Range(
-                  new Position(lineNum, openParenPos + 1),
-                  new Position(lineNum, closeParenPos)
-                ),
-                newArgsText
-              ));
-              this.logger.debug(`Removed argument ${argumentPosition} from non-terminal: "${newArgsText}"`);
-            }
-          }
-        }
-      }
-    } else {
-      // For predicates, find all occurrences of the predicate name
-      const predicatePattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
-      let match;
-
-      while ((match = predicatePattern.exec(lineText)) !== null) {
-        const startPos = match.index;
-        const openParenPos = startPos + match[0].length - 1; // Position of the opening parenthesis
-
-        const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-
-        if (closeParenPos !== -1) {
-          const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-          const args = ArgumentUtils.parseArguments(argsText);
-
-          if (args.length > 0 && argumentPosition <= args.length) {
-            // Remove the specified argument
-            const newArgs = [...args];
-            newArgs.splice(argumentPosition - 1, 1); // Convert to 0-based index
-            const newArgsText = newArgs.join(', ');
-
-            edits.push(TextEdit.replace(
-              new Range(
-                new Position(lineNum, openParenPos + 1),
-                new Position(lineNum, closeParenPos)
-              ),
-              newArgsText
-            ));
-            this.logger.debug(`Removed argument ${argumentPosition} from predicate: "${newArgsText}"`);
-          }
-        }
-      }
-    }
-
-    return edits;
-  }
 
   /**
    * Find and update consecutive directives for reordering
@@ -6075,7 +5673,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
           if (containsOurPredicate) {
             this.logger.debug(`${directiveType} directive contains our predicate, processing range`);
-            const directiveEdits = this.processDirectiveRangeForReorder(
+            const directiveEdits = this.processDirectiveRangeForArgumentsReorder(
               doc, range, predicateName, currentIndicator, newOrder,
               currentArity, isNonTerminal, directiveType
             );
@@ -6436,116 +6034,133 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Update info directive for argument removal
+   * Update mode directive for argument removal
    */
-  private updateInfoDirectiveForRemoval(
+  private updateModeDirectiveForArgumentRemoval(
     lineText: string,
     predicateName: string,
     argumentPosition: number,
-    currentArity: number,
-    isNonTerminal: boolean
-  ): string | null {
-    // Handle argnames and arguments lists
-    if (lineText.includes('argnames') || lineText.includes('arguments')) {
-      // If removing the last argument and it would result in an empty list, delete the line
-      if (currentArity === 1) {
-        return ''; // Signal to delete the line
-      }
+    _currentArity: number
+  ): string {
+    // Pattern: mode(predicate_name(arg1, arg2), mode_info)
+    // We need to handle nested parentheses in arguments like +list(callable)
+    const predicateStart = lineText.indexOf(`${predicateName}(`);
+    if (predicateStart === -1) {
+      return lineText;
+    }
 
-      // Find the list and remove the specified argument
-      const listMatch = lineText.match(/\[(.*?)\]/);
-      if (listMatch) {
-        const listContent = listMatch[1];
-        const args = listContent.split(',').map(arg => arg.trim().replace(/^['"]|['"]$/g, ''));
+    // Find the opening parenthesis after the predicate name
+    const openParenPos = predicateStart + predicateName.length;
+    if (lineText[openParenPos] !== '(') {
+      return lineText;
+    }
 
-        if (args.length >= argumentPosition) {
-          args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
-          const newListContent = args.map(arg => `'${arg}'`).join(', ');
-          return lineText.replace(/\[.*?\]/, `[${newListContent}]`);
+    // Find the matching closing parenthesis using proper nesting
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+    if (closeParenPos === -1) {
+      return lineText;
+    }
+
+    // Extract current arguments
+    const currentArgs = lineText.substring(openParenPos + 1, closeParenPos).trim();
+    let newArgs: string;
+
+    if (currentArgs === '') {
+      // No current arguments - nothing to remove
+      return lineText;
+    } else {
+      // Parse arguments properly handling nested structures
+      const argList = ArgumentUtils.parseArguments(currentArgs);
+      if (argList.length >= argumentPosition) {
+        argList.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
+
+        if (argList.length === 0) {
+          // No arguments remain - remove parentheses entirely
+          const beforePredicate = lineText.substring(0, predicateStart);
+          const afterCloseParen = lineText.substring(closeParenPos + 1);
+          return beforePredicate + predicateName + afterCloseParen;
+        } else {
+          newArgs = argList.join(', ');
         }
+      } else {
+        // Invalid argument position
+        return lineText;
       }
     }
 
-    return lineText; // No changes needed
-  }
-
-  /**
-   * Update mode directive for argument removal
-   */
-  private updateModeDirectiveForRemoval(
-    lineText: string,
-    predicateName: string,
-    argumentPosition: number,
-    currentArity: number
-  ): string {
-    // Pattern: mode(predicate_name(arg1, arg2), mode_info)
-    const modePattern = new RegExp(`mode\\(\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]+)\\)\\s*,\\s*([^)]+)\\)`, 'g');
-
-    return lineText.replace(modePattern, (match, argsText, modeInfo) => {
-      const args = ArgumentUtils.parseArguments(argsText);
-      if (args.length >= argumentPosition) {
-        args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
-
-        // If no arguments remain, remove parentheses entirely
-        if (args.length === 0) {
-          return `mode(${predicateName}, ${modeInfo})`;
-        } else {
-          const newArgsText = args.join(', ');
-          return `mode(${predicateName}(${newArgsText}), ${modeInfo})`;
-        }
-      }
-      return match;
-    });
+    // Replace the arguments part
+    const beforeArgs = lineText.substring(0, openParenPos + 1);
+    const afterArgs = lineText.substring(closeParenPos);
+    return beforeArgs + newArgs + afterArgs;
   }
 
   /**
    * Update meta directive for argument removal
    */
-  private updateMetaDirectiveForRemoval(
+  private updateMetaDirectiveForArgumentRemoval(
     lineText: string,
     predicateName: string,
     argumentPosition: number,
-    currentArity: number,
+    _currentArity: number,
     isNonTerminal: boolean
   ): string {
     const directiveType = isNonTerminal ? 'meta_non_terminal' : 'meta_predicate';
-    const pattern = new RegExp(`${directiveType}\\s*\\(\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]+)\\)\\s*\\)`, 'g');
 
-    return lineText.replace(pattern, (match, argsText) => {
-      const args = ArgumentUtils.parseArguments(argsText);
-      if (args.length >= argumentPosition) {
-        args.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
+    // Pattern: meta_predicate(predicate_name(template1, template2)) or meta_non_terminal(name(template1, template2))
+    // We need to handle nested parentheses in templates
+    const predicateStart = lineText.indexOf(`${predicateName}(`);
+    if (predicateStart === -1) {
+      return lineText;
+    }
 
-        // If no arguments remain, remove parentheses entirely
-        if (args.length === 0) {
-          return `${directiveType}(${predicateName})`;
+    // Also check that this is actually within the correct directive type
+    if (!lineText.includes(`${directiveType}(`)) {
+      return lineText;
+    }
+
+    // Find the opening parenthesis after the predicate name
+    const openParenPos = predicateStart + predicateName.length;
+    if (lineText[openParenPos] !== '(') {
+      return lineText;
+    }
+
+    // Find the matching closing parenthesis using proper nesting
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+    if (closeParenPos === -1) {
+      return lineText;
+    }
+
+    // Extract current template arguments
+    const currentArgs = lineText.substring(openParenPos + 1, closeParenPos).trim();
+    let newArgs: string;
+
+    if (currentArgs === '') {
+      // No current arguments - nothing to remove
+      return lineText;
+    } else {
+      // Parse arguments properly handling nested structures
+      const argList = ArgumentUtils.parseArguments(currentArgs);
+      if (argList.length >= argumentPosition) {
+        argList.splice(argumentPosition - 1, 1); // Remove the argument (convert to 0-based)
+
+        if (argList.length === 0) {
+          // No arguments remain - remove parentheses entirely
+          const beforePredicate = lineText.substring(0, predicateStart);
+          const afterCloseParen = lineText.substring(closeParenPos + 1);
+          return beforePredicate + predicateName + afterCloseParen;
         } else {
-          const newArgsText = args.join(', ');
-          return `${directiveType}(${predicateName}(${newArgsText}))`;
+          newArgs = argList.join(', ');
         }
+      } else {
+        // Invalid argument position
+        return lineText;
       }
-      return match;
-    });
-  }
+    }
 
-  /**
-   * Update general directive for argument removal
-   */
-  private updateDirectiveForRemoval(
-    lineText: string,
-    predicateName: string,
-    currentIndicator: string,
-    argumentPosition: number,
-    currentArity: number,
-    isNonTerminal: boolean
-  ): string {
-    // Handle general directives that contain the predicate/non-terminal
-    const separator = isNonTerminal ? '//' : '/';
-    const newArity = currentArity - 1;
-    const newIndicator = `${predicateName}${separator}${newArity}`;
-
-    // Replace the indicator
-    return lineText.replace(currentIndicator, newIndicator);
+    // Replace the arguments part
+    const beforeArgs = lineText.substring(0, openParenPos + 1);
+    const afterArgs = lineText.substring(closeParenPos);
+    return beforeArgs + newArgs + afterArgs;
   }
 
   /**

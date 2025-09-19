@@ -634,11 +634,11 @@ export class PredicateUtils {
 
       // Check if this is a directive
       if (trimmedLine.startsWith(':-')) {
-        // Check if this directive is for our predicate/non-terminal
-        if (this.isDirectiveForPredicate(lineText, predicateName, indicator)) {
-          // Find the end of this directive (may be multi-line)
-          const directiveEndLine = this.findDirectiveEndLine(document, lineNum);
+        // Find the end of this directive first (may be multi-line)
+        const directiveEndLine = this.findDirectiveEndLine(document, lineNum);
 
+        // Check if this directive is for our predicate/non-terminal by checking the entire directive range
+        if (this.isDirectiveForPredicateInRange(document, lineNum, directiveEndLine, predicateName, indicator)) {
           // Add the range for this directive
           ranges.push(new Range(
             new Position(lineNum, 0),
@@ -661,22 +661,42 @@ export class PredicateUtils {
   }
 
   /**
-   * Check if a directive line is for the specified predicate/non-terminal
+   * Check if a directive range is for the specified predicate/non-terminal
    */
-  private static isDirectiveForPredicate(lineText: string, predicateName: string, indicator: string): boolean {
+  private static isDirectiveForPredicateInRange(
+    document: TextDocument,
+    startLine: number,
+    endLine: number,
+    predicateName: string,
+    indicator: string
+  ): boolean {
     // Check for various directive types that might contain the predicate/non-terminal
     const directiveTypes = [
       'public', 'protected', 'private',
       'mode', 'info', 'meta_predicate', 'meta_non_terminal',
-      'dynamic', 'discontiguous', 'multifile'
+      'dynamic', 'discontiguous', 'multifile', 'uses'
     ];
 
+    // First check if the first line contains a recognized directive type
+    const firstLineText = document.lineAt(startLine).text;
+    let isRecognizedDirective = false;
+
     for (const directiveType of directiveTypes) {
-      if (lineText.includes(`${directiveType}(`)) {
-        // Check if the directive contains our predicate name or indicator
-        if (lineText.includes(predicateName) || lineText.includes(indicator)) {
-          return true;
-        }
+      if (firstLineText.includes(`${directiveType}(`)) {
+        isRecognizedDirective = true;
+        break;
+      }
+    }
+
+    if (!isRecognizedDirective) {
+      return false;
+    }
+
+    // Now check if any line in the directive range contains our predicate name or indicator
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      if (lineText.includes(predicateName) || lineText.includes(indicator)) {
+        return true;
       }
     }
 
