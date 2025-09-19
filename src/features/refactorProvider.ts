@@ -4291,7 +4291,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         );
       } else {
         // No clause head found - this means we're processing calls/references
-        const lineEdits = this.findAndAddPredicateCallsInLine(lineText, lineNum, predicateName, argumentName, argumentPosition, isNonTerminal);
+        const lineEdits = this.findAndAddPredicateCallsInLine(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
         edits.push(...lineEdits);
         lineNum++;
       }
@@ -4435,6 +4435,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     lineText: string,
     lineNum: number,
     predicateName: string,
+    arity: number,
     argumentName: string,
     argumentPosition: number,
     isNonTerminal: boolean
@@ -4449,7 +4450,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const bodyText = lineText.substring(bodyStartIndex);
 
     // Find predicate calls in the body with arity checking
-    const bodyEdits = this.findAndAddPredicateCallsInLineWithArityCheck(bodyText, lineNum, predicateName, argumentName, argumentPosition, isNonTerminal);
+    const bodyEdits = this.findAndAddPredicateCallsInLine(bodyText, lineNum, predicateName, arity, argumentName, argumentPosition, isNonTerminal);
 
     // Adjust edit positions to account for body offset
     return bodyEdits.map((edit: TextEdit) => {
@@ -4468,11 +4469,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     lineText: string,
     lineNum: number,
     predicateName: string,
+    arity: number,
     argumentName: string,
     argumentPosition: number,
     isNonTerminal: boolean
   ): TextEdit[] {
-    this.logger.debug(`findAndAddPredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
+    this.logger.debug(`findAndAddPredicateCallsInLine: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} with arity ${arity} in line: "${lineText}"`);
     const edits: TextEdit[] = [];
 
     if (isNonTerminal) {
@@ -4504,27 +4506,37 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           if (closeParenPos !== -1) {
             const argsText = lineText.substring(openParenPos + 1, closeParenPos);
             const args = ArgumentUtils.parseArguments(argsText);
+            const currentArity = args.length;
 
-            // Insert new argument at specified position
-            args.splice(argumentPosition - 1, 0, argumentName);
-            const newArgsText = args.join(', ');
+            // Only update if current arity matches expected arity (since we're adding one argument)
+            if (currentArity === arity) {
+              // Insert new argument at specified position
+              args.splice(argumentPosition - 1, 0, argumentName);
+              const newArgsText = args.join(', ');
 
-            edits.push(TextEdit.replace(
-              new Range(
-                new Position(lineNum, openParenPos + 1),
-                new Position(lineNum, closeParenPos)
-              ),
-              newArgsText
-            ));
-            this.logger.debug(`Added argument to non-terminal with args: "${newArgsText}"`);
+              edits.push(TextEdit.replace(
+                new Range(
+                  new Position(lineNum, openParenPos + 1),
+                  new Position(lineNum, closeParenPos)
+                ),
+                newArgsText
+              ));
+              this.logger.debug(`Added argument to non-terminal with matching arity ${currentArity}: "${newArgsText}"`);
+            } else {
+              this.logger.debug(`Skipping non-terminal with different arity (${currentArity} vs expected ${arity})`);
+            }
           }
         } else {
-          // No arguments: predicateName
-          edits.push(TextEdit.insert(
-            new Position(lineNum, nameEndPos),
-            `(${argumentName})`
-          ));
-          this.logger.debug(`Added argument to non-terminal without args: "(${argumentName})"`);
+          // No arguments: predicateName - only update if expected arity is 0
+          if (arity === 0) {
+            edits.push(TextEdit.insert(
+              new Position(lineNum, nameEndPos),
+              `(${argumentName})`
+            ));
+            this.logger.debug(`Added argument to non-terminal without args (expected arity 0): "(${argumentName})"`);
+          } else {
+            this.logger.debug(`Skipping non-terminal without args (expected arity ${arity} != 0)`);
+          }
         }
       }
 
@@ -4533,12 +4545,17 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const factPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\.`, 'g');
       let factMatch: RegExpExecArray | null;
       while ((factMatch = factPattern.exec(lineText)) !== null) {
-        this.logger.debug(`Found fact at line ${lineNum + 1}, column ${factMatch.index}: ${predicateName}`);
-        const insertPos = factMatch.index + predicateName.length;
-        edits.push(TextEdit.insert(
-          new Position(lineNum, insertPos),
-          `(${argumentName})`
-        ));
+        // Only update facts if expected arity is 0
+        if (arity === 0) {
+          this.logger.debug(`Found fact at line ${lineNum + 1}, column ${factMatch.index}: ${predicateName}`);
+          const insertPos = factMatch.index + predicateName.length;
+          edits.push(TextEdit.insert(
+            new Position(lineNum, insertPos),
+            `(${argumentName})`
+          ));
+        } else {
+          this.logger.debug(`Skipping fact with expected arity ${arity} != 0`);
+        }
       }
 
       // Handle zero-arity predicate calls: predicateName (no parentheses, no dot)
@@ -4554,142 +4571,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           }
         }
 
-        this.logger.debug(`Found zero-arity call at line ${lineNum + 1}, column ${zeroArityMatch.index}: ${predicateName}`);
-        const insertPos = zeroArityMatch.index + predicateName.length;
-        edits.push(TextEdit.insert(
-          new Position(lineNum, insertPos),
-          `(${argumentName})`
-        ));
-      }
-
-      // Look for predicate calls with arguments
-      const callPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'g');
-      let callMatch: RegExpExecArray | null;
-      while ((callMatch = callPattern.exec(lineText)) !== null) {
-        const startPos = callMatch.index + predicateName.length;
-        const openParenPos = lineText.indexOf('(', startPos);
-
-        if (openParenPos !== -1) {
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-
-          if (closeParenPos !== -1) {
-            this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...)`);
-
-            // Extract current arguments
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-
-            // Insert new argument at specified position
-            args.splice(argumentPosition - 1, 0, argumentName);
-            const newArgsText = args.join(', ');
-
-            edits.push(TextEdit.replace(
-              new Range(
-                new Position(lineNum, openParenPos + 1),
-                new Position(lineNum, closeParenPos)
-              ),
-              newArgsText
-            ));
-          }
-        }
-      }
-    }
-
-    return edits;
-  }
-
-  /**
-   * Find and add predicate calls in a line with arity checking
-   */
-  private findAndAddPredicateCallsInLineWithArityCheck(
-    lineText: string,
-    lineNum: number,
-    predicateName: string,
-    argumentName: string,
-    argumentPosition: number,
-    isNonTerminal: boolean
-  ): TextEdit[] {
-    this.logger.debug(`findAndAddPredicateCallsInLineWithArityCheck: ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName} in line: "${lineText}"`);
-    const edits: TextEdit[] = [];
-    const targetArity = argumentPosition; // After adding, the arity will be argumentPosition (since we're adding at that position)
-
-    if (isNonTerminal) {
-      // For non-terminals, find all occurrences of the non-terminal name
-      const nonTerminalPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
-      let match: RegExpExecArray | null;
-      while ((match = nonTerminalPattern.exec(lineText)) !== null) {
-        // Skip if this is inside a comment
-        const beforeMatch = lineText.substring(0, match.index);
-        if (beforeMatch.includes('%')) {
-          const commentPos = beforeMatch.lastIndexOf('%');
-          if (commentPos > beforeMatch.lastIndexOf('\n')) {
-            continue;
-          }
-        }
-
-        this.logger.debug(`Found non-terminal occurrence at line ${lineNum + 1}, column ${match.index}: ${predicateName}`);
-        const nameEndPos = match.index + predicateName.length;
-
-        // Check if it has arguments: predicateName(args)
-        const afterName = lineText.substring(nameEndPos);
-        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
-
-        if (argsMatch) {
-          // Already has arguments: predicateName(arg1, arg2)
-          const openParenPos = nameEndPos + afterName.indexOf('(');
-          const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-          if (closeParenPos !== -1) {
-            const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
-            const currentArity = args.length;
-
-            // Only update if current arity matches target arity - 1 (since we're adding one argument)
-            if (currentArity === targetArity - 1) {
-              // Insert new argument at specified position
-              args.splice(argumentPosition - 1, 0, argumentName);
-              const newArgsText = args.join(', ');
-
-              edits.push(TextEdit.replace(
-                new Range(
-                  new Position(lineNum, openParenPos + 1),
-                  new Position(lineNum, closeParenPos)
-                ),
-                newArgsText
-              ));
-              this.logger.debug(`Added argument to non-terminal with matching arity ${currentArity}: "${newArgsText}"`);
-            } else {
-              this.logger.debug(`Skipping non-terminal with different arity (${currentArity} vs expected ${targetArity - 1})`);
-            }
-          }
-        } else {
-          // No arguments: predicateName - only update if target arity is 1
-          if (targetArity === 1) {
-            edits.push(TextEdit.insert(
-              new Position(lineNum, nameEndPos),
-              `(${argumentName})`
-            ));
-            this.logger.debug(`Added argument to non-terminal without args (target arity 1): "(${argumentName})"`);
-          } else {
-            this.logger.debug(`Skipping non-terminal without args (target arity ${targetArity} != 1)`);
-          }
-        }
-      }
-
-    } else {
-      // Handle predicate facts: predicateName.
-      const factPattern = new RegExp(`\\b${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\.`, 'g');
-      let factMatch: RegExpExecArray | null;
-      while ((factMatch = factPattern.exec(lineText)) !== null) {
-        // Only update facts if target arity is 1
-        if (targetArity === 1) {
-          this.logger.debug(`Found fact at line ${lineNum + 1}, column ${factMatch.index}: ${predicateName}`);
-          const insertPos = factMatch.index + predicateName.length;
+        // Only update zero-arity calls if expected arity is 0
+        if (arity === 0) {
+          this.logger.debug(`Found zero-arity call at line ${lineNum + 1}, column ${zeroArityMatch.index}: ${predicateName}`);
+          const insertPos = zeroArityMatch.index + predicateName.length;
           edits.push(TextEdit.insert(
             new Position(lineNum, insertPos),
             `(${argumentName})`
           ));
         } else {
-          this.logger.debug(`Skipping fact with target arity ${targetArity} != 1`);
+          this.logger.debug(`Skipping zero-arity call with expected arity ${arity} != 0`);
         }
       }
 
@@ -4709,8 +4600,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
             const args = ArgumentUtils.parseArguments(argsText);
             const currentArity = args.length;
 
-            // Only update if current arity matches target arity - 1 (since we're adding one argument)
-            if (currentArity === targetArity - 1) {
+            // Only update if current arity matches expected arity (since we're adding one argument)
+            if (currentArity === arity) {
               this.logger.debug(`Found predicate call at line ${lineNum + 1}, column ${callMatch.index}: ${predicateName}(...) with matching arity ${currentArity}`);
 
               // Insert new argument at specified position
@@ -4725,7 +4616,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
                 newArgsText
               ));
             } else {
-              this.logger.debug(`Skipping predicate call with different arity (${currentArity} vs expected ${targetArity - 1})`);
+              this.logger.debug(`Skipping predicate call with different arity (${currentArity} vs expected ${arity})`);
             }
           }
         }
@@ -4734,6 +4625,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     return edits;
   }
+
+
 
   /**
    * Find and reorder predicate calls in a line with arity checking
@@ -5797,12 +5690,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           }
 
           // Also check for calls in the clause body part (after :- or -->)
-          const bodyEdits = this.findAndAddPredicateCallsInClauseBody(lineText, lineNum, predicateName, argumentName, argumentPosition, isNonTerminal);
+          const bodyEdits = this.findAndAddPredicateCallsInClauseBody(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
           edits.push(...bodyEdits);
         }
       } else {
         // This is a clause body line - check for recursive calls
-        const bodyEdits = this.findAndAddPredicateCallsInLine(lineText, lineNum, predicateName, argumentName, argumentPosition, isNonTerminal);
+        const bodyEdits = this.findAndAddPredicateCallsInLine(lineText, lineNum, predicateName, currentArity, argumentName, argumentPosition, isNonTerminal);
         edits.push(...bodyEdits);
       }
     }
