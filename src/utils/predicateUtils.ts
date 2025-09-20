@@ -41,6 +41,51 @@ export interface PredicateTypeResult {
 export class PredicateUtils {
 
   /**
+   * Get the range (start and end line) of a directive starting at the given line
+   */
+  static getDirectiveRange(doc: TextDocument, startLine: number): { start: number; end: number } {
+    const totalLines = doc.lineCount;
+    let endLine = startLine;
+
+    // Find the end of the directive by looking for the closing ).
+    // Only match when ). is followed by whitespace and/or line comment
+    for (let lineNum = startLine; lineNum < totalLines; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      // Match ). followed by optional whitespace and optional line comment
+      if (/\)\.(\s*(%.*)?)?$/.test(lineText)) {
+        endLine = lineNum;
+        break;
+      }
+    }
+
+    return { start: startLine, end: endLine };
+  }
+
+  /**
+   * Get the range (start and end line) of a clause starting at the given line
+   * Supports both facts and rules, including multi-line clauses
+   */
+  static getClauseRange(doc: TextDocument, startLine: number): { start: number; end: number } {
+    const totalLines = doc.lineCount;
+    let endLine = startLine;
+
+    // Find the end of the clause by looking for the terminating period
+    // Handle both facts (predicate(...). ) and rules (predicate(...) :- body.)
+    for (let lineNum = startLine; lineNum < totalLines; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      // Check if this line contains a period that terminates the clause
+      // Match period followed by optional whitespace and optional line comment
+      if (/\.\s*(?:%.*)?$/.test(lineText)) {
+        endLine = lineNum;
+        break;
+      }
+    }
+
+    return { start: startLine, end: endLine };
+  }
+
+  /**
    * Parse a predicate or non-terminal indicator into its components
    */
   static parseIndicator(indicator: string): PredicateIndicatorInfo | null {

@@ -6,10 +6,12 @@ import {
   Location,
   SymbolInformation,
   SymbolKind,
+  TextDocument,
   workspace
 } from "vscode";
 import { getLogger } from "../utils/logger";
-import { SymbolRegexes, SymbolTypes, SymbolUtils, PatternSets } from "../utils/symbols";
+import { SymbolTypes, SymbolUtils, PatternSets } from "../utils/symbols";
+import { PredicateUtils } from "../utils/predicateUtils";
 
 export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
   private logger = getLogger();
@@ -33,11 +35,11 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
         // Track current entity and predicates/non-terminals per entity
         let currentEntity: string | null = null;
         let currentEntityType: string | null = null;
-        const entityPredicates = new Map<string, Set<string>>(); // entity -> set of predicate names
-        const entityNonTerminals = new Map<string, Set<string>>(); // entity -> set of non-terminal names
-        let insideTerm = false;
+        const entityPredicates = new Map<string, Set<string>>(); // entity -> set of predicate indicators
+        const entityNonTerminals = new Map<string, Set<string>>(); // entity -> set of non-terminal indicators
 
-        for (let j = 0; j < doc.lineCount; j++) {
+        let j = 0;
+        while (j < doc.lineCount) {
           // Check for cancellation at each iteration
           if (token.isCancellationRequested) {
             return [];
@@ -68,6 +70,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
                 entityMatch.type,
                 new Location(doc.uri, line.range)
               ));
+              j++; // Move to next line
               continue;
             }
 
@@ -76,6 +79,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
             if (entityEndMatch) {
               currentEntity = null;
               currentEntityType = null;
+              j++; // Move to next line
               continue;
             }
 
@@ -91,14 +95,18 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
                 containerName,
                 new Location(doc.uri, line.range)
               ));
+              j++; // Move to next line
               continue;
             }
 
             // Check for multi-line/multi-predicate scope directive openings
             const scopeOpening = SymbolUtils.matchScopeDirectiveOpening(lineText);
             if (scopeOpening) {
+              // Get the complete directive range
+              const directiveRange = PredicateUtils.getDirectiveRange(doc, j);
+
               // Collect the complete directive text
-              const { text: directiveText, endLine } = SymbolUtils.collectScopeDirectiveText(doc, j);
+              const { text: directiveText } = SymbolUtils.collectScopeDirectiveText(doc, j);
 
               // Extract all predicate/non-terminal indicators from the directive
               const indicators = SymbolUtils.extractIndicatorsFromScopeDirective(directiveText);
@@ -120,59 +128,67 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
                 ));
               }
 
-              // Skip to the end of the directive
-              j = endLine;
+              // Skip to the end of the directive using the range function
+              j = directiveRange.end + 1; // Move to the line after the directive
               continue;
             }
           }
 
-          // Check for predicate clauses and non-terminal rules (only if not inside a multi-line term and inside an entity)
-          if (!insideTerm && currentEntity) {
+          // Check for predicate clauses and non-terminal rules (only if inside an entity)
+          if (currentEntity) {
             // Performance optimization: Check for DCG operator first since most files don't contain grammar rules
             if (lineText.includes('-->')) {
-              const nonTerminalMatch = lineText.match(SymbolRegexes.nonTerminalRule);
-              if (nonTerminalMatch) {
-                const nonTerminalName = SymbolUtils.extractNonTerminalName(nonTerminalMatch[1]);
-                if (nonTerminalName) {
+              const nonTerminalHead = SymbolUtils.extractCompleteNonTerminalHead(lineText);
+              if (nonTerminalHead) {
+                const nonTerminalIndicator = SymbolUtils.extractNonTerminalIndicator(nonTerminalHead);
+                if (nonTerminalIndicator) {
                   const entityNonTerminalSet = entityNonTerminals.get(currentEntity);
-                  if (entityNonTerminalSet && !entityNonTerminalSet.has(nonTerminalName)) {
-                    entityNonTerminalSet.add(nonTerminalName);
+                  if (entityNonTerminalSet && !entityNonTerminalSet.has(nonTerminalIndicator)) {
+                    entityNonTerminalSet.add(nonTerminalIndicator);
                     const containerName = `${SymbolTypes.NON_TERMINAL_RULE} • ${currentEntity} (${currentEntityType})`;
                     symbols.push(new SymbolInformation(
-                      nonTerminalMatch[1],
+                      nonTerminalHead,
                       SymbolKind.Property,
                       containerName,
                       new Location(doc.uri, line.range)
                     ));
                   }
                 }
+                // Skip to the end of the clause
+                const clauseRange = PredicateUtils.getClauseRange(doc, j);
+                j = clauseRange.end + 1; // Move to the line after the clause
                 continue;
               }
             } else {
-              // If not a directive (already filtered out) and not a DCG rule, it can only be a predicate clause
-              const predicateMatch = lineText.match(SymbolRegexes.predicateClause);
-              if (predicateMatch) {
-                const predicateName = SymbolUtils.extractPredicateName(predicateMatch[1]);
-                if (predicateName) {
-                  const entityPredicateSet = entityPredicates.get(currentEntity);
-                  if (entityPredicateSet && !entityPredicateSet.has(predicateName)) {
-                    entityPredicateSet.add(predicateName);
-                    const containerName = `${SymbolTypes.PREDICATE_CLAUSE} • ${currentEntity} (${currentEntityType})`;
-                    symbols.push(new SymbolInformation(
-                      predicateMatch[1],
-                      SymbolKind.Property,
-                      containerName,
-                      new Location(doc.uri, line.range)
-                    ));
+              // Check if this could be a predicate clause (not a directive)
+              if (!startsWithDirective) {
+                const predicateHead = SymbolUtils.extractCompletePredicateHead(lineText);
+                if (predicateHead) {
+                  const predicateIndicator = SymbolUtils.extractPredicateIndicator(predicateHead);
+                  if (predicateIndicator) {
+                    const entityPredicateSet = entityPredicates.get(currentEntity);
+                    if (entityPredicateSet && !entityPredicateSet.has(predicateIndicator)) {
+                      entityPredicateSet.add(predicateIndicator);
+                      const containerName = `${SymbolTypes.PREDICATE_CLAUSE} • ${currentEntity} (${currentEntityType})`;
+                      symbols.push(new SymbolInformation(
+                        predicateHead,
+                        SymbolKind.Property,
+                        containerName,
+                        new Location(doc.uri, line.range)
+                      ));
+                    }
                   }
+                  // Skip to the end of the clause
+                  const clauseRange = PredicateUtils.getClauseRange(doc, j);
+                  j = clauseRange.end + 1; // Move to the line after the clause
+                  continue;
                 }
-                continue;
               }
             }
           }
 
-          // Update inside_term state based on line ending
-          insideTerm = SymbolUtils.isContinuationLine(lineText);
+          // Advance to next line
+          j++;
         }
       } catch(err) {
         this.logger.debug("failed to open " + docs[i]);

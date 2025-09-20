@@ -451,7 +451,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     let insertionLine = entityLine;
 
     // Skip the entity opening directive (may be multi-line)
-    const entityRange = this.getDirectiveRange(document, entityLine);
+    const entityRange = PredicateUtils.getDirectiveRange(document, entityLine);
     insertionLine = entityRange.end;
 
     // Look for info/1 directive after entity opening
@@ -465,7 +465,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Check if this is an info/1 directive
       if (lineText.match(/^:-\s*info\(\s*\[/)) {
-        const infoRange = this.getDirectiveRange(document, lineNum);
+        const infoRange = PredicateUtils.getDirectiveRange(document, lineNum);
         insertionLine = infoRange.end;
         break;
       } else {
@@ -501,7 +501,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     // Find the end of the clause by looking for the terminating period
-    const clauseRange = this.getClauseRange(document, clauseStart);
+    const clauseRange = PredicateUtils.getClauseRange(document, clauseStart);
 
     return new Range(
       new Position(clauseRange.start, 0),
@@ -513,7 +513,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * Find the end of the clause head (position after :- or before .)
    */
   private findClauseHeadEnd(document: TextDocument, clauseStart: Position): Position | null {
-    const clauseRange = this.getClauseRange(document, clauseStart.line);
+    const clauseRange = PredicateUtils.getClauseRange(document, clauseStart.line);
     this.logger.debug(`Finding clause head end for clause range: lines ${clauseRange.start + 1}-${clauseRange.end + 1}`);
 
     // Look for :- operator in the clause
@@ -1009,7 +1009,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         if (this.isPredicateDirective(trimmedLine)) {
           this.logger.debug(`  Found predicate directive`);
           // Use existing getDirectiveRange function
-          const range = this.getDirectiveRange(document, currentLine);
+          const range = PredicateUtils.getDirectiveRange(document, currentLine);
           this.logger.debug(`  Directive range: lines ${range.start + 1}-${range.end + 1}`);
 
           // Get the full directive text
@@ -1121,7 +1121,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     edit: WorkspaceEdit
   ): Promise<void> {
     // Get the range of the entity opening directive
-    const directiveRange = this.getDirectiveRange(document, entityInfo.line);
+    const directiveRange = PredicateUtils.getDirectiveRange(document, entityInfo.line);
 
     // Get the full directive text
     const directiveText = document.getText(new Range(
@@ -1260,7 +1260,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Check if this is an entity info directive
       if (trimmedLine.match(/^\s*:-\s*info\(\s*\[/)) {
         // Use existing getDirectiveRange function
-        const range = this.getDirectiveRange(document, lineNum);
+        const range = PredicateUtils.getDirectiveRange(document, lineNum);
         const infoRange = new Range(
           new Position(range.start, 0),
           new Position(range.end, document.lineAt(range.end).text.length)
@@ -2299,7 +2299,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           if (trimmedLine.startsWith(':-') && this.isPredicateDirective(trimmedLine)) {
             // This is a directive location - process it as a directive
             this.logger.debug(`Found directive location at line ${startLine + 1}, processing as directive`);
-            const directiveRange = this.getDirectiveRange(doc, startLine);
+            const directiveRange = PredicateUtils.getDirectiveRange(doc, startLine);
             const directiveType = this.getDirectiveType(trimmedLine);
 
             if (directiveType) {
@@ -2322,7 +2322,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
               clauseRange = { start: startLine, end: endLine };
             } else {
               // This is a call location - find the end of the current clause that contains the calls
-              clauseRange = this.getClauseRange(doc, startLine);
+              clauseRange = PredicateUtils.getClauseRange(doc, startLine);
             }
 
             const edits = this.createArgumentRemovalEdit(doc, clauseRange, argumentPosition, targetArity, isNonTerminal, predicateName);
@@ -2996,7 +2996,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           if (trimmedLine.startsWith(':-') && this.isPredicateDirective(trimmedLine)) {
             // This is a directive location - process it as a directive
             this.logger.debug(`Found directive location at line ${startLine + 1}, processing as directive`);
-            const directiveRange = this.getDirectiveRange(doc, startLine);
+            const directiveRange = PredicateUtils.getDirectiveRange(doc, startLine);
             const directiveType = this.getDirectiveType(trimmedLine);
 
             if (directiveType) {
@@ -3018,7 +3018,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
               clauseRange = { start: startLine, end: endLine };
             } else {
               // This is a call location - find the end of the current clause that contains the calls
-              clauseRange = this.getClauseRange(doc, startLine);
+              clauseRange = PredicateUtils.getClauseRange(doc, startLine);
             }
 
             const edits = this.createArgumentAdditionEdit(doc, clauseRange, argumentName, argumentPosition, currentArity, isNonTerminal, predicateName);
@@ -3088,7 +3088,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           if (trimmedLine.startsWith(':-') && this.isPredicateDirective(trimmedLine)) {
             // This is a directive location - process it as a directive
             this.logger.debug(`Found directive location at line ${startLine + 1}, processing as directive`);
-            const directiveRange = this.getDirectiveRange(doc, startLine);
+            const directiveRange = PredicateUtils.getDirectiveRange(doc, startLine);
             const directiveType = this.getDirectiveType(trimmedLine);
 
             if (directiveType) {
@@ -3110,7 +3110,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
               clauseRange = { start: startLine, end: endLine };
             } else {
               // This is a call location - find the end of the current clause that contains the calls
-              clauseRange = this.getClauseRange(doc, startLine);
+              clauseRange = PredicateUtils.getClauseRange(doc, startLine);
             }
 
             const edits = this.createArgumentsReorderEdit(doc, clauseRange, newOrder, isNonTerminal, predicateName);
@@ -3177,50 +3177,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     return null;
   }
 
-  /**
-   * Get the range (start and end line) of a directive starting at the given line
-   */
-  private getDirectiveRange(doc: TextDocument, startLine: number): { start: number; end: number } {
-    const totalLines = doc.lineCount;
-    let endLine = startLine;
 
-    // Find the end of the directive by looking for the closing ).
-    // Only match when ). is followed by whitespace and/or line comment
-    for (let lineNum = startLine; lineNum < totalLines; lineNum++) {
-      const lineText = doc.lineAt(lineNum).text;
-      // Match ). followed by optional whitespace and optional line comment
-      if (/\)\.(\s*(%.*)?)?$/.test(lineText)) {
-        endLine = lineNum;
-        break;
-      }
-    }
-
-    return { start: startLine, end: endLine };
-  }
-
-  /**
-   * Get the range (start and end line) of a clause starting at the given line
-   * Supports both facts and rules, including multi-line clauses
-   */
-  private getClauseRange(doc: TextDocument, startLine: number): { start: number; end: number } {
-    const totalLines = doc.lineCount;
-    let endLine = startLine;
-
-    // Find the end of the clause by looking for the terminating period
-    // Handle both facts (predicate(...). ) and rules (predicate(...) :- body.)
-    for (let lineNum = startLine; lineNum < totalLines; lineNum++) {
-      const lineText = doc.lineAt(lineNum).text;
-
-      // Check if this line contains a period that terminates the clause
-      // Match period followed by optional whitespace and optional line comment
-      if (/\.\s*(?:%.*)?$/.test(lineText)) {
-        endLine = lineNum;
-        break;
-      }
-    }
-
-    return { start: startLine, end: endLine };
-  }
 
   /**
    * Process a directive range and create edits for indicator/callable form updates
@@ -3451,7 +3408,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     // First, process the scope directive itself
     this.logger.debug(`Processing scope directive at line ${scopeLine + 1}`);
-    const scopeRange = this.getDirectiveRange(doc, scopeLine);
+    const scopeRange = PredicateUtils.getDirectiveRange(doc, scopeLine);
     this.logger.debug(`Scope directive range: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
     const scopeEdits = this.processDirectiveRangeForAdding(
       doc, scopeRange, predicateName, currentIndicator, newIndicator,
@@ -3489,7 +3446,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           this.logger.debug(`Found consecutive ${directiveType} directive at line ${lineNum + 1}`);
 
           // Get the range of this directive
-          const range = this.getDirectiveRange(doc, lineNum);
+          const range = PredicateUtils.getDirectiveRange(doc, lineNum);
           this.logger.debug(`Directive range: lines ${range.start + 1}-${range.end + 1}`);
 
           // Check if this directive actually references our predicate/non-terminal
@@ -5396,7 +5353,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     isNonTerminal: boolean,
     edits: TextEdit[]
   ): number {
-    const clauseRange = this.getClauseRange(doc, startLine);
+    const clauseRange = PredicateUtils.getClauseRange(doc, startLine);
     this.logger.debug(`Processing clause from line ${clauseRange.start + 1} to ${clauseRange.end + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
 
     // Process each line in the clause
@@ -5448,7 +5405,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     isNonTerminal: boolean,
     edits: TextEdit[]
   ): number {
-    const clauseRange = this.getClauseRange(doc, startLine);
+    const clauseRange = PredicateUtils.getClauseRange(doc, startLine);
     this.logger.debug(`Processing clause from line ${clauseRange.start + 1} to ${clauseRange.end + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
 
     // Process each line in the clause
@@ -5499,7 +5456,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     isNonTerminal: boolean,
     edits: TextEdit[]
   ): number {
-    const clauseRange = this.getClauseRange(doc, startLine);
+    const clauseRange = PredicateUtils.getClauseRange(doc, startLine);
     this.logger.debug(`Processing clause from line ${clauseRange.start + 1} to ${clauseRange.end + 1} for ${isNonTerminal ? 'non-terminal' : 'predicate'} ${predicateName}`);
 
     // Process each line in the clause
@@ -5567,7 +5524,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         // This is a clause of our predicate/non-terminal with the correct arity
         // (arity was already checked by findClauseHead)
         // Find the end of this clause
-        const clauseRange = this.getClauseRange(doc, currentLine);
+        const clauseRange = PredicateUtils.getClauseRange(doc, currentLine);
         lastClauseEndLine = clauseRange.end;
         currentLine = clauseRange.end + 1;
       } else if (trimmedLine.startsWith(':-')) {
@@ -5625,7 +5582,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     // First, process the scope directive itself (for reorder, scope directive doesn't change)
     this.logger.debug(`Processing scope directive at line ${scopeLine + 1} (no changes needed for reorder)`);
-    const scopeRange = this.getDirectiveRange(doc, scopeLine);
+    const scopeRange = PredicateUtils.getDirectiveRange(doc, scopeLine);
     this.logger.debug(`Scope directive range: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
 
     // Start searching for consecutive directives from the line after the scope directive
@@ -5658,7 +5615,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           this.logger.debug(`Found ${directiveType} directive at line ${lineNum + 1}`);
 
           // Get the complete directive range
-          const range = this.getDirectiveRange(doc, lineNum);
+          const range = PredicateUtils.getDirectiveRange(doc, lineNum);
           this.logger.debug(`${directiveType} directive range: lines ${range.start + 1}-${range.end + 1}`);
 
           // Check if this directive contains our predicate
@@ -5950,7 +5907,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     // First, process the scope directive itself
     this.logger.debug(`Processing scope directive at line ${scopeLine + 1}`);
-    const scopeRange = this.getDirectiveRange(doc, scopeLine);
+    const scopeRange = PredicateUtils.getDirectiveRange(doc, scopeLine);
     this.logger.debug(`Scope directive range: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
 
     const scopeEdits = this.processDirectiveRangeForRemoval(
@@ -5989,7 +5946,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           this.logger.debug(`Found ${directiveType} directive at line ${lineNum + 1}`);
 
           // Get the complete directive range
-          const range = this.getDirectiveRange(doc, lineNum);
+          const range = PredicateUtils.getDirectiveRange(doc, lineNum);
           this.logger.debug(`${directiveType} directive range: lines ${range.start + 1}-${range.end + 1}`);
 
           // Check if this directive contains our predicate

@@ -49,11 +49,11 @@ export const SymbolRegexes = {
   // General directive pattern (starts with :-)
   directive: /^\s*\:-/,
 
-  // Predicate clause (rule head or fact)
-  predicateClause: /^\s*(\w+\([^)]*\))\s*(?::-|\.)$/,
+  // Predicate clause (rule head or fact) - simplified to match name and detect parentheses
+  predicateClause: /^\s*([a-z][a-zA-Z0-9_]*|'[^']*')\s*(?:\(|\s*(?::-|\.))/,
 
-  // Non-terminal rule using the --> operator
-  nonTerminalRule: /^\s*(\w+\([^)]*\))\s*-->/,
+  // Non-terminal rule using the --> operator - simplified to match name and detect parentheses
+  nonTerminalRule: /^\s*([a-z][a-zA-Z0-9_]*|'[^']*')\s*(?:\(|\s*-->)/,
 
   // Line ending with comma or semicolon (continuation)
   continuation: /^\s*.*[,;]\s*(?:%.*)?$/,
@@ -88,23 +88,278 @@ export const SymbolTypes = {
  */
 export class SymbolUtils {
   /**
+   * Find the matching closing bracket for an opening bracket, handling nested structures
+   * @param text The text to search in
+   * @param startPos The position of the opening bracket
+   * @returns The position of the matching closing bracket, or -1 if not found
+   */
+  private static findMatchingBracket(text: string, startPos: number): number {
+    const openChar = text[startPos];
+    let closeChar: string;
+
+    switch (openChar) {
+      case '(':
+        closeChar = ')';
+        break;
+      case '[':
+        closeChar = ']';
+        break;
+      case '{':
+        closeChar = '}';
+        break;
+      default:
+        return -1;
+    }
+
+    let depth = 1;
+    let inQuotes = false;
+    let quoteChar = '';
+
+    for (let i = startPos + 1; i < text.length; i++) {
+      const char = text[i];
+
+      // Handle quotes
+      if (!inQuotes && (char === '"' || char === "'")) {
+        inQuotes = true;
+        quoteChar = char;
+      } else if (inQuotes && char === quoteChar) {
+        // Check if it's escaped
+        if (i === 0 || text[i - 1] !== '\\') {
+          inQuotes = false;
+          quoteChar = '';
+        }
+      }
+
+      if (!inQuotes) {
+        if (char === openChar) {
+          depth++;
+        } else if (char === closeChar) {
+          depth--;
+          if (depth === 0) {
+            return i;
+          }
+        }
+      }
+    }
+
+    return -1; // No matching bracket found
+  }
+
+
+
+  /**
+   * Count the number of arguments in an argument string, handling nested structures
+   * @param argsString The argument string (content between parentheses)
+   * @returns The number of arguments
+   */
+  private static countArguments(argsString: string): number {
+    if (argsString.trim() === '') {
+      return 0;
+    }
+
+    let count = 1; // At least one argument if string is not empty
+    let depth = 0;
+    let inQuotes = false;
+    let quoteChar = '';
+
+    for (let i = 0; i < argsString.length; i++) {
+      const char = argsString[i];
+
+      // Handle quotes
+      if (!inQuotes && (char === '"' || char === "'")) {
+        inQuotes = true;
+        quoteChar = char;
+      } else if (inQuotes && char === quoteChar) {
+        // Check if it's escaped
+        if (i === 0 || argsString[i - 1] !== '\\') {
+          inQuotes = false;
+          quoteChar = '';
+        }
+      }
+
+      if (!inQuotes) {
+        // Track nesting depth
+        if (char === '(' || char === '[' || char === '{') {
+          depth++;
+        } else if (char === ')' || char === ']' || char === '}') {
+          depth--;
+        } else if (char === ',' && depth === 0) {
+          // Top-level comma - indicates another argument
+          count++;
+        }
+      }
+    }
+
+    return count;
+  }
+  /**
    * Extract predicate name from a predicate clause
-   * @param clause The predicate clause string (e.g., "foo(X, Y)")
+   * @param clause The predicate clause string (e.g., "foo(X, Y)" or "foo")
    * @returns The predicate name (e.g., "foo") or null if not found
    */
   static extractPredicateName(clause: string): string | null {
-    const match = clause.match(/(\w+)\s*\([^)]*\)/);
-    return match ? match[1] : null;
+    // Handle predicates with arguments: foo(X, Y)
+    const parenPos = clause.indexOf('(');
+    if (parenPos !== -1) {
+      const name = clause.substring(0, parenPos);
+      // Validate the name
+      if (/^([a-z][a-zA-Z0-9_]*|'[^']*')$/.test(name)) {
+        return name;
+      }
+      return null;
+    }
+
+    // Handle predicates with zero arguments: foo
+    const matchZeroArgs = clause.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')$/);
+    return matchZeroArgs ? matchZeroArgs[1] : null;
+  }
+
+  /**
+   * Extract predicate indicator from a predicate clause
+   * @param clause The predicate clause string (e.g., "foo(X, Y)" or "foo")
+   * @returns The predicate indicator (e.g., "foo/2" or "foo/0") or null if not found
+   */
+  static extractPredicateIndicator(clause: string): string | null {
+    const parenPos = clause.indexOf('(');
+    if (parenPos !== -1) {
+      const name = clause.substring(0, parenPos);
+      // Validate the name
+      if (!/^([a-z][a-zA-Z0-9_]*|'[^']*')$/.test(name)) {
+        return null;
+      }
+
+      // Find matching closing parenthesis
+      const closingParen = this.findMatchingBracket(clause, parenPos);
+      if (closingParen === -1) {
+        return null;
+      }
+
+      const argsString = clause.substring(parenPos + 1, closingParen).trim();
+      const arity = argsString === '' ? 0 : this.countArguments(argsString);
+      return `${name}/${arity}`;
+    }
+
+    // Handle predicates with zero arguments: foo
+    const matchZeroArgs = clause.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')$/);
+    if (matchZeroArgs) {
+      return `${matchZeroArgs[1]}/0`;
+    }
+
+    return null;
   }
 
   /**
    * Extract non-terminal name from a non-terminal rule
-   * @param rule The non-terminal rule string (e.g., "phrase(X)")
+   * @param rule The non-terminal rule string (e.g., "phrase(X)" or "phrase")
    * @returns The non-terminal name (e.g., "phrase") or null if not found
    */
   static extractNonTerminalName(rule: string): string | null {
-    const match = rule.match(/(\w+)\s*\(/);
-    return match ? match[1] : null;
+    // Handle non-terminals with arguments: phrase(X)
+    const parenPos = rule.indexOf('(');
+    if (parenPos !== -1) {
+      const name = rule.substring(0, parenPos);
+      // Validate the name
+      if (/^([a-z][a-zA-Z0-9_]*|'[^']*')$/.test(name)) {
+        return name;
+      }
+      return null;
+    }
+
+    // Handle non-terminals with zero arguments: phrase
+    const matchZeroArgs = rule.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')$/);
+    return matchZeroArgs ? matchZeroArgs[1] : null;
+  }
+
+  /**
+   * Extract non-terminal indicator from a non-terminal rule
+   * @param rule The non-terminal rule string (e.g., "phrase(X)" or "phrase")
+   * @returns The non-terminal indicator (e.g., "phrase//2" or "phrase//0") or null if not found
+   */
+  static extractNonTerminalIndicator(rule: string): string | null {
+    const parenPos = rule.indexOf('(');
+    if (parenPos !== -1) {
+      const name = rule.substring(0, parenPos);
+      // Validate the name
+      if (!/^([a-z][a-zA-Z0-9_]*|'[^']*')$/.test(name)) {
+        return null;
+      }
+
+      // Find matching closing parenthesis
+      const closingParen = this.findMatchingBracket(rule, parenPos);
+      if (closingParen === -1) {
+        return null;
+      }
+
+      const argsString = rule.substring(parenPos + 1, closingParen).trim();
+      const arity = argsString === '' ? 0 : this.countArguments(argsString);
+      return `${name}//${arity}`;
+    }
+
+    // Handle non-terminals with zero arguments: phrase
+    const matchZeroArgs = rule.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')$/);
+    if (matchZeroArgs) {
+      return `${matchZeroArgs[1]}//0`;
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract complete predicate head from a line of text
+   * @param lineText The complete line text
+   * @returns The complete predicate head or null if not found
+   */
+  static extractCompletePredicateHead(lineText: string): string | null {
+    const match = lineText.match(SymbolRegexes.predicateClause);
+    if (!match) {
+      return null;
+    }
+
+    const name = match[1];
+    const nameStart = match.index! + lineText.substring(match.index!).indexOf(name);
+    const nameEnd = nameStart + name.length;
+
+    // Check if there's a parenthesis after the name
+    const afterName = lineText.substring(nameEnd).trim();
+    if (afterName.startsWith('(')) {
+      const parenPos = nameEnd + lineText.substring(nameEnd).indexOf('(');
+      const closingParen = this.findMatchingBracket(lineText, parenPos);
+      if (closingParen !== -1) {
+        return lineText.substring(nameStart, closingParen + 1);
+      }
+    }
+
+    // No parentheses, just return the name
+    return name;
+  }
+
+  /**
+   * Extract complete non-terminal head from a line of text
+   * @param lineText The complete line text
+   * @returns The complete non-terminal head or null if not found
+   */
+  static extractCompleteNonTerminalHead(lineText: string): string | null {
+    const match = lineText.match(SymbolRegexes.nonTerminalRule);
+    if (!match) {
+      return null;
+    }
+
+    const name = match[1];
+    const nameStart = match.index! + lineText.substring(match.index!).indexOf(name);
+    const nameEnd = nameStart + name.length;
+
+    // Check if there's a parenthesis after the name
+    const afterName = lineText.substring(nameEnd).trim();
+    if (afterName.startsWith('(')) {
+      const parenPos = nameEnd + lineText.substring(nameEnd).indexOf('(');
+      const closingParen = this.findMatchingBracket(lineText, parenPos);
+      if (closingParen !== -1) {
+        return lineText.substring(nameStart, closingParen + 1);
+      }
+    }
+
+    // No parentheses, just return the name
+    return name;
   }
 
   /**

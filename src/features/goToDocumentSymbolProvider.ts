@@ -10,6 +10,7 @@ import {
   SymbolKind
 } from "vscode";
 import { SymbolRegexes, SymbolTypes, SymbolUtils, PatternSets } from "../utils/symbols";
+import { PredicateUtils } from "../utils/predicateUtils";
 
 export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
   public provideDocumentSymbols(
@@ -21,13 +22,12 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
 
       let entity: DocumentSymbol | undefined;
 
-      // Track predicates and non-terminals to only add first clause
+      // Track predicates and non-terminals by indicator to handle same name, different arity
       const seenPredicates = new Set<string>();
       const seenNonTerminals = new Set<string>();
-      // Track if we're inside a multi-line term
-      let insideTerm = false;
 
-      for (let i = 0; i < doc.lineCount; i++) {
+      let i = 0;
+      while (i < doc.lineCount) {
         // Check for cancellation at each iteration
         if (token.isCancellationRequested) {
           return resolve([]);
@@ -61,6 +61,10 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
               new Range(line.range.start, line.range.end)
             );
             symbols.push(entity);
+
+            // Skip only past the opening directive, not the entire entity
+            const openingDirectiveRange = PredicateUtils.getDirectiveRange(doc, i);
+            i = openingDirectiveRange.end + 1; // Move to the line after the opening directive
             continue;
           }
 
@@ -68,6 +72,8 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
           if (entity && (lineText.match(SymbolRegexes.endObject) || lineText.match(SymbolRegexes.endCategory))) {
             seenPredicates.clear();
             seenNonTerminals.clear();
+            entity = null; // Reset entity tracking
+            i++; // Move to next line
             continue;
           }
 
@@ -84,12 +90,16 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
                 new Range(line.range.start, line.range.end),
                 new Range(line.range.start, line.range.end)
               ));
+              i++; // Move to next line
               continue;
             }
 
             // Check for multi-line/multi-predicate scope directive openings
             const scopeOpening = SymbolUtils.matchScopeDirectiveOpening(lineText);
             if (scopeOpening) {
+              // Get the complete directive range
+              const directiveRange = PredicateUtils.getDirectiveRange(doc, i);
+
               // Collect the complete directive text
               const { text: directiveText, endLine } = SymbolUtils.collectScopeDirectiveText(doc, i);
 
@@ -113,54 +123,62 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
                 ));
               }
 
-              // Skip to the end of the directive
-              i = endLine;
+              // Skip to the end of the directive using the range function
+              i = directiveRange.end + 1; // Move to the line after the directive
               continue;
             }
           }
         }
 
-        // Check for predicate clauses and non-terminal rules (only if not inside a multi-line term and inside an entity)
-        if (!insideTerm && entity) {
+        // Check for predicate clauses and non-terminal rules (only if inside an entity)
+        if (entity) {
           // Performance optimization: Check for DCG operator first since most files don't contain grammar rules
           if (lineText.includes('-->')) {
-            const nonTerminalMatch = lineText.match(SymbolRegexes.nonTerminalRule);
-            if (nonTerminalMatch) {
-              const nonTerminalName = SymbolUtils.extractNonTerminalName(nonTerminalMatch[1]);
-              if (nonTerminalName && !seenNonTerminals.has(nonTerminalName)) {
-                seenNonTerminals.add(nonTerminalName);
+            const nonTerminalHead = SymbolUtils.extractCompleteNonTerminalHead(lineText);
+            if (nonTerminalHead) {
+              const nonTerminalIndicator = SymbolUtils.extractNonTerminalIndicator(nonTerminalHead);
+              if (nonTerminalIndicator && !seenNonTerminals.has(nonTerminalIndicator)) {
+                seenNonTerminals.add(nonTerminalIndicator);
                 entity.children.push(new DocumentSymbol(
-                  nonTerminalMatch[1],
+                  nonTerminalHead,
                   SymbolTypes.NON_TERMINAL_RULE,
                   SymbolKind.Property,
                   new Range(line.range.start, line.range.end),
                   new Range(line.range.start, line.range.end)
                 ));
               }
+              // Skip to the end of the clause
+              const clauseRange = PredicateUtils.getClauseRange(doc, i);
+              i = clauseRange.end + 1; // Move to the line after the rule
               continue;
             }
           } else {
-            // If not a directive (already filtered out) and not a DCG rule, it can only be a predicate clause
-            const predicateMatch = lineText.match(SymbolRegexes.predicateClause);
-            if (predicateMatch) {
-              const predicateName = SymbolUtils.extractPredicateName(predicateMatch[1]);
-              if (predicateName && !seenPredicates.has(predicateName)) {
-                seenPredicates.add(predicateName);
-                entity.children.push(new DocumentSymbol(
-                  predicateMatch[1],
-                  SymbolTypes.PREDICATE_CLAUSE,
-                  SymbolKind.Property,
-                  new Range(line.range.start, line.range.end),
-                  new Range(line.range.start, line.range.end)
-                ));
+            // Check if this could be a predicate clause (not a directive)
+            if (!startsWithDirective) {
+              const predicateHead = SymbolUtils.extractCompletePredicateHead(lineText);
+              if (predicateHead) {
+                const predicateIndicator = SymbolUtils.extractPredicateIndicator(predicateHead);
+                if (predicateIndicator && !seenPredicates.has(predicateIndicator)) {
+                  seenPredicates.add(predicateIndicator);
+                  entity.children.push(new DocumentSymbol(
+                    predicateHead,
+                    SymbolTypes.PREDICATE_CLAUSE,
+                    SymbolKind.Property,
+                    new Range(line.range.start, line.range.end),
+                    new Range(line.range.start, line.range.end)
+                  ));
+                }
+                // Skip to the end of the clause
+                const clauseRange = PredicateUtils.getClauseRange(doc, i);
+                i = clauseRange.end + 1; // Move to the line after the clause
+                continue;
               }
-              continue;
             }
           }
         }
 
-        // Update inside_term state based on line ending
-        insideTerm = SymbolUtils.isContinuationLine(lineText);
+        // Advance to next line
+        i++;
       }
 
       resolve(symbols);
