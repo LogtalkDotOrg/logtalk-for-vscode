@@ -1202,7 +1202,7 @@ export class LogtalkRenameProvider implements RenameProvider {
   }
 
   /**
-   * Finds predicate ranges in directives, handling multi-line directives and related mode/info directives
+   * Finds predicate ranges in directives, handling multi-line directives and related predicate directives
    * @param doc The document containing the directive
    * @param startLine The line where the scope directive starts
    * @param predicateName The predicate name to find
@@ -1226,7 +1226,7 @@ export class LogtalkRenameProvider implements RenameProvider {
     const scopeRanges = this.findPredicateInMultiLineDirective(doc, startLine, predicateName);
     ranges.push(...scopeRanges);
 
-    // Then, look for related mode/2 and info/2 directives that follow
+    // Then, look for related predicate directives that follow
     const relatedRanges = this.findRelatedDirectives(doc, startLine, name, arity, isNonTerminal);
     ranges.push(...relatedRanges);
 
@@ -1280,7 +1280,7 @@ export class LogtalkRenameProvider implements RenameProvider {
   }
 
   /**
-   * Finds related mode/2 and info/2 directives that follow the scope directive
+   * Finds related predicate directives that follow the scope directive
    * @param doc The document
    * @param scopeLine The line of the scope directive
    * @param predicateName The predicate name
@@ -1292,6 +1292,10 @@ export class LogtalkRenameProvider implements RenameProvider {
     const ranges: Range[] = [];
     const separator = isNonTerminal ? '//' : '/';
     const predicateIndicator = `${predicateName}${separator}${arity}`;
+    const predicateDirectives = [
+      'mode', 'info', 'meta_predicate', 'meta_non_terminal',
+      'dynamic', 'discontiguous', 'multifile'
+    ];
 
     // Look at the next few lines for mode/2 and info/2 directives
     for (let line = scopeLine + 1; line < Math.min(doc.lineCount, scopeLine + 10); line++) {
@@ -1303,12 +1307,15 @@ export class LogtalkRenameProvider implements RenameProvider {
         break;
       }
 
-      // Check for mode/2 or info/2 directives
-      if (trimmedLineText.includes('mode(') || trimmedLineText.includes('info(')) {
-        // Check if this directive mentions our predicate
-        if (trimmedLineText.includes(predicateName) || trimmedLineText.includes(predicateIndicator)) {
-          const lineRanges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, line);
-          ranges.push(...lineRanges);
+      // Check for other predicate directives
+      for (const predicateDirective of predicateDirectives) {
+        if (trimmedLineText.includes(`${predicateDirective}(`)) {
+          // Check if this directive mentions our predicate
+          if (trimmedLineText.includes(predicateName) || trimmedLineText.includes(predicateIndicator)) {
+            const lineRanges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, line);
+            ranges.push(...lineRanges);
+          }
+          break;
         }
       }
     }
