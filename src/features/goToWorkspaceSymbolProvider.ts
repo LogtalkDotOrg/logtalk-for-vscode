@@ -70,11 +70,13 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
                 entityMatch.type,
                 new Location(doc.uri, line.range)
               ));
-              j++; // Move to next line
+              // Skip only past the opening directive, not the entire entity
+              const openingDirectiveRange = PredicateUtils.getDirectiveRange(doc, j);
+              j = openingDirectiveRange.end + 1; // Move to the line after the opening directive
               continue;
             }
 
-            // Check for entity ending directives
+            // Check for entity ending directives to reset tracking
             const entityEndMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityEnding);
             if (entityEndMatch) {
               currentEntity = null;
