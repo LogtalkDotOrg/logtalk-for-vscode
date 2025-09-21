@@ -73,14 +73,14 @@ export const SymbolTypes = {
   OBJECT: "object",
   PROTOCOL: "protocol", 
   CATEGORY: "category",
-  PUBLIC_PREDICATE: "public predicate",
-  PROTECTED_PREDICATE: "protected predicate",
-  PRIVATE_PREDICATE: "private predicate",
-  PUBLIC_NON_TERMINAL: "public non-terminal",
-  PROTECTED_NON_TERMINAL: "protected non-terminal",
-  PRIVATE_NON_TERMINAL: "private non-terminal",
-  PREDICATE_CLAUSE: "predicate clause",
-  NON_TERMINAL_RULE: "non-terminal rule"
+  PUBLIC_PREDICATE: "public",
+  PROTECTED_PREDICATE: "protected",
+  PRIVATE_PREDICATE: "private",
+  PUBLIC_NON_TERMINAL: "public",
+  PROTECTED_NON_TERMINAL: "protected",
+  PRIVATE_NON_TERMINAL: "private",
+  PREDICATE_CLAUSE: "definition",
+  NON_TERMINAL_RULE: "definition"
 } as const;
 
 /**

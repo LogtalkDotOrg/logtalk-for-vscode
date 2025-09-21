@@ -140,7 +140,7 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
               if (nonTerminalIndicator && !seenNonTerminals.has(nonTerminalIndicator)) {
                 seenNonTerminals.add(nonTerminalIndicator);
                 entity.children.push(new DocumentSymbol(
-                  nonTerminalHead,
+                  nonTerminalIndicator,
                   SymbolTypes.NON_TERMINAL_RULE,
                   SymbolKind.Property,
                   new Range(line.range.start, line.range.end),
@@ -161,7 +161,7 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
                 if (predicateIndicator && !seenPredicates.has(predicateIndicator)) {
                   seenPredicates.add(predicateIndicator);
                   entity.children.push(new DocumentSymbol(
-                    predicateHead,
+                    predicateIndicator,
                     SymbolTypes.PREDICATE_CLAUSE,
                     SymbolKind.Property,
                     new Range(line.range.start, line.range.end),

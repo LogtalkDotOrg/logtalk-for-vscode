@@ -149,7 +149,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
                     entityNonTerminalSet.add(nonTerminalIndicator);
                     const containerName = `${SymbolTypes.NON_TERMINAL_RULE} • ${currentEntity} (${currentEntityType})`;
                     symbols.push(new SymbolInformation(
-                      nonTerminalHead,
+                      nonTerminalIndicator,
                       SymbolKind.Property,
                       containerName,
                       new Location(doc.uri, line.range)
@@ -173,7 +173,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
                       entityPredicateSet.add(predicateIndicator);
                       const containerName = `${SymbolTypes.PREDICATE_CLAUSE} • ${currentEntity} (${currentEntityType})`;
                       symbols.push(new SymbolInformation(
-                        predicateHead,
+                        predicateIndicator,
                         SymbolKind.Property,
                         containerName,
                         new Location(doc.uri, line.range)
