@@ -488,6 +488,22 @@ export function activate(context: ExtensionContext) {
       DiagnosticsUtils.updateDiagnosticsOnChange(documentationLinter.diagnosticCollection, event);
     })
   );
+
+  // Add onDidSaveTextDocument event handler for auto-reload functionality
+  context.subscriptions.push(
+    workspace.onDidSaveTextDocument(document => {
+      // Check if the saved document is a Logtalk file
+      if (document.languageId === 'logtalk') {
+        const section = workspace.getConfiguration("logtalk");
+        const makeOnSave = section.get<boolean>("make.onSave", false);
+
+        if (makeOnSave) {
+          // Call the logtalk.make.reload command
+          commands.executeCommand('logtalk.make.reload', document.uri);
+        }
+      }
+    })
+  );
   context.subscriptions.push(LogtalkTerminal.init(context));
   updateBreakpointStates(logtalkDebuggingEnabled);
 }

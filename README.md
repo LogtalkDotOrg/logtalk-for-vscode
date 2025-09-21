@@ -94,7 +94,7 @@ Refer to the table below for other snippets:
 - Errors/warnings when compiling source files are added to the "PROBLEMS" pane.
 - Errors/warnings when compiling source files can also be navigated from the Logtalk terminal via Ctrl+click (Windows, Linux, ...) or Cmd+click (macOS).
 
-Quick fixes are provided for some errors and warnings. When applying quick fixes, notably those that delete and insert code, the _positions_ of the warnings and errors later in the file may not be updated, thus preventing further quick fixes to be applied or applied correctly. In this case, save your changes and re-run the linter by using the "Make - Reload" command.
+Quick fixes are provided for some errors and warnings. When applying quick fixes, notably those that delete and insert code, the _positions_ of the warnings and errors later in the file may not be updated, thus preventing further quick fixes to be applied or applied correctly. In this case, save your changes and re-run the linter by using the "Make - Reload" command (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting).
 
 ### Commands
 
@@ -231,7 +231,7 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
-Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them. Due to VSCode limitations, refactoring operations that require user input cannot be not previewed. But the files changed are opened in the editor and the user can verify the changes before saving them. Note that most refactoring operations require the code to be loaded. Some of them may also not be complete, notably due to the use of dynamic binding and meta-predicate features.
+Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be not previewed. But the files changed are opened in the editor and the user can verify the changes before saving them. Note that most refactoring operations require the code to be loaded. Some of them may also not be complete, notably due to the use of dynamic binding and meta-predicate features.
 
 #### Code extraction
 
@@ -476,6 +476,12 @@ Enables displaying inline test results (including code coverage when collected) 
     "logtalk.jupytext.path": "python3 -m jupytext"
 
 Absolute path to the `jupytext` command if not available from the system path. Alternatively, it can also be a call to a Python interpreter run of the `jupytext` module (the default value). Jupytext 1.16.7 or later version required (available from [PyPI](https://pypi.org/project/jupytext/) and [Conda](https://anaconda.org/conda-forge/jupytext)).
+
+#### Run Logtalk make on save
+
+    "logtalk.make.onSave": false
+
+Automatically call the "Logtalk: Make - Reload" command when saving a Logtalk source file.
 
 ## Known Issues
 

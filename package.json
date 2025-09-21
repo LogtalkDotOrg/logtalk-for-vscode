@@ -630,6 +630,12 @@
                         "All messages including detailed debug information"
                     ],
                     "order": 17
+                },
+                "logtalk.make.onSave": {
+                    "type": "boolean",
+                    "description": "Automatically call the \"Logtalk: Make - Reload\" command when saving a Logtalk source file.",
+                    "default": false,
+                    "order": 18
                 }
             }
         }

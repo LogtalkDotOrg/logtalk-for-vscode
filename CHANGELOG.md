@@ -19,6 +19,7 @@
 * Add quick fixes for some dead code scanner warnings
 * Add code navigation support for `(@)/1` goals
 * Add "Logtalk: Make" submenu to the explorer context menu
+* Add "logtalk.make.onSave" setting for automatically calling the "Logtalk: Make - Reload" command when saving a Logtalk source file
 * Streamline presentation of symbols for the "Go to Symbol in Editor..." and "Go to Symbol in Workspace..." features
 * Update "Go to Symbol in Workspace..." support to also include predicate clauses and non-terminal rules
 * Improve performance of "Go to Symbol in Workspace..." and "Go to Symbol in Editor..." support
