@@ -142,7 +142,7 @@ export class LogtalkRenameProvider implements RenameProvider {
     // const newIndicator = `${newName}${separator}${arity}`;
 
     // Collect all locations where the predicate is used
-    const allLocations: { uri: Uri; range: Range }[] = [];
+    const allLocations: { uri: Uri; range: Range; origin: 'declaration' | 'definition' | 'implementation' | 'reference' }[] = [];
     let declarationLocation: Location | null = null;
     let implementationLocations: any = null;
 
@@ -189,7 +189,7 @@ export class LogtalkRenameProvider implements RenameProvider {
         this.logger.debug(`Renaming ${isNonTerminal ? 'non-terminal' : 'predicate'}: ${predicateIndicator} to ${newName}`);
 
         // Step 3: Add the declaration location itself to the bag
-        allLocations.push({ uri: declarationLocation.uri, range: declarationLocation.range });
+        allLocations.push({ uri: declarationLocation.uri, range: declarationLocation.range, origin: 'declaration' });
 
         // Step 4: Use the declaration position to find all other locations
         const declarationPosition = this.findPredicatePositionInDeclaration(declarationDocument, declarationLocation.range.start.line, predicateIndicator);
@@ -202,7 +202,7 @@ export class LogtalkRenameProvider implements RenameProvider {
           this.logger.debug(`Definition location: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}:${definitionLocation.range.start.character}-${definitionLocation.range.end.character}`);
         }
         if (definitionLocation && this.isValidLocation(definitionLocation)) {
-          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
+          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range, origin: 'definition' });
           this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
         } else if (definitionLocation) {
           this.logger.debug(`Definition location is invalid: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
@@ -218,7 +218,7 @@ export class LogtalkRenameProvider implements RenameProvider {
           for (const location of implArray) {
             this.logger.debug(`Implementation location: ${location.uri.fsPath}:${location.range.start.line + 1}:${location.range.start.character}-${location.range.end.character}`);
             if (this.isValidLocation(location)) {
-              allLocations.push({ uri: location.uri, range: location.range });
+              allLocations.push({ uri: location.uri, range: location.range, origin: 'implementation' });
               this.logger.debug(`Found implementation at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
             } else {
               this.logger.debug(`Implementation location is invalid: ${location.uri.fsPath}:${location.range.start.line + 1}`);
@@ -236,7 +236,7 @@ export class LogtalkRenameProvider implements RenameProvider {
         if (referenceLocations) {
           for (const location of referenceLocations) {
             if (this.isValidLocation(location)) {
-              allLocations.push({ uri: location.uri, range: location.range });
+              allLocations.push({ uri: location.uri, range: location.range, origin: 'reference' });
               this.logger.debug(`Found reference at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
             }
           }
@@ -293,7 +293,7 @@ export class LogtalkRenameProvider implements RenameProvider {
 
         this.logger.debug(`Renaming ${isNonTerminal ? 'non-terminal' : 'predicate'}: ${predicateIndicator} to ${newName}`);
         if (definitionLocation && this.isValidLocation(definitionLocation)) {
-          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range });
+          allLocations.push({ uri: definitionLocation.uri, range: definitionLocation.range, origin: 'definition' });
           this.logger.debug(`Found definition at: ${definitionLocation.uri.fsPath}:${definitionLocation.range.start.line + 1}`);
 
           // Find the actual position of the predicate/non-terminal in the definition line
@@ -312,7 +312,7 @@ export class LogtalkRenameProvider implements RenameProvider {
           if (referenceLocations) {
             for (const location of referenceLocations) {
               if (this.isValidLocation(location)) {
-                allLocations.push({ uri: location.uri, range: location.range });
+                allLocations.push({ uri: location.uri, range: location.range, origin: 'reference' });
                 this.logger.debug(`Found reference at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
               }
             }
@@ -330,7 +330,7 @@ export class LogtalkRenameProvider implements RenameProvider {
             for (const location of referenceLocations) {
               this.logger.debug(`Reference location: ${location.uri.fsPath}:${location.range.start.line + 1}:${location.range.start.character}`);
               if (this.isValidLocation(location)) {
-                allLocations.push({ uri: location.uri, range: location.range });
+                allLocations.push({ uri: location.uri, range: location.range, origin: 'reference' });
                 this.logger.debug(`Added reference at: ${location.uri.fsPath}:${location.range.start.line + 1}:${location.range.start.character}`);
               } else {
                 this.logger.debug(`Rejected invalid reference at: ${location.uri.fsPath}:${location.range.start.line + 1}:${location.range.start.character}`);
@@ -347,7 +347,7 @@ export class LogtalkRenameProvider implements RenameProvider {
       }
 
       // Deduplicate allLocations to create a clean set before finding additional clauses
-      const uniqueLocations = new Map<string, { uri: Uri; range: Range }>();
+      const uniqueLocations = new Map<string, { uri: Uri; range: Range; origin: 'declaration' | 'definition' | 'implementation' | 'reference' }>();
       for (const location of allLocations) {
         const key = `${location.uri.toString()}:${location.range.start.line}:${location.range.start.character}:${location.range.end.line}:${location.range.end.character}`;
         uniqueLocations.set(key, location);
@@ -358,18 +358,24 @@ export class LogtalkRenameProvider implements RenameProvider {
       this.logger.debug(`After deduplication: ${allLocations.length} unique locations`);
 
       // Find all predicate clauses in files that have definitions/implementations
-      // We need to check each file that has locations, not just the declaration file
-      const filesWithLocations = new Set<string>();
+      // Only search for consecutive clauses for 'definition' and 'implementation' origins, not for 'reference'
+      const filesWithDefinitionsOrImplementations = new Set<string>();
       for (const location of allLocations) {
-        filesWithLocations.add(location.uri.toString());
+        if (location.origin === 'definition' || location.origin === 'implementation') {
+          filesWithDefinitionsOrImplementations.add(location.uri.toString());
+        }
       }
 
-      for (const fileUri of filesWithLocations) {
+      for (const fileUri of filesWithDefinitionsOrImplementations) {
         const fileDocument = await workspace.openTextDocument(Uri.parse(fileUri));
-        const allClauseLocations = await this.findAllPredicateClauses(fileDocument, predicateIndicator, allLocations);
+        // Filter locations to only pass definition/implementation locations for this file
+        const definitionImplementationLocations = allLocations.filter(loc =>
+          loc.uri.toString() === fileUri && (loc.origin === 'definition' || loc.origin === 'implementation')
+        );
+        const allClauseLocations = await this.findAllPredicateClauses(fileDocument, predicateIndicator, definitionImplementationLocations);
         for (const location of allClauseLocations) {
           if (this.isValidLocation(location)) {
-            allLocations.push(location);
+            allLocations.push({ ...location, origin: 'implementation' }); // Mark additional clauses as implementation
             this.logger.debug(`Found additional clause at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
           }
         }
@@ -578,13 +584,13 @@ export class LogtalkRenameProvider implements RenameProvider {
     const { name: currentName, indicator: entityIndicator } = entityContext;
 
     // Collect all locations where the entity is used
-    const allLocations: { uri: Uri; range: Range }[] = [];
+    const allLocations: { uri: Uri; range: Range; origin: 'declaration' | 'definition' | 'implementation' | 'reference' }[] = [];
 
     try {
       // Add the current entity opening directive location
       const currentRange = document.getWordRangeAtPosition(position, /\w+/);
       if (currentRange) {
-        allLocations.push({ uri: document.uri, range: currentRange });
+        allLocations.push({ uri: document.uri, range: currentRange, origin: 'declaration' });
         this.logger.debug(`Added entity opening directive at: ${document.uri.fsPath}:${currentRange.start.line + 1}`);
       }
 
@@ -601,7 +607,7 @@ export class LogtalkRenameProvider implements RenameProvider {
       if (referenceLocations) {
         for (const location of referenceLocations) {
           if (this.isValidLocation(location)) {
-            allLocations.push({ uri: location.uri, range: location.range });
+            allLocations.push({ uri: location.uri, range: location.range, origin: 'reference' });
             this.logger.debug(`Found entity reference at: ${location.uri.fsPath}:${location.range.start.line + 1}`);
           }
         }
@@ -1934,7 +1940,7 @@ export class LogtalkRenameProvider implements RenameProvider {
   private async findAllPredicateClauses(
     document: TextDocument,
     predicateIndicator: string,
-    existingLocations: { uri: Uri; range: Range }[]
+    existingLocations: { uri: Uri; range: Range; origin: 'declaration' | 'definition' | 'implementation' | 'reference' }[]
   ): Promise<{ uri: Uri; range: Range }[]> {
     // Find the implementation/definition location to use as starting point
     // We need to distinguish between declaration locations and implementation locations
