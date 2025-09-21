@@ -1015,7 +1015,8 @@ export class LogtalkRenameProvider implements RenameProvider {
     const [predicateName, arityStr] = predicateIndicator.split(separator);
     const expectedArity = parseInt(arityStr, 10);
 
-    const textRanges = this.findPredicateRangesInTextWithArity(lineText, predicateName, expectedArity, isNonTerminal);
+    // For clause processing, we don't require indicator format since predicates appear as standalone names or with parentheses
+    const textRanges = this.findPredicateRangesInTextWithArity(lineText, predicateName, expectedArity, isNonTerminal, false);
 
     for (const textRange of textRanges) {
       const startPos = new Position(lineNumber, textRange.start);
@@ -1292,30 +1293,312 @@ export class LogtalkRenameProvider implements RenameProvider {
     const ranges: Range[] = [];
     const separator = isNonTerminal ? '//' : '/';
     const predicateIndicator = `${predicateName}${separator}${arity}`;
-    const predicateDirectives = [
-      'mode', 'info', 'meta_predicate', 'meta_non_terminal',
-      'dynamic', 'discontiguous', 'multifile'
+
+    // Directives that use predicate indicators (name/arity or name//arity)
+    const indicatorDirectives = [
+      'info', 'dynamic', 'discontiguous', 'multifile', 'synchronized', 'coinductive'
     ];
 
-    // Look at the next few lines for mode/2 and info/2 directives
-    for (let line = scopeLine + 1; line < Math.min(doc.lineCount, scopeLine + 10); line++) {
-      const lineText = doc.lineAt(line).text;
+    // Directives that use callable forms (name(args))
+    const callableDirectives = [
+      'mode', 'meta_predicate', 'meta_non_terminal'
+    ];
+
+    // Start searching from the line after the scope directive
+    let currentLine = scopeLine + 1;
+
+    // Search through all subsequent lines until we reach the end of the file
+    // or encounter a boundary that indicates we've moved past related directives
+    while (currentLine < doc.lineCount) {
+      const lineText = doc.lineAt(currentLine).text;
       const trimmedLineText = lineText.trim();
 
-      // Stop if we hit a non-directive line (except comments and empty lines)
-      if (!trimmedLineText.startsWith(':-') && !trimmedLineText.startsWith('%') && trimmedLineText !== '') {
+      // Skip empty lines and comments, but continue searching
+      if (trimmedLineText === '' || trimmedLineText.startsWith('%')) {
+        currentLine++;
+        continue;
+      }
+
+      // Stop if we hit a non-directive line (predicate clause, entity boundary, etc.)
+      if (!trimmedLineText.startsWith(':-')) {
         break;
       }
 
-      // Check for other predicate directives
-      for (const predicateDirective of predicateDirectives) {
-        if (trimmedLineText.includes(`${predicateDirective}(`)) {
-          // Check if this directive mentions our predicate
-          if (trimmedLineText.includes(predicateName) || trimmedLineText.includes(predicateIndicator)) {
-            const lineRanges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, line);
-            ranges.push(...lineRanges);
+      // This is a directive - check if it's for our predicate
+      let isDirectiveForOurPredicate = false;
+      let isRecognizedDirectiveType = false;
+      let directiveRange: { start: number; end: number } | null = null;
+
+      // Check for indicator-based directives
+      for (const directiveType of indicatorDirectives) {
+        if (trimmedLineText.includes(`${directiveType}(`)) {
+          isRecognizedDirectiveType = true;
+          directiveRange = this.getDirectiveRange(doc, currentLine);
+
+          // Check if this directive contains our specific predicate indicator
+          if (this.isDirectiveForPredicateIndicator(doc, directiveRange.start, directiveRange.end, predicateIndicator)) {
+            isDirectiveForOurPredicate = true;
+
+            // Find all occurrences of our predicate indicator in this directive
+            const directiveRanges = this.findPredicateInDirectiveRange(doc, directiveRange.start, directiveRange.end, predicateIndicator);
+            ranges.push(...directiveRanges);
           }
-          break;
+          break; // Found the directive type, no need to check others
+        }
+      }
+
+      // Check for callable-based directives (only if not already found as indicator-based)
+      if (!isRecognizedDirectiveType) {
+        for (const directiveType of callableDirectives) {
+          if (trimmedLineText.includes(`${directiveType}(`)) {
+            isRecognizedDirectiveType = true;
+            directiveRange = this.getDirectiveRange(doc, currentLine);
+
+            // Check if this directive contains our predicate in callable form
+            if (this.isDirectiveForPredicateCallable(doc, directiveRange.start, directiveRange.end, predicateName, parseInt(arity, 10))) {
+              isDirectiveForOurPredicate = true;
+
+              // Find all occurrences of our predicate name in this directive
+              const directiveRanges = this.findPredicateNameInDirectiveRange(doc, directiveRange.start, directiveRange.end, predicateName, parseInt(arity, 10));
+              ranges.push(...directiveRanges);
+            }
+            break; // Found the directive type, no need to check others
+          }
+        }
+      }
+
+      // Advance to the next line or directive
+      if (directiveRange) {
+        currentLine = directiveRange.end + 1;
+      } else {
+        break;
+      }
+
+      // If this is a recognized directive type but not for our predicate, stop searching
+      // This indicates we've moved to directives for a different predicate
+      if (!isRecognizedDirectiveType || !isDirectiveForOurPredicate) {
+        break;
+      }
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Gets the range (start and end line) of a directive starting at the given line
+   * @param doc The document
+   * @param startLine The starting line of the directive
+   * @returns Object with start and end line numbers
+   */
+  private getDirectiveRange(doc: TextDocument, startLine: number): { start: number; end: number } {
+    let endLine = startLine;
+
+    // Find the end of the directive by looking for the closing ).
+    // Only match when ). is followed by whitespace and/or line comment
+    for (let lineNum = startLine; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      // Match ). followed by optional whitespace and optional line comment
+      if (/\)\.(\s*(%.*)?)?$/.test(lineText)) {
+        endLine = lineNum;
+        break;
+      }
+    }
+
+    return { start: startLine, end: endLine };
+  }
+
+  /**
+   * Checks if a directive range contains the specified predicate indicator
+   * @param doc The document
+   * @param startLine Start line of the directive
+   * @param endLine End line of the directive
+   * @param predicateIndicator The predicate indicator (name/arity or name//arity)
+   * @returns true if the directive contains the predicate indicator
+   */
+  private isDirectiveForPredicateIndicator(
+    doc: TextDocument,
+    startLine: number,
+    endLine: number,
+    predicateIndicator: string
+  ): boolean {
+    // Extract predicate name from indicator
+    const isNonTerminal = predicateIndicator.includes('//');
+    const separator = isNonTerminal ? '//' : '/';
+    const [predicateName] = predicateIndicator.split(separator);
+
+    // Check each line in the directive range
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      // Look for the exact predicate indicator first
+      if (lineText.includes(predicateIndicator)) {
+        return true;
+      }
+
+      // Also check for predicate name with arity validation
+      if (lineText.includes(predicateName)) {
+        // Validate that this occurrence has the correct arity
+        const ranges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, lineNum);
+        if (ranges.length > 0) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Finds all occurrences of a predicate in a directive range
+   * @param doc The document
+   * @param startLine Start line of the directive
+   * @param endLine End line of the directive
+   * @param predicateIndicator The predicate indicator (name/arity or name//arity)
+   * @returns Array of ranges where the predicate appears
+   */
+  private findPredicateInDirectiveRange(
+    doc: TextDocument,
+    startLine: number,
+    endLine: number,
+    predicateIndicator: string
+  ): Range[] {
+    const ranges: Range[] = [];
+
+    // Search each line in the directive range
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const lineRanges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, lineNum);
+      ranges.push(...lineRanges);
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Checks if a directive range contains the specified predicate in callable form
+   * @param doc The document
+   * @param startLine Start line of the directive
+   * @param endLine End line of the directive
+   * @param predicateName The predicate name
+   * @param expectedArity The expected arity
+   * @returns true if the directive contains the predicate in callable form
+   */
+  private isDirectiveForPredicateCallable(
+    doc: TextDocument,
+    startLine: number,
+    endLine: number,
+    predicateName: string,
+    expectedArity: number
+  ): boolean {
+    // Check each line in the directive range
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      if (expectedArity === 0) {
+        // For zero-arity predicates, look for the predicate name NOT followed by opening parenthesis
+        const namePattern = new RegExp(`\\b${this.escapeRegex(predicateName)}\\b`, 'g');
+        let match: RegExpExecArray | null;
+
+        while ((match = namePattern.exec(lineText)) !== null) {
+          const startPos = match.index;
+          const nameEndPos = startPos + predicateName.length;
+
+          // Validate that this is a valid predicate context
+          if (this.isValidPredicateContextInText(lineText, startPos, nameEndPos)) {
+            // Check that it's NOT followed by opening parenthesis (zero-arity)
+            const afterChar = nameEndPos < lineText.length ? lineText[nameEndPos] : '';
+            if (afterChar !== '(') {
+              return true;
+            }
+          }
+        }
+      } else {
+        // For non-zero arity predicates, look for the predicate name followed by opening parenthesis
+        const namePattern = new RegExp(`\\b${this.escapeRegex(predicateName)}\\(`, 'g');
+        let match: RegExpExecArray | null;
+
+        while ((match = namePattern.exec(lineText)) !== null) {
+          const startPos = match.index;
+          const nameEndPos = startPos + predicateName.length;
+
+          // Validate that this is a valid predicate context
+          if (this.isValidPredicateContextInText(lineText, startPos, nameEndPos)) {
+            // Check if the arity matches by counting arguments
+            const argCount = this.countArgumentsAfterPosition(lineText, nameEndPos);
+            if (argCount === expectedArity) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Finds all occurrences of a predicate name in a directive range (for callable-based directives)
+   * @param doc The document
+   * @param startLine Start line of the directive
+   * @param endLine End line of the directive
+   * @param predicateName The predicate name
+   * @param expectedArity The expected arity
+   * @returns Array of ranges where the predicate name appears
+   */
+  private findPredicateNameInDirectiveRange(
+    doc: TextDocument,
+    startLine: number,
+    endLine: number,
+    predicateName: string,
+    expectedArity: number
+  ): Range[] {
+    const ranges: Range[] = [];
+
+    // Search each line in the directive range
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+
+      if (expectedArity === 0) {
+        // For zero-arity predicates, look for the predicate name NOT followed by opening parenthesis
+        const namePattern = new RegExp(`\\b${this.escapeRegex(predicateName)}\\b`, 'g');
+        let match: RegExpExecArray | null;
+
+        while ((match = namePattern.exec(lineText)) !== null) {
+          const startPos = match.index;
+          const endPos = startPos + match[0].length;
+
+          // Validate that this is a valid predicate context
+          if (this.isValidPredicateContextInText(lineText, startPos, endPos)) {
+            // Check that it's NOT followed by opening parenthesis (zero-arity)
+            const afterChar = endPos < lineText.length ? lineText[endPos] : '';
+            if (afterChar !== '(') {
+              const range = new Range(
+                new Position(lineNum, startPos),
+                new Position(lineNum, endPos)
+              );
+              ranges.push(range);
+            }
+          }
+        }
+      } else {
+        // For non-zero arity predicates, find the predicate name (will be part of callable form)
+        const namePattern = new RegExp(`\\b${this.escapeRegex(predicateName)}\\b`, 'g');
+        let match: RegExpExecArray | null;
+
+        while ((match = namePattern.exec(lineText)) !== null) {
+          const startPos = match.index;
+          const endPos = startPos + match[0].length;
+
+          // Validate that this is a valid predicate context
+          if (this.isValidPredicateContextInText(lineText, startPos, endPos)) {
+            // For non-zero arity, we want to find the name part of callable forms
+            // Additional validation could be added here to ensure it's followed by parentheses
+            const range = new Range(
+              new Position(lineNum, startPos),
+              new Position(lineNum, endPos)
+            );
+            ranges.push(range);
+          }
         }
       }
     }
@@ -1467,7 +1750,7 @@ export class LogtalkRenameProvider implements RenameProvider {
       pattern = new RegExp(`\\b${this.escapeRegex(searchName)}\\b`, 'g');
     }
 
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = pattern.exec(text)) !== null) {
       // Additional validation to ensure this is a valid predicate context
       if (this.isValidPredicateContextInText(text, match.index, match.index + match[0].length)) {
@@ -1484,9 +1767,10 @@ export class LogtalkRenameProvider implements RenameProvider {
    * @param predicateName The predicate/non-terminal name to find
    * @param expectedArity The expected arity of the predicate/non-terminal
    * @param isNonTerminal Whether we're searching for non-terminals
+   * @param requireIndicatorFormat Whether to require explicit indicator format (name/arity)
    * @returns Array of start/end positions
    */
-  private findPredicateRangesInTextWithArity(text: string, predicateName: string, expectedArity: number, isNonTerminal: boolean = false): { start: number; end: number }[] {
+  private findPredicateRangesInTextWithArity(text: string, predicateName: string, expectedArity: number, isNonTerminal: boolean = false, requireIndicatorFormat: boolean = true): { start: number; end: number }[] {
     const ranges: { start: number; end: number }[] = [];
     const searchName = predicateName.startsWith("'") && predicateName.endsWith("'")
       ? predicateName.slice(1, -1)
@@ -1499,12 +1783,12 @@ export class LogtalkRenameProvider implements RenameProvider {
       pattern = new RegExp(`\\b${this.escapeRegex(searchName)}\\b`, 'g');
     }
 
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = pattern.exec(text)) !== null) {
       // Additional validation to ensure this is a valid predicate context
       if (this.isValidPredicateContextInText(text, match.index, match.index + match[0].length)) {
         // Check if the arity matches
-        if (this.checkArityAtPosition(text, match.index + match[0].length, expectedArity, isNonTerminal)) {
+        if (this.checkArityAtPosition(text, match.index + match[0].length, expectedArity, isNonTerminal, requireIndicatorFormat)) {
           ranges.push({ start: match.index, end: match.index + match[0].length });
         }
       }
@@ -1519,9 +1803,10 @@ export class LogtalkRenameProvider implements RenameProvider {
    * @param endPos End position of the predicate/non-terminal name
    * @param expectedArity The expected arity
    * @param isNonTerminal Whether we're checking a non-terminal indicator
+   * @param requireIndicatorFormat Whether to require explicit indicator format (name/arity)
    * @returns true if the arity matches or cannot be determined
    */
-  private checkArityAtPosition(text: string, endPos: number, expectedArity: number, isNonTerminal: boolean = false): boolean {
+  private checkArityAtPosition(text: string, endPos: number, expectedArity: number, isNonTerminal: boolean = false, requireIndicatorFormat: boolean = true): boolean {
     // Check what comes after the predicate/non-terminal name
     const after = endPos < text.length ? text[endPos] : '';
 
@@ -1553,9 +1838,15 @@ export class LogtalkRenameProvider implements RenameProvider {
     }
 
     // If not followed by '(' or '/', it might be a 0-arity predicate or in a different context
-    // For 0-arity predicates, accept if expected arity is 0
+    // For 0-arity predicates, the behavior depends on whether we require indicator format
     if (expectedArity === 0) {
-      return true;
+      if (requireIndicatorFormat) {
+        // For indicator-based directives, we need explicit /0 format
+        return false;
+      } else {
+        // For callable-based directives, standalone names are acceptable for zero-arity
+        return true;
+      }
     }
 
     // For non-zero arity predicates, we need parentheses, so this is not a match
@@ -1875,7 +2166,8 @@ export class LogtalkRenameProvider implements RenameProvider {
     // Check if this starts a predicate clause or non-terminal rule
     if (isNonTerminal) {
       // For non-terminals, look for pattern: name(...) --> or name -->
-      const nonTerminalPattern = /^\s{0,4}([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\(.*\)?\s*)?-->/;
+      // No space allowed between name and ( for arguments
+      const nonTerminalPattern = /^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(.*\))?(\s*)-->/;
       const match = lineText.match(nonTerminalPattern);
 
       if (match) {
@@ -1884,8 +2176,11 @@ export class LogtalkRenameProvider implements RenameProvider {
         return foundNonTerminalName !== predicateName;
       }
     } else {
-      // For predicates, look for pattern: name(...) :- or name(...)
-      const clausePattern = /^\s{0,4}([a-z][a-zA-Z0-9_]*|'[^']*')\s*[\(:-]/;
+      // For predicates, look for pattern:
+      // - name( (predicates with arguments - no space before parenthesis)
+      // - name :- (rules - space allowed before :-)
+      // - name. (facts - space allowed before period)
+      const clausePattern = /^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(|(\s*(:-))|(\s*\.))/;
       const match = lineText.match(clausePattern);
 
       if (match) {
@@ -1909,12 +2204,15 @@ export class LogtalkRenameProvider implements RenameProvider {
   private isPredicateClause(lineText: string, predicateName: string, isNonTerminal: boolean = false): boolean {
     if (isNonTerminal) {
       // A non-terminal rule starts with the non-terminal name followed by optional ( and then -->
-      const nonTerminalPattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}\\s*(\\(.*\\)?\\s*)?-->`);
+      // No space allowed between name and ( for arguments
+      const nonTerminalPattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}(\\(.*\\))?\\s*-->`);
       return nonTerminalPattern.test(lineText);
     } else {
-      // A predicate clause starts with the predicate name followed by ( or :-
-      // This includes both facts and rules
-      const clausePattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}\\s*[\\(:-]`);
+      // A predicate clause starts with the predicate name followed by:
+      // - ( for predicates with arguments: foo(X) :- ... (no space before parenthesis)
+      // - :- for rules: foo :- ... (space allowed before :-)
+      // - . for zero-arity facts: foo. or foo . (space allowed before period)
+      const clausePattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}(\\(|\\s*:-|\\s*\\.)`);
       return clausePattern.test(lineText);
     }
   }
