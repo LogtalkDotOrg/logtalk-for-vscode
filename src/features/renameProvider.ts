@@ -2291,7 +2291,7 @@ export class LogtalkRenameProvider implements RenameProvider {
 
       // If no indicators found and this is a uses/2 directive, try callable form
       if (lineRanges.length === 0 && isUsesDirective) {
-        this.logger.debug(`  No indicators found, trying callable format for uses/use_module directive`);
+        this.logger.debug(`  No indicators found, trying callable format for the uses/2 directive`);
         lineRanges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, lineNum);
         this.logger.debug(`  Found ${lineRanges.length} callable ranges in line ${lineNum + 1}`);
       }

@@ -1,0 +1,19 @@
+% Helper predicates without file extension
+
+% Simple utility predicates
+double(X, Y) :-
+	Y is X * 2.
+
+triple(X, Y) :-
+	Y is X * 3.
+
+% String utilities
+concat_atoms(A, B, Result) :-
+	atom_concat(A, B, Result).
+
+% List utilities
+first_element([H|_], H).
+
+last_element([X], X).
+last_element([_|T], Last) :-
+	last_element(T, Last).

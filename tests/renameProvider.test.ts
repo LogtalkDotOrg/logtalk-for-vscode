@@ -301,16 +301,6 @@ suite('LogtalkRenameProvider Test Suite', () => {
     assert.strictEqual(range.end.line, 0);
   });
 
-  test('findPredicateRangesInLineWithArity - finds callable forms in use_module directive', () => {
-    // This test verifies that callable forms are found in use_module/2 directives
-    const ranges = (renameProvider as any).findPredicateRangesInLineWithArity(':- use_module(system, [process(+input, -output)]).', 'process/2', 0);
-    // Should find 'process' in 'process(+input, -output)'
-    assert.strictEqual(ranges.length, 1);
-    const range = ranges[0];
-    assert.strictEqual(range.start.line, 0);
-    assert.strictEqual(range.end.line, 0);
-  });
-
   test('findPredicateRangesInLineWithIndicatorFormat - does not find callable forms', () => {
     // This test verifies that the indicator-format method doesn't find callable forms
     const ranges = (renameProvider as any).findPredicateRangesInLineWithIndicatorFormat(':- uses(library, [member(+term, ?list)]).', 'member/2', 0);
