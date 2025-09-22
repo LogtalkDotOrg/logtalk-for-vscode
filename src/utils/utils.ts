@@ -543,13 +543,13 @@ export class Utils {
       return true;
     }
 
-    // Predicate clause or non-terminal rule (starts with atom)
-    if (/^\s*[a-z][a-zA-Z0-9_]*\s*[\(:-]/.test(lineText)) {
+    // Predicate clause rule
+    if (/^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(.*\))?\s*:-/.test(lineText)) {
       return true;
     }
 
-    // Non-terminal rule with -->
-    if (trimmed.includes('-->')) {
+    // Non-terminal rule
+    if (/^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(.*\))?\s*-->/.test(lineText)) {
       return true;
     }
 
