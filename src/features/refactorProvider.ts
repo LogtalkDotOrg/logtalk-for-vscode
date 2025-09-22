@@ -28,6 +28,7 @@ import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
 import { SymbolUtils, PatternSets } from "../utils/symbols";
+import LogtalkTerminal from "./logtalkTerminal";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -1970,6 +1971,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    */
   public async addArgument(document: TextDocument, position: Position, indicator: string): Promise<void> {
     this.logger.debug(`=== addArgument method called ===`);
+
+    const sourceDir = path.resolve(path.dirname(document.uri.fsPath)).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(sourceDir);
+
     try {
       this.logger.debug(`Using predicate indicator: ${indicator}`);
       // Extract predicate name and arity - use proper type determination
@@ -2046,6 +2051,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    */
   public async reorderArguments(document: TextDocument, position: Position, indicator: string): Promise<void> {
     this.logger.debug(`=== reorderArguments method called ===`);
+
+    const sourceDir = path.resolve(path.dirname(document.uri.fsPath)).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(sourceDir);
+
     try {
       this.logger.debug(`Using predicate indicator: ${indicator}`);
       // Extract predicate name and arity - use proper type determination
@@ -2114,6 +2123,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    */
   public async removeArgument(document: TextDocument, position: Position, indicator: string): Promise<void> {
     this.logger.debug(`=== removeArgument method called ===`);
+
+    const sourceDir = path.resolve(path.dirname(document.uri.fsPath)).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(sourceDir);
+
     try {
       this.logger.debug(`Using predicate indicator: ${indicator}`);
       // Extract predicate name and arity - use proper type determination
