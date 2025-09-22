@@ -156,9 +156,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     }
 
-    // Check if we're on a predicate call for add argument refactoring
+    // Check if we're on a predicate reference for argument refactoring
     const position = range instanceof Selection ? range.active : range.start;
-    const indicator = await this.isPredicateCall(document, position);
+    const indicator = await this.isPredicateReference(document, position);
     if (indicator) {
       const addArgumentAction = new CodeAction(
         "Add argument to predicate/non-terminal",
@@ -202,7 +202,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         };
         actions.push(removeArgumentAction);
       }
-      }
+    }
 
     return actions;
   }
@@ -1488,10 +1488,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Check if the current position is on a predicate call and return the indicator
+   * Check if the current position is on a predicate reference and return the indicator
    * @returns The predicate/non-terminal indicator if valid for refactoring, null otherwise
    */
-  private async isPredicateCall(document: TextDocument, position: Position): Promise<string | null> {
+  private async isPredicateReference(document: TextDocument, position: Position): Promise<string | null> {
     // Check if we're in a comment
     const currentLineText = document.lineAt(position.line).text;
     if (currentLineText.trim().startsWith("%")) {
