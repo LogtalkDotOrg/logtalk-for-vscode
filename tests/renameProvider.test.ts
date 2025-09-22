@@ -252,4 +252,69 @@ suite('LogtalkRenameProvider Test Suite', () => {
     const isCorrect = (renameProvider as any).isCorrectPredicateInDirective('gravitational_acceleration', ',', 'gravitational_acceleration/1');
     assert.strictEqual(isCorrect, true);
   });
+
+  test('findPredicateRangesInLineWithIndicatorFormat - finds predicate indicators in alias directive', () => {
+    const ranges = (renameProvider as any).findPredicateRangesInLineWithIndicatorFormat(':- alias(set, [member/2 as set_member/2]).', 'member/2', 0);
+    assert.strictEqual(ranges.length, 1);
+    // Should find 'member' in 'member/2'
+    const range = ranges[0];
+    assert.strictEqual(range.start.line, 0);
+    assert.strictEqual(range.end.line, 0);
+    // Character positions should be around where 'member' appears in 'member/2'
+    assert.strictEqual(range.start.character >= 15, true); // After 'alias(set, ['
+    assert.strictEqual(range.end.character <= 21, true); // Before '/2'
+  });
+
+  test('findPredicateRangesInLineWithIndicatorFormat - finds predicate indicators in uses directive', () => {
+    const ranges = (renameProvider as any).findPredicateRangesInLineWithIndicatorFormat(':- uses(list, [append/3, member/2]).', 'member/2', 0);
+    assert.strictEqual(ranges.length, 1);
+    // Should find 'member' in 'member/2'
+    const range = ranges[0];
+    assert.strictEqual(range.start.line, 0);
+    assert.strictEqual(range.end.line, 0);
+  });
+
+  test('findPredicateRangesInLineWithArity - does not find predicate indicators in clause context', () => {
+    // This test verifies that the clause-context method doesn't find indicators
+    const ranges = (renameProvider as any).findPredicateRangesInLineWithArity(':- alias(set, [member/2 as set_member/2]).', 'member/2', 0);
+    // Should not find 'member/2' because it's looking for callable format, not indicator format
+    assert.strictEqual(ranges.length, 0);
+  });
+
+  test('findPredicateRangesInLineWithArity - finds predicate calls in clause context', () => {
+    // This test verifies that the clause-context method finds calls correctly
+    const ranges = (renameProvider as any).findPredicateRangesInLineWithArity('test_member(Element, List) :- member(Element, List).', 'member/2', 0);
+    // Should find 'member' in 'member(Element, List)'
+    assert.strictEqual(ranges.length, 1);
+    const range = ranges[0];
+    assert.strictEqual(range.start.line, 0);
+    assert.strictEqual(range.end.line, 0);
+  });
+
+  test('findPredicateRangesInLineWithArity - finds callable forms in uses directive', () => {
+    // This test verifies that callable forms are found in uses/2 directives
+    const ranges = (renameProvider as any).findPredicateRangesInLineWithArity(':- uses(library, [member(+term, ?list)]).', 'member/2', 0);
+    // Should find 'member' in 'member(+term, ?list)'
+    assert.strictEqual(ranges.length, 1);
+    const range = ranges[0];
+    assert.strictEqual(range.start.line, 0);
+    assert.strictEqual(range.end.line, 0);
+  });
+
+  test('findPredicateRangesInLineWithArity - finds callable forms in use_module directive', () => {
+    // This test verifies that callable forms are found in use_module/2 directives
+    const ranges = (renameProvider as any).findPredicateRangesInLineWithArity(':- use_module(system, [process(+input, -output)]).', 'process/2', 0);
+    // Should find 'process' in 'process(+input, -output)'
+    assert.strictEqual(ranges.length, 1);
+    const range = ranges[0];
+    assert.strictEqual(range.start.line, 0);
+    assert.strictEqual(range.end.line, 0);
+  });
+
+  test('findPredicateRangesInLineWithIndicatorFormat - does not find callable forms', () => {
+    // This test verifies that the indicator-format method doesn't find callable forms
+    const ranges = (renameProvider as any).findPredicateRangesInLineWithIndicatorFormat(':- uses(library, [member(+term, ?list)]).', 'member/2', 0);
+    // Should NOT find 'member(+term, ?list)' because it's looking for indicator format
+    assert.strictEqual(ranges.length, 0);
+  });
 });

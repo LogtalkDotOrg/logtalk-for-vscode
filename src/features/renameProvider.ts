@@ -15,6 +15,7 @@ import {
 } from "vscode";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
+import { PredicateUtils } from "../utils/predicateUtils";
 import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
@@ -482,13 +483,25 @@ export class LogtalkRenameProvider implements RenameProvider {
           this.logger.debug(`Processing location at ${uri.fsPath}:${location.range.start.line + 1}:${location.range.start.character} - isLineLevelLocation: ${isLineLevelLocation}`);
 
           if (isLineLevelLocation) {
-            // Line-level location: search for all occurrences in the complete clause (may be multi-line)
-            this.logger.debug(`Line-level location detected - searching for all ${predicateIndicator} occurrences in clause`);
+            // Line-level location: detect context and search appropriately
+            this.logger.debug(`Line-level location detected - analyzing context for ${predicateIndicator}`);
             this.logger.debug(`Line text: "${lineText}"`);
 
-            // Use findPredicateInClauseWithEndLine to search the complete clause
-            const clauseResult = this.findPredicateInClauseWithEndLine(doc, location.range.start.line, predicateIndicator);
-            this.logger.debug(`Found ${clauseResult.ranges.length} occurrences in clause starting at line ${location.range.start.line + 1}`);
+            // Check if this is a directive context (starts with :-)
+            const isDirectiveContext = lineText.trim().startsWith(':-');
+            let clauseResult: { ranges: { uri: Uri; range: Range }[], endLine: number };
+
+            if (isDirectiveContext) {
+              // Use directive-specific search that handles both indicator and callable formats
+              this.logger.debug(`Directive context detected - searching for predicate indicators and callable forms`);
+              clauseResult = this.findPredicateInDirectiveWithEndLine(doc, location.range.start.line, predicateIndicator);
+            } else {
+              // Use clause-specific search that handles callable format
+              this.logger.debug(`Clause context detected - searching for predicate calls`);
+              clauseResult = this.findPredicateInClauseWithEndLine(doc, location.range.start.line, predicateIndicator);
+            }
+
+            this.logger.debug(`Found ${clauseResult.ranges.length} occurrences starting at line ${location.range.start.line + 1}`);
 
             for (const clauseRange of clauseResult.ranges) {
               const rangeKey = `${clauseRange.range.start.line}:${clauseRange.range.start.character}:${clauseRange.range.end.line}:${clauseRange.range.end.character}`;
@@ -1015,7 +1028,7 @@ export class LogtalkRenameProvider implements RenameProvider {
   }
 
   /**
-   * Finds predicate/non-terminal ranges in a line of text with arity checking
+   * Finds predicate/non-terminal ranges in a line of text with arity checking (for clause contexts)
    * @param lineText The line text
    * @param predicateIndicator The predicate/non-terminal indicator (name/arity or name//arity) to find
    * @param lineNumber The line number (0-based)
@@ -1030,6 +1043,32 @@ export class LogtalkRenameProvider implements RenameProvider {
 
     // For clause processing, we don't require indicator format since predicates appear as standalone names or with parentheses
     const textRanges = this.findPredicateRangesInTextWithArity(lineText, predicateName, expectedArity, isNonTerminal, false);
+
+    for (const textRange of textRanges) {
+      const startPos = new Position(lineNumber, textRange.start);
+      const endPos = new Position(lineNumber, textRange.end);
+      ranges.push(new Range(startPos, endPos));
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Finds predicate/non-terminal ranges in a line of text with arity checking (for directive contexts)
+   * @param lineText The line text
+   * @param predicateIndicator The predicate/non-terminal indicator (name/arity or name//arity) to find
+   * @param lineNumber The line number (0-based)
+   * @returns Array of ranges
+   */
+  private findPredicateRangesInLineWithIndicatorFormat(lineText: string, predicateIndicator: string, lineNumber: number): Range[] {
+    const ranges: Range[] = [];
+    const isNonTerminal = predicateIndicator.includes('//');
+    const separator = isNonTerminal ? '//' : '/';
+    const [predicateName, arityStr] = predicateIndicator.split(separator);
+    const expectedArity = parseInt(arityStr, 10);
+
+    // For directive processing, we require indicator format since predicates appear as name/arity indicators
+    const textRanges = this.findPredicateRangesInTextWithArity(lineText, predicateName, expectedArity, isNonTerminal, true);
 
     for (const textRange of textRanges) {
       const startPos = new Position(lineNumber, textRange.start);
@@ -1346,7 +1385,7 @@ export class LogtalkRenameProvider implements RenameProvider {
       for (const directiveType of indicatorDirectives) {
         if (trimmedLineText.includes(`${directiveType}(`)) {
           isRecognizedDirectiveType = true;
-          directiveRange = this.getDirectiveRange(doc, currentLine);
+          directiveRange = PredicateUtils.getDirectiveRange(doc, currentLine);
 
           // Check if this directive contains our specific predicate indicator
           if (this.isDirectiveForPredicateIndicator(doc, directiveRange.start, directiveRange.end, predicateIndicator)) {
@@ -1365,7 +1404,7 @@ export class LogtalkRenameProvider implements RenameProvider {
         for (const directiveType of callableDirectives) {
           if (trimmedLineText.includes(`${directiveType}(`)) {
             isRecognizedDirectiveType = true;
-            directiveRange = this.getDirectiveRange(doc, currentLine);
+            directiveRange = PredicateUtils.getDirectiveRange(doc, currentLine);
 
             // Check if this directive contains our predicate in callable form
             if (this.isDirectiveForPredicateCallable(doc, directiveRange.start, directiveRange.end, predicateName, parseInt(arity, 10))) {
@@ -1397,28 +1436,7 @@ export class LogtalkRenameProvider implements RenameProvider {
     return ranges;
   }
 
-  /**
-   * Gets the range (start and end line) of a directive starting at the given line
-   * @param doc The document
-   * @param startLine The starting line of the directive
-   * @returns Object with start and end line numbers
-   */
-  private getDirectiveRange(doc: TextDocument, startLine: number): { start: number; end: number } {
-    let endLine = startLine;
 
-    // Find the end of the directive by looking for the closing ).
-    // Only match when ). is followed by whitespace and/or line comment
-    for (let lineNum = startLine; lineNum < doc.lineCount; lineNum++) {
-      const lineText = doc.lineAt(lineNum).text;
-      // Match ). followed by optional whitespace and optional line comment
-      if (/\)\.(\s*(%.*)?)?$/.test(lineText)) {
-        endLine = lineNum;
-        break;
-      }
-    }
-
-    return { start: startLine, end: endLine };
-  }
 
   /**
    * Checks if a directive range contains the specified predicate indicator
@@ -2228,6 +2246,66 @@ export class LogtalkRenameProvider implements RenameProvider {
       const clausePattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}(\\(|\\s*:-|\\s*\\.)`);
       return clausePattern.test(lineText);
     }
+  }
+
+  /**
+   * Finds the single occurrence of a predicate indicator or its callable form in a complete directive (may be multi-line)
+   * Optimized version that assumes only one occurrence needs updating per directive
+   * @param document The document
+   * @param startLine The line where the directive starts
+   * @param predicateIndicator The predicate indicator (name/arity) to find
+   * @returns Object with ranges and the end line of the directive
+   */
+  private findPredicateInDirectiveWithEndLine(
+    document: TextDocument,
+    startLine: number,
+    predicateIndicator: string
+  ): { ranges: { uri: Uri; range: Range }[], endLine: number } {
+    this.logger.debug(`Processing directive starting at line ${startLine + 1} for predicate ${predicateIndicator}`);
+
+    // Use existing getDirectiveRange function to find the directive boundaries
+    const directiveRange = PredicateUtils.getDirectiveRange(document, startLine);
+    const endLine = directiveRange.end;
+
+    // Read the complete directive text to determine its type
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text + '\n';
+    }
+
+    // Determine directive type
+    const isAliasDirective = directiveText.includes('alias(');
+    const isUsesDirective = directiveText.includes('uses(');
+
+    this.logger.debug(`  Directive type: alias=${isAliasDirective}, uses=${isUsesDirective}`);
+
+    // Search for the single occurrence in the directive
+    // Since reference provider found this location, we expect exactly one match
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      this.logger.debug(`  Checking line ${lineNum + 1}: "${lineText.trim()}"`);
+
+      // First, try to find predicate indicators
+      let lineRanges = this.findPredicateRangesInLineWithIndicatorFormat(lineText, predicateIndicator, lineNum);
+      this.logger.debug(`  Found ${lineRanges.length} indicator ranges in line ${lineNum + 1}`);
+
+      // If no indicators found and this is a uses/2 directive, try callable form
+      if (lineRanges.length === 0 && isUsesDirective) {
+        this.logger.debug(`  No indicators found, trying callable format for uses/use_module directive`);
+        lineRanges = this.findPredicateRangesInLineWithArity(lineText, predicateIndicator, lineNum);
+        this.logger.debug(`  Found ${lineRanges.length} callable ranges in line ${lineNum + 1}`);
+      }
+
+      // If we found the occurrence, return it immediately (optimization: only one expected)
+      if (lineRanges.length > 0) {
+        const locations = lineRanges.map(range => ({ uri: document.uri, range }));
+        this.logger.debug(`Found predicate occurrence at line ${lineNum + 1}. Directive ended at line ${endLine + 1}`);
+        return { ranges: locations, endLine };
+      }
+    }
+
+    this.logger.debug(`No predicate occurrences found in directive. Directive ended at line ${endLine + 1}`);
+    return { ranges: [], endLine };
   }
 
   /**
