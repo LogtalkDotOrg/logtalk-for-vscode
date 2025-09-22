@@ -11,7 +11,7 @@
 * Add "Replace magic number with predicate call" refactoring support
 * Add "Replace with include/1 directive" refactoring support
 * Add "Replace include/1 directive with file contents" refactoring support
-* Add experimental entity, predicate, and non-terminal rename support
+* Add entity, predicate, and non-terminal rename support
 * Add "Logtalk: Compute Project Metrics" command
 * Add settings support for multi-backend Logtalk executable arguments
 * Add quick fixes for some linter errors and warnings

@@ -20,6 +20,8 @@ import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
 import { PatternSets, SymbolUtils } from "../utils/symbols";
+import LogtalkTerminal from "./logtalkTerminal";
+import * as path from "path";
 
 export class LogtalkRenameProvider implements RenameProvider {
   private logger = getLogger();
@@ -61,6 +63,11 @@ export class LogtalkRenameProvider implements RenameProvider {
     if (currentLineText.trim().startsWith("%")) {
       return null;
     }
+
+    // Check if code is loaded from the source file's directory
+    const sourceDir0 = path.dirname(document.uri.fsPath);
+    const sourceDir = path.resolve(sourceDir0).split(path.sep).join("/");
+    LogtalkTerminal.checkCodeLoadedFromDirectory(sourceDir);
 
     // First, check if we're in an entity context
     const entityContext = this.detectEntityContext(document, position);
