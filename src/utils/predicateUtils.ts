@@ -170,6 +170,9 @@ export class PredicateUtils {
     let inferenceMethod: 'declaration' | 'dcg_context' | 'original' = 'original';
     let wasInferred = false;
 
+    // Extract just the predicate name without any message sending or super call prefixes
+    const cleanPredicateName = parsed.name.replace(/^.*(?:::|\^\^|@)/, '');
+
     try {
       // Step 1: Try to get declaration location
       const declarationLocation = await declarationProvider.provideDeclaration(document, position, token);
@@ -179,15 +182,24 @@ export class PredicateUtils {
         logger.debug(`Found declaration at: ${declarationLocation.uri.fsPath}:${declarationLocation.range.start.line + 1}`);
 
         const declarationDocument = await workspace.openTextDocument(declarationLocation.uri);
-        const declarationLineText = declarationDocument.lineAt(declarationLocation.range.start.line).text;
+        const declarationStartLine = declarationLocation.range.start.line;
 
-        // Definitively determine type by checking the declaration line
-        if (declarationLineText.includes(`${parsed.name}//`)) {
+        // Get the full directive range in case it's multi-line
+        const directiveRange = this.getDirectiveRange(declarationDocument, declarationStartLine);
+
+        // Check the entire directive range for the predicate indicator
+        let directiveText = '';
+        for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+          directiveText += declarationDocument.lineAt(lineNum).text + '\n';
+        }
+
+        // Definitively determine type by checking the entire directive
+        if (directiveText.includes(`${cleanPredicateName}//`)) {
           finalIsNonTerminal = true;
           inferenceMethod = 'declaration';
           wasInferred = true;
           logger.debug(`Definitively determined as non-terminal from declaration`);
-        } else if (declarationLineText.includes(`${parsed.name}/`)) {
+        } else if (directiveText.includes(`${cleanPredicateName}/`)) {
           finalIsNonTerminal = false;
           inferenceMethod = 'declaration';
           wasInferred = true;
@@ -276,8 +288,8 @@ export class PredicateUtils {
       finalIsNonTerminal = currentIndicator.includes('//');
     }
 
-    const finalCurrentIndicator = this.createIndicator(parsed.name, currentArity, finalIsNonTerminal);
-    const finalNewIndicator = this.createIndicator(parsed.name, newArity, finalIsNonTerminal);
+    const finalCurrentIndicator = this.createIndicator(cleanPredicateName, currentArity, finalIsNonTerminal);
+    const finalNewIndicator = this.createIndicator(cleanPredicateName, newArity, finalIsNonTerminal);
 
     logger.debug(`Final determination: ${finalIsNonTerminal ? 'non-terminal' : 'predicate'} ${finalCurrentIndicator} → ${finalNewIndicator}`);
 
