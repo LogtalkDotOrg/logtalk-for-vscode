@@ -32,7 +32,6 @@ import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 
 export default class LogtalkTerminal {
-  private static _context:        ExtensionContext;
   private static _terminal:       Terminal;
   private static _testerExec:     string;
   private static _testerArgs:     string[];
@@ -44,14 +43,13 @@ export default class LogtalkTerminal {
   private static _diaArgs:        string[];
   private static _timeout:        number;
   private static _outputChannel:  OutputChannel;
+  private static _loadedDirectories: Set<string> = new Set();
 
   constructor() {
 
   }
 
   public static init(context: ExtensionContext): Disposable {
-
-    LogtalkTerminal._context = context;
 
     let section = workspace.getConfiguration("logtalk");
 
@@ -127,9 +125,8 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
 
     return (<any>window).onDidCloseTerminal(terminal => {
-      for (const key of LogtalkTerminal._context.workspaceState.keys()) {
-        LogtalkTerminal._context.workspaceState.update(key, null);
-      }
+      // Clear the in-memory loaded directories set when terminal closes
+      LogtalkTerminal._loadedDirectories.clear();
       LogtalkTerminal._terminal = null;
       terminal.dispose();
     });
@@ -267,6 +264,10 @@ export default class LogtalkTerminal {
 
       let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
       LogtalkTerminal.sendString(goals, false);
+
+      // Add the Logtalk core directory to loaded directories to avoid warnings
+      const normalizedCore = fs.realpathSync(path.join(logtalkHome, "core")).split(path.sep).join("/").toLowerCase();
+      LogtalkTerminal._loadedDirectories.add(normalizedCore);
 
     } else {
       throw new Error("configuration settings error: logtalk");
@@ -1341,29 +1342,31 @@ export default class LogtalkTerminal {
     dir: string
   ): void {
     const normalizedDir = fs.realpathSync(dir).split(path.sep).join("/").toLowerCase();
-    LogtalkTerminal._context.workspaceState.update(normalizedDir, true);
+    LogtalkTerminal._loadedDirectories.add(normalizedDir);
   }
 
   public static checkCodeLoadedFromDirectory(
     dir: string
   ): void {
-    let section = workspace.getConfiguration("logtalk");
-    let logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
     const normalizedDir = fs.realpathSync(dir).split(path.sep).join("/").toLowerCase();
-    const normalizedCore = fs.realpathSync(path.join(logtalkHome, "core")).split(path.sep).join("/").toLowerCase();
     getLogger().debug("normalizedDir: " + normalizedDir);
-    getLogger().debug("normalizedCore: " + normalizedCore);
-    if (normalizedDir !== normalizedCore && !LogtalkTerminal._context.workspaceState.get(normalizedDir, false)) {
-      let found: boolean = false; 
-      for (const key of LogtalkTerminal._context.workspaceState.keys()) {
-        if (LogtalkTerminal._context.workspaceState.get(key, true) && normalizedDir.startsWith(key)) {
+
+    if (!LogtalkTerminal._loadedDirectories.has(normalizedDir)) {
+      let found: boolean = false;
+      for (const loadedDir of LogtalkTerminal._loadedDirectories) {
+        if (normalizedDir.startsWith(loadedDir)) {
           found = true;
+          break;
         }
       }
       if (!found) {
         vscode.window.showWarningMessage("No code loaded from selected directory as required by command.");
       }
     }
+  }
+
+  public static clearLoadedDirectories(): void {
+    LogtalkTerminal._loadedDirectories.clear();
   }
 
 }
