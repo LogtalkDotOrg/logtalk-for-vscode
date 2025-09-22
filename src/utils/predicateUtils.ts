@@ -572,7 +572,7 @@ export class PredicateUtils {
     // Check if this starts a predicate clause or non-terminal rule
     if (isNonTerminal) {
       // For non-terminals, look for pattern: name(...) --> or name -->
-      const nonTerminalPattern = /^\s{0,4}([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\(.*\)?\s*)?-->/;
+      const nonTerminalPattern = /^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(.*\))?\s*-->/;
       const match = lineText.match(nonTerminalPattern);
 
       if (match) {
@@ -582,7 +582,7 @@ export class PredicateUtils {
       }
     } else {
       // For predicates, look for pattern: name(...) :- or name(...)
-      const clausePattern = /^\s{0,4}([a-z][a-zA-Z0-9_]*|'[^']*')\s*[\(:-]/;
+      const clausePattern = /^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(.*\))?(\s*:-|\.)/;
       const match = lineText.match(clausePattern);
 
       if (match) {
