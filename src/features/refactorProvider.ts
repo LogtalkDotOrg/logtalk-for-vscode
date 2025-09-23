@@ -6582,8 +6582,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
   /**
    * Update single-line parnames/parameters info entries by removing at position
+   * Returns null if the line should be deleted (when list becomes empty)
    */
-  private updateParInfoLineForRemove(lineText: string, key: 'parnames'|'parameters', position: number): string {
+  private updateParInfoLineForRemove(lineText: string, key: 'parnames'|'parameters', position: number): string | null {
     const pattern = new RegExp(`^(\\s*)${key}\\s+is\\s+(\\[[^\\]]*\\])(.*)`);
     const m = lineText.match(pattern);
     if (!m) return lineText;
@@ -6595,7 +6596,98 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const idx = Math.min(Math.max(position, 1), items.length) - 1;
     if (items.length === 0) return lineText;
     items.splice(idx, 1);
+
+    // If the list becomes empty, return null to indicate the line should be deleted
+    if (items.length === 0) {
+      return null;
+    }
+
     return `${leading}${key} is [${items.join(', ')}]${trailing}`;
+  }
+
+  /**
+   * Delete an info directive line and handle trailing comma removal
+   */
+  private deleteInfoLineAndHandleComma(document: TextDocument, edit: WorkspaceEdit, lineNum: number): void {
+    // Check if we need to remove trailing comma from previous line
+    if (lineNum > 0) {
+      const prevLineText = document.lineAt(lineNum - 1).text;
+      if (prevLineText.trim().endsWith(',')) {
+        // Remove trailing comma from previous line
+        const commaIndex = prevLineText.lastIndexOf(',');
+        edit.replace(document.uri, new Range(
+          new Position(lineNum - 1, commaIndex),
+          new Position(lineNum - 1, commaIndex + 1)
+        ), '');
+      }
+    }
+
+    // Delete the entire line
+    edit.delete(document.uri, new Range(
+      new Position(lineNum, 0),
+      new Position(lineNum + 1, 0)  // Include newline
+    ));
+  }
+
+  /**
+   * Add a parnames line to an info/1 directive that doesn't have one
+   */
+  private addParnamesLineToInfoDirective(
+    document: TextDocument,
+    edit: WorkspaceEdit,
+    infoRange: { start: number, end: number },
+    paramName: string
+  ): void {
+    // Find the last line before the closing ]) of the info directive
+    let insertLine = infoRange.end;
+    let insertIndent = '\t\t';
+    let needsComma = false;
+
+    // Look for the line with the closing bracket
+    for (let i = infoRange.end; i >= infoRange.start; i--) {
+      const lineText = document.lineAt(i).text;
+      const trimmed = lineText.trim();
+
+      if (trimmed === ']).' || trimmed === ']') {
+        // This is the closing line - insert before it
+        insertLine = i;
+
+        // Check if the previous line needs a comma
+        if (i > infoRange.start) {
+          const prevLineText = document.lineAt(i - 1).text;
+          const prevTrimmed = prevLineText.trim();
+          if (prevTrimmed && !prevTrimmed.endsWith(',') && !prevTrimmed.endsWith('[')) {
+            needsComma = true;
+          }
+        }
+
+        // Get indentation from the previous content line
+        for (let j = i - 1; j >= infoRange.start; j--) {
+          const contentLine = document.lineAt(j).text;
+          if (contentLine.trim() && !contentLine.trim().startsWith(':-') && !contentLine.trim().startsWith('[')) {
+            const indentMatch = contentLine.match(/^(\s*)/);
+            if (indentMatch) {
+              insertIndent = indentMatch[1];
+            }
+            break;
+          }
+        }
+        break;
+      }
+    }
+
+    // Add comma to previous line if needed
+    if (needsComma && insertLine > infoRange.start) {
+      const prevLineText = document.lineAt(insertLine - 1).text;
+      edit.replace(document.uri, new Range(
+        new Position(insertLine - 1, prevLineText.length),
+        new Position(insertLine - 1, prevLineText.length)
+      ), ',');
+    }
+
+    // Insert the parnames line
+    const parnamesLine = `${insertIndent}parnames is ['${paramName}']\n`;
+    edit.insert(document.uri, new Position(insertLine, 0), parnamesLine);
   }
 
   /**
@@ -6720,7 +6812,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     let openParenChar = 0;
 
     // Search for opening parenthesis within the range
-    while (searchLine <= searchRange.end.line) {
+    // We need to be more careful about when to stop searching
+    let foundNonWhitespaceNonParen = false;
+
+    while (searchLine <= searchRange.end.line && !foundNonWhitespaceNonParen) {
       const lineText = refDoc.lineAt(searchLine).text;
       const searchStart = searchLine === line ? searchChar : 0;
       const searchEnd = searchLine === searchRange.end.line ? searchRange.end.character : lineText.length;
@@ -6736,12 +6831,14 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           openParenChar = i;
           break;
         } else {
-          // Found non-whitespace, non-parenthesis character - no parameters
-          return;
+          // Found non-whitespace, non-parenthesis character
+          // This means the entity name is not followed by parameters
+          foundNonWhitespaceNonParen = true;
+          break;
         }
       }
 
-      if (foundOpenParen) {
+      if (foundOpenParen || foundNonWhitespaceNonParen) {
         break;
       }
 
@@ -7335,12 +7432,26 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         info.line,
         info.type === 'object' ? SymbolRegexes.endObject : (info.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
       );
+
+      // Track if we found any existing parnames/parameters
+      let foundParnames = false;
+      let foundParameters = false;
+      let infoDirectiveRange: { start: number, end: number } | null = null;
+
       for (let i = info.line + 1; i <= endLine && i < document.lineCount; i++) {
         const lt = document.lineAt(i).text;
+
+        // Check if this is an info/1 directive
+        if (lt.match(/^(\s*):-\s*info\(\s*\[/)) {
+          const dirRange = PredicateUtils.getDirectiveRange(document, i);
+          infoDirectiveRange = dirRange;
+          // Continue processing within this directive
+        }
 
         // Multi-line parnames is [ ...
         const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
         if (mlParnames) {
+          foundParnames = true;
           const { edits, endLineNum } = this.constructMultiLineParnames(document, i, newName, pos);
           for (const te of edits) edit.replace(document.uri, te.range, te.newText);
           i = endLineNum;
@@ -7350,6 +7461,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         // Multi-line parameters is [ ... (reuse arguments handler)
         const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
         if (mlParameters) {
+          foundParameters = true;
           const { edits, endLineNum } = this.constructMultiLineParameters(document, i, newName, pos);
           for (const te of edits) edit.replace(document.uri, te.range, te.newText);
           i = endLineNum;
@@ -7358,10 +7470,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
         // Single-line updates
         let updated = this.updateParInfoLineForAdd(lt, 'parnames', newName, pos);
-        updated = this.updateParInfoLineForAdd(updated, 'parameters', newName, pos);
         if (updated !== lt) {
+          foundParnames = true;
           edit.replace(document.uri, document.lineAt(i).range, updated);
         }
+
+        updated = this.updateParInfoLineForAdd(updated, 'parameters', newName, pos);
+        if (updated !== lt) {
+          foundParameters = true;
+          edit.replace(document.uri, document.lineAt(i).range, updated);
+        }
+      }
+
+      // If we found an info/1 directive but no parnames, add parnames line
+      if (infoDirectiveRange && !foundParnames && params.length === 0) {
+        this.addParnamesLineToInfoDirective(document, edit, infoDirectiveRange, newName);
       }
 
       // Update references across workspace: insert the new parameter name at each call site
@@ -7553,8 +7676,23 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           continue;
         }
 
+        // Check if parnames line should be deleted (becomes empty)
         let updated = this.updateParInfoLineForRemove(lt, 'parnames', pos);
+        if (updated === null) {
+          // Delete the entire line (parnames became empty) and handle trailing comma
+          this.deleteInfoLineAndHandleComma(document, edit, i);
+          continue;
+        }
+
+        // Check if parameters line should be deleted (becomes empty)
         updated = this.updateParInfoLineForRemove(updated, 'parameters', pos);
+        if (updated === null) {
+          // Delete the entire line (parameters became empty) and handle trailing comma
+          this.deleteInfoLineAndHandleComma(document, edit, i);
+          continue;
+        }
+
+        // If line was modified but not deleted, replace it
         if (updated !== lt) {
           edit.replace(document.uri, document.lineAt(i).range, updated);
         }
