@@ -1207,20 +1207,38 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const lines = directiveText.split('\n');
 
     if (lines.length === 1) {
-      // Single-line directive: :- object(name).
-      // Convert to: :- object(name,\n\timplements(protocol)).
+      // Single-line directive: :- object(name) or :- object(name(params)).
+      // Convert to: :- object(name,\n\timplements(protocol)) or :- object(name(params),\n\timplements(protocol)).
       const line = lines[0];
-      const match = line.match(/^(\s*:-\s*(?:object|category)\(\s*[^,)]+)\s*\)\s*\.?\s*$/);
 
-      if (match) {
-        const entityPart = match[1]; // ":- object(name"
-        const newDirective = `${entityPart},\n\timplements(${protocolName})).`;
+      // Parse the directive properly to handle parametric entities
+      const directiveStart = line.indexOf(':-');
+      const keyword = entityInfo.type.toLowerCase();
+      const keywordStart = line.indexOf(keyword, directiveStart);
+      const openParenPos = line.indexOf('(', keywordStart);
 
-        const fullRange = new Range(
-          new Position(directiveRange.start, 0),
-          new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
-        );
-        edit.replace(document.uri, fullRange, newDirective);
+      if (openParenPos >= 0) {
+        const closeParenPos = ArgumentUtils.findMatchingCloseParen(line, openParenPos);
+        if (closeParenPos >= 0) {
+          // Parse the directive arguments to get the entity identifier (first argument)
+          const directiveContent = line.substring(openParenPos + 1, closeParenPos);
+          const args = ArgumentUtils.parseArguments(directiveContent);
+
+          if (args.length > 0) {
+            const entityIdentifier = args[0]; // First argument is the entity identifier
+
+            // Build the new directive with implements
+            const beforeEntity = line.substring(0, openParenPos + 1);
+            const afterEntity = line.substring(closeParenPos);
+            const newDirective = `${beforeEntity}${entityIdentifier},\n\timplements(${protocolName})${afterEntity}`;
+
+            const fullRange = new Range(
+              new Position(directiveRange.start, 0),
+              new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+            );
+            edit.replace(document.uri, fullRange, newDirective);
+          }
+        }
       }
     } else {
       // Multi-line directive - insert implements after the entity name line

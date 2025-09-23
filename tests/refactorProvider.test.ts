@@ -309,6 +309,210 @@ suite('LogtalkRefactorProvider Test Suite', () => {
     assert.strictEqual(actions.length, 0);
   });
 
+  test('addImplementsToEntityDirective - parametric object single line', async () => {
+    // Test that parametric objects are handled correctly
+    const mockDocument = {
+      uri: vscode.Uri.file('/test.lgt'),
+      fileName: '/test.lgt',
+      isUntitled: false,
+      languageId: 'logtalk',
+      version: 1,
+      isDirty: false,
+      isClosed: false,
+      save: () => Promise.resolve(true),
+      eol: vscode.EndOfLine.LF,
+      lineCount: 1,
+      lineAt: (line: number) => ({
+        text: line === 0 ? ':- object(parametric_test(Type, Value)).' : '',
+        length: line === 0 ? 40 : 0,
+        lineNumber: line,
+        range: new vscode.Range(line, 0, line, line === 0 ? 40 : 0),
+        rangeIncludingLineBreak: new vscode.Range(line, 0, line + 1, 0),
+        firstNonWhitespaceCharacterIndex: 0,
+        isEmptyOrWhitespace: line !== 0
+      }),
+      getText: (range?: vscode.Range) => ':- object(parametric_test(Type, Value)).',
+      getWordRangeAtPosition: () => undefined,
+      validateRange: (range: vscode.Range) => range,
+      validatePosition: (position: vscode.Position) => position,
+      offsetAt: () => 0,
+      positionAt: () => new vscode.Position(0, 0)
+    } as unknown as vscode.TextDocument;
+
+    const entityInfo = {
+      type: 'object',
+      name: 'parametric_test(Type, Value)',
+      line: 0
+    };
+
+    const edit = new vscode.WorkspaceEdit();
+
+    // Mock PredicateUtils.getDirectiveRange to return the single line
+    const originalGetDirectiveRange = (LogtalkRefactorProvider as any).PredicateUtils?.getDirectiveRange;
+    (LogtalkRefactorProvider as any).PredicateUtils = {
+      getDirectiveRange: () => ({ start: 0, end: 0 })
+    };
+
+    try {
+      await (refactorProvider as any).addImplementsToEntityDirective(
+        mockDocument,
+        entityInfo,
+        'test_protocol',
+        edit
+      );
+
+      // Check that the edit was created
+      const edits = edit.get(mockDocument.uri);
+      assert.ok(edits && edits.length > 0, 'Should create edit for parametric object');
+
+      // The edit should contain the parametric entity identifier and implements clause
+      const editText = (edits[0] as vscode.TextEdit).newText;
+      assert.ok(editText.includes('parametric_test(Type, Value)'), 'Should preserve parametric entity identifier');
+      assert.ok(editText.includes('implements(test_protocol)'), 'Should add implements clause');
+    } finally {
+      // Restore original method if it existed
+      if (originalGetDirectiveRange) {
+        (LogtalkRefactorProvider as any).PredicateUtils.getDirectiveRange = originalGetDirectiveRange;
+      }
+    }
+  });
+
+  test('addImplementsToEntityDirective - parametric category single line', async () => {
+    // Test that parametric categories are handled correctly
+    const mockDocument = {
+      uri: vscode.Uri.file('/test.lgt'),
+      fileName: '/test.lgt',
+      isUntitled: false,
+      languageId: 'logtalk',
+      version: 1,
+      isDirty: false,
+      isClosed: false,
+      save: () => Promise.resolve(true),
+      eol: vscode.EndOfLine.LF,
+      lineCount: 1,
+      lineAt: (line: number) => ({
+        text: line === 0 ? ':- category(parametric_category(Type, DefaultValue)).' : '',
+        length: line === 0 ? 50 : 0,
+        lineNumber: line,
+        range: new vscode.Range(line, 0, line, line === 0 ? 50 : 0),
+        rangeIncludingLineBreak: new vscode.Range(line, 0, line + 1, 0),
+        firstNonWhitespaceCharacterIndex: 0,
+        isEmptyOrWhitespace: line !== 0
+      }),
+      getText: (range?: vscode.Range) => ':- category(parametric_category(Type, DefaultValue)).',
+      getWordRangeAtPosition: () => undefined,
+      validateRange: (range: vscode.Range) => range,
+      validatePosition: (position: vscode.Position) => position,
+      offsetAt: () => 0,
+      positionAt: () => new vscode.Position(0, 0)
+    } as unknown as vscode.TextDocument;
+
+    const entityInfo = {
+      type: 'category',
+      name: 'parametric_category(Type, DefaultValue)',
+      line: 0
+    };
+
+    const edit = new vscode.WorkspaceEdit();
+
+    // Mock PredicateUtils.getDirectiveRange to return the single line
+    const originalGetDirectiveRange = (LogtalkRefactorProvider as any).PredicateUtils?.getDirectiveRange;
+    (LogtalkRefactorProvider as any).PredicateUtils = {
+      getDirectiveRange: () => ({ start: 0, end: 0 })
+    };
+
+    try {
+      await (refactorProvider as any).addImplementsToEntityDirective(
+        mockDocument,
+        entityInfo,
+        'test_protocol',
+        edit
+      );
+
+      // Check that the edit was created
+      const edits = edit.get(mockDocument.uri);
+      assert.ok(edits && edits.length > 0, 'Should create edit for parametric category');
+
+      // The edit should contain the parametric entity identifier and implements clause
+      const editText = (edits[0] as vscode.TextEdit).newText;
+      assert.ok(editText.includes('parametric_category(Type, DefaultValue)'), 'Should preserve parametric entity identifier');
+      assert.ok(editText.includes('implements(test_protocol)'), 'Should add implements clause');
+    } finally {
+      // Restore original method if it existed
+      if (originalGetDirectiveRange) {
+        (LogtalkRefactorProvider as any).PredicateUtils.getDirectiveRange = originalGetDirectiveRange;
+      }
+    }
+  });
+
+  test('addImplementsToEntityDirective - complex parametric entity', async () => {
+    // Test that complex parametric entities with nested structures are handled correctly
+    const mockDocument = {
+      uri: vscode.Uri.file('/test.lgt'),
+      fileName: '/test.lgt',
+      isUntitled: false,
+      languageId: 'logtalk',
+      version: 1,
+      isDirty: false,
+      isClosed: false,
+      save: () => Promise.resolve(true),
+      eol: vscode.EndOfLine.LF,
+      lineCount: 1,
+      lineAt: (line: number) => ({
+        text: line === 0 ? ':- object(complex_test(Type, list([a, b, c]), Value)).' : '',
+        length: line === 0 ? 55 : 0,
+        lineNumber: line,
+        range: new vscode.Range(line, 0, line, line === 0 ? 55 : 0),
+        rangeIncludingLineBreak: new vscode.Range(line, 0, line + 1, 0),
+        firstNonWhitespaceCharacterIndex: 0,
+        isEmptyOrWhitespace: line !== 0
+      }),
+      getText: (range?: vscode.Range) => ':- object(complex_test(Type, list([a, b, c]), Value)).',
+      getWordRangeAtPosition: () => undefined,
+      validateRange: (range: vscode.Range) => range,
+      validatePosition: (position: vscode.Position) => position,
+      offsetAt: () => 0,
+      positionAt: () => new vscode.Position(0, 0)
+    } as unknown as vscode.TextDocument;
+
+    const entityInfo = {
+      type: 'object',
+      name: 'complex_test(Type, list([a, b, c]), Value)',
+      line: 0
+    };
+
+    const edit = new vscode.WorkspaceEdit();
+
+    // Mock PredicateUtils.getDirectiveRange to return the single line
+    const originalGetDirectiveRange = (LogtalkRefactorProvider as any).PredicateUtils?.getDirectiveRange;
+    (LogtalkRefactorProvider as any).PredicateUtils = {
+      getDirectiveRange: () => ({ start: 0, end: 0 })
+    };
+
+    try {
+      await (refactorProvider as any).addImplementsToEntityDirective(
+        mockDocument,
+        entityInfo,
+        'test_protocol',
+        edit
+      );
+
+      // Check that the edit was created
+      const edits = edit.get(mockDocument.uri);
+      assert.ok(edits && edits.length > 0, 'Should create edit for complex parametric entity');
+
+      // The edit should contain the complete parametric entity identifier and implements clause
+      const editText = (edits[0] as vscode.TextEdit).newText;
+      assert.ok(editText.includes('complex_test(Type, list([a, b, c]), Value)'), 'Should preserve complex parametric entity identifier');
+      assert.ok(editText.includes('implements(test_protocol)'), 'Should add implements clause');
+    } finally {
+      // Restore original method if it existed
+      if (originalGetDirectiveRange) {
+        (LogtalkRefactorProvider as any).PredicateUtils.getDirectiveRange = originalGetDirectiveRange;
+      }
+    }
+  });
+
   test('findAndAddPredicateCallsInLine - arity checking', () => {
     const refactorProvider = new LogtalkRefactorProvider();
 
