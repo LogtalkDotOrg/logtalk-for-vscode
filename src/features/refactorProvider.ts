@@ -3301,6 +3301,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     directiveType: string
   ): TextEdit[] {
     const edits: TextEdit[] = [];
+    let foundArgnamesInAnyInfo = false;
+    let infoDirectiveToAddArgnames: { start: number, end: number } | null = null;
 
     this.logger.debug(`Processing ${directiveType} directive range lines ${range.start + 1}-${range.end + 1}`);
 
@@ -3319,8 +3321,20 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
 
       // Update callable form if present (for mode, meta_predicate, etc.)
-      if (trimmedLine.includes(predicateName + '(')) {
-        this.logger.debug(`Found callable form "${predicateName}(" at line ${lineNum + 1}`);
+      // For mode directives, also check for predicates without parentheses (zero-arity predicates)
+      const hasCallableForm = trimmedLine.includes(predicateName + '(');
+
+      // For zero-arity mode directives, use regex to match predicate name followed by whitespace and comma
+      let hasZeroArityForm = false;
+      if (directiveType === 'mode' && currentArity === 0) {
+        // Match: mode(...predicateName...) where predicateName is followed by optional whitespace and a comma, not parenthesis
+        const zeroArityPattern = new RegExp(`mode\\(\\s*${predicateName}\\s*,`);
+        hasZeroArityForm = zeroArityPattern.test(trimmedLine);
+        this.logger.debug(`Zero-arity form match for "${predicateName}" at line ${lineNum + 1}: ${hasZeroArityForm}`);
+      }
+
+      if (hasCallableForm || hasZeroArityForm) {
+        this.logger.debug(`Found ${hasCallableForm ? 'callable' : 'zero-arity'} form "${predicateName}" at line ${lineNum + 1}`);
         if (directiveType === 'mode') {
           updatedLine = this.updateModeDirectiveForArgumentAdding(updatedLine, predicateName, currentArity, argumentPosition);
           hasChanges = true;
@@ -3339,9 +3353,25 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Special handling for info directive argnames/arguments
       if (directiveType === 'info') {
+        // Check if this is an info/2 directive for our predicate
+        const isOurPredicateInfo = trimmedLine.includes(`info(${predicateName}/`) ||
+                                   trimmedLine.includes(`info(${predicateName}//`);
+
+        if (isOurPredicateInfo && !infoDirectiveToAddArgnames) {
+          // Track the first info/2 directive for this predicate
+          const infoRange = PredicateUtils.getDirectiveRange(doc, lineNum);
+          infoDirectiveToAddArgnames = infoRange;
+        }
+
         const newLineNum = this.updateInfoDirectiveArgumentsForAdding(
           doc, lineNum, updatedLine, predicateName, currentArity, argumentName, argumentPosition, edits
         );
+
+        // Check if argnames was found in this info directive
+        if (isOurPredicateInfo && (this as any)._lastFoundArgnames) {
+          foundArgnamesInAnyInfo = true;
+        }
+
         if (newLineNum !== lineNum) {
           // Multi-line structure was processed, jump to the new line
           lineNum = newLineNum;
@@ -3358,6 +3388,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
 
       lineNum++;
+    }
+
+    // If we found an info/2 directive for this predicate but no argnames, and the predicate currently has no arguments,
+    // add an argnames line to the info/2 directive
+    if (infoDirectiveToAddArgnames && !foundArgnamesInAnyInfo && currentArity === 0) {
+      this.addArgnamesLineToInfo2Directive(doc, edits, infoDirectiveToAddArgnames, argumentName);
     }
 
     return edits;
@@ -3562,6 +3598,15 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
             if (checkText.includes(currentIndicator) || checkText.includes(predicateName + '(')) {
               containsOurPredicate = true;
               break;
+            }
+
+            // For mode directives with zero-arity predicates, also check for predicate name without parentheses
+            if (directiveType === 'mode' && currentArity === 0) {
+              const zeroArityPattern = new RegExp(`mode\\(\\s*${predicateName}\\s*,`);
+              if (zeroArityPattern.test(checkText)) {
+                containsOurPredicate = true;
+                break;
+              }
             }
           }
 
@@ -4342,6 +4387,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     edits: TextEdit[]
   ): number {
     let updatedLine = lineText;
+    let foundArgnames = false;
 
     // Handle multi-line arguments lists FIRST
     // Detect 'arguments is [' without ']' on the same line
@@ -4371,6 +4417,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const argnamesPattern = /^(\s*)argnames\s+is\s+(\[[^\]]*\])(.*)/;
     const argnamesMatch = updatedLine.match(argnamesPattern);
     if (argnamesMatch) {
+      foundArgnames = true;
       const leadingWhitespace = argnamesMatch[1];
       const currentList = argnamesMatch[2];
       const trailingContent = argnamesMatch[3];
@@ -4431,6 +4478,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       edits.push(edit);
     }
 
+    // Store whether we found argnames for potential use by caller
+    (this as any)._lastFoundArgnames = foundArgnames;
+
     return lineNum; // Return current line number
   }
 
@@ -4440,46 +4490,58 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   private updateModeDirectiveForArgumentAdding(
     lineText: string,
     predicateName: string,
-    _currentArity: number,
+    currentArity: number,
     argumentPosition: number
   ): string {
-    // Pattern: mode(predicate_name(arg1, arg2), mode_info)
+    // Pattern: mode(predicate_name(arg1, arg2), mode_info) or mode(predicate_name, mode_info)
     // We need to handle nested parentheses in arguments like ?list(integer)
+
+    // First check for callable form: predicate_name(args)
     const predicateStart = lineText.indexOf(`${predicateName}(`);
-    if (predicateStart === -1) {
-      return lineText;
+    if (predicateStart !== -1) {
+      // Find the opening parenthesis after the predicate name
+      const openParenPos = predicateStart + predicateName.length;
+      if (lineText[openParenPos] === '(') {
+        // Find the matching closing parenthesis using proper nesting
+        const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+        if (closeParenPos !== -1) {
+          // Extract current arguments
+          const currentArgs = lineText.substring(openParenPos + 1, closeParenPos).trim();
+          let newArgs: string;
+
+          if (currentArgs === '') {
+            // No current arguments - add ? for unknown mode
+            newArgs = '?';
+          } else {
+            // Parse arguments properly handling nested structures
+            const argList = ArgumentUtils.parseArguments(currentArgs);
+            argList.splice(argumentPosition - 1, 0, '?');  // Use ? for unknown mode
+            newArgs = argList.join(', ');
+          }
+
+          // Replace the arguments part
+          const beforeArgs = lineText.substring(0, openParenPos + 1);
+          const afterArgs = lineText.substring(closeParenPos);
+          return beforeArgs + newArgs + afterArgs;
+        }
+      }
     }
 
-    // Find the opening parenthesis after the predicate name
-    const openParenPos = predicateStart + predicateName.length;
-    if (lineText[openParenPos] !== '(') {
-      return lineText;
+    // Check for zero-arity form: mode(predicate_name, mode_info) or mode(predicate_name)
+    if (currentArity === 0) {
+      // Use a more robust regex that matches word boundaries and handles various whitespace
+      const zeroArityPattern = new RegExp(`(mode\\s*\\([^)]*)\\b${predicateName}\\b(\\s*[,)])`, 'g');
+      const match = zeroArityPattern.exec(lineText);
+
+      if (match) {
+        // Replace predicate_name with predicate_name(?)
+        const before = match[1];
+        const after = match[2];
+        return lineText.replace(zeroArityPattern, `${before}${predicateName}(?)${after}`);
+      }
     }
 
-    // Find the matching closing parenthesis using proper nesting
-    const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-    if (closeParenPos === -1) {
-      return lineText;
-    }
-
-    // Extract current arguments
-    const currentArgs = lineText.substring(openParenPos + 1, closeParenPos).trim();
-    let newArgs: string;
-
-    if (currentArgs === '') {
-      // No current arguments - add ? for unknown mode
-      newArgs = '?';
-    } else {
-      // Parse arguments properly handling nested structures
-      const argList = ArgumentUtils.parseArguments(currentArgs);
-      argList.splice(argumentPosition - 1, 0, '?');  // Use ? for unknown mode
-      newArgs = argList.join(', ');
-    }
-
-    // Replace the arguments part
-    const beforeArgs = lineText.substring(0, openParenPos + 1);
-    const afterArgs = lineText.substring(closeParenPos);
-    return beforeArgs + newArgs + afterArgs;
+    return lineText;
   }
 
   /**
@@ -5845,6 +5907,15 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
               containsOurPredicate = true;
               break;
             }
+
+            // For mode directives with zero-arity predicates, also check for predicate name without parentheses
+            if (directiveType === 'mode' && currentArity === 0) {
+              const zeroArityPattern = new RegExp(`mode\\(\\s*${predicateName}\\s*,`);
+              if (zeroArityPattern.test(checkText)) {
+                containsOurPredicate = true;
+                break;
+              }
+            }
           }
 
           if (containsOurPredicate) {
@@ -6175,6 +6246,15 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
             if (checkText.includes(currentIndicator) || checkText.includes(predicateName + '(')) {
               containsOurPredicate = true;
               break;
+            }
+
+            // For mode directives with zero-arity predicates, also check for predicate name without parentheses
+            if (directiveType === 'mode' && currentArity === 0) {
+              const zeroArityPattern = new RegExp(`mode\\(\\s*${predicateName}\\s*,`);
+              if (zeroArityPattern.test(checkText)) {
+                containsOurPredicate = true;
+                break;
+              }
             }
           }
 
@@ -6688,6 +6768,70 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // Insert the parnames line
     const parnamesLine = `${insertIndent}parnames is ['${paramName}']\n`;
     edit.insert(document.uri, new Position(insertLine, 0), parnamesLine);
+  }
+
+  /**
+   * Add an argnames line to an info/2 directive that doesn't have one
+   */
+  private addArgnamesLineToInfo2Directive(
+    document: TextDocument,
+    edits: TextEdit[],
+    infoRange: { start: number, end: number },
+    argumentName: string
+  ): void {
+    // Find the last line before the closing ]) of the info directive
+    let insertLine = infoRange.end;
+    let insertIndent = '\t\t';
+    let needsComma = false;
+
+    // Look for the line with the closing bracket
+    for (let i = infoRange.end; i >= infoRange.start; i--) {
+      const lineText = document.lineAt(i).text;
+      const trimmed = lineText.trim();
+
+      if (trimmed === ']).' || trimmed === ']') {
+        // This is the closing line - insert before it
+        insertLine = i;
+
+        // Check if the previous line needs a comma
+        if (i > infoRange.start) {
+          const prevLineText = document.lineAt(i - 1).text;
+          const prevTrimmed = prevLineText.trim();
+          if (prevTrimmed && !prevTrimmed.endsWith(',') && !prevTrimmed.endsWith('[')) {
+            needsComma = true;
+          }
+        }
+
+        // Get indentation from the previous content line
+        for (let j = i - 1; j >= infoRange.start; j--) {
+          const contentLine = document.lineAt(j).text;
+          if (contentLine.trim() && !contentLine.trim().startsWith(':-') && !contentLine.trim().startsWith('[')) {
+            const indentMatch = contentLine.match(/^(\s*)/);
+            if (indentMatch) {
+              insertIndent = indentMatch[1];
+            }
+            break;
+          }
+        }
+        break;
+      }
+    }
+
+    // Add comma to previous line if needed
+    if (needsComma && insertLine > infoRange.start) {
+      const prevLineText = document.lineAt(insertLine - 1).text;
+      edits.push(TextEdit.replace(
+        new Range(
+          new Position(insertLine - 1, prevLineText.length),
+          new Position(insertLine - 1, prevLineText.length)
+        ),
+        ','
+      ));
+    }
+
+    // Insert the argnames line
+    const argnamesLine = `${insertIndent}argnames is ['${argumentName}']\n`;
+    edits.push(TextEdit.insert(new Position(insertLine, 0), argnamesLine));
   }
 
   /**
