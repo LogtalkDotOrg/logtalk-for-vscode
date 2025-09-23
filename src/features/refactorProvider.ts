@@ -1511,8 +1511,17 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         return; // User cancelled
       }
 
+      // Ask user for predicate scope
+      const predicateScope = await this.promptForPredicateScope();
+      if (!predicateScope) {
+        return; // User cancelled
+      }
+
       // Generate variable name from predicate name (camelCase)
       const variableName = this.toCamelCase(predicateName);
+
+      // Determine the mode type based on the magic number
+      const modeType = this.getModeTypeForNumber(magicNumber);
 
       // Find the entity opening directive and info/1 directive
       const entityInfo = this.findEntityOpeningDirective(document);
@@ -1524,8 +1533,14 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Find insertion point after entity opening and info/1 directive
       const insertionPoint = this.findInsertionPointAfterInfo(document, entityInfo.line);
 
-      // Create the fact predicate
-      const factPredicate = `\t${predicateName}(${magicNumber}).`;
+      // Generate directives and fact predicate
+      const directivesAndFact = this.generateDirectivesAndFact(
+        predicateName,
+        predicateScope,
+        modeType,
+        variableName,
+        magicNumber
+      );
 
       // Find the clause containing the magic number
       const clauseRange = this.findClauseContaining(document, selection.start);
@@ -1564,8 +1579,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         }
       }
 
-      // 3. Insert the fact predicate after entity opening and info directive (do this last, it's at the top)
-      edit.insert(document.uri, new Position(insertionPoint, 0), `\n${factPredicate}\n`);
+      // 3. Insert the directives and fact predicate after entity opening and info directive (do this last, it's at the top)
+      edit.insert(document.uri, new Position(insertionPoint, 0), `\n${directivesAndFact}\n`);
 
       const success = await workspace.applyEdit(edit);
       if (success) {
@@ -1577,6 +1592,85 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.error(`Error replacing magic number: ${error}`);
       window.showErrorMessage(`Error replacing magic number: ${error}`);
     }
+  }
+
+  /**
+   * Prompt user for predicate scope
+   */
+  private async promptForPredicateScope(): Promise<string | undefined> {
+    const options = [
+      {
+        label: "public",
+        description: "Predicate will be publicly accessible"
+      },
+      {
+        label: "protected",
+        description: "Predicate will be accessible to descendants"
+      },
+      {
+        label: "private",
+        description: "Predicate will be private to this entity"
+      },
+      {
+        label: "local",
+        description: "No scope directive will be generated"
+      }
+    ];
+
+    const selected = await window.showQuickPick(options, {
+      placeHolder: "Select the scope for the new predicate",
+      title: "Predicate Scope"
+    });
+
+    return selected?.label;
+  }
+
+  /**
+   * Determine the mode type for a number (integer or float)
+   */
+  private getModeTypeForNumber(numberString: string): string {
+    const trimmed = numberString.trim();
+    // Check if it's a float (contains decimal point or scientific notation)
+    if (trimmed.includes('.') || /[eE]/.test(trimmed)) {
+      return '?float';
+    }
+    return '?integer';
+  }
+
+  /**
+   * Generate scope, mode, info directives and fact predicate
+   */
+  private generateDirectivesAndFact(
+    predicateName: string,
+    scope: string,
+    modeType: string,
+    variableName: string,
+    magicNumber: string
+  ): string {
+    const lines: string[] = [];
+
+    // Generate scope directive (if not local)
+    if (scope !== 'local') {
+      lines.push(`\t:- ${scope}(${predicateName}/1).`);
+    }
+
+    // Generate mode directive (if not local)
+    if (scope !== 'local') {
+      lines.push(`\t:- mode(${predicateName}(${modeType}), zero_or_one).`);
+    }
+
+    // Generate info directive (if not local)
+    if (scope !== 'local') {
+      lines.push(`\t:- info(${predicateName}/1, [`);
+      lines.push(`\t\tcomment is '',`);
+      lines.push(`\t\targnames is ['${variableName}']`);
+      lines.push(`\t]).`);
+    }
+
+    // Generate fact predicate
+    lines.push(`\t${predicateName}(${magicNumber}).`);
+
+    return lines.join('\n');
   }
 
   /**

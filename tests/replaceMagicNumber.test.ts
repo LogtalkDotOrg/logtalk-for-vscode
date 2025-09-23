@@ -61,6 +61,85 @@ suite('Replace Magic Number Refactoring Test Suite', () => {
     assert.ok(typeof refactorProvider.replaceMagicNumber === 'function');
   });
 
+  test('getModeTypeForNumber - should detect integers', () => {
+    const getModeTypeForNumber = (refactorProvider as any).getModeTypeForNumber;
+
+    assert.strictEqual(getModeTypeForNumber('42'), '?integer');
+    assert.strictEqual(getModeTypeForNumber('-42'), '?integer');
+    assert.strictEqual(getModeTypeForNumber('+42'), '?integer');
+    assert.strictEqual(getModeTypeForNumber('0'), '?integer');
+  });
+
+  test('getModeTypeForNumber - should detect floats', () => {
+    const getModeTypeForNumber = (refactorProvider as any).getModeTypeForNumber;
+
+    assert.strictEqual(getModeTypeForNumber('3.14'), '?float');
+    assert.strictEqual(getModeTypeForNumber('-3.14'), '?float');
+    assert.strictEqual(getModeTypeForNumber('+3.14'), '?float');
+    assert.strictEqual(getModeTypeForNumber('.5'), '?float');
+    assert.strictEqual(getModeTypeForNumber('2.'), '?float');
+    assert.strictEqual(getModeTypeForNumber('1e10'), '?float');
+    assert.strictEqual(getModeTypeForNumber('1E10'), '?float');
+    assert.strictEqual(getModeTypeForNumber('1.5e-10'), '?float');
+    assert.strictEqual(getModeTypeForNumber('1.5E+10'), '?float');
+  });
+
+  test('generateDirectivesAndFact - public scope with integer', () => {
+    const generateDirectivesAndFact = (refactorProvider as any).generateDirectivesAndFact;
+
+    const result = generateDirectivesAndFact('max_value', 'public', '?integer', 'MaxValue', '100');
+
+    // Should contain all directives for public scope
+    assert.ok(result.includes(':- public(max_value/1).'), 'Should include public directive');
+    assert.ok(result.includes(':- mode(max_value(?integer), zero_or_one).'), 'Should include mode directive with ?integer');
+    assert.ok(result.includes(':- info(max_value/1, ['), 'Should include info directive start');
+    assert.ok(result.includes("comment is '',"), 'Should include empty comment');
+    assert.ok(result.includes("argnames is ['MaxValue']"), 'Should include argnames with variable name');
+    assert.ok(result.includes('max_value(100).'), 'Should include fact predicate');
+  });
+
+  test('generateDirectivesAndFact - protected scope with float', () => {
+    const generateDirectivesAndFact = (refactorProvider as any).generateDirectivesAndFact;
+
+    const result = generateDirectivesAndFact('pi_value', 'protected', '?float', 'PiValue', '3.14159');
+
+    // Should contain all directives for protected scope
+    assert.ok(result.includes(':- protected(pi_value/1).'), 'Should include protected directive');
+    assert.ok(result.includes(':- mode(pi_value(?float), zero_or_one).'), 'Should include mode directive with ?float');
+    assert.ok(result.includes(':- info(pi_value/1, ['), 'Should include info directive start');
+    assert.ok(result.includes("comment is '',"), 'Should include empty comment');
+    assert.ok(result.includes("argnames is ['PiValue']"), 'Should include argnames with variable name');
+    assert.ok(result.includes('pi_value(3.14159).'), 'Should include fact predicate');
+  });
+
+  test('generateDirectivesAndFact - private scope', () => {
+    const generateDirectivesAndFact = (refactorProvider as any).generateDirectivesAndFact;
+
+    const result = generateDirectivesAndFact('timeout', 'private', '?integer', 'Timeout', '5000');
+
+    // Should contain all directives for private scope
+    assert.ok(result.includes(':- private(timeout/1).'), 'Should include private directive');
+    assert.ok(result.includes(':- mode(timeout(?integer), zero_or_one).'), 'Should include mode directive');
+    assert.ok(result.includes(':- info(timeout/1, ['), 'Should include info directive start');
+    assert.ok(result.includes("comment is '',"), 'Should include empty comment');
+    assert.ok(result.includes("argnames is ['Timeout']"), 'Should include argnames with variable name');
+    assert.ok(result.includes('timeout(5000).'), 'Should include fact predicate');
+  });
+
+  test('generateDirectivesAndFact - local scope', () => {
+    const generateDirectivesAndFact = (refactorProvider as any).generateDirectivesAndFact;
+
+    const result = generateDirectivesAndFact('buffer_size', 'local', '?integer', 'BufferSize', '1024');
+
+    // Should only contain fact predicate for local scope
+    assert.ok(!result.includes(':- public('), 'Should not include public directive');
+    assert.ok(!result.includes(':- protected('), 'Should not include protected directive');
+    assert.ok(!result.includes(':- private('), 'Should not include private directive');
+    assert.ok(!result.includes(':- mode('), 'Should not include mode directive');
+    assert.ok(!result.includes(':- info('), 'Should not include info directive');
+    assert.ok(result.includes('buffer_size(1024).'), 'Should include fact predicate');
+  });
+
   test('isInsideRuleBody - should detect position after :- on same line', () => {
     const isInsideRuleBody = (refactorProvider as any).isInsideRuleBody;
 
