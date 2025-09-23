@@ -231,7 +231,7 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
-Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be not previewed. But the files changed are opened in the editor and the user can verify the changes before saving them. Note that most refactoring operations require the code to be loaded. Some of them may also not be complete, notably due to the use of dynamic binding and meta-predicate features.
+Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be not previewed. But the files changed are opened in the editor and the user can verify the changes before saving them. Note that most refactoring operations require the code to be loaded. Some of them may also not be complete, notably due to the use of dynamic binding and meta-predicate features or limitations in the current Logtalk reflection API.
 
 #### Code extraction
 
@@ -252,6 +252,10 @@ When the user selects a region of code that contains an `include/1` directive, t
 #### Symbol renaming
 
 Entity, predicate, and non-terminal rename support is available. To rename a predicate (non-terminal), right-click on the predicate (non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Rename Symbol" context menu item. To rename an entity, right-click on the entity name and use the "Go to Type Definition" context menu item to go to the entity opening directive. Then, right-click on the entity name and select the "Rename Symbol" context menu item.
+
+#### Entity parameters refactoring
+
+To add a new parameter to an object (or category), right-click on the object (or category) name in its opening directive and select the "Add parameter to object/category" context menu item. To reorder the parameters of an object (or category), right-click on the object (or category) name in its opening directive and select the "Reorder object/category parameters" context menu item. To remove a parameter from an object (or category), right-click on the object (or category) name in its opening directive and select the "Remove parameter from object/category" context menu item. New parameters must use _parameter variable syntax_ (i.e., `_VariableName_`).
 
 #### Predicate and non-terminal argument refactoring
 

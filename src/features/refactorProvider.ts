@@ -27,7 +27,7 @@ import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
-import { SymbolUtils, PatternSets } from "../utils/symbols";
+import { SymbolUtils, PatternSets, SymbolRegexes } from "../utils/symbols";
 import LogtalkTerminal from "./logtalkTerminal";
 import * as path from "path";
 import * as fs from "fs";
@@ -127,6 +127,46 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         arguments: [document, range]
       };
       actions.push(extractProtocolAction);
+
+      // Parameter refactorings for object/category
+      const paramsCount = this.countEntityParameters(entityInfo.name);
+
+      const addParameterAction = new CodeAction(
+        "Add parameter to object/category",
+        CodeActionKind.RefactorRewrite
+      );
+      addParameterAction.command = {
+        command: "logtalk.refactor.addParameter",
+        title: "Add parameter to object/category",
+        arguments: [document, range]
+      };
+      actions.push(addParameterAction);
+
+      if (paramsCount >= 2) {
+        const reorderParametersAction = new CodeAction(
+          "Reorder object/category parameters",
+          CodeActionKind.RefactorRewrite
+        );
+        reorderParametersAction.command = {
+          command: "logtalk.refactor.reorderParameters",
+          title: "Reorder object/category parameters",
+          arguments: [document, range]
+        };
+        actions.push(reorderParametersAction);
+      }
+
+      if (paramsCount >= 1) {
+        const removeParameterAction = new CodeAction(
+          "Remove parameter from object/category",
+          CodeActionKind.RefactorRewrite
+        );
+        removeParameterAction.command = {
+          command: "logtalk.refactor.removeParameter",
+          title: "Remove parameter from object/category",
+          arguments: [document, range]
+        };
+        actions.push(removeParameterAction);
+      }
     }
 
     // Check for cancellation before potentially expensive predicate call analysis
@@ -163,7 +203,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     if (indicator) {
       const addArgumentAction = new CodeAction(
         "Add argument to predicate/non-terminal",
-        CodeActionKind.Refactor
+        CodeActionKind.RefactorRewrite
       );
       addArgumentAction.command = {
         command: "logtalk.refactor.addArgument",
@@ -180,7 +220,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (currentArity > 1) {
         const reorderArgumentsAction = new CodeAction(
           "Reorder predicate/non-terminal arguments",
-          CodeActionKind.Refactor
+          CodeActionKind.RefactorRewrite
         );
         reorderArgumentsAction.command = {
           command: "logtalk.refactor.reorderArguments",
@@ -194,7 +234,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (currentArity >= 1) {
         const removeArgumentAction = new CodeAction(
           "Remove argument from predicate/non-terminal",
-          CodeActionKind.Refactor
+          CodeActionKind.RefactorRewrite
         );
         removeArgumentAction.command = {
           command: "logtalk.refactor.removeArgument",
@@ -291,7 +331,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Get current date and user info
       const currentDate = new Date();
       const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
-      
+
       // Try to get author from git config or use a default
       const author = await this.getAuthorName();
 
@@ -345,7 +385,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         endDirective: ":- end_object."
       },
       {
-        label: "Protocol", 
+        label: "Protocol",
         description: "Create a new protocol entity",
         entityType: "protocol",
         directive: ":- protocol",
@@ -353,7 +393,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       },
       {
         label: "Category",
-        description: "Create a new category entity", 
+        description: "Create a new category entity",
         entityType: "category",
         directive: ":- category",
         endDirective: ":- end_category."
@@ -740,11 +780,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     date: string
   ): string {
     const lines: string[] = [];
-    
+
     // Entity opening directive
     lines.push(`${entityType.directive}(${entityName}).`);
     lines.push('');
-    
+
     // Info directive
     lines.push('\t:- info([');
     lines.push('\t\tversion is 1:0:0,');
@@ -753,28 +793,27 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     lines.push(`\t\tcomment is 'Extracted ${entityType.entityType} entity'`);
     lines.push('\t]).');
     lines.push('');
-    
+
     // Selected code (preserve original indentation exactly as is)
     lines.push(selectedCode);
     lines.push('');
-    
+
     // Entity closing directive
     lines.push(entityType.endDirective);
     lines.push('');
-    
+
     return lines.join('\n');
   }
 
   /**
-   * Detect if the range starts with an object or category opening directive
+   * Detect if the cursor is positioned on an entity name in an object or category opening directive
    * @param document The text document
-   * @param range The selected range
+   * @param range The cursor position or selected range
    * @returns Entity information if detected, null otherwise
    */
   private detectEntityOpeningDirective(document: TextDocument, range: Range | Selection): { type: string; name: string; nameWithoutParams: string; line: number } | null {
-    // Only check the line where the selection starts - no searching around
-    const startLine = range.start.line;
-    const lineText = document.lineAt(startLine).text;
+    const position = range instanceof Selection ? range.active : range.start;
+    const lineText = document.lineAt(position.line).text;
 
     // Check if this line contains an entity opening directive
     const entityMatch = SymbolUtils.matchFirst(lineText.trim(), PatternSets.entityOpening);
@@ -788,21 +827,55 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return null;
     }
 
-    // Extract just the entity name without parameters
-    const nameWithoutParams = fullMatch.split('(')[0].trim();
+    // The regex might capture extra characters, so we need to properly parse the entity identifier
+    // Find the entity name and its parameters by parsing the directive content manually
+    const directiveStart = lineText.indexOf(':-');
+    const keyword = entityMatch.type.toLowerCase();
+    const keywordStart = lineText.indexOf(keyword, directiveStart);
+    const openParenPos = lineText.indexOf('(', keywordStart);
 
-    // Require that the selection actually contains the entity name
-    // This ensures the user has explicitly selected the entity name
-    const selectedText = document.getText(range);
-    if (!selectedText.includes(nameWithoutParams)) {
+    if (openParenPos < 0) {
+      return null;
+    }
+
+    // Find the matching close parenthesis for the directive
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+    if (closeParenPos < 0) {
+      return null;
+    }
+
+    // Parse the directive arguments to get the entity identifier (first argument)
+    const directiveContent = lineText.substring(openParenPos + 1, closeParenPos);
+    const args = ArgumentUtils.parseArguments(directiveContent);
+
+    if (args.length === 0) {
+      return null;
+    }
+
+    const entityIdentifier = args[0]; // First argument is the entity opening directive
+
+    // Extract just the entity name without parameters
+    const nameWithoutParams = entityIdentifier.split('(')[0].trim();
+
+    // Check if the cursor is actually positioned on the entity name
+    const entityNameStart = lineText.indexOf(nameWithoutParams);
+    if (entityNameStart < 0) {
+      return null;
+    }
+
+    const entityNameEnd = entityNameStart + nameWithoutParams.length;
+    const cursorChar = position.character;
+
+    // Cursor must be within the entity name bounds
+    if (cursorChar < entityNameStart || cursorChar > entityNameEnd) {
       return null;
     }
 
     return {
       type: entityMatch.type,
-      name: fullMatch,
+      name: entityIdentifier,
       nameWithoutParams: nameWithoutParams,
-      line: startLine
+      line: position.line
     };
   }
 
@@ -2362,6 +2435,26 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         // Validate that it's a valid Logtalk variable name
         if (!/^[A-Z_][a-zA-Z0-9_]*$/.test(value.trim())) {
           return "Argument name must be a valid Logtalk variable (start with uppercase letter or underscore)";
+        }
+        return null;
+      }
+    });
+  }
+
+  /**
+   * Prompt user for entity parameter name with parameter variable syntax validation
+   */
+  private async promptForParameterName(): Promise<string | undefined> {
+    return await window.showInputBox({
+      prompt: "Enter the name for the new parameter",
+      placeHolder: "_Foo_",
+      validateInput: (value: string) => {
+        if (!value.trim()) {
+          return "Parameter name cannot be empty";
+        }
+        // Validate parameter variable syntax: _VariableName_
+        if (!/^_[A-Z][a-zA-Z0-9]*_$/.test(value.trim())) {
+          return "Parameter name must use parameter variable syntax: underscore + capitalized variable name + underscore (e.g., _Foo_)";
         }
         return null;
       }
@@ -4121,6 +4214,119 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     return endLineNum;
   }
+
+
+  /**
+   * Construct multi-line parnames list inserting at position
+   */
+  private constructMultiLineParnames(doc: TextDocument, startLineNum: number, paramName: string, paramPosition: number): { edits: TextEdit[], endLineNum: number } {
+    const edits: TextEdit[] = [];
+    const nameLines: { lineNum: number; text: string; indent: string }[] = [];
+    let endLineNum = startLineNum;
+
+    for (let lineNum = startLineNum + 1; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmed = lineText.trim();
+      if (trimmed === ']' || trimmed.startsWith(']')) { endLineNum = lineNum; break; }
+      if (trimmed.length && (trimmed.startsWith("'") || trimmed.startsWith('"'))) {
+        const indent = (lineText.match(/^(\s*)/)?.[1]) ?? '    ';
+        nameLines.push({ lineNum, text: lineText, indent });
+      }
+      if (trimmed.startsWith(':-')) break;
+    }
+
+    let insertLineNum: number;
+    let indent: string;
+    if (nameLines.length === 0) { insertLineNum = startLineNum + 1; indent = '    '; }
+    else if (paramPosition - 1 >= nameLines.length) { insertLineNum = nameLines[nameLines.length - 1].lineNum + 1; indent = nameLines[nameLines.length - 1].indent; }
+    else { const target = nameLines[paramPosition - 1]; insertLineNum = target.lineNum; indent = target.indent; }
+
+    const isLast = paramPosition - 1 >= nameLines.length;
+    if (isLast && nameLines.length > 0) {
+      const last = nameLines[nameLines.length - 1];
+      if (!last.text.trim().endsWith(',')) {
+        edits.push(TextEdit.insert(new Position(last.lineNum, last.text.length), ','));
+      }
+    }
+
+    edits.push(TextEdit.insert(new Position(insertLineNum, 0), `${indent}'${paramName}'${isLast ? '' : ','}\n`));
+    return { edits, endLineNum };
+  }
+
+  /** Reorder multi-line parnames */
+  private reorderMultiLineParnames(doc: TextDocument, startLineNum: number, newOrder: number[], edits: TextEdit[]): number {
+    const nameLines: { lineNum: number; text: string; indent: string }[] = [];
+    let endLineNum = startLineNum;
+    for (let lineNum = startLineNum + 1; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmed = lineText.trim();
+      if (trimmed === ']' || trimmed.startsWith(']')) { endLineNum = lineNum; break; }
+      if (trimmed.length && (trimmed.startsWith("'") || trimmed.startsWith('"'))) {
+        const indent = (lineText.match(/^(\s*)/)?.[1]) ?? '    ';
+        nameLines.push({ lineNum, text: lineText, indent });
+      }
+      if (trimmed.startsWith(':-')) break;
+    }
+    if (nameLines.length === 0 || newOrder.length !== nameLines.length) return endLineNum;
+    const linesOnly = nameLines.map(l => l.text.trim());
+    const reordered = newOrder.map(i => linesOnly[i - 1]);
+    for (let i = 0; i < reordered.length; i++) {
+      let t = reordered[i];
+
+
+      if (i < reordered.length - 1 && !t.endsWith(',')) t = t + ',';
+      if (i === reordered.length - 1 && t.endsWith(',')) t = t.slice(0, -1);
+      reordered[i] = t;
+    }
+    const first = nameLines[0].lineNum;
+    const last = nameLines[nameLines.length - 1].lineNum;
+    const newBlock = reordered.map((t, idx) => `${nameLines[idx].indent}${t}\n`).join('');
+    edits.push(TextEdit.replace(new Range(new Position(first, 0), new Position(last + 1, 0)), newBlock));
+    return endLineNum;
+
+  }
+
+  /**
+   * Construct multi-line parameters list inserting at position (reuse arguments handler)
+   */
+  private constructMultiLineParameters(doc: TextDocument, startLineNum: number, paramName: string, paramPosition: number): { edits: TextEdit[], endLineNum: number } {
+    return this.constructMultiLineArguments(doc, startLineNum, paramName, paramPosition);
+  }
+
+
+  /** Remove from multi-line parnames */
+  private removeFromMultiLineParnames(doc: TextDocument, startLineNum: number, position: number, currentCount: number, edits: TextEdit[]): number {
+    const nameLines: { lineNum: number; text: string; indent: string }[] = [];
+    let endLineNum = startLineNum;
+    for (let lineNum = startLineNum + 1; lineNum < doc.lineCount; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const trimmed = lineText.trim();
+      if (trimmed === ']' || trimmed.startsWith(']')) { endLineNum = lineNum; break; }
+      if (trimmed.length && (trimmed.startsWith("'") || trimmed.startsWith('"'))) {
+        const indent = (lineText.match(/^(\s*)/)?.[1]) ?? '    ';
+        nameLines.push({ lineNum, text: lineText, indent });
+      }
+      if (trimmed.startsWith(':-')) break;
+    }
+    if (currentCount === 1) {
+      const remove = TextEdit.replace(new Range(new Position(startLineNum, 0), new Position(endLineNum + 1, 0)), '');
+      edits.push(remove);
+      return endLineNum;
+    }
+    if (position <= nameLines.length) {
+      const target = nameLines[position - 1];
+      if (position === nameLines.length && nameLines.length > 1) {
+        const prev = nameLines[nameLines.length - 2];
+        if (prev.text.trim().endsWith(',')) {
+          const commaIdx = prev.text.lastIndexOf(',');
+          edits.push(TextEdit.replace(new Range(new Position(prev.lineNum, commaIdx), new Position(prev.lineNum, commaIdx + 1)), ''));
+        }
+      }
+      edits.push(TextEdit.replace(new Range(new Position(target.lineNum, 0), new Position(target.lineNum + 1, 0)), ''));
+    }
+    return endLineNum;
+  }
+
 
   /**
    * Update info directive arguments (argnames and arguments lists)
@@ -6141,4 +6347,1253 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // consistency with other providers and allows for future cleanup
     this.logger.debug('LogtalkRefactorProvider disposed');
   }
+
+
+  /**
+   * Count parameters in an entity identifier like name(P1,P2)
+   */
+  private countEntityParameters(identifier: string): number {
+    const open = identifier.indexOf('(');
+    if (open < 0) return 0;
+    const close = identifier.lastIndexOf(')');
+    if (close < 0 || close <= open) return 0;
+    const inner = identifier.substring(open + 1, close).trim();
+    if (!inner) return 0;
+    return ArgumentUtils.parseArguments(inner).length;
+  }
+
+  /**
+   * Parse entity identifier into base name and parameters array
+   */
+  private parseEntityNameAndParams(identifier: string): { base: string, params: string[] } {
+    const open = identifier.indexOf('(');
+    if (open < 0) return { base: identifier.trim(), params: [] };
+    const base = identifier.substring(0, open).trim();
+    const close = identifier.lastIndexOf(')');
+    const inner = close > open ? identifier.substring(open + 1, close).trim() : '';
+    const params = inner ? ArgumentUtils.parseArguments(inner) : [];
+    return { base, params };
+  }
+
+  private buildEntityIdentifier(base: string, params: string[]): string {
+    if (!params.length) return base;
+    return `${base}(${params.join(', ')})`;
+  }
+
+  /**
+   * Replace the captured identifier part in an entity opening directive line
+   */
+  private replaceEntityOpeningIdentifierLine(lineText: string, type: 'object'|'category'|'protocol', newIdentifier: string): string {
+    try {
+      const kw = type === 'object' ? 'object' : (type === 'category' ? 'category' : 'protocol');
+      // Find the opening parenthesis of the directive allowing optional whitespace: ":- object ("
+      const re = new RegExp(`:\-\s*${kw}\s*\(`);
+      const m = re.exec(lineText);
+      if (!m) return lineText;
+      const openParenPos = lineText.indexOf('(', m.index);
+      if (openParenPos < 0) return lineText;
+
+      // Find matching close paren for the directive (within this single line)
+      const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+      if (closeParenPos < 0) return lineText;
+
+      // Replace only the first argument inside the directive (the entity identifier)
+      const start = openParenPos + 1;
+      let end = closeParenPos; // default if only one argument
+      let depth = 0;
+      let inDq = false, inSq = false, esc = false;
+      for (let i = start; i < closeParenPos; i++) {
+        const ch = lineText[i];
+        if (esc) { esc = false; continue; }
+        if (ch === '\\') { esc = true; continue; }
+        if (ch === '"' && !inSq) { inDq = !inDq; continue; }
+        if (ch === "'" && !inDq) { inSq = !inSq; continue; }
+        if (inDq || inSq) continue;
+        if (ch === '(') depth++;
+        else if (ch === ')') depth--;
+        else if (ch === ',' && depth === 0) { end = i; break; }
+      }
+
+      return lineText.substring(0, start) + newIdentifier + lineText.substring(end);
+    } catch (e) {
+      this.logger.warn(`replaceEntityOpeningIdentifierLine failed, falling back to regex: ${e}`);
+      const regex = type === 'object' ? SymbolRegexes.object : (type === 'category' ? SymbolRegexes.category : SymbolRegexes.protocol);
+      const mm = lineText.match(regex);
+      if (!mm || !mm[1]) return lineText;
+      return lineText.replace(mm[1], newIdentifier);
+    }
+  }
+
+  // Multi-line safe: replace the first directive argument (entity identifier) across the full directive text
+  private replaceEntityOpeningIdentifierInDirectiveText(
+    directiveText: string,
+    type: 'object'|'category'|'protocol',
+    newIdentifier: string
+  ): string {
+    this.logger.debug(`replaceEntityOpeningIdentifierInDirectiveText called with:`);
+    this.logger.debug(`  directiveText: "${directiveText}"`);
+    this.logger.debug(`  type: ${type}`);
+    this.logger.debug(`  newIdentifier: "${newIdentifier}"`);
+
+    try {
+      const kw = type === 'object' ? 'object' : (type === 'category' ? 'category' : 'protocol');
+
+      // Find the directive opening: ":- object("
+      const directiveStart = directiveText.indexOf(`:-`);
+      if (directiveStart < 0) return directiveText;
+
+      const kwStart = directiveText.indexOf(kw, directiveStart);
+      if (kwStart < 0) return directiveText;
+
+      const openParenPos = directiveText.indexOf('(', kwStart);
+      if (openParenPos < 0) return directiveText;
+
+      // Find the matching close parenthesis for the directive
+      const closeParenPos = ArgumentUtils.findMatchingCloseParen(directiveText, openParenPos);
+      if (closeParenPos < 0) return directiveText;
+
+      // Parse the directive arguments to find where the entity identifier ends
+      const directiveContent = directiveText.substring(openParenPos + 1, closeParenPos);
+      const args = ArgumentUtils.parseArguments(directiveContent);
+
+      if (args.length === 0) {
+        // No arguments - just insert the new identifier
+        const before = directiveText.substring(0, openParenPos + 1);
+        const after = directiveText.substring(closeParenPos);
+        return before + newIdentifier + after;
+      }
+
+      // Replace the first argument (entity identifier) with the new identifier
+      const oldIdentifier = args[0];
+      this.logger.debug(`  oldIdentifier: "${oldIdentifier}"`);
+      this.logger.debug(`  args: [${args.map(a => `"${a}"`).join(', ')}]`);
+
+      // We need to find the exact boundaries of the first argument in the original text
+      // The ArgumentUtils.parseArguments gives us the content, but we need to find where it starts/ends
+
+      // Start right after the opening parenthesis
+      let searchStart = openParenPos + 1;
+
+      // Skip any leading whitespace
+      while (searchStart < closeParenPos && /\s/.test(directiveText[searchStart])) {
+        searchStart++;
+      }
+
+      // Find where the first argument ends by looking for the first top-level comma or the closing paren
+      let identifierEnd = closeParenPos; // default to end of directive if only one argument
+      let depth = 0;
+      let inQuotes = false;
+      let inSingleQuotes = false;
+      let escapeNext = false;
+
+      for (let i = searchStart; i < closeParenPos; i++) {
+        const ch = directiveText[i];
+
+        if (escapeNext) {
+          escapeNext = false;
+          continue;
+        }
+
+        if (ch === '\\') {
+          escapeNext = true;
+          continue;
+        }
+
+        if (ch === '"' && !inSingleQuotes) {
+          inQuotes = !inQuotes;
+          continue;
+        }
+
+        if (ch === "'" && !inQuotes) {
+          inSingleQuotes = !inSingleQuotes;
+          continue;
+        }
+
+        if (inQuotes || inSingleQuotes) {
+          continue;
+        }
+
+        if (ch === '(') {
+          depth++;
+        } else if (ch === ')') {
+          depth--;
+        } else if (ch === ',' && depth === 0) {
+          // Found the end of the first argument
+          identifierEnd = i;
+          break;
+        }
+      }
+
+      this.logger.debug(`  searchStart: ${searchStart}, identifierEnd: ${identifierEnd}`);
+      this.logger.debug(`  extractedIdentifier: "${directiveText.substring(searchStart, identifierEnd)}"`);
+
+      // The issue is that we need to replace the ENTIRE first argument, not just insert after it
+      // So we replace from searchStart to identifierEnd with the newIdentifier
+      const beforeIdentifier = directiveText.substring(0, searchStart);
+      const afterIdentifier = directiveText.substring(identifierEnd);
+
+      this.logger.debug(`  beforeIdentifier: "${beforeIdentifier}"`);
+      this.logger.debug(`  afterIdentifier: "${afterIdentifier}"`);
+
+      const result = beforeIdentifier + newIdentifier + afterIdentifier;
+      this.logger.debug(`  result: "${result}"`);
+
+      return result;
+    } catch (e) {
+      this.logger.warn(`replaceEntityOpeningIdentifierInDirectiveText failed: ${e}`);
+      return directiveText;
+    }
+  }
+
+  /**
+   * Update single-line parnames/parameters info entries by adding at position
+   */
+  private updateParInfoLineForAdd(lineText: string, key: 'parnames'|'parameters', name: string, position: number): string {
+    const pattern = new RegExp(`^(\\s*)${key}\\s+is\\s+(\\[[^\\]]*\\])(.*)`);
+    const m = lineText.match(pattern);
+    if (!m) return lineText;
+    const leading = m[1];
+    const list = m[2];
+    const trailing = m[3];
+    const content = list.slice(1, -1);
+    const items = content.trim() ? ArgumentUtils.parseArguments(content) : [];
+    const insertAt = Math.min(Math.max(position, 1), items.length + 1) - 1;
+    const newItem = key === 'parnames' ? `'${name}'` : `'${name}'-''`;
+    items.splice(insertAt, 0, newItem);
+    return `${leading}${key} is [${items.join(', ')}]${trailing}`;
+  }
+
+  /**
+   * Update single-line parnames/parameters info entries by reordering
+   */
+  private updateParInfoLineForReorder(lineText: string, key: 'parnames'|'parameters', newOrder: number[]): string {
+    const pattern = new RegExp(`^(\\s*)${key}\\s+is\\s+(\\[[^\\]]*\\])(.*)`);
+    const m = lineText.match(pattern);
+    if (!m) return lineText;
+    const leading = m[1];
+    const list = m[2];
+    const trailing = m[3];
+    const content = list.slice(1, -1);
+    const items = content.trim() ? ArgumentUtils.parseArguments(content) : [];
+    if (items.length !== newOrder.length) return lineText;
+    const reordered = this.reorderArray(items, newOrder);
+    return `${leading}${key} is [${reordered.join(', ')}]${trailing}`;
+  }
+
+  /**
+   * Update single-line parnames/parameters info entries by removing at position
+   */
+  private updateParInfoLineForRemove(lineText: string, key: 'parnames'|'parameters', position: number): string {
+    const pattern = new RegExp(`^(\\s*)${key}\\s+is\\s+(\\[[^\\]]*\\])(.*)`);
+    const m = lineText.match(pattern);
+    if (!m) return lineText;
+    const leading = m[1];
+    const list = m[2];
+    const trailing = m[3];
+    const content = list.slice(1, -1);
+    const items = content.trim() ? ArgumentUtils.parseArguments(content) : [];
+    const idx = Math.min(Math.max(position, 1), items.length) - 1;
+    if (items.length === 0) return lineText;
+    items.splice(idx, 1);
+    return `${leading}${key} is [${items.join(', ')}]${trailing}`;
+  }
+
+  /**
+   * Update an entity call reference, handling both single-line and multi-line cases
+   */
+  private async updateEntityCallReference(
+    edit: WorkspaceEdit,
+    refDoc: TextDocument,
+    loc: Location,
+    entityNameWithoutParams: string,
+    newParamName: string,
+    insertPosition: number
+  ): Promise<void> {
+    const startLine = loc.range.start.line;
+    const startChar = loc.range.start.character;
+    const firstLineText = refDoc.lineAt(startLine).text;
+
+    // Determine if this is a directive or clause and get the appropriate range
+    let searchRange: Range;
+    if (firstLineText.trim().startsWith(':-')) {
+      // This is a directive - use directive range
+      const dirRange = PredicateUtils.getDirectiveRange(refDoc, startLine);
+      searchRange = new Range(new Position(dirRange.start, 0), new Position(dirRange.end, refDoc.lineAt(dirRange.end).text.length));
+    } else {
+      // This is a clause - use clause range
+      const clauseRange = PredicateUtils.getClauseRange(refDoc, startLine);
+      searchRange = new Range(new Position(clauseRange.start, 0), new Position(clauseRange.end, refDoc.lineAt(clauseRange.end).text.length));
+    }
+
+    if (firstLineText.trim().startsWith(':-')) {
+      // For directives, there's typically only one entity occurrence - find and update it directly
+      const base = entityNameWithoutParams;
+      const rangeText = refDoc.getText(searchRange);
+      const entityIdx = rangeText.indexOf(base);
+
+      if (entityIdx >= 0) {
+        // Convert the index back to line/character position
+        const beforeText = rangeText.substring(0, entityIdx);
+        const lineOffset = (beforeText.match(/\n/g) || []).length;
+        const lastNewlineIdx = beforeText.lastIndexOf('\n');
+        const charOffset = lastNewlineIdx >= 0 ? entityIdx - lastNewlineIdx - 1 : entityIdx;
+
+        const entityLine = searchRange.start.line + lineOffset;
+        const entityChar = lineOffset === 0 ? searchRange.start.character + charOffset : charOffset;
+
+        await this.updateSingleEntityOccurrence(
+          edit,
+          refDoc,
+          entityLine,
+          entityChar,
+          base,
+          newParamName,
+          insertPosition,
+          searchRange
+        );
+      }
+    } else {
+      // For clauses, there might be multiple entity occurrences - find and update all
+      const rangeText = refDoc.getText(searchRange);
+      const rangeStartPos = searchRange.start;
+      const base = entityNameWithoutParams;
+      const entityOccurrences: { line: number, char: number }[] = [];
+
+      const lines = rangeText.split('\n');
+      for (let lineOffset = 0; lineOffset < lines.length; lineOffset++) {
+        const lineText = lines[lineOffset];
+        let searchStart = 0;
+
+        while (true) {
+          const idx = lineText.indexOf(base, searchStart);
+          if (idx < 0) break;
+
+          // Check if this is a word boundary (not part of a larger identifier)
+          const beforeChar = idx > 0 ? lineText[idx - 1] : ' ';
+          const afterChar = idx + base.length < lineText.length ? lineText[idx + base.length] : ' ';
+
+          if (!/\w/.test(beforeChar) && (!/\w/.test(afterChar) || afterChar === '(')) {
+            entityOccurrences.push({
+              line: rangeStartPos.line + lineOffset,
+              char: rangeStartPos.character + (lineOffset === 0 ? idx : idx)
+            });
+          }
+
+          searchStart = idx + 1;
+        }
+      }
+
+      // Update each entity occurrence
+      for (const occurrence of entityOccurrences) {
+        await this.updateSingleEntityOccurrence(
+          edit,
+          refDoc,
+          occurrence.line,
+          occurrence.char,
+          base,
+          newParamName,
+          insertPosition,
+          searchRange
+        );
+      }
+    }
+  }
+
+  /**
+   * Update a single entity occurrence within the given range
+   */
+  private async updateSingleEntityOccurrence(
+    edit: WorkspaceEdit,
+    refDoc: TextDocument,
+    line: number,
+    char: number,
+    entityName: string,
+    newParamName: string,
+    insertPosition: number,
+    searchRange: Range
+  ): Promise<void> {
+    // Look for opening parenthesis after the entity name within the search range
+    let searchLine = line;
+    let searchChar = char + entityName.length;
+    let foundOpenParen = false;
+    let openParenLine = line;
+    let openParenChar = 0;
+
+    // Search for opening parenthesis within the range
+    while (searchLine <= searchRange.end.line) {
+      const lineText = refDoc.lineAt(searchLine).text;
+      const searchStart = searchLine === line ? searchChar : 0;
+      const searchEnd = searchLine === searchRange.end.line ? searchRange.end.character : lineText.length;
+
+      // Skip whitespace and look for opening parenthesis
+      for (let i = searchStart; i < searchEnd; i++) {
+        const ch = lineText[i];
+        if (/\s/.test(ch)) {
+          continue; // Skip whitespace
+        } else if (ch === '(') {
+          foundOpenParen = true;
+          openParenLine = searchLine;
+          openParenChar = i;
+          break;
+        } else {
+          // Found non-whitespace, non-parenthesis character - no parameters
+          return;
+        }
+      }
+
+      if (foundOpenParen) {
+        break;
+      }
+
+      searchLine++;
+      searchChar = 0;
+    }
+
+    if (foundOpenParen) {
+      // Find the matching closing parenthesis within the search range
+      const openParenPos = new Position(openParenLine, openParenChar);
+      const { closingPosition, argumentsText } = this.findMultiLineArgumentsInRange(refDoc, openParenPos, searchRange);
+
+      if (closingPosition) {
+        // Parse existing arguments and insert new parameter
+        const args = argumentsText.trim() ? ArgumentUtils.parseArguments(argumentsText) : [];
+        const insertAt = Math.min(Math.max(insertPosition, 1), args.length + 1) - 1;
+        args.splice(insertAt, 0, newParamName);
+        const newArgs = args.join(', ');
+
+        // Replace the arguments between the parentheses
+        const replaceRange = new Range(
+          new Position(openParenLine, openParenChar + 1),
+          closingPosition
+        );
+        edit.replace(refDoc.uri, replaceRange, newArgs);
+      }
+    } else {
+      // No parentheses found - add them with the new parameter
+      const insertPos = new Position(line, char + entityName.length);
+      edit.insert(refDoc.uri, insertPos, `(${newParamName})`);
+    }
+  }
+
+  /**
+   * Update an entity call reference for parameter reordering, handling both single-line and multi-line cases
+   */
+  private async updateEntityCallReferenceForReorder(
+    edit: WorkspaceEdit,
+    refDoc: TextDocument,
+    loc: Location,
+    entityNameWithoutParams: string,
+    newOrder: number[]
+  ): Promise<void> {
+    const startLine = loc.range.start.line;
+    const firstLineText = refDoc.lineAt(startLine).text;
+
+    // Determine if this is a directive or clause and get the appropriate range
+    let searchRange: Range;
+    if (firstLineText.trim().startsWith(':-')) {
+      // This is a directive - use directive range
+      const dirRange = PredicateUtils.getDirectiveRange(refDoc, startLine);
+      searchRange = new Range(new Position(dirRange.start, 0), new Position(dirRange.end, refDoc.lineAt(dirRange.end).text.length));
+    } else {
+      // This is a clause - use clause range
+      const clauseRange = PredicateUtils.getClauseRange(refDoc, startLine);
+      searchRange = new Range(new Position(clauseRange.start, 0), new Position(clauseRange.end, refDoc.lineAt(clauseRange.end).text.length));
+    }
+
+    if (firstLineText.trim().startsWith(':-')) {
+      // For directives, there's typically only one entity occurrence - find and update it directly
+      const base = entityNameWithoutParams;
+      const rangeText = refDoc.getText(searchRange);
+      const entityIdx = rangeText.indexOf(base);
+
+      if (entityIdx >= 0) {
+        // Convert the index back to line/character position
+        const beforeText = rangeText.substring(0, entityIdx);
+        const lineOffset = (beforeText.match(/\n/g) || []).length;
+        const lastNewlineIdx = beforeText.lastIndexOf('\n');
+        const charOffset = lastNewlineIdx >= 0 ? entityIdx - lastNewlineIdx - 1 : entityIdx;
+
+        const entityLine = searchRange.start.line + lineOffset;
+        const entityChar = lineOffset === 0 ? searchRange.start.character + charOffset : charOffset;
+
+        await this.updateSingleEntityOccurrenceForReorder(
+          edit,
+          refDoc,
+          entityLine,
+          entityChar,
+          base,
+          newOrder,
+          searchRange
+        );
+      }
+    } else {
+      // For clauses, there might be multiple entity occurrences - find and update all
+      const rangeText = refDoc.getText(searchRange);
+      const rangeStartPos = searchRange.start;
+      const base = entityNameWithoutParams;
+      const entityOccurrences: { line: number, char: number }[] = [];
+
+      const lines = rangeText.split('\n');
+      for (let lineOffset = 0; lineOffset < lines.length; lineOffset++) {
+        const lineText = lines[lineOffset];
+        let searchStart = 0;
+
+        while (true) {
+          const idx = lineText.indexOf(base, searchStart);
+          if (idx < 0) break;
+
+          // Check if this is a word boundary (not part of a larger identifier)
+          const beforeChar = idx > 0 ? lineText[idx - 1] : ' ';
+          const afterChar = idx + base.length < lineText.length ? lineText[idx + base.length] : ' ';
+
+          if (!/\w/.test(beforeChar) && (!/\w/.test(afterChar) || afterChar === '(')) {
+            entityOccurrences.push({
+              line: rangeStartPos.line + lineOffset,
+              char: rangeStartPos.character + (lineOffset === 0 ? idx : idx)
+            });
+          }
+
+          searchStart = idx + 1;
+        }
+      }
+
+      // Update each entity occurrence
+      for (const occurrence of entityOccurrences) {
+        await this.updateSingleEntityOccurrenceForReorder(
+          edit,
+          refDoc,
+          occurrence.line,
+          occurrence.char,
+          base,
+          newOrder,
+          searchRange
+        );
+      }
+    }
+  }
+
+  /**
+   * Update a single entity occurrence for parameter reordering within the given range
+   */
+  private async updateSingleEntityOccurrenceForReorder(
+    edit: WorkspaceEdit,
+    refDoc: TextDocument,
+    line: number,
+    char: number,
+    entityName: string,
+    newOrder: number[],
+    searchRange: Range
+  ): Promise<void> {
+    // Look for opening parenthesis after the entity name within the search range
+    let searchLine = line;
+    let searchChar = char + entityName.length;
+    let foundOpenParen = false;
+    let openParenLine = line;
+    let openParenChar = 0;
+
+    // Search for opening parenthesis within the range
+    while (searchLine <= searchRange.end.line) {
+      const lineText = refDoc.lineAt(searchLine).text;
+      const searchStart = searchLine === line ? searchChar : 0;
+      const searchEnd = searchLine === searchRange.end.line ? searchRange.end.character : lineText.length;
+
+      // Skip whitespace and look for opening parenthesis
+      for (let i = searchStart; i < searchEnd; i++) {
+        const ch = lineText[i];
+        if (/\s/.test(ch)) {
+          continue; // Skip whitespace
+        } else if (ch === '(') {
+          foundOpenParen = true;
+          openParenLine = searchLine;
+          openParenChar = i;
+          break;
+        } else {
+          // Found non-whitespace, non-parenthesis character - no parameters
+          return;
+        }
+      }
+
+      if (foundOpenParen) {
+        break;
+      }
+
+      searchLine++;
+      searchChar = 0;
+    }
+
+    if (foundOpenParen) {
+      // Find the matching closing parenthesis within the search range
+      const openParenPos = new Position(openParenLine, openParenChar);
+      const { closingPosition, argumentsText } = this.findMultiLineArgumentsInRange(refDoc, openParenPos, searchRange);
+
+      if (closingPosition) {
+        // Parse existing arguments and reorder them
+        const args = argumentsText.trim() ? ArgumentUtils.parseArguments(argumentsText) : [];
+        if (args.length > 0) {
+          const reorderedArgs = this.reorderArray(args, newOrder);
+          const newArgs = reorderedArgs.join(', ');
+
+          // Replace the arguments between the parentheses
+          const replaceRange = new Range(
+            new Position(openParenLine, openParenChar + 1),
+            closingPosition
+          );
+          edit.replace(refDoc.uri, replaceRange, newArgs);
+        }
+      }
+    }
+    // If no parentheses found, there are no parameters to reorder
+  }
+
+  /**
+   * Update an entity call reference for parameter removal, handling both single-line and multi-line cases
+   */
+  private async updateEntityCallReferenceForRemove(
+    edit: WorkspaceEdit,
+    refDoc: TextDocument,
+    loc: Location,
+    entityNameWithoutParams: string,
+    removePosition: number
+  ): Promise<void> {
+    const startLine = loc.range.start.line;
+    const firstLineText = refDoc.lineAt(startLine).text;
+
+    // Determine if this is a directive or clause and get the appropriate range
+    let searchRange: Range;
+    if (firstLineText.trim().startsWith(':-')) {
+      // This is a directive - use directive range
+      const dirRange = PredicateUtils.getDirectiveRange(refDoc, startLine);
+      searchRange = new Range(new Position(dirRange.start, 0), new Position(dirRange.end, refDoc.lineAt(dirRange.end).text.length));
+    } else {
+      // This is a clause - use clause range
+      const clauseRange = PredicateUtils.getClauseRange(refDoc, startLine);
+      searchRange = new Range(new Position(clauseRange.start, 0), new Position(clauseRange.end, refDoc.lineAt(clauseRange.end).text.length));
+    }
+
+    if (firstLineText.trim().startsWith(':-')) {
+      // For directives, there's typically only one entity occurrence - find and update it directly
+      const base = entityNameWithoutParams;
+      const rangeText = refDoc.getText(searchRange);
+      const entityIdx = rangeText.indexOf(base);
+
+      if (entityIdx >= 0) {
+        // Convert the index back to line/character position
+        const beforeText = rangeText.substring(0, entityIdx);
+        const lineOffset = (beforeText.match(/\n/g) || []).length;
+        const lastNewlineIdx = beforeText.lastIndexOf('\n');
+        const charOffset = lastNewlineIdx >= 0 ? entityIdx - lastNewlineIdx - 1 : entityIdx;
+
+        const entityLine = searchRange.start.line + lineOffset;
+        const entityChar = lineOffset === 0 ? searchRange.start.character + charOffset : charOffset;
+
+        await this.updateSingleEntityOccurrenceForRemove(
+          edit,
+          refDoc,
+          entityLine,
+          entityChar,
+          base,
+          removePosition,
+          searchRange
+        );
+      }
+    } else {
+      // For clauses, there might be multiple entity occurrences - find and update all
+      const rangeText = refDoc.getText(searchRange);
+      const rangeStartPos = searchRange.start;
+      const base = entityNameWithoutParams;
+      const entityOccurrences: { line: number, char: number }[] = [];
+
+      const lines = rangeText.split('\n');
+      for (let lineOffset = 0; lineOffset < lines.length; lineOffset++) {
+        const lineText = lines[lineOffset];
+        let searchStart = 0;
+
+        while (true) {
+          const idx = lineText.indexOf(base, searchStart);
+          if (idx < 0) break;
+
+          // Check if this is a word boundary (not part of a larger identifier)
+          const beforeChar = idx > 0 ? lineText[idx - 1] : ' ';
+          const afterChar = idx + base.length < lineText.length ? lineText[idx + base.length] : ' ';
+
+          if (!/\w/.test(beforeChar) && (!/\w/.test(afterChar) || afterChar === '(')) {
+            entityOccurrences.push({
+              line: rangeStartPos.line + lineOffset,
+              char: rangeStartPos.character + (lineOffset === 0 ? idx : idx)
+            });
+          }
+
+          searchStart = idx + 1;
+        }
+      }
+
+      // Update each entity occurrence
+      for (const occurrence of entityOccurrences) {
+        await this.updateSingleEntityOccurrenceForRemove(
+          edit,
+          refDoc,
+          occurrence.line,
+          occurrence.char,
+          base,
+          removePosition,
+          searchRange
+        );
+      }
+    }
+  }
+
+  /**
+   * Update a single entity occurrence for parameter removal within the given range
+   */
+  private async updateSingleEntityOccurrenceForRemove(
+    edit: WorkspaceEdit,
+    refDoc: TextDocument,
+    line: number,
+    char: number,
+    entityName: string,
+    removePosition: number,
+    searchRange: Range
+  ): Promise<void> {
+    // Look for opening parenthesis after the entity name within the search range
+    let searchLine = line;
+    let searchChar = char + entityName.length;
+    let foundOpenParen = false;
+    let openParenLine = line;
+    let openParenChar = 0;
+
+    // Search for opening parenthesis within the range
+    while (searchLine <= searchRange.end.line) {
+      const lineText = refDoc.lineAt(searchLine).text;
+      const searchStart = searchLine === line ? searchChar : 0;
+      const searchEnd = searchLine === searchRange.end.line ? searchRange.end.character : lineText.length;
+
+      // Skip whitespace and look for opening parenthesis
+      for (let i = searchStart; i < searchEnd; i++) {
+        const ch = lineText[i];
+        if (/\s/.test(ch)) {
+          continue; // Skip whitespace
+        } else if (ch === '(') {
+          foundOpenParen = true;
+          openParenLine = searchLine;
+          openParenChar = i;
+          break;
+        } else {
+          // Found non-whitespace, non-parenthesis character - no parameters
+          return;
+        }
+      }
+
+      if (foundOpenParen) {
+        break;
+      }
+
+      searchLine++;
+      searchChar = 0;
+    }
+
+    if (foundOpenParen) {
+      // Find the matching closing parenthesis within the search range
+      const openParenPos = new Position(openParenLine, openParenChar);
+      const { closingPosition, argumentsText } = this.findMultiLineArgumentsInRange(refDoc, openParenPos, searchRange);
+
+      if (closingPosition) {
+        // Parse existing arguments and remove the specified parameter
+        const args = argumentsText.trim() ? ArgumentUtils.parseArguments(argumentsText) : [];
+        if (args.length > 0 && removePosition >= 1 && removePosition <= args.length) {
+          const idx = removePosition - 1; // Convert to 0-based index
+          args.splice(idx, 1);
+
+          if (args.length === 0) {
+            // No arguments left - remove the parentheses entirely
+            const replaceRange = new Range(
+              new Position(openParenLine, openParenChar),
+              new Position(closingPosition.line, closingPosition.character + 1)
+            );
+            edit.replace(refDoc.uri, replaceRange, '');
+          } else {
+            // Replace with remaining arguments
+            const newArgs = args.join(', ');
+            const replaceRange = new Range(
+              new Position(openParenLine, openParenChar + 1),
+              closingPosition
+            );
+            edit.replace(refDoc.uri, replaceRange, newArgs);
+          }
+        }
+      }
+    }
+    // If no parentheses found, there are no parameters to remove
+  }
+
+  /**
+   * Find the closing parenthesis and extract arguments text for a multi-line term within a specific range
+   */
+  private findMultiLineArgumentsInRange(document: TextDocument, openParenPos: Position, searchRange: Range): { closingPosition: Position | null, argumentsText: string } {
+    let currentLine = openParenPos.line;
+    let currentChar = openParenPos.character + 1; // Start after opening parenthesis
+    let depth = 1;
+    let argumentsText = '';
+    let inDoubleQuotes = false;
+    let inSingleQuotes = false;
+    let escapeNext = false;
+
+    while (currentLine <= searchRange.end.line && depth > 0) {
+      const lineText = document.lineAt(currentLine).text;
+      const startChar = currentLine === openParenPos.line ? currentChar : 0;
+      const endChar = currentLine === searchRange.end.line ? Math.min(searchRange.end.character, lineText.length) : lineText.length;
+
+      for (let i = startChar; i < endChar && depth > 0; i++) {
+        const ch = lineText[i];
+
+        if (escapeNext) {
+          escapeNext = false;
+          argumentsText += ch;
+          continue;
+        }
+
+        if (ch === '\\') {
+          escapeNext = true;
+          argumentsText += ch;
+          continue;
+        }
+
+        if (ch === '"' && !inSingleQuotes) {
+          inDoubleQuotes = !inDoubleQuotes;
+          argumentsText += ch;
+          continue;
+        }
+
+        if (ch === "'" && !inDoubleQuotes) {
+          inSingleQuotes = !inSingleQuotes;
+          argumentsText += ch;
+          continue;
+        }
+
+        if (inDoubleQuotes || inSingleQuotes) {
+          argumentsText += ch;
+          continue;
+        }
+
+        if (ch === '(') {
+          depth++;
+          argumentsText += ch;
+        } else if (ch === ')') {
+          depth--;
+          if (depth === 0) {
+            // Found the closing parenthesis
+            return {
+              closingPosition: new Position(currentLine, i),
+              argumentsText: argumentsText
+            };
+          } else {
+            argumentsText += ch;
+          }
+        } else {
+          argumentsText += ch;
+        }
+      }
+
+      // If we haven't found the closing paren and there are more lines in range, add a space and continue
+      if (depth > 0 && currentLine < searchRange.end.line) {
+        currentLine++;
+        currentChar = 0;
+        argumentsText += ' '; // Add space between lines
+      } else {
+        break;
+      }
+    }
+
+    // Didn't find matching closing parenthesis within range
+    return { closingPosition: null, argumentsText: '' };
+  }
+
+  /**
+   * Find the closing parenthesis and extract arguments text for a multi-line term
+   */
+  private findMultiLineArguments(document: TextDocument, openParenPos: Position): { closingPosition: Position | null, argumentsText: string } {
+    let currentLine = openParenPos.line;
+    let currentChar = openParenPos.character + 1; // Start after opening parenthesis
+    let depth = 1;
+    let argumentsText = '';
+    let inDoubleQuotes = false;
+    let inSingleQuotes = false;
+    let escapeNext = false;
+
+    while (currentLine < document.lineCount && depth > 0) {
+      const lineText = document.lineAt(currentLine).text;
+      const startChar = currentLine === openParenPos.line ? currentChar : 0;
+
+      for (let i = startChar; i < lineText.length && depth > 0; i++) {
+        const ch = lineText[i];
+
+        if (escapeNext) {
+          escapeNext = false;
+          argumentsText += ch;
+          continue;
+        }
+
+        if (ch === '\\') {
+          escapeNext = true;
+          argumentsText += ch;
+          continue;
+        }
+
+        if (ch === '"' && !inSingleQuotes) {
+          inDoubleQuotes = !inDoubleQuotes;
+          argumentsText += ch;
+          continue;
+        }
+
+        if (ch === "'" && !inDoubleQuotes) {
+          inSingleQuotes = !inSingleQuotes;
+          argumentsText += ch;
+          continue;
+        }
+
+        if (inDoubleQuotes || inSingleQuotes) {
+          argumentsText += ch;
+          continue;
+        }
+
+        if (ch === '(') {
+          depth++;
+          argumentsText += ch;
+        } else if (ch === ')') {
+          depth--;
+          if (depth === 0) {
+            // Found the closing parenthesis
+            return {
+              closingPosition: new Position(currentLine, i),
+              argumentsText: argumentsText
+            };
+          } else {
+            argumentsText += ch;
+          }
+        } else {
+          argumentsText += ch;
+        }
+      }
+
+      // If we haven't found the closing paren and there are more lines, add a space and continue
+      if (depth > 0) {
+        currentLine++;
+        currentChar = 0;
+        if (currentLine < document.lineCount) {
+          argumentsText += ' '; // Add space between lines
+        }
+      }
+    }
+
+    // Didn't find matching closing parenthesis
+    return { closingPosition: null, argumentsText: '' };
+  }
+
+  public async addParameter(document: TextDocument, range: Range): Promise<void> {
+    try {
+      const info = await this.detectEntityOpeningDirective(document, range);
+      if (!info || (info.type !== 'object' && info.type !== 'category')) {
+        window.showWarningMessage('Place the selection on an object/category opening directive (entity name).');
+        return;
+      }
+      this.logger.debug(`Original info.name: "${info.name}"`);
+      const { base, params } = this.parseEntityNameAndParams(info.name);
+      this.logger.debug(`Parsed entity: base="${base}", params=[${params.map(p => `"${p}"`).join(', ')}]`);
+
+      const newName = await this.promptForParameterName();
+      if (!newName) return;
+      this.logger.debug(`New parameter name: "${newName}"`);
+
+      let pos = 1;
+      if (params.length > 0) {
+        const p = await this.promptForArgumentPosition(params.length);
+        if (p === undefined) return;
+        pos = p;
+      }
+      this.logger.debug(`Insert position: ${pos}`);
+
+      const newParams = [...params];
+      newParams.splice(Math.min(Math.max(pos,1), newParams.length+1)-1, 0, newName);
+      this.logger.debug(`New params: [${newParams.map(p => `"${p}"`).join(', ')}]`);
+
+      const newIdentifier = this.buildEntityIdentifier(base, newParams);
+      this.logger.debug(`Built identifier: "${newIdentifier}"`);
+
+      const edit = new WorkspaceEdit();
+      // Replace opening directive (single or multi-line) using full directive range
+      const dirRange = PredicateUtils.getDirectiveRange(document, info.line);
+      const fullDirRange = new Range(
+        new Position(dirRange.start, 0),
+        new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
+      );
+      const dirText = document.getText(fullDirRange);
+      const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, info.type, newIdentifier);
+      edit.replace(document.uri, fullDirRange, updatedDirText);
+
+      // Update info/1 parnames/parameters single-line entries within entity block
+      const endLine = SymbolUtils.findEndEntityDirectivePosition(
+        document,
+        info.line,
+        info.type === 'object' ? SymbolRegexes.endObject : (info.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
+      );
+      for (let i = info.line + 1; i <= endLine && i < document.lineCount; i++) {
+        const lt = document.lineAt(i).text;
+
+        // Multi-line parnames is [ ...
+        const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
+        if (mlParnames) {
+          const { edits, endLineNum } = this.constructMultiLineParnames(document, i, newName, pos);
+          for (const te of edits) edit.replace(document.uri, te.range, te.newText);
+          i = endLineNum;
+          continue;
+        }
+
+        // Multi-line parameters is [ ... (reuse arguments handler)
+        const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
+        if (mlParameters) {
+          const { edits, endLineNum } = this.constructMultiLineParameters(document, i, newName, pos);
+          for (const te of edits) edit.replace(document.uri, te.range, te.newText);
+          i = endLineNum;
+          continue;
+        }
+
+        // Single-line updates
+        let updated = this.updateParInfoLineForAdd(lt, 'parnames', newName, pos);
+        updated = this.updateParInfoLineForAdd(updated, 'parameters', newName, pos);
+        if (updated !== lt) {
+          edit.replace(document.uri, document.lineAt(i).range, updated);
+        }
+      }
+
+      // Update references across workspace: insert the new parameter name at each call site
+      try {
+        const token = { isCancellationRequested: false } as CancellationToken;
+        // Compute a stable position on the entity name in the opening line
+        const openingLineText = document.lineAt(info.line).text;
+        const nameIdx = openingLineText.indexOf(info.nameWithoutParams);
+        if (nameIdx >= 0) {
+          const entityPos = new Position(info.line, nameIdx);
+          const references = await this.referenceProvider.provideReferences(document, entityPos, { includeDeclaration: false }, token) || [];
+
+          // Group by file
+          const byFile = new Map<string, Location[]>();
+          for (const loc of references) {
+            const key = loc.uri.toString();
+            if (!byFile.has(key)) byFile.set(key, []);
+            byFile.get(key)!.push(loc);
+          }
+
+          for (const [uriStr, locs] of byFile) {
+            const uri = Uri.parse(uriStr);
+            const refDoc = await workspace.openTextDocument(uri);
+            for (const loc of locs) {
+              await this.updateEntityCallReference(edit, refDoc, loc, info.nameWithoutParams, newName, pos);
+            }
+          }
+        }
+      } catch (refErr) {
+        this.logger.warn(`Reference updates for addParameter skipped/partial due to: ${refErr}`);
+      }
+
+      await workspace.applyEdit(edit);
+    } catch (e) {
+      this.logger.error(`Error adding parameter: ${e}`);
+      window.showErrorMessage(`Error adding parameter: ${e}`);
+    }
+  }
+
+  public async reorderParameters(document: TextDocument, range: Range): Promise<void> {
+    try {
+      const info = await this.detectEntityOpeningDirective(document, range);
+      if (!info || (info.type !== 'object' && info.type !== 'category')) return;
+      const { base, params } = this.parseEntityNameAndParams(info.name);
+      if (params.length < 2) return;
+      let newOrder: number[];
+      if (params.length === 2) {
+        newOrder = [2,1];
+      } else {
+        const order = await this.promptForArgumentOrder(params.length);
+        if (!order) return;
+        newOrder = order.map(x => parseInt(`${x}`,10));
+      }
+      const reorderedParams = this.reorderArray(params, newOrder);
+      const newIdentifier = this.buildEntityIdentifier(base, reorderedParams);
+
+      const edit = new WorkspaceEdit();
+      const dirRange = PredicateUtils.getDirectiveRange(document, info.line);
+      const fullDirRange = new Range(
+        new Position(dirRange.start, 0),
+        new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
+      );
+      const dirText = document.getText(fullDirRange);
+      const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, info.type, newIdentifier);
+      edit.replace(document.uri, fullDirRange, updatedDirText);
+
+      const endLine = SymbolUtils.findEndEntityDirectivePosition(
+        document,
+        info.line,
+        info.type === 'object' ? SymbolRegexes.endObject : (info.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
+      );
+      for (let i = info.line + 1; i <= endLine && i < document.lineCount; i++) {
+        const lt = document.lineAt(i).text;
+
+        // Multi-line parnames
+        const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
+        if (mlParnames) {
+          const tempEdits: TextEdit[] = [];
+          const endLineNum = this.reorderMultiLineParnames(document, i, newOrder, tempEdits);
+          for (const te of tempEdits) edit.replace(document.uri, te.range, te.newText);
+          i = endLineNum;
+          continue;
+        }
+
+        // Multi-line parameters (reuse arguments)
+        const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
+        if (mlParameters) {
+          const tempEdits: TextEdit[] = [];
+          const endLineNum = this.reorderMultiLineArguments(document, i, newOrder, tempEdits);
+          for (const te of tempEdits) edit.replace(document.uri, te.range, te.newText);
+          i = endLineNum;
+          continue;
+        }
+
+        let updated = this.updateParInfoLineForReorder(lt, 'parnames', newOrder);
+        updated = this.updateParInfoLineForReorder(updated, 'parameters', newOrder);
+        if (updated !== lt) {
+          edit.replace(document.uri, document.lineAt(i).range, updated);
+        }
+      }
+
+      // Update references across workspace: reorder parameters at each call site
+      try {
+        const token = { isCancellationRequested: false } as CancellationToken;
+        const openingLineText = document.lineAt(info.line).text;
+        const nameIdx = openingLineText.indexOf(info.nameWithoutParams);
+        if (nameIdx >= 0) {
+          const entityPos = new Position(info.line, nameIdx);
+          const references = await this.referenceProvider.provideReferences(document, entityPos, { includeDeclaration: false }, token) || [];
+
+          // Group by file
+          const byFile = new Map<string, Location[]>();
+          for (const loc of references) {
+            const key = loc.uri.toString();
+            if (!byFile.has(key)) byFile.set(key, []);
+            byFile.get(key)!.push(loc);
+          }
+
+          for (const [uriStr, locs] of byFile) {
+            const uri = Uri.parse(uriStr);
+            const refDoc = await workspace.openTextDocument(uri);
+            for (const loc of locs) {
+              await this.updateEntityCallReferenceForReorder(edit, refDoc, loc, info.nameWithoutParams, newOrder);
+            }
+          }
+        }
+      } catch (refErr) {
+        this.logger.warn(`Reference updates for reorderParameters skipped/partial due to: ${refErr}`);
+      }
+
+      await workspace.applyEdit(edit);
+    } catch (e) {
+      this.logger.error(`Error reordering parameters: ${e}`);
+      window.showErrorMessage(`Error reordering parameters: ${e}`);
+    }
+  }
+
+  public async removeParameter(document: TextDocument, range: Range): Promise<void> {
+    try {
+      const info = await this.detectEntityOpeningDirective(document, range);
+      if (!info || (info.type !== 'object' && info.type !== 'category')) return;
+      const { base, params } = this.parseEntityNameAndParams(info.name);
+      if (params.length < 1) return;
+      let pos = 1;
+      if (params.length > 1) {
+        const p = await this.promptForArgumentPositionToRemove(params.length);
+        if (p === undefined) return;
+        pos = p;
+      }
+      const idx = Math.min(Math.max(pos,1), params.length)-1;
+      const newParams = params.slice(0, idx).concat(params.slice(idx+1));
+      const newIdentifier = this.buildEntityIdentifier(base, newParams);
+
+      const edit = new WorkspaceEdit();
+      const dirRange = PredicateUtils.getDirectiveRange(document, info.line);
+      const fullDirRange = new Range(
+        new Position(dirRange.start, 0),
+        new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
+      );
+      const dirText = document.getText(fullDirRange);
+      const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, info.type, newIdentifier);
+      edit.replace(document.uri, fullDirRange, updatedDirText);
+
+      const endLine = SymbolUtils.findEndEntityDirectivePosition(
+        document,
+        info.line,
+        info.type === 'object' ? SymbolRegexes.endObject : (info.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
+      );
+      for (let i = info.line + 1; i <= endLine && i < document.lineCount; i++) {
+        const lt = document.lineAt(i).text;
+
+        // Multi-line parnames
+        const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
+        if (mlParnames) {
+          const tempEdits: TextEdit[] = [];
+          const endLineNum = this.removeFromMultiLineParnames(document, i, pos, params.length, tempEdits);
+          for (const te of tempEdits) edit.replace(document.uri, te.range, te.newText);
+          i = endLineNum;
+          continue;
+        }
+
+        // Multi-line parameters (reuse arguments)
+        const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
+        if (mlParameters) {
+          const tempEdits: TextEdit[] = [];
+          const endLineNum = this.removeFromMultiLineArguments(document, i, pos, params.length, tempEdits);
+          for (const te of tempEdits) edit.replace(document.uri, te.range, te.newText);
+          i = endLineNum;
+          continue;
+        }
+
+        let updated = this.updateParInfoLineForRemove(lt, 'parnames', pos);
+        updated = this.updateParInfoLineForRemove(updated, 'parameters', pos);
+        if (updated !== lt) {
+          edit.replace(document.uri, document.lineAt(i).range, updated);
+        }
+      }
+
+      // Update references across workspace: remove parameter at each call site
+      try {
+        const token = { isCancellationRequested: false } as CancellationToken;
+        const openingLineText = document.lineAt(info.line).text;
+        const nameIdx = openingLineText.indexOf(info.nameWithoutParams);
+        if (nameIdx >= 0) {
+          const entityPos = new Position(info.line, nameIdx);
+          const references = await this.referenceProvider.provideReferences(document, entityPos, { includeDeclaration: false }, token) || [];
+
+          // Group by file
+          const byFile = new Map<string, Location[]>();
+          for (const loc of references) {
+            const key = loc.uri.toString();
+            if (!byFile.has(key)) byFile.set(key, []);
+            byFile.get(key)!.push(loc);
+          }
+
+          for (const [uriStr, locs] of byFile) {
+            const uri = Uri.parse(uriStr);
+            const refDoc = await workspace.openTextDocument(uri);
+            for (const loc of locs) {
+              await this.updateEntityCallReferenceForRemove(edit, refDoc, loc, info.nameWithoutParams, pos);
+            }
+          }
+        }
+      } catch (refErr) {
+        this.logger.warn(`Reference updates for removeParameter skipped/partial due to: ${refErr}`);
+      }
+
+      await workspace.applyEdit(edit);
+    } catch (e) {
+      this.logger.error(`Error removing parameter: ${e}`);
+      window.showErrorMessage(`Error removing parameter: ${e}`);
+    }
+  }
+
 }

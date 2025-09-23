@@ -404,6 +404,31 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  // Entity parameter refactorings
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.addParameter', async (document, range) => {
+      if (refactorProvider) {
+        await refactorProvider.addParameter(document, range);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.reorderParameters', async (document, range) => {
+      if (refactorProvider) {
+        await refactorProvider.reorderParameters(document, range);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.removeParameter', async (document, range) => {
+      if (refactorProvider) {
+        await refactorProvider.removeParameter(document, range);
+      }
+    })
+  );
+
   context.subscriptions.push(
     commands.registerCommand('logtalk.refactor.replaceMagicNumber', async (document, selection) => {
       if (refactorProvider) {
