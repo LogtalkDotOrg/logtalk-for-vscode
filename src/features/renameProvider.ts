@@ -680,38 +680,36 @@ export class LogtalkRenameProvider implements RenameProvider {
         const isLineLevelLocation = location.range.start.character === 0 && location.range.end.character === 0;
 
         if (isLineLevelLocation) {
-          // Line-level location: could be a multi-line directive
+          // Line-level location: determine if it's a directive or clause
           const startLineText = doc.lineAt(location.range.start.line).text;
+          const trimmedStartLine = startLineText.trim();
           this.logger.debug(`Processing line-level entity location: ${uri.fsPath}:${location.range.start.line + 1}`);
           this.logger.debug(`Start line text: "${startLineText}"`);
 
-          // First, try to find entity on the starting line
-          let ranges = this.findEntityRangesInLine(startLineText, currentName, location.range.start.line, entityIndicator);
+          let ranges: Range[] = [];
 
-          if (ranges.length === 0) {
-            // Entity not found on starting line, this might be a multi-line directive
-            this.logger.debug(`Entity not found on start line, searching multi-line directive...`);
+          if (trimmedStartLine.startsWith(':-')) {
+            // This is a directive - use getDirectiveRange to get the full range
+            this.logger.debug(`Detected directive at line ${location.range.start.line + 1}`);
+            const directiveRange = PredicateUtils.getDirectiveRange(doc, location.range.start.line);
 
-            // Find the actual position of the entity in the multi-line directive
-            const entityPosition = this.findEntityPositionInDirective(doc, location.range.start.line, currentName, entityIndicator);
-
-            // Get the line where the entity was actually found
-            const entityLineText = doc.lineAt(entityPosition.line).text;
-            ranges = this.findEntityRangesInLine(entityLineText, currentName, entityPosition.line, entityIndicator);
-
-            this.logger.debug(`Found ${ranges.length} entity occurrences in multi-line directive at line ${entityPosition.line + 1}`);
-          } else {
-            // Entity found on starting line, check for consecutive entity clauses (multifile predicates)
-            this.logger.debug(`Entity found on start line, checking for consecutive entity clauses...`);
-
-            const consecutiveRanges = this.findConsecutiveEntityClauses(doc, location.range.start.line, currentName, entityIndicator);
-            if (consecutiveRanges.length > ranges.length) {
-              this.logger.debug(`Found ${consecutiveRanges.length} consecutive entity clauses (vs ${ranges.length} on single line)`);
-              ranges = consecutiveRanges;
+            // Search for the first (and only) entity reference within the directive range
+            const entityRange = this.findEntityRangeInRange(doc, directiveRange.start, directiveRange.end, currentName, entityIndicator);
+            if (entityRange) {
+              ranges = [entityRange];
+              this.logger.debug(`Found entity occurrence in directive (lines ${directiveRange.start + 1}-${directiveRange.end + 1})`);
+            } else {
+              this.logger.debug(`No entity occurrence found in directive (lines ${directiveRange.start + 1}-${directiveRange.end + 1})`);
             }
-          }
+          } else {
+            // This is a clause - use getClauseRange to get the full range
+            this.logger.debug(`Detected clause at line ${location.range.start.line + 1}`);
+            const clauseRange = PredicateUtils.getClauseRange(doc, location.range.start.line);
 
-          this.logger.debug(`Found ${ranges.length} entity occurrences on start line ${location.range.start.line + 1}`);
+            // Search for all entity references within the clause range
+            ranges = this.findEntityRangesInRange(doc, clauseRange.start, clauseRange.end, currentName, entityIndicator);
+            this.logger.debug(`Found ${ranges.length} entity occurrences in clause (lines ${clauseRange.start + 1}-${clauseRange.end + 1})`);
+          }
 
           for (const range of ranges) {
             const rangeKey = `${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
@@ -794,6 +792,63 @@ export class LogtalkRenameProvider implements RenameProvider {
       type: entityMatch.type,
       indicator: entityIndicator
     };
+  }
+
+  /**
+   * Finds the first occurrence of an entity name within a range of lines (for directives)
+   * @param doc The document to search
+   * @param startLine The starting line number (inclusive)
+   * @param endLine The ending line number (inclusive)
+   * @param entityName The entity name to find
+   * @param entityIndicator The entity indicator (name/arity)
+   * @returns Single range where the entity name appears, or null if not found
+   */
+  private findEntityRangeInRange(
+    doc: TextDocument,
+    startLine: number,
+    endLine: number,
+    entityName: string,
+    entityIndicator: string
+  ): Range | null {
+    // Search each line in the range, stopping at first match
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const lineRanges = this.findEntityRangesInLine(lineText, entityName, lineNum, entityIndicator);
+      if (lineRanges.length > 0) {
+        // Return the first occurrence found
+        return lineRanges[0];
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Finds all occurrences of an entity name within a range of lines (for clauses)
+   * @param doc The document to search
+   * @param startLine The starting line number (inclusive)
+   * @param endLine The ending line number (inclusive)
+   * @param entityName The entity name to find
+   * @param entityIndicator The entity indicator (name/arity)
+   * @returns Array of ranges where the entity name appears
+   */
+  private findEntityRangesInRange(
+    doc: TextDocument,
+    startLine: number,
+    endLine: number,
+    entityName: string,
+    entityIndicator: string
+  ): Range[] {
+    const ranges: Range[] = [];
+
+    // Search each line in the range
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const lineText = doc.lineAt(lineNum).text;
+      const lineRanges = this.findEntityRangesInLine(lineText, entityName, lineNum, entityIndicator);
+      ranges.push(...lineRanges);
+    }
+
+    return ranges;
   }
 
   /**
