@@ -10,6 +10,7 @@ import {
   SymbolKind
 } from "vscode";
 import { SymbolRegexes, SymbolTypes, SymbolUtils, PatternSets } from "../utils/symbols";
+import { ArgumentUtils } from "../utils/argumentUtils";
 import { PredicateUtils } from "../utils/predicateUtils";
 
 export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
@@ -53,8 +54,24 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
                               SymbolKind.Struct;
             const endLength = entityMatch.type === SymbolTypes.OBJECT ? 13 : 15;
 
+            // Create entity indicator: use atom name if no arguments, or name/arity if compound term
+            const entityName = entityMatch.match[1];
+            let entityIndicator: string;
+
+            // Check if it's a compound term by looking for parentheses
+            if (entityName.includes('(') && entityName.includes(')')) {
+              // Compound term - extract name and count arguments
+              const openParenPos = entityName.indexOf('(');
+              const name = entityName.substring(0, openParenPos);
+              const args = ArgumentUtils.extractArgumentsFromCall(entityName);
+              entityIndicator = `${name}/${args.length}`;
+            } else {
+              // Simple atom
+              entityIndicator = entityName;
+            }
+
             entity = new DocumentSymbol(
-              entityMatch.match[1],
+              entityIndicator,
               entityMatch.type,
               symbolKind,
               new Range(new Position(i, 0), new Position(j, endLength)),

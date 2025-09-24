@@ -6,12 +6,12 @@ import {
   Location,
   SymbolInformation,
   SymbolKind,
-  TextDocument,
   workspace
 } from "vscode";
 import { getLogger } from "../utils/logger";
 import { SymbolTypes, SymbolUtils, PatternSets } from "../utils/symbols";
 import { PredicateUtils } from "../utils/predicateUtils";
+import { ArgumentUtils } from "../utils/argumentUtils";
 
 export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
   private logger = getLogger();
@@ -56,16 +56,33 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
             // Check for entity opening directives
             const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpening);
             if (entityMatch) {
-              currentEntity = entityMatch.match[1];
+              const symbolKind = entityMatch.type === SymbolTypes.OBJECT ? SymbolKind.Class :
+                                entityMatch.type === SymbolTypes.PROTOCOL ? SymbolKind.Interface :
+                                SymbolKind.Struct;
+
+              // Create entity indicator: use atom name if no arguments, or name/arity if compound term
+              const entityName = entityMatch.match[1];
+              let entityIndicator: string;
+
+              // Check if it's a compound term by looking for parentheses
+              if (entityName.includes('(') && entityName.includes(')')) {
+                // Compound term - extract name and count arguments
+                const openParenPos = entityName.indexOf('(');
+                const name = entityName.substring(0, openParenPos);
+                const args = ArgumentUtils.extractArgumentsFromCall(entityName);
+                entityIndicator = `${name}/${args.length}`;
+              } else {
+                // Simple atom
+                entityIndicator = entityName;
+              }
+
+              currentEntity = entityIndicator;
               currentEntityType = entityMatch.type;
               entityPredicates.set(currentEntity, new Set<string>());
               entityNonTerminals.set(currentEntity, new Set<string>());
 
-              const symbolKind = entityMatch.type === SymbolTypes.OBJECT ? SymbolKind.Class :
-                                entityMatch.type === SymbolTypes.PROTOCOL ? SymbolKind.Interface :
-                                SymbolKind.Struct;
               symbols.push(new SymbolInformation(
-                entityMatch.match[1],
+                entityIndicator,
                 symbolKind,
                 entityMatch.type,
                 new Location(doc.uri, line.range)
