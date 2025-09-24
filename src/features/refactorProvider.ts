@@ -925,43 +925,46 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return null;
     }
 
-    // Extract entity name from the match
-    const fullMatch = entityMatch.match[1]; // This includes the name and any parameters
-    if (!fullMatch) {
-      return null;
+    // Get the complete multi-line directive content
+    const directiveRange = PredicateUtils.getDirectiveRange(document, position.line);
+    let fullDirectiveText = '';
+
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      if (lineNum < document.lineCount) {
+        const line = document.lineAt(lineNum).text;
+        fullDirectiveText += line + (lineNum < directiveRange.end ? ' ' : '');
+      }
     }
 
-    // The regex might capture extra characters, so we need to properly parse the entity identifier
-    // Find the entity name and its parameters by parsing the directive content manually
-    const directiveStart = lineText.indexOf(':-');
+    // Find the matching closing parenthesis for the directive to get the exact content
     const keyword = entityMatch.type.toLowerCase();
-    const keywordStart = lineText.indexOf(keyword, directiveStart);
-    const openParenPos = lineText.indexOf('(', keywordStart);
+    const keywordStart = fullDirectiveText.indexOf(keyword);
+    const openParenPos = fullDirectiveText.indexOf('(', keywordStart);
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(fullDirectiveText, openParenPos);
 
-    if (openParenPos < 0) {
+    if (openParenPos < 0 || closeParenPos < 0) {
       return null;
     }
 
-    // Find the matching close parenthesis for the directive
-    const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
-    if (closeParenPos < 0) {
-      return null;
-    }
+    // Extract the exact directive content between the parentheses
+    const directiveContent = fullDirectiveText.substring(openParenPos + 1, closeParenPos);
 
     // Parse the directive arguments to get the entity identifier (first argument)
-    const directiveContent = lineText.substring(openParenPos + 1, closeParenPos);
+    // For directives like: object(entity(params), extends(parent))
+    // This will correctly extract: entity(params) as the first argument
     const args = ArgumentUtils.parseArguments(directiveContent);
 
     if (args.length === 0) {
       return null;
     }
 
-    const entityIdentifier = args[0]; // First argument is the entity opening directive
+    const entityIdentifier = args[0]; // First argument is the entity identifier
 
     // Extract just the entity name without parameters
     const nameWithoutParams = entityIdentifier.split('(')[0].trim();
 
-    // Check if the cursor is actually positioned on the entity name
+    // Check if the cursor is actually positioned on the entity name in the original line
+    // (since the user clicked on a specific line, not the concatenated multi-line text)
     const entityNameStart = lineText.indexOf(nameWithoutParams);
     if (entityNameStart < 0) {
       return null;
@@ -970,7 +973,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const entityNameEnd = entityNameStart + nameWithoutParams.length;
     const cursorChar = position.character;
 
-    // Cursor must be within the entity name bounds
+    // Cursor must be within the entity name bounds on the original line
     if (cursorChar < entityNameStart || cursorChar > entityNameEnd) {
       return null;
     }
@@ -979,7 +982,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       type: entityMatch.type,
       name: entityIdentifier,
       nameWithoutParams: nameWithoutParams,
-      line: position.line
+      line: directiveRange.start  // Use the directive start line, not the cursor line
     };
   }
 
@@ -1838,31 +1841,110 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         return null;
       }
 
-      const { base, params } = this.parseEntityNameAndParams(info.name);
+      const { params } = this.parseEntityNameAndParams(info.name);
       if (params.length !== 2) {
         return null; // Only handle 2 parameter case for preview
       }
 
       const workspaceEdit = new WorkspaceEdit();
 
-      // Reorder the parameters
-      const reorderedParams = this.reorderArray(params, newOrder);
-      const newIdentifier = this.buildEntityIdentifier(base, reorderedParams);
-
-      // Replace opening directive
-      const dirRange = PredicateUtils.getDirectiveRange(document, info.line);
-      const fullDirRange = new Range(
-        new Position(dirRange.start, 0),
-        new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
-      );
-
-      const newDirective = `:- ${info.type}(${newIdentifier}).`;
-      workspaceEdit.replace(document.uri, fullDirRange, newDirective);
+      // Use the shared method for preview
+      await this.createReorderParametersEdits(workspaceEdit, document, info, newOrder);
 
       return workspaceEdit;
     } catch (error) {
       this.logger.error(`Error creating reorder parameters workspace edit: ${error}`);
       return null;
+    }
+  }
+
+  /**
+   * Create edits for reordering parameters in entity
+   */
+  private async createReorderParametersEdits(
+    workspaceEdit: WorkspaceEdit,
+    document: TextDocument,
+    entityInfo: any,
+    newOrder: number[]
+  ): Promise<void> {
+    const { base, params } = this.parseEntityNameAndParams(entityInfo.name);
+    const reorderedParams = this.reorderArray(params, newOrder);
+    const newIdentifier = this.buildEntityIdentifier(base, reorderedParams);
+
+    // Update entity opening directive
+    const dirRange = PredicateUtils.getDirectiveRange(document, entityInfo.line);
+    const fullDirRange = new Range(
+      new Position(dirRange.start, 0),
+      new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
+    );
+    const dirText = document.getText(fullDirRange);
+    const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, entityInfo.type, newIdentifier);
+    workspaceEdit.replace(document.uri, fullDirRange, updatedDirText);
+
+    // Update info/1 directive - reorder parnames and parameters entries
+    const endLine = SymbolUtils.findEndEntityDirectivePosition(
+      document,
+      entityInfo.line,
+      entityInfo.type === 'object' ? SymbolRegexes.endObject : (entityInfo.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
+    );
+
+    for (let i = entityInfo.line + 1; i <= endLine && i < document.lineCount; i++) {
+      const lt = document.lineAt(i).text;
+
+      // Multi-line parnames
+      const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
+      if (mlParnames) {
+        const tempEdits: TextEdit[] = [];
+        const endLineNum = this.reorderMultiLineParnames(document, i, newOrder, tempEdits);
+        for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
+        i = endLineNum;
+        continue;
+      }
+
+      // Multi-line parameters (reuse arguments)
+      const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
+      if (mlParameters) {
+        const tempEdits: TextEdit[] = [];
+        const endLineNum = this.reorderMultiLineArguments(document, i, newOrder, tempEdits);
+        for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
+        i = endLineNum;
+        continue;
+      }
+
+      let updated = this.updateParInfoLineForReorder(lt, 'parnames', newOrder);
+      updated = this.updateParInfoLineForReorder(updated, 'parameters', newOrder);
+      if (updated !== lt) {
+        workspaceEdit.replace(document.uri, document.lineAt(i).range, updated);
+      }
+    }
+
+    // Update references across workspace
+    try {
+      const token = { isCancellationRequested: false } as CancellationToken;
+      const openingLineText = document.lineAt(entityInfo.line).text;
+      const nameIdx = openingLineText.indexOf(entityInfo.nameWithoutParams);
+      if (nameIdx >= 0) {
+        const entityPos = new Position(entityInfo.line, nameIdx);
+        const references = await this.referenceProvider.provideReferences(document, entityPos, { includeDeclaration: false }, token) || [];
+
+        // Group by file
+        const byFile = new Map<string, Location[]>();
+        for (const loc of references) {
+          const key = loc.uri.toString();
+          if (!byFile.has(key)) byFile.set(key, []);
+          byFile.get(key)!.push(loc);
+        }
+
+        for (const [uriStr, locs] of byFile) {
+          const uri = Uri.parse(uriStr);
+          const refDoc = await workspace.openTextDocument(uri);
+          for (const loc of locs) {
+            await this.updateEntityCallReferenceForReorder(workspaceEdit, refDoc, loc, entityInfo.nameWithoutParams, newOrder);
+          }
+        }
+      }
+    } catch (refErr) {
+      this.logger.warn(`Reference updates for reorderParameters skipped/partial due to: ${refErr}`);
     }
   }
 
@@ -1879,27 +1961,15 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         return null;
       }
 
-      const { base, params } = this.parseEntityNameAndParams(info.name);
+      const { params } = this.parseEntityNameAndParams(info.name);
       if (params.length !== 1) {
         return null; // Only handle single parameter case for preview
       }
 
       const workspaceEdit = new WorkspaceEdit();
-      const newIdentifier = base; // Remove all parameters
 
-      // Replace opening directive
-      const dirRange = PredicateUtils.getDirectiveRange(document, info.line);
-      const fullDirRange = new Range(
-        new Position(dirRange.start, 0),
-        new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
-      );
-
-      const dirText = document.getText(fullDirRange);
-      const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, info.type, newIdentifier);
-      workspaceEdit.replace(document.uri, fullDirRange, updatedDirText);
-
-      // Update info/1 directive - remove parnames and parameters entries since they become empty
-      this.updateInfoDirectiveForParameterRemoval(document, workspaceEdit, info, 1);
+      // Use the shared method for preview
+      await this.createRemoveParameterEdits(workspaceEdit, document, info, 1);
 
       return workspaceEdit;
     } catch (error) {
@@ -1908,22 +1978,38 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
   }
 
+
+
   /**
-   * Update info/1 directive for parameter removal
+   * Create edits for removing parameter from entity
    */
-  private updateInfoDirectiveForParameterRemoval(
-    document: TextDocument,
+  private async createRemoveParameterEdits(
     workspaceEdit: WorkspaceEdit,
+    document: TextDocument,
     entityInfo: any,
-    removePosition: number
-  ): void {
+    parameterPosition: number
+  ): Promise<void> {
+    const { base, params } = this.parseEntityNameAndParams(entityInfo.name);
+    const idx = Math.min(Math.max(parameterPosition, 1), params.length) - 1;
+    const newParams = params.slice(0, idx).concat(params.slice(idx + 1));
+    const newIdentifier = this.buildEntityIdentifier(base, newParams);
+
+    // Update entity opening directive
+    const dirRange = PredicateUtils.getDirectiveRange(document, entityInfo.line);
+    const fullDirRange = new Range(
+      new Position(dirRange.start, 0),
+      new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
+    );
+    const dirText = document.getText(fullDirRange);
+    const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, entityInfo.type, newIdentifier);
+    workspaceEdit.replace(document.uri, fullDirRange, updatedDirText);
+
+    // Update info/1 directive - remove parnames and parameters entries
     const endLine = SymbolUtils.findEndEntityDirectivePosition(
       document,
       entityInfo.line,
       entityInfo.type === 'object' ? SymbolRegexes.endObject : (entityInfo.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
     );
-
-    const { params } = this.parseEntityNameAndParams(entityInfo.name);
 
     for (let i = entityInfo.line + 1; i <= endLine && i < document.lineCount; i++) {
       const lt = document.lineAt(i).text;
@@ -1932,7 +2018,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
       if (mlParnames) {
         const tempEdits: TextEdit[] = [];
-        const endLineNum = this.removeFromMultiLineParnames(document, i, removePosition, params.length, tempEdits);
+        const endLineNum = this.removeFromMultiLineParnames(document, i, parameterPosition, params.length, tempEdits);
         for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
         i = endLineNum;
         continue;
@@ -1942,14 +2028,14 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
       if (mlParameters) {
         const tempEdits: TextEdit[] = [];
-        const endLineNum = this.removeFromMultiLineArguments(document, i, removePosition, params.length, tempEdits);
+        const endLineNum = this.removeFromMultiLineArguments(document, i, parameterPosition, params.length, tempEdits);
         for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
         i = endLineNum;
         continue;
       }
 
       // Check if parnames line should be deleted (becomes empty)
-      let updated = this.updateParInfoLineForRemove(lt, 'parnames', removePosition);
+      let updated = this.updateParInfoLineForRemove(lt, 'parnames', parameterPosition);
       if (updated === null) {
         // Delete the entire line (parnames became empty) and handle trailing comma
         this.deleteInfoLineAndHandleComma(document, workspaceEdit, i);
@@ -1957,7 +2043,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
 
       // Check if parameters line should be deleted (becomes empty)
-      updated = this.updateParInfoLineForRemove(updated, 'parameters', removePosition);
+      updated = this.updateParInfoLineForRemove(updated, 'parameters', parameterPosition);
       if (updated === null) {
         // Delete the entire line (parameters became empty) and handle trailing comma
         this.deleteInfoLineAndHandleComma(document, workspaceEdit, i);
@@ -1968,6 +2054,35 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (updated !== lt) {
         workspaceEdit.replace(document.uri, document.lineAt(i).range, updated);
       }
+    }
+
+    // Update references across workspace
+    try {
+      const token = { isCancellationRequested: false } as CancellationToken;
+      const openingLineText = document.lineAt(entityInfo.line).text;
+      const nameIdx = openingLineText.indexOf(entityInfo.nameWithoutParams);
+      if (nameIdx >= 0) {
+        const entityPos = new Position(entityInfo.line, nameIdx);
+        const references = await this.referenceProvider.provideReferences(document, entityPos, { includeDeclaration: false }, token) || [];
+
+        // Group by file
+        const byFile = new Map<string, Location[]>();
+        for (const loc of references) {
+          const key = loc.uri.toString();
+          if (!byFile.has(key)) byFile.set(key, []);
+          byFile.get(key)!.push(loc);
+        }
+
+        for (const [uriStr, locs] of byFile) {
+          const uri = Uri.parse(uriStr);
+          const refDoc = await workspace.openTextDocument(uri);
+          for (const loc of locs) {
+            await this.updateEntityCallReferenceForRemove(workspaceEdit, refDoc, loc, entityInfo.nameWithoutParams, parameterPosition);
+          }
+        }
+      }
+    } catch (refErr) {
+      this.logger.warn(`Reference updates for removeParameter skipped/partial due to: ${refErr}`);
     }
   }
 
@@ -8132,7 +8247,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     try {
       const info = await this.detectEntityOpeningDirective(document, range);
       if (!info || (info.type !== 'object' && info.type !== 'category')) return;
-      const { base, params } = this.parseEntityNameAndParams(info.name);
+      const { params } = this.parseEntityNameAndParams(info.name);
       if (params.length < 2) return;
       let newOrder: number[];
       if (params.length === 2) {
@@ -8142,82 +8257,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         if (!order) return;
         newOrder = order.map(x => parseInt(`${x}`,10));
       }
-      const reorderedParams = this.reorderArray(params, newOrder);
-      const newIdentifier = this.buildEntityIdentifier(base, reorderedParams);
 
       const edit = new WorkspaceEdit();
-      const dirRange = PredicateUtils.getDirectiveRange(document, info.line);
-      const fullDirRange = new Range(
-        new Position(dirRange.start, 0),
-        new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
-      );
-      const dirText = document.getText(fullDirRange);
-      const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, info.type, newIdentifier);
-      edit.replace(document.uri, fullDirRange, updatedDirText);
 
-      const endLine = SymbolUtils.findEndEntityDirectivePosition(
-        document,
-        info.line,
-        info.type === 'object' ? SymbolRegexes.endObject : (info.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
-      );
-      for (let i = info.line + 1; i <= endLine && i < document.lineCount; i++) {
-        const lt = document.lineAt(i).text;
-
-        // Multi-line parnames
-        const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
-        if (mlParnames) {
-          const tempEdits: TextEdit[] = [];
-          const endLineNum = this.reorderMultiLineParnames(document, i, newOrder, tempEdits);
-          for (const te of tempEdits) edit.replace(document.uri, te.range, te.newText);
-          i = endLineNum;
-          continue;
-        }
-
-        // Multi-line parameters (reuse arguments)
-        const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
-        if (mlParameters) {
-          const tempEdits: TextEdit[] = [];
-          const endLineNum = this.reorderMultiLineArguments(document, i, newOrder, tempEdits);
-          for (const te of tempEdits) edit.replace(document.uri, te.range, te.newText);
-          i = endLineNum;
-          continue;
-        }
-
-        let updated = this.updateParInfoLineForReorder(lt, 'parnames', newOrder);
-        updated = this.updateParInfoLineForReorder(updated, 'parameters', newOrder);
-        if (updated !== lt) {
-          edit.replace(document.uri, document.lineAt(i).range, updated);
-        }
-      }
-
-      // Update references across workspace: reorder parameters at each call site
-      try {
-        const token = { isCancellationRequested: false } as CancellationToken;
-        const openingLineText = document.lineAt(info.line).text;
-        const nameIdx = openingLineText.indexOf(info.nameWithoutParams);
-        if (nameIdx >= 0) {
-          const entityPos = new Position(info.line, nameIdx);
-          const references = await this.referenceProvider.provideReferences(document, entityPos, { includeDeclaration: false }, token) || [];
-
-          // Group by file
-          const byFile = new Map<string, Location[]>();
-          for (const loc of references) {
-            const key = loc.uri.toString();
-            if (!byFile.has(key)) byFile.set(key, []);
-            byFile.get(key)!.push(loc);
-          }
-
-          for (const [uriStr, locs] of byFile) {
-            const uri = Uri.parse(uriStr);
-            const refDoc = await workspace.openTextDocument(uri);
-            for (const loc of locs) {
-              await this.updateEntityCallReferenceForReorder(edit, refDoc, loc, info.nameWithoutParams, newOrder);
-            }
-          }
-        }
-      } catch (refErr) {
-        this.logger.warn(`Reference updates for reorderParameters skipped/partial due to: ${refErr}`);
-      }
+      // Use the shared method for full operation
+      await this.createReorderParametersEdits(edit, document, info, newOrder);
 
       await workspace.applyEdit(edit);
     } catch (e) {
@@ -8230,7 +8274,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     try {
       const info = await this.detectEntityOpeningDirective(document, range);
       if (!info || (info.type !== 'object' && info.type !== 'category')) return;
-      const { base, params } = this.parseEntityNameAndParams(info.name);
+      const { params } = this.parseEntityNameAndParams(info.name);
       if (params.length < 1) return;
       let pos = 1;
       if (params.length > 1) {
@@ -8238,51 +8282,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         if (p === undefined) return;
         pos = p;
       }
-      const idx = Math.min(Math.max(pos,1), params.length)-1;
-      const newParams = params.slice(0, idx).concat(params.slice(idx+1));
-      const newIdentifier = this.buildEntityIdentifier(base, newParams);
 
       const edit = new WorkspaceEdit();
-      const dirRange = PredicateUtils.getDirectiveRange(document, info.line);
-      const fullDirRange = new Range(
-        new Position(dirRange.start, 0),
-        new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
-      );
-      const dirText = document.getText(fullDirRange);
-      const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, info.type, newIdentifier);
-      edit.replace(document.uri, fullDirRange, updatedDirText);
 
-      // Update info/1 directive - remove parnames and parameters entries
-      this.updateInfoDirectiveForParameterRemoval(document, edit, info, pos);
-
-      // Update references across workspace: remove parameter at each call site
-      try {
-        const token = { isCancellationRequested: false } as CancellationToken;
-        const openingLineText = document.lineAt(info.line).text;
-        const nameIdx = openingLineText.indexOf(info.nameWithoutParams);
-        if (nameIdx >= 0) {
-          const entityPos = new Position(info.line, nameIdx);
-          const references = await this.referenceProvider.provideReferences(document, entityPos, { includeDeclaration: false }, token) || [];
-
-          // Group by file
-          const byFile = new Map<string, Location[]>();
-          for (const loc of references) {
-            const key = loc.uri.toString();
-            if (!byFile.has(key)) byFile.set(key, []);
-            byFile.get(key)!.push(loc);
-          }
-
-          for (const [uriStr, locs] of byFile) {
-            const uri = Uri.parse(uriStr);
-            const refDoc = await workspace.openTextDocument(uri);
-            for (const loc of locs) {
-              await this.updateEntityCallReferenceForRemove(edit, refDoc, loc, info.nameWithoutParams, pos);
-            }
-          }
-        }
-      } catch (refErr) {
-        this.logger.warn(`Reference updates for removeParameter skipped/partial due to: ${refErr}`);
-      }
+      // Use the shared method for full operation
+      await this.createRemoveParameterEdits(edit, document, info, pos);
 
       await workspace.applyEdit(edit);
     } catch (e) {
