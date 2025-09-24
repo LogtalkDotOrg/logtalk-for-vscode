@@ -68,12 +68,20 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
               if (entityName.includes('(') && entityName.includes(')')) {
                 // Compound term - extract name and count arguments
                 const openParenPos = entityName.indexOf('(');
-                const name = entityName.substring(0, openParenPos);
+                let name = entityName.substring(0, openParenPos);
+                // Escape single quotes if the name starts with one
+                if (name.startsWith("'")) {
+                  name = name.replace(/'/g, "\u0027"); // Replace with Unicode escape
+                }
                 const args = ArgumentUtils.extractArgumentsFromCall(entityName);
                 entityIndicator = `${name}/${args.length}`;
               } else {
-                // Simple atom
-                entityIndicator = entityName;
+                // Simple atom - escape single quotes if it starts with one
+                if (entityName.startsWith("'")) {
+                  entityIndicator = entityName.replace(/'/g, "\u0027"); // Replace with Unicode escape
+                } else {
+                  entityIndicator = entityName;
+                }
               }
 
               currentEntity = entityIndicator;
@@ -104,12 +112,18 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
 
             // Check for scope directives
             // First try single-predicate scope directives
+            let escapedIndicator: string;
             const scopeMatch = SymbolUtils.matchFirst(lineText, PatternSets.allScopes);
             if (scopeMatch) {
+              escapedIndicator = scopeMatch.match[1];
+              // Escape single quotes if the name starts with one
+              if (escapedIndicator.startsWith("'")) {
+                escapedIndicator = escapedIndicator.replace(/'/g, "\u0027"); // Replace with Unicode escape
+              }
               const symbolKind = scopeMatch.type.includes('non-terminal') ? SymbolKind.Field : SymbolKind.Function;
               const containerName = currentEntity ? `${scopeMatch.type} • ${currentEntity} (${currentEntityType})` : scopeMatch.type;
               symbols.push(new SymbolInformation(
-                scopeMatch.match[1],
+                escapedIndicator,
                 symbolKind,
                 containerName,
                 new Location(doc.uri, line.range)
@@ -132,6 +146,11 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
 
               // Create symbols for each indicator
               for (const { indicator, isNonTerminal } of indicators) {
+                escapedIndicator = indicator;
+                // Escape single quotes if the indicator starts with one
+                if (indicator.startsWith("'")) {
+                  escapedIndicator = indicator.replace(/'/g, "\u0027"); // Replace with Unicode escape
+                }
                 const baseType = scopeOpening.type;
                 const symbolType = isNonTerminal
                   ? baseType.replace('predicate', 'non-terminal')
@@ -140,7 +159,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
                 const containerName = currentEntity ? `${symbolType} • ${currentEntity} (${currentEntityType})` : symbolType;
 
                 symbols.push(new SymbolInformation(
-                  indicator,
+                  escapedIndicator,
                   symbolKind,
                   containerName,
                   new Location(doc.uri, line.range)
@@ -161,12 +180,17 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
               if (nonTerminalHead) {
                 const nonTerminalIndicator = SymbolUtils.extractNonTerminalIndicator(nonTerminalHead);
                 if (nonTerminalIndicator) {
+                  let escapedIndicator = nonTerminalIndicator;
+                  // Escape single quotes if the indicator starts with one
+                  if (nonTerminalIndicator.startsWith("'")) {
+                    escapedIndicator = nonTerminalIndicator.replace(/'/g, "\u0027"); // Replace with Unicode escape
+                  }
                   const entityNonTerminalSet = entityNonTerminals.get(currentEntity);
                   if (entityNonTerminalSet && !entityNonTerminalSet.has(nonTerminalIndicator)) {
                     entityNonTerminalSet.add(nonTerminalIndicator);
                     const containerName = `${SymbolTypes.NON_TERMINAL_RULE} • ${currentEntity} (${currentEntityType})`;
                     symbols.push(new SymbolInformation(
-                      nonTerminalIndicator,
+                      escapedIndicator,
                       SymbolKind.Property,
                       containerName,
                       new Location(doc.uri, line.range)
@@ -185,12 +209,17 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
                 if (predicateHead) {
                   const predicateIndicator = SymbolUtils.extractPredicateIndicator(predicateHead);
                   if (predicateIndicator) {
+                    let escapedIndicator = predicateIndicator;
+                    // Escape single quotes if the indicator starts with one
+                    if (predicateIndicator.startsWith("'")) {
+                      escapedIndicator = predicateIndicator.replace(/'/g, "\u0027"); // Replace with HTML entity
+                    }
                     const entityPredicateSet = entityPredicates.get(currentEntity);
                     if (entityPredicateSet && !entityPredicateSet.has(predicateIndicator)) {
                       entityPredicateSet.add(predicateIndicator);
                       const containerName = `${SymbolTypes.PREDICATE_CLAUSE} • ${currentEntity} (${currentEntityType})`;
                       symbols.push(new SymbolInformation(
-                        predicateIndicator,
+                        escapedIndicator,
                         SymbolKind.Property,
                         containerName,
                         new Location(doc.uri, line.range)
