@@ -62,12 +62,20 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
             if (entityName.includes('(') && entityName.includes(')')) {
               // Compound term - extract name and count arguments
               const openParenPos = entityName.indexOf('(');
-              const name = entityName.substring(0, openParenPos);
+              let name = entityName.substring(0, openParenPos);
+              // Escape single quotes if the name starts with one
+              if (name.startsWith("'")) {
+                name = name.replace(/'/g, "\u0027"); // Replace with Unicode escape
+              }
               const args = ArgumentUtils.extractArgumentsFromCall(entityName);
               entityIndicator = `${name}/${args.length}`;
             } else {
-              // Simple atom
-              entityIndicator = entityName;
+              // Simple atom - escape single quotes if it starts with one
+              if (entityName.startsWith("'")) {
+                entityIndicator = entityName.replace(/'/g, "\u0027"); // Replace with Unicode escape
+              } else {
+                entityIndicator = entityName;
+              }
             }
 
             entity = new DocumentSymbol(
@@ -99,9 +107,14 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
             // First try single-predicate scope directives
             const scopeMatch = SymbolUtils.matchFirst(lineText, PatternSets.allScopes);
             if (scopeMatch) {
+              let indicatorName = scopeMatch.match[1];
+              // Escape single quotes if the name starts with one
+              if (indicatorName.startsWith("'")) {
+                indicatorName = indicatorName.replace(/'/g, "\u0027"); // Replace with Unicode escape
+              }
               const symbolKind = scopeMatch.type.includes('non-terminal') ? SymbolKind.Field : SymbolKind.Function;
               entity.children.push(new DocumentSymbol(
-                scopeMatch.match[1],
+                indicatorName,
                 scopeMatch.type,
                 symbolKind,
                 new Range(line.range.start, line.range.end),
@@ -125,6 +138,11 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
 
               // Create symbols for each indicator
               for (const { indicator, isNonTerminal } of indicators) {
+                let escapedIndicator = indicator;
+                // Escape single quotes if the indicator starts with one
+                if (indicator.startsWith("'")) {
+                  escapedIndicator = indicator.replace(/'/g, "\u0027"); // Replace with Unicode escape
+                }
                 const baseType = scopeOpening.type;
                 const symbolType = isNonTerminal
                   ? baseType.replace('predicate', 'non-terminal')
@@ -132,7 +150,7 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
                 const symbolKind = isNonTerminal ? SymbolKind.Field : SymbolKind.Function;
 
                 entity.children.push(new DocumentSymbol(
-                  indicator,
+                  escapedIndicator,
                   symbolType,
                   symbolKind,
                   new Range(new Position(i, 0), new Position(endLine, doc.lineAt(endLine).text.length)),
@@ -155,9 +173,14 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
             if (nonTerminalHead) {
               const nonTerminalIndicator = SymbolUtils.extractNonTerminalIndicator(nonTerminalHead);
               if (nonTerminalIndicator && !seenNonTerminals.has(nonTerminalIndicator)) {
+                let escapedIndicator = nonTerminalIndicator;
+                // Escape single quotes if the indicator starts with one
+                if (nonTerminalIndicator.startsWith("'")) {
+                  escapedIndicator = nonTerminalIndicator.replace(/'/g, "\u0027"); // Replace with Unicode escape
+                }
                 seenNonTerminals.add(nonTerminalIndicator);
                 entity.children.push(new DocumentSymbol(
-                  nonTerminalIndicator,
+                  escapedIndicator,
                   SymbolTypes.NON_TERMINAL_RULE,
                   SymbolKind.Property,
                   new Range(line.range.start, line.range.end),
@@ -176,9 +199,14 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
               if (predicateHead) {
                 const predicateIndicator = SymbolUtils.extractPredicateIndicator(predicateHead);
                 if (predicateIndicator && !seenPredicates.has(predicateIndicator)) {
+                  let escapedIndicator = predicateIndicator;
+                  // Escape single quotes if the indicator starts with one
+                  if (predicateIndicator.startsWith("'")) {
+                    escapedIndicator = predicateIndicator.replace(/'/g, "\u0027"); // Replace with Unicode escape
+                  }
                   seenPredicates.add(predicateIndicator);
                   entity.children.push(new DocumentSymbol(
-                    predicateIndicator,
+                    escapedIndicator,
                     SymbolTypes.PREDICATE_CLAUSE,
                     SymbolKind.Property,
                     new Range(line.range.start, line.range.end),

@@ -702,14 +702,24 @@ export class PredicateUtils {
           } else if (char === ')') {
             parenCount--;
           } else if (char === "'" || char === '"') {
-            // Skip quoted strings
-            const quote = char;
-            currentCol++;
-            while (currentCol < currentLineText.length && currentLineText[currentCol] !== quote) {
-              if (currentLineText[currentCol] === '\\') {
-                currentCol++; // Skip escaped character
+            // Check if this is a character code notation (zero followed by single quote)
+            if (char === "'" && currentCol > 0 && currentLineText[currentCol - 1] === '0') {
+              // This is character code notation like 0'0, 0'\n, etc.
+              // Just skip the quote and the next character
+              currentCol++; // Skip the quote
+              if (currentCol < currentLineText.length) {
+                currentCol++; // Skip the character after the quote
               }
+            } else {
+              // Skip quoted strings
+              const quote = char;
               currentCol++;
+              while (currentCol < currentLineText.length && currentLineText[currentCol] !== quote) {
+                if (currentLineText[currentCol] === '\\') {
+                  currentCol++; // Skip escaped character
+                }
+                currentCol++;
+              }
             }
           }
 

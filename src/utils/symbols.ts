@@ -120,8 +120,16 @@ export class SymbolUtils {
 
       // Handle quotes
       if (!inQuotes && (char === '"' || char === "'")) {
-        inQuotes = true;
-        quoteChar = char;
+        // Check if this is a character code notation (zero followed by single quote)
+        if (char === "'" && i > 0 && text[i - 1] === '0') {
+          // This is character code notation like 0'0, 0'\n, etc.
+          // Don't treat as quoted string, just continue
+          continue;
+        } else {
+          // This is a regular quoted string
+          inQuotes = true;
+          quoteChar = char;
+        }
       } else if (inQuotes && char === quoteChar) {
         // Check if it's escaped
         if (i === 0 || text[i - 1] !== '\\') {
@@ -167,8 +175,16 @@ export class SymbolUtils {
 
       // Handle quotes
       if (!inQuotes && (char === '"' || char === "'")) {
-        inQuotes = true;
-        quoteChar = char;
+        // Check if this is a character code notation (zero followed by single quote)
+        if (char === "'" && i > 0 && argsString[i - 1] === '0') {
+          // This is character code notation like 0'0, 0'\n, etc.
+          // Don't treat as quoted string, just continue
+          continue;
+        } else {
+          // This is a regular quoted string
+          inQuotes = true;
+          quoteChar = char;
+        }
       } else if (inQuotes && char === quoteChar) {
         // Check if it's escaped
         if (i === 0 || argsString[i - 1] !== '\\') {
@@ -542,9 +558,17 @@ export class SymbolUtils {
       }
 
       if (!inQuotes && (char === '"' || char === "'")) {
-        inQuotes = true;
-        quoteChar = char;
-        current += char;
+        // Check if this is a character code notation (zero followed by single quote)
+        if (char === "'" && i > 0 && text[i - 1] === '0') {
+          // This is character code notation like 0'0, 0'\n, etc.
+          // Don't treat as quoted string, just add to current
+          current += char;
+        } else {
+          // This is a regular quoted string
+          inQuotes = true;
+          quoteChar = char;
+          current += char;
+        }
       } else if (inQuotes && char === quoteChar) {
         inQuotes = false;
         quoteChar = '';

@@ -37,7 +37,8 @@
 * Fix call hierarchy "Show Incoming Calls" and "Show Outgoing Calls" context menu items
 * Fix "Go to Symbol in Editor..." and "Go to Symbol in Workspace..." support to parse multi-line predicate scope directives
 * Fix "Go to Symbol in Editor..." and "Go to Symbol in Workspace..." support when entity, predicate, and non-terminal names contain single quotes
-* Fix "go to Symbol in Editor..." parsing of predicates and non-terminals with the same name but different arity
+* Fix "Go to Symbol in Editor..." parsing of predicates and non-terminals with the same name but different arity
+* Fix "Go to Symbol in Editor..." support when constructing predicate and non-terminal indicators from definitions with arguments using character code notation
 * Fix code navigation commands to reject calls from inside line comments and support cancellation
 
 ## [0.52.0]

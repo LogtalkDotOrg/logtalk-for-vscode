@@ -45,9 +45,19 @@ export class ArgumentUtils {
       }
 
       if (char === "'" && !inQuotes) {
-        inSingleQuotes = !inSingleQuotes;
-        currentArg += char;
-        continue;
+        // Check if this is a character code notation (zero followed by single quote)
+        // Look back to see if the previous character is a zero
+        if (i > 0 && argsText[i - 1] === '0') {
+          // This is character code notation like 0'0, 0'\n, etc.
+          // Don't treat as quoted string, just add to current argument
+          currentArg += char;
+          continue;
+        } else {
+          // This is a regular quoted string
+          inSingleQuotes = !inSingleQuotes;
+          currentArg += char;
+          continue;
+        }
       }
 
       if (inQuotes || inSingleQuotes) {
@@ -119,8 +129,18 @@ export class ArgumentUtils {
       }
 
       if (char === "'" && !inQuotes) {
-        inSingleQuotes = !inSingleQuotes;
-        continue;
+        // Check if this is a character code notation (zero followed by single quote)
+        // Look back to see if the previous character is a zero
+        if (i > 0 && text[i - 1] === '0') {
+          // This is character code notation like 0'0, 0'\n, etc.
+          // Skip the quote and the next character (which is the character being coded)
+          i++; // Skip the character after the quote
+          continue;
+        } else {
+          // This is a regular quoted string
+          inSingleQuotes = !inSingleQuotes;
+          continue;
+        }
       }
 
       if (inQuotes || inSingleQuotes) {
