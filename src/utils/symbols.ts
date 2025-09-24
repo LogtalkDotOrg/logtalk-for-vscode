@@ -524,6 +524,23 @@ export class SymbolUtils {
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
 
+      // Handle line comments - ignore everything after % (unless inside quotes)
+      if (!inQuotes && char === '%') {
+        // Find the end of the current line and skip to next line or end
+        let j = i;
+        while (j < text.length && text[j] !== '\n' && text[j] !== '\r') {
+          j++;
+        }
+        // Skip past the newline character(s)
+        if (j < text.length && text[j] === '\r' && j + 1 < text.length && text[j + 1] === '\n') {
+          j += 2; // Skip \r\n
+        } else if (j < text.length && (text[j] === '\n' || text[j] === '\r')) {
+          j += 1; // Skip \n or \r
+        }
+        i = j - 1; // -1 because the loop will increment i
+        continue;
+      }
+
       if (!inQuotes && (char === '"' || char === "'")) {
         inQuotes = true;
         quoteChar = char;
