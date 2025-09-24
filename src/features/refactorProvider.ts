@@ -1894,13 +1894,80 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         new Position(dirRange.end, document.lineAt(dirRange.end).text.length)
       );
 
-      const newDirective = `:- ${info.type}(${newIdentifier}).`;
-      workspaceEdit.replace(document.uri, fullDirRange, newDirective);
+      const dirText = document.getText(fullDirRange);
+      const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, info.type, newIdentifier);
+      workspaceEdit.replace(document.uri, fullDirRange, updatedDirText);
+
+      // Update info/1 directive - remove parnames and parameters entries since they become empty
+      this.updateInfoDirectiveForParameterRemoval(document, workspaceEdit, info, 1);
 
       return workspaceEdit;
     } catch (error) {
       this.logger.error(`Error creating remove parameter workspace edit: ${error}`);
       return null;
+    }
+  }
+
+  /**
+   * Update info/1 directive for parameter removal
+   */
+  private updateInfoDirectiveForParameterRemoval(
+    document: TextDocument,
+    workspaceEdit: WorkspaceEdit,
+    entityInfo: any,
+    removePosition: number
+  ): void {
+    const endLine = SymbolUtils.findEndEntityDirectivePosition(
+      document,
+      entityInfo.line,
+      entityInfo.type === 'object' ? SymbolRegexes.endObject : (entityInfo.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
+    );
+
+    const { params } = this.parseEntityNameAndParams(entityInfo.name);
+
+    for (let i = entityInfo.line + 1; i <= endLine && i < document.lineCount; i++) {
+      const lt = document.lineAt(i).text;
+
+      // Multi-line parnames
+      const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
+      if (mlParnames) {
+        const tempEdits: TextEdit[] = [];
+        const endLineNum = this.removeFromMultiLineParnames(document, i, removePosition, params.length, tempEdits);
+        for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
+        i = endLineNum;
+        continue;
+      }
+
+      // Multi-line parameters (reuse arguments)
+      const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
+      if (mlParameters) {
+        const tempEdits: TextEdit[] = [];
+        const endLineNum = this.removeFromMultiLineArguments(document, i, removePosition, params.length, tempEdits);
+        for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
+        i = endLineNum;
+        continue;
+      }
+
+      // Check if parnames line should be deleted (becomes empty)
+      let updated = this.updateParInfoLineForRemove(lt, 'parnames', removePosition);
+      if (updated === null) {
+        // Delete the entire line (parnames became empty) and handle trailing comma
+        this.deleteInfoLineAndHandleComma(document, workspaceEdit, i);
+        continue;
+      }
+
+      // Check if parameters line should be deleted (becomes empty)
+      updated = this.updateParInfoLineForRemove(updated, 'parameters', removePosition);
+      if (updated === null) {
+        // Delete the entire line (parameters became empty) and handle trailing comma
+        this.deleteInfoLineAndHandleComma(document, workspaceEdit, i);
+        continue;
+      }
+
+      // If line was modified but not deleted, replace it
+      if (updated !== lt) {
+        workspaceEdit.replace(document.uri, document.lineAt(i).range, updated);
+      }
     }
   }
 
@@ -8185,55 +8252,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, info.type, newIdentifier);
       edit.replace(document.uri, fullDirRange, updatedDirText);
 
-      const endLine = SymbolUtils.findEndEntityDirectivePosition(
-        document,
-        info.line,
-        info.type === 'object' ? SymbolRegexes.endObject : (info.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
-      );
-      for (let i = info.line + 1; i <= endLine && i < document.lineCount; i++) {
-        const lt = document.lineAt(i).text;
-
-        // Multi-line parnames
-        const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
-        if (mlParnames) {
-          const tempEdits: TextEdit[] = [];
-          const endLineNum = this.removeFromMultiLineParnames(document, i, pos, params.length, tempEdits);
-          for (const te of tempEdits) edit.replace(document.uri, te.range, te.newText);
-          i = endLineNum;
-          continue;
-        }
-
-        // Multi-line parameters (reuse arguments)
-        const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
-        if (mlParameters) {
-          const tempEdits: TextEdit[] = [];
-          const endLineNum = this.removeFromMultiLineArguments(document, i, pos, params.length, tempEdits);
-          for (const te of tempEdits) edit.replace(document.uri, te.range, te.newText);
-          i = endLineNum;
-          continue;
-        }
-
-        // Check if parnames line should be deleted (becomes empty)
-        let updated = this.updateParInfoLineForRemove(lt, 'parnames', pos);
-        if (updated === null) {
-          // Delete the entire line (parnames became empty) and handle trailing comma
-          this.deleteInfoLineAndHandleComma(document, edit, i);
-          continue;
-        }
-
-        // Check if parameters line should be deleted (becomes empty)
-        updated = this.updateParInfoLineForRemove(updated, 'parameters', pos);
-        if (updated === null) {
-          // Delete the entire line (parameters became empty) and handle trailing comma
-          this.deleteInfoLineAndHandleComma(document, edit, i);
-          continue;
-        }
-
-        // If line was modified but not deleted, replace it
-        if (updated !== lt) {
-          edit.replace(document.uri, document.lineAt(i).range, updated);
-        }
-      }
+      // Update info/1 directive - remove parnames and parameters entries
+      this.updateInfoDirectiveForParameterRemoval(document, edit, info, pos);
 
       // Update references across workspace: remove parameter at each call site
       try {
