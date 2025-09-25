@@ -16,6 +16,7 @@ import {
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import { PredicateUtils } from "../utils/predicateUtils";
+import { ArgumentUtils } from "../utils/argumentUtils";
 import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
@@ -652,13 +653,13 @@ export class LogtalkRenameProvider implements RenameProvider {
    * @returns WorkspaceEdit with all rename operations
    */
   private async createEntityRenameEdits(
-    locations: { uri: Uri; range: Range }[],
+    locations: { uri: Uri; range: Range; origin: 'declaration' | 'definition' | 'implementation' | 'reference' }[],
     currentName: string,
     newName: string,
     entityIndicator: string
   ): Promise<WorkspaceEdit> {
     const workspaceEdit = new WorkspaceEdit();
-    const locationsByFile = new Map<string, { uri: Uri; range: Range }[]>();
+    const locationsByFile = new Map<string, { uri: Uri; range: Range; origin: 'declaration' | 'definition' | 'implementation' | 'reference' }[]>();
 
     // Group locations by file
     for (const location of locations) {
@@ -702,13 +703,39 @@ export class LogtalkRenameProvider implements RenameProvider {
               this.logger.debug(`No entity occurrence found in directive (lines ${directiveRange.start + 1}-${directiveRange.end + 1})`);
             }
           } else {
-            // This is a clause - use getClauseRange to get the full range
+            // This is a clause - check if it's a multifile predicate clause when origin is 'reference'
             this.logger.debug(`Detected clause at line ${location.range.start.line + 1}`);
-            const clauseRange = PredicateUtils.getClauseRange(doc, location.range.start.line);
 
-            // Search for all entity references within the clause range
-            ranges = this.findEntityRangesInRange(doc, clauseRange.start, clauseRange.end, currentName, entityIndicator);
-            this.logger.debug(`Found ${ranges.length} entity occurrences in clause (lines ${clauseRange.start + 1}-${clauseRange.end + 1})`);
+            if (location.origin === 'reference') {
+              // Check if this is a multifile predicate clause (Entity::Head or Entity(...)::Head format)
+              const clauseRange = PredicateUtils.getClauseRange(doc, location.range.start.line);
+              const clauseHeadLine = doc.lineAt(clauseRange.start).text;
+              const multifileResult = this.parseMultifileEntityClause(clauseHeadLine.trim(), currentName, parseInt(entityIndicator.split('/')[1], 10));
+
+              if (multifileResult.isMatch && multifileResult.entityName === currentName && multifileResult.arity === parseInt(entityIndicator.split('/')[1], 10)) {
+                this.logger.debug(`Found multifile predicate clause for entity ${currentName} at line ${clauseRange.start + 1}`);
+
+                // Find all consecutive multifile clauses for this entity
+                const consecutiveRanges = this.findConsecutiveMultifileClausesForEntity(doc, clauseRange.start, currentName, entityIndicator);
+                this.logger.debug(`Found ${consecutiveRanges.length} consecutive multifile clauses for entity ${currentName}`);
+
+                // Process all consecutive multifile clauses
+                for (const consecutiveRange of consecutiveRanges) {
+                  const entityRanges = this.findEntityRangesInRange(doc, consecutiveRange.start.line, consecutiveRange.end.line, currentName, entityIndicator);
+                  ranges.push(...entityRanges);
+                }
+              } else {
+                // Regular clause processing
+                const clauseRange = PredicateUtils.getClauseRange(doc, location.range.start.line);
+                ranges = this.findEntityRangesInRange(doc, clauseRange.start, clauseRange.end, currentName, entityIndicator);
+                this.logger.debug(`Found ${ranges.length} entity occurrences in clause (lines ${clauseRange.start + 1}-${clauseRange.end + 1})`);
+              }
+            } else {
+              // Regular clause processing for non-reference origins
+              const clauseRange = PredicateUtils.getClauseRange(doc, location.range.start.line);
+              ranges = this.findEntityRangesInRange(doc, clauseRange.start, clauseRange.end, currentName, entityIndicator);
+              this.logger.debug(`Found ${ranges.length} entity occurrences in clause (lines ${clauseRange.start + 1}-${clauseRange.end + 1})`);
+            }
           }
 
           for (const range of ranges) {
@@ -2206,6 +2233,119 @@ export class LogtalkRenameProvider implements RenameProvider {
     }
 
     return false;
+  }
+
+  /**
+   * Finds consecutive multifile predicate clauses for a specific entity starting from a given line
+   * @param document The document to search
+   * @param startLine The line number where a multifile clause was found
+   * @param entityName The entity name to find
+   * @param entityIndicator The entity indicator (name/arity) to validate arity
+   * @returns Array of ranges where consecutive multifile clauses for the entity are found
+   */
+  private findConsecutiveMultifileClausesForEntity(
+    document: TextDocument,
+    startLine: number,
+    entityName: string,
+    entityIndicator: string
+  ): Range[] {
+    const ranges: Range[] = [];
+
+    // Extract expected arity from entity indicator
+    const expectedArity = parseInt(entityIndicator.split('/')[1], 10);
+    this.logger.debug(`Starting consecutive multifile clause search for entity ${entityName}/${expectedArity} from line ${startLine + 1}`);
+
+    // Search forwards from startLine to find all consecutive multifile clauses for this entity
+    let lineNum = startLine;
+    while (lineNum < document.lineCount) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Stop if we hit an entity boundary
+      if (this.isEntityBoundary(trimmedLine)) {
+        this.logger.debug(`Stopping at entity boundary: line ${lineNum + 1}`);
+        break;
+      }
+
+      // Skip comments and empty/whitespace-only lines, but continue searching
+      if (trimmedLine === '' || trimmedLine.startsWith('%') ||
+          trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
+        lineNum++;
+        continue;
+      }
+
+      // Check if this is a multifile clause for our entity
+      // Handle both parametric and non-parametric entities
+      const multifileResult = this.parseMultifileEntityClause(trimmedLine, entityName, expectedArity);
+      if (multifileResult.isMatch) {
+        if (multifileResult.entityName === entityName && multifileResult.arity === expectedArity) {
+          // This is a multifile clause for our entity with correct arity
+          this.logger.debug(`Found multifile clause for entity ${entityName}/${expectedArity} at line ${lineNum + 1}`);
+
+          // Get the full clause range
+          const clauseRange = PredicateUtils.getClauseRange(document, lineNum);
+          ranges.push(new Range(
+            new Position(clauseRange.start, 0),
+            new Position(clauseRange.end, document.lineAt(clauseRange.end).text.length)
+          ));
+
+          // Skip ahead to after the end of this clause
+          lineNum = clauseRange.end + 1;
+        } else {
+          // This is a multifile clause for a different entity or wrong arity, stop searching
+          break;
+        }
+      } else {
+        // Not a multifile clause, stop searching
+        break;
+      }
+    }
+
+    this.logger.debug(`Found ${ranges.length} consecutive multifile clauses for entity ${entityName}`);
+    return ranges;
+  }
+
+  /**
+   * Parses a line to check if it's a multifile entity clause and extracts entity info
+   * @param lineText The line text to parse
+   * @param targetEntityName The entity name we're looking for
+   * @param expectedArity The expected arity for the entity
+   * @returns Object with parsing results
+   */
+  private parseMultifileEntityClause(lineText: string, targetEntityName: string, expectedArity: number): {
+    isMatch: boolean;
+    entityName: string | null;
+    arity: number;
+  } {
+    // Pattern to match Entity::Predicate or Entity(...)::Predicate
+    const multifilePattern = /^([a-zA-Z_][a-zA-Z0-9_]*)(\(.+\))?::/;
+    const match = lineText.match(multifilePattern);
+
+    if (!match) {
+      return { isMatch: false, entityName: null, arity: 0 };
+    }
+
+    const entityName = match[1];
+    const argsString = match[2]; // Will be undefined for non-parametric entities
+
+    let arity = 0;
+    if (argsString) {
+      // Remove parentheses and use robust argument parsing
+      const args = argsString.slice(1, -1).trim();
+      if (args === '') {
+        arity = 0;
+      } else {
+        // Use ArgumentUtils for robust argument counting that handles nested structures
+        const parsedArgs = ArgumentUtils.parseArguments(args);
+        arity = parsedArgs.length;
+      }
+    }
+
+    return {
+      isMatch: true,
+      entityName: entityName,
+      arity: arity
+    };
   }
 
   /**
