@@ -2106,15 +2106,50 @@ export class LogtalkRenameProvider implements RenameProvider {
 
     this.logger.debug(`Starting consecutive ${isNonTerminal ? 'non-terminal rule' : 'clause'} search for ${predicateIndicator} from line ${startLine + 1} (first clause)`);
 
-    // Start directly from the given startLine since Logtalk providers give us the first clause position
+    // Determine the clause type from the starting line and dispatch to appropriate method
+    const startLineText = document.lineAt(startLine).text;
+    const isMultifileClauseType = this.isMultifilePredicateClause(startLineText, predicateName, isNonTerminal);
+    this.logger.debug(`Clause type determined: ${isMultifileClauseType ? 'multifile' : 'regular'} from line ${startLine + 1}`);
 
-    // Search forwards from startLine to find all consecutive clauses
+    if (isMultifileClauseType) {
+      return this.findConsecutiveMultifilePredicateClauses(document, predicateIndicator, startLine);
+    } else {
+      return this.findConsecutiveRegularPredicateClauses(document, predicateIndicator, startLine);
+    }
+  }
+
+  /**
+   * Finds consecutive regular predicate clauses starting from a known clause location
+   * @param document The document to search
+   * @param predicateIndicator The predicate/non-terminal indicator (name/arity or name//arity) to find
+   * @param startLine The line number of a known clause (from definition provider)
+   * @returns Array of locations where consecutive regular predicate clauses are defined
+   */
+  private findConsecutiveRegularPredicateClauses(
+    document: TextDocument,
+    predicateIndicator: string,
+    startLine: number
+  ): { uri: Uri; range: Range }[] {
+    const locations: { uri: Uri; range: Range }[] = [];
+    const isNonTerminal = predicateIndicator.includes('//');
+    const separator = isNonTerminal ? '//' : '/';
+    const [predicateName] = predicateIndicator.split(separator);
+
+    this.logger.debug(`Starting consecutive regular ${isNonTerminal ? 'non-terminal rule' : 'clause'} search for ${predicateIndicator} from line ${startLine + 1}`);
+
+    // Search forwards from startLine to find all consecutive regular clauses
     let lineNum = startLine;
     while (lineNum < document.lineCount) {
       const lineText = document.lineAt(lineNum).text;
       const trimmedLine = lineText.trim();
 
       this.logger.debug(`Checking line ${lineNum + 1}: "${trimmedLine}"`);
+
+      // Stop if we find a directive
+      if (trimmedLine.startsWith(':-')) {
+        this.logger.debug(`Stopping at directive: line ${lineNum + 1}`);
+        break;
+      }
 
       // Stop if we hit an entity boundary
       if (this.isEntityBoundary(trimmedLine)) {
@@ -2130,25 +2165,86 @@ export class LogtalkRenameProvider implements RenameProvider {
         continue;
       }
 
-      // Stop if we hit a different predicate clause or non-terminal rule
-      if (this.isDifferentPredicateClause(lineText, predicateName, isNonTerminal)) {
-        this.logger.debug(`Stopping at different ${isNonTerminal ? 'non-terminal rule' : 'predicate clause'}: line ${lineNum + 1}`);
-        break;
-      }
-
-      // Check if this is a clause/rule for our predicate/non-terminal
+      // Check if this is a regular clause/rule for our predicate/non-terminal
       if (this.isPredicateClause(lineText, predicateName, isNonTerminal)) {
-        this.logger.debug(`Found ${isNonTerminal ? 'non-terminal rule' : 'clause'} for ${predicateName} at line ${lineNum + 1}`);
+        this.logger.debug(`Found regular ${isNonTerminal ? 'non-terminal rule' : 'clause'} for ${predicateName} at line ${lineNum + 1}`);
         // Find all occurrences of the predicate name in this clause (head + body)
         const clauseResult = this.findPredicateInClauseWithEndLine(document, lineNum, predicateIndicator);
         this.logger.debug(`Found ${clauseResult.ranges.length} ranges in clause at line ${lineNum + 1}, clause ends at line ${clauseResult.endLine + 1}`);
+        locations.push(...clauseResult.ranges);
+        // Skip ahead to after the end of this clause to avoid processing clause body lines
+        lineNum = clauseResult.endLine + 1;
+      } else {
+        // Clause for some other predicate - stop searching
+        this.logger.debug(`Stopping at a clause for a different predicate or non-terminal at line ${lineNum + 1}`);
+        break;
+      }
+    }
+
+    return locations;
+  }
+
+  /**
+   * Finds consecutive multifile predicate clauses starting from a known clause location
+   * @param document The document to search
+   * @param predicateIndicator The predicate/non-terminal indicator (name/arity or name//arity) to find
+   * @param startLine The line number of a known clause (from definition provider)
+   * @returns Array of locations where consecutive multifile predicate clauses are defined
+   */
+  private findConsecutiveMultifilePredicateClauses(
+    document: TextDocument,
+    predicateIndicator: string,
+    startLine: number
+  ): { uri: Uri; range: Range }[] {
+    const locations: { uri: Uri; range: Range }[] = [];
+    const isNonTerminal = predicateIndicator.includes('//');
+    const separator = isNonTerminal ? '//' : '/';
+    const [predicateName] = predicateIndicator.split(separator);
+
+    this.logger.debug(`Starting consecutive multifile ${isNonTerminal ? 'non-terminal rule' : 'clause'} search for ${predicateIndicator} from line ${startLine + 1}`);
+
+    // Search forwards from startLine to find all consecutive multifile clauses
+    let lineNum = startLine;
+    while (lineNum < document.lineCount) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      this.logger.debug(`Checking line ${lineNum + 1}: "${trimmedLine}"`);
+
+      // Stop if we find a directive
+      if (trimmedLine.startsWith(':-')) {
+        this.logger.debug(`Stopping at directive: line ${lineNum + 1}`);
+        break;
+      }
+
+      // Stop if we hit an entity boundary
+      if (this.isEntityBoundary(trimmedLine)) {
+        this.logger.debug(`Stopping at entity boundary: line ${lineNum + 1}`);
+        break;
+      }
+
+      // Skip comments and empty lines, but continue searching
+      if (trimmedLine.startsWith('%') || trimmedLine === '' ||
+          trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
+        this.logger.debug(`Skipping comment/empty line: ${lineNum + 1}`);
+        lineNum++;
+        continue;
+      }
+
+      // Check if this is a multifile clause/rule for our predicate/non-terminal
+      if (this.isMultifilePredicateClause(lineText, predicateName, isNonTerminal)) {
+        this.logger.debug(`Found multifile ${isNonTerminal ? 'non-terminal rule' : 'clause'} for ${predicateName} at line ${lineNum + 1}`);
+        // Find all occurrences of the predicate name in this clause (head + body)
+        const clauseResult = this.findPredicateInClauseWithEndLine(document, lineNum, predicateIndicator);
+        this.logger.debug(`Found ${clauseResult.ranges.length} ranges in multifile clause at line ${lineNum + 1}, clause ends at line ${clauseResult.endLine + 1}`);
         locations.push(...clauseResult.ranges);
 
         // Skip ahead to after the end of this clause to avoid processing clause body lines
         lineNum = clauseResult.endLine + 1;
       } else {
-        this.logger.debug(`Line ${lineNum + 1} is not a clause for ${predicateName}`);
-        lineNum++;
+        // Clause for some other predicate - stop searching
+        this.logger.debug(`Stopping at a clause for a different predicate or non-terminal at line ${lineNum + 1}`);
+        break;
       }
     }
 
@@ -2440,6 +2536,37 @@ export class LogtalkRenameProvider implements RenameProvider {
       // - . for zero-arity facts: foo. or foo . (space allowed before period)
       const clausePattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}(\\(|\\s*:-|\\s*\\.)`);
       return clausePattern.test(lineText);
+    }
+  }
+
+  /**
+   * Checks if a line is a multifile predicate clause (Entity::PredicateName format)
+   * @param lineText The line text
+   * @param predicateName The predicate/non-terminal name to check for
+   * @param isNonTerminal Whether we're looking for non-terminal rules
+   * @returns true if this is a multifile clause for the predicate/non-terminal
+   */
+  private isMultifilePredicateClause(lineText: string, predicateName: string, isNonTerminal: boolean = false): boolean {
+    // Pattern to match Entity::PredicateName or Entity(...)::PredicateName
+    // where Entity can be parametric or non-parametric
+    const multifilePattern = /^\s*([a-zA-Z_][a-zA-Z0-9_]*)(\(.+\))?::/;
+    const match = lineText.match(multifilePattern);
+
+    if (!match) {
+      return false;
+    }
+
+    // Extract the part after :: to check if it's our predicate
+    const afterDoubleColon = lineText.substring(lineText.indexOf('::') + 2);
+
+    if (isNonTerminal) {
+      // A multifile non-terminal rule: Entity::non_terminal_name(...) -->
+      const nonTerminalPattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}(\\(.*\\))?\\s*-->`);
+      return nonTerminalPattern.test(afterDoubleColon);
+    } else {
+      // A multifile predicate clause: Entity::predicate_name(...) :- or Entity::predicate_name(...)
+      const clausePattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}(\\(|\\s*:-|\\s*\\.)`);
+      return clausePattern.test(afterDoubleColon);
     }
   }
 
