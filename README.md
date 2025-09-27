@@ -236,7 +236,7 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
-Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be previewed. But the files changed are opened in the editor and the user can verify the changes before saving them. Note that most refactoring operations require the code to be loaded.
+Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be previewed. But the files changed are opened in the editor and the user can verify the changes before saving them (using e.g. the "File: Compare Active File with Saved" command). Note that most refactoring operations require the code to be loaded.
 
 #### Code extraction
 
@@ -270,6 +270,7 @@ To add a new argument to a predicate (or non-terminal), right-click on the predi
 
 - Some refactoring operations may not be complete, notably due to the use of dynamic binding or meta-predicate features.
 - In some cases, refactoring operations may be made available when the user selection doesn't qualify for the operation.
+- When saving all files modified by a refactoring operation using the "Save All" command, the saving order may result in loading warnings.
 
 ### Debugging support
 

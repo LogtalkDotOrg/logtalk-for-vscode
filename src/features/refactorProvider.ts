@@ -3701,7 +3701,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       lineNum++;
     }
 
-    // If we found an info/2 directive for this predicate but no argnames, and the predicate currently has no arguments,
+    // If we found an info/2 directive for this predicate but no argnames or arguments, and the predicate currently has no arguments,
     // add an argnames line to the info/2 directive
     if (infoDirectiveToAddArgnames && !foundArgnamesInAnyInfo && currentArity === 0) {
       this.addArgnamesLineToInfo2Directive(doc, edits, infoDirectiveToAddArgnames, argumentName);
