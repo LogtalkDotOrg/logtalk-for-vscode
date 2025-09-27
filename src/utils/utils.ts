@@ -520,7 +520,8 @@ export class Utils {
       }
 
       // Check if this line ends with a period (end of previous term)
-      if (trimmed.endsWith('.')) {
+      // But only if we're not on the current line (to avoid treating the current term's end as a previous term's end)
+      if (lineNum < currentLine && trimmed.endsWith('.')) {
         // The term starts on the next line
         return lineNum + 1 <= currentLine ? lineNum + 1 : null;
       }
@@ -608,41 +609,44 @@ export class Utils {
    * Classify a directive as entity or predicate directive
    */
   private static classifyDirective(directiveText: string): string {
+    // Normalize the directive text for multi-line matching
+    const normalizedText = directiveText.replace(/\s+/g, ' ').trim();
+
     // Check for entity directives
     for (const pattern of PatternSets.entityOpening) {
-      if (pattern.regex.test(directiveText)) {
+      if (pattern.regex.test(normalizedText)) {
         return 'entity_directive';
       }
     }
 
     for (const pattern of PatternSets.entityEnding) {
-      if (pattern.regex.test(directiveText)) {
+      if (pattern.regex.test(normalizedText)) {
         return 'entity_directive';
       }
     }
 
     // Check for entity-specific directives (like entity info/1)
     for (const pattern of PatternSets.entityDirectives) {
-      if (pattern.regex.test(directiveText)) {
+      if (pattern.regex.test(normalizedText)) {
         return 'entity_directive';
       }
     }
 
     // Check for predicate directives (scope and other predicate-related)
     for (const pattern of PatternSets.allScopes) {
-      if (pattern.regex.test(directiveText)) {
+      if (pattern.regex.test(normalizedText)) {
         return 'predicate_directive';
       }
     }
 
     for (const pattern of PatternSets.scopeOpenings) {
-      if (pattern.regex.test(directiveText)) {
+      if (pattern.regex.test(normalizedText)) {
         return 'predicate_directive';
       }
     }
 
     for (const pattern of PatternSets.predicateDirectives) {
-      if (pattern.regex.test(directiveText)) {
+      if (pattern.regex.test(normalizedText)) {
         return 'predicate_directive';
       }
     }

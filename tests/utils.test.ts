@@ -250,5 +250,44 @@ foo(X).
       const predicateResult = await Utils.termType(doc.uri, predicateInfoPos);
       assert.strictEqual(predicateResult, 'predicate_directive');
     });
+
+    test('should identify multi-line entity directive with specializes relation - bug fix', async () => {
+      const multiLineEntityContent = `:- object(heuristic_search(_Threshold_),
+	instantiates(class),
+	specializes(search_strategy)).
+
+:- info([
+    version is 1:1:0,
+    author is 'Paulo Moura'
+]).
+
+:- end_object.`;
+
+      const doc = await vscode.workspace.openTextDocument({
+        content: multiLineEntityContent,
+        language: 'logtalk'
+      });
+
+      // Test the exact bug case: position on "specializes" word on line ending with period
+      // This was failing because findTermStart was treating the period as end of previous term
+      const specializesPos = new vscode.Position(2, 1); // specializes(search_strategy)).
+      const result = await Utils.termType(doc.uri, specializesPos);
+      assert.strictEqual(result, 'entity_directive', 'Should identify specializes as part of entity directive (bug fix)');
+
+      // Test position on "instantiates" word (line 1)
+      const instantiatesPos = new vscode.Position(1, 1); // instantiates(class),
+      const instantiatesResult = await Utils.termType(doc.uri, instantiatesPos);
+      assert.strictEqual(instantiatesResult, 'entity_directive', 'Should identify instantiates as part of entity directive');
+
+      // Test position on the opening line
+      const openingPos = new vscode.Position(0, 0); // :- object(heuristic_search(_Threshold_),
+      const openingResult = await Utils.termType(doc.uri, openingPos);
+      assert.strictEqual(openingResult, 'entity_directive', 'Should identify opening line as entity directive');
+
+      // Test position specifically on the word "specializes" to match the original bug report
+      const specializesWordPos = new vscode.Position(2, 2); // Inside "specializes"
+      const specializesWordResult = await Utils.termType(doc.uri, specializesWordPos);
+      assert.strictEqual(specializesWordResult, 'entity_directive', 'Should identify word "specializes" as part of entity directive');
+    });
   });
 });

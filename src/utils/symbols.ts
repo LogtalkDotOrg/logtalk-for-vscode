@@ -6,10 +6,10 @@ import { TextDocument } from "vscode";
  * Regular expressions for matching Logtalk symbols
  */
 export const SymbolRegexes = {
-  // Entity opening directives
-  object: /^(?:\:- object\()([^(),.]+(\(.*\))?)/,
-  protocol: /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/,
-  category: /^(?:\:- category\()([^(),.]+(\(.*\))?)/,
+  // Entity opening directives (updated to handle multi-line directives)
+  object: /^(?:\s*\:- object\()/,
+  protocol: /^(?:\s*\:- protocol\()/,
+  category: /^(?:\s*\:- category\()/,
 
   // Entity ending directives
   endObject: /^(?:\:- end_object\.)/,
