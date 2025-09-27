@@ -214,15 +214,36 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   }
 
   /**
-   * Format entity closing directive to start at column 0 with empty line after
+   * Format entity closing directive to start at column 0 with single empty line before and after
    */
   private formatEntityClosingDirective(document: TextDocument, range: Range, edits: TextEdit[]): void {
     const directiveText = document.getText(range).trim();
-    
+
+    // Find the last non-empty line before the closing directive
+    let lastContentLine = range.start.line - 1;
+    while (lastContentLine >= 0 && document.lineAt(lastContentLine).text.trim() === '') {
+      lastContentLine--;
+    }
+
+    // Determine the range to replace (from after last content line to end of closing directive)
+    let replaceStartLine = lastContentLine + 1;
+    let replaceStartChar = 0;
+
+    // If there's content before, start from the next line
+    if (lastContentLine >= 0) {
+      replaceStartLine = lastContentLine + 1;
+      replaceStartChar = 0;
+    } else {
+      // If no content before (shouldn't happen in normal entities), start from beginning
+      replaceStartLine = 0;
+      replaceStartChar = 0;
+    }
+
+    // Create the replacement text: single empty line + closing directive
+    let finalText = '\n' + directiveText;
+
     // Add empty line after closing directive if not at end of file
     const nextLineNum = range.end.line + 1;
-    let finalText = directiveText;
-    
     if (nextLineNum < document.lineCount) {
       const nextLine = document.lineAt(nextLineNum).text;
       if (nextLine.trim() !== '') {
@@ -230,7 +251,13 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
     }
 
-    edits.push(TextEdit.replace(range, finalText));
+    // Replace from after the last content line to the end of the closing directive
+    const replaceRange = new Range(
+      new Position(replaceStartLine, replaceStartChar),
+      range.end
+    );
+
+    edits.push(TextEdit.replace(replaceRange, finalText));
   }
 
   /**
