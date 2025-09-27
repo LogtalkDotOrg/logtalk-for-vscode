@@ -147,37 +147,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           "Reorder object/category parameters",
           CodeActionKind.RefactorRewrite
         );
-
-        // If there are exactly 2 parameters, we can provide a direct edit for preview
-        if (paramsCount === 2) {
-          try {
-            const workspaceEdit = await this.createReorderParametersWorkspaceEdit(document, range, [2, 1]);
-            if (workspaceEdit) {
-              reorderParametersAction.edit = workspaceEdit;
-            } else {
-              // Fallback to command if edit creation fails
-              reorderParametersAction.command = {
-                command: "logtalk.refactor.reorderParameters",
-                title: "Reorder object/category parameters",
-                arguments: [document, range]
-              };
-            }
-          } catch (error) {
-            // Fallback to command if edit creation fails
-            reorderParametersAction.command = {
-              command: "logtalk.refactor.reorderParameters",
-              title: "Reorder object/category parameters",
-              arguments: [document, range]
-            };
-          }
-        } else {
-          // More than 2 parameters - requires user input, use command
-          reorderParametersAction.command = {
-            command: "logtalk.refactor.reorderParameters",
-            title: "Reorder object/category parameters",
-            arguments: [document, range]
-          };
-        }
+        reorderParametersAction.command = {
+          command: "logtalk.refactor.reorderParameters",
+          title: "Reorder object/category parameters",
+          arguments: [document, range]
+        };
         actions.push(reorderParametersAction);
       }
 
@@ -186,37 +160,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           "Remove parameter from object/category",
           CodeActionKind.RefactorRewrite
         );
-
-        // If there's only one parameter, we can provide a direct edit for preview
-        if (paramsCount === 1) {
-          try {
-            const workspaceEdit = await this.createRemoveParameterWorkspaceEdit(document, range);
-            if (workspaceEdit) {
-              removeParameterAction.edit = workspaceEdit;
-            } else {
-              // Fallback to command if edit creation fails
-              removeParameterAction.command = {
-                command: "logtalk.refactor.removeParameter",
-                title: "Remove parameter from object/category",
-                arguments: [document, range]
-              };
-            }
-          } catch (error) {
-            // Fallback to command if edit creation fails
-            removeParameterAction.command = {
-              command: "logtalk.refactor.removeParameter",
-              title: "Remove parameter from object/category",
-              arguments: [document, range]
-            };
-          }
-        } else {
-          // Multiple parameters - requires user input, use command
-          removeParameterAction.command = {
-            command: "logtalk.refactor.removeParameter",
-            title: "Remove parameter from object/category",
-            arguments: [document, range]
-          };
-        }
+        removeParameterAction.command = {
+          command: "logtalk.refactor.removeParameter",
+          title: "Remove parameter from object/category",
+          arguments: [document, range]
+        };
         actions.push(removeParameterAction);
       }
     }
@@ -274,37 +222,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           "Reorder predicate/non-terminal arguments",
           CodeActionKind.RefactorRewrite
         );
-
-        // If there are exactly 2 arguments, we can provide a direct edit for preview
-        if (currentArity === 2) {
-          try {
-            const workspaceEdit = await this.createReorderArgumentsWorkspaceEdit(document, position, indicator, [2, 1]);
-            if (workspaceEdit) {
-              reorderArgumentsAction.edit = workspaceEdit;
-            } else {
-              // Fallback to command if edit creation fails
-              reorderArgumentsAction.command = {
-                command: "logtalk.refactor.reorderArguments",
-                title: "Reorder predicate/non-terminal arguments",
-                arguments: [document, position, indicator]
-              };
-            }
-          } catch (error) {
-            // Fallback to command if edit creation fails
-            reorderArgumentsAction.command = {
-              command: "logtalk.refactor.reorderArguments",
-              title: "Reorder predicate/non-terminal arguments",
-              arguments: [document, position, indicator]
-            };
-          }
-        } else {
-          // More than 2 arguments - requires user input, use command
-          reorderArgumentsAction.command = {
-            command: "logtalk.refactor.reorderArguments",
-            title: "Reorder predicate/non-terminal arguments",
-            arguments: [document, position, indicator]
-          };
-        }
+        reorderArgumentsAction.command = {
+          command: "logtalk.refactor.reorderArguments",
+          title: "Reorder predicate/non-terminal arguments",
+          arguments: [document, position, indicator]
+        };
         actions.push(reorderArgumentsAction);
       }
 
@@ -314,37 +236,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           "Remove argument from predicate/non-terminal",
           CodeActionKind.RefactorRewrite
         );
-
-        // If there's only one argument, we can provide a direct edit for preview
-        if (currentArity === 1) {
-          try {
-            const workspaceEdit = await this.createRemoveArgumentWorkspaceEdit(document, position, indicator, 1);
-            if (workspaceEdit) {
-              removeArgumentAction.edit = workspaceEdit;
-            } else {
-              // Fallback to command if edit creation fails
-              removeArgumentAction.command = {
-                command: "logtalk.refactor.removeArgument",
-                title: "Remove argument from predicate/non-terminal",
-                arguments: [document, position, indicator]
-              };
-            }
-          } catch (error) {
-            // Fallback to command if edit creation fails
-            removeArgumentAction.command = {
-              command: "logtalk.refactor.removeArgument",
-              title: "Remove argument from predicate/non-terminal",
-              arguments: [document, position, indicator]
-            };
-          }
-        } else {
-          // Multiple arguments - requires user input, use command
-          removeArgumentAction.command = {
-            command: "logtalk.refactor.removeArgument",
-            title: "Remove argument from predicate/non-terminal",
-            arguments: [document, position, indicator]
-          };
-        }
+        removeArgumentAction.command = {
+          command: "logtalk.refactor.removeArgument",
+          title: "Remove argument from predicate/non-terminal",
+          arguments: [document, position, indicator]
+        };
         actions.push(removeArgumentAction);
       }
     }
@@ -1781,84 +1677,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Create a WorkspaceEdit for reordering arguments (for preview functionality)
-   */
-  private async createReorderArgumentsWorkspaceEdit(
-    document: TextDocument,
-    position: Position,
-    indicator: string,
-    newOrder: number[]
-  ): Promise<WorkspaceEdit | null> {
-    try {
-      // Parse the indicator to get predicate info
-      const separator = indicator.includes('//') ? '//' : '/';
-      const parts = indicator.split(separator);
-      const predicateName = parts[0];
-      const currentArity = parseInt(parts[1]);
-      const isNonTerminal = separator === '//';
-
-      // Find all locations that need to be updated
-      const locationResult = await this.findAllLocationsToUpdate(document, position, indicator, isNonTerminal);
-      const uniqueLocations = locationResult.locations;
-      const declarationLocation = locationResult.declarationLocation;
-
-      if (uniqueLocations.length === 0) {
-        return null;
-      }
-
-      // Create workspace edit
-      const workspaceEdit = new WorkspaceEdit();
-
-      await this.createReorderArgumentsEdits(
-        workspaceEdit,
-        uniqueLocations,
-        declarationLocation,
-        predicateName,
-        indicator,
-        isNonTerminal,
-        newOrder,
-        currentArity
-      );
-
-      return workspaceEdit;
-    } catch (error) {
-      this.logger.error(`Error creating reorder arguments workspace edit: ${error}`);
-      return null;
-    }
-  }
-
-  /**
-   * Create a WorkspaceEdit for reordering parameters (for preview functionality)
-   */
-  private async createReorderParametersWorkspaceEdit(
-    document: TextDocument,
-    range: Range,
-    newOrder: number[]
-  ): Promise<WorkspaceEdit | null> {
-    try {
-      const info = await this.detectEntityOpeningDirective(document, range);
-      if (!info || (info.type !== 'object' && info.type !== 'category')) {
-        return null;
-      }
-
-      const { params } = this.parseEntityNameAndParams(info.name);
-      if (params.length !== 2) {
-        return null; // Only handle 2 parameter case for preview
-      }
-
-      const workspaceEdit = new WorkspaceEdit();
-
-      // Use the shared method for preview
-      await this.createReorderParametersEdits(workspaceEdit, document, info, newOrder);
-
-      return workspaceEdit;
-    } catch (error) {
-      this.logger.error(`Error creating reorder parameters workspace edit: ${error}`);
-      return null;
-    }
-  }
-
-  /**
    * Create edits for reordering parameters in entity
    */
   private async createReorderParametersEdits(
@@ -1947,38 +1765,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.warn(`Reference updates for reorderParameters skipped/partial due to: ${refErr}`);
     }
   }
-
-  /**
-   * Create a WorkspaceEdit for removing a parameter (for preview functionality)
-   */
-  private async createRemoveParameterWorkspaceEdit(
-    document: TextDocument,
-    range: Range
-  ): Promise<WorkspaceEdit | null> {
-    try {
-      const info = await this.detectEntityOpeningDirective(document, range);
-      if (!info || (info.type !== 'object' && info.type !== 'category')) {
-        return null;
-      }
-
-      const { params } = this.parseEntityNameAndParams(info.name);
-      if (params.length !== 1) {
-        return null; // Only handle single parameter case for preview
-      }
-
-      const workspaceEdit = new WorkspaceEdit();
-
-      // Use the shared method for preview
-      await this.createRemoveParameterEdits(workspaceEdit, document, info, 1);
-
-      return workspaceEdit;
-    } catch (error) {
-      this.logger.error(`Error creating remove parameter workspace edit: ${error}`);
-      return null;
-    }
-  }
-
-
 
   /**
    * Create edits for removing parameter from entity
@@ -2083,56 +1869,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     } catch (refErr) {
       this.logger.warn(`Reference updates for removeParameter skipped/partial due to: ${refErr}`);
-    }
-  }
-
-  /**
-   * Create a WorkspaceEdit for removing an argument (for preview functionality)
-   */
-  private async createRemoveArgumentWorkspaceEdit(
-    document: TextDocument,
-    position: Position,
-    indicator: string,
-    argumentPosition: number
-  ): Promise<WorkspaceEdit | null> {
-    try {
-      // Parse the indicator to get predicate info
-      const separator = indicator.includes('//') ? '//' : '/';
-      const parts = indicator.split(separator);
-      const predicateName = parts[0];
-      const currentArity = parseInt(parts[1]);
-      const isNonTerminal = separator === '//';
-
-      // Find all locations that need to be updated
-      const locationResult = await this.findAllLocationsToUpdate(document, position, indicator, isNonTerminal);
-      const uniqueLocations = locationResult.locations;
-      const declarationLocation = locationResult.declarationLocation;
-
-      if (uniqueLocations.length === 0) {
-        return null;
-      }
-
-      // Create workspace edit
-      const workspaceEdit = new WorkspaceEdit();
-      const newArity = currentArity - 1;
-      const newIndicator = `${predicateName}${separator}${newArity}`;
-
-      await this.createRemoveArgumentEdits(
-        workspaceEdit,
-        uniqueLocations,
-        declarationLocation,
-        predicateName,
-        indicator,
-        newIndicator,
-        isNonTerminal,
-        argumentPosition,
-        currentArity
-      );
-
-      return workspaceEdit;
-    } catch (error) {
-      this.logger.error(`Error creating remove argument workspace edit: ${error}`);
-      return null;
     }
   }
 
