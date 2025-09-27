@@ -236,7 +236,7 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
-Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be previewed. But the files changed are opened in the editor and the user can verify the changes before saving them. Note that most refactoring operations require the code to be loaded. Some of them may also not be complete, notably due to the use of dynamic binding and meta-predicate features or limitations in the current Logtalk reflection API.
+Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be previewed. But the files changed are opened in the editor and the user can verify the changes before saving them. Note that most refactoring operations require the code to be loaded.
 
 #### Code extraction
 
@@ -265,6 +265,11 @@ To add a new parameter to an object (or category), right-click on the object (or
 #### Predicate and non-terminal argument refactoring
 
 To add a new argument to a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Add argument to predicate/non-terminal" context menu item and enter the new argument name and position. To reorder the arguments of a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Reorder predicate/non-terminal arguments" context menu item and enter the new argument order. To remove an argument from a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Remove argument from predicate/non-terminal" context menu item and enter the argument position.
+
+#### Known issues
+
+- Some refactoring operations may not be complete, notably due to the use of dynamic binding or meta-predicate features.
+- In some cases, refactoring operations may be made available when the user selection doesn't qualify for the operation.
 
 ### Debugging support
 
