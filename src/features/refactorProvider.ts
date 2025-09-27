@@ -7910,7 +7910,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           const { edits, endLineNum } = this.constructMultiLineParnames(document, i, newName, pos);
           for (const te of edits) edit.replace(document.uri, te.range, te.newText);
           i = endLineNum;
-          continue;
+          break;
         }
 
         // Multi-line parameters is [ ... (reuse arguments handler)
@@ -7920,7 +7920,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           const { edits, endLineNum } = this.constructMultiLineParameters(document, i, newName, pos);
           for (const te of edits) edit.replace(document.uri, te.range, te.newText);
           i = endLineNum;
-          continue;
+          break;
         }
 
         // Single-line updates
@@ -7928,17 +7928,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         if (updated !== lt) {
           foundParnames = true;
           edit.replace(document.uri, document.lineAt(i).range, updated);
+          break;
         }
 
         updated = this.updateParInfoLineForAdd(updated, 'parameters', newName, pos);
         if (updated !== lt) {
           foundParameters = true;
           edit.replace(document.uri, document.lineAt(i).range, updated);
+          break;
         }
       }
 
-      // If we found an info/1 directive but no parnames, add parnames line
-      if (infoDirectiveRange && !foundParnames && params.length === 0) {
+      // If we found an info/1 directive but no parnames or parameters, add parnames line
+      if (infoDirectiveRange && !foundParnames && !foundParameters && params.length === 0) {
         this.addParnamesLineToInfoDirective(document, edit, infoDirectiveRange, newName);
       }
 
