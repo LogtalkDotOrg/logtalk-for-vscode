@@ -39,6 +39,7 @@ import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
 import { LogtalkRenameProvider } from "./features/renameProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
+import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
 
@@ -503,6 +504,17 @@ export function activate(context: ExtensionContext) {
   refactorProvider = new LogtalkRefactorProvider();
   context.subscriptions.push(
     languages.registerCodeActionsProvider(LOGTALK_MODE, refactorProvider)
+  );
+  const documentFormattingProvider = new LogtalkDocumentFormattingEditProvider();
+  context.subscriptions.push(
+    languages.registerDocumentFormattingEditProvider(LOGTALK_MODE, documentFormattingProvider)
+  );
+
+  // Register chained formatting command (indentation conversion + Logtalk formatting)
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.format.withIndentationConversion', async () => {
+      await documentFormattingProvider.formatDocumentWithIndentationConversion();
+    })
   );
   context.subscriptions.push(
     workspace.onDidChangeTextDocument(event => {

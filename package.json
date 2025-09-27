@@ -228,6 +228,10 @@
             {
                 "command": "logtalk.refresh.documentation",
                 "title": "Logtalk: Refresh Documentation Cache"
+            },
+            {
+                "command": "logtalk.format.withIndentationConversion",
+                "title": "Logtalk: Format Document with Indentation Conversion"
             }
         ],
         "keybindings": [],

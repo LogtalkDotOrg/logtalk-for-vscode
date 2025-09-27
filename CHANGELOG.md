@@ -3,6 +3,7 @@
 ## [0.53.0]
 
 * Change caching of loaded directory paths to use an in-memory set to avoid workspace persistent state issues
+* Add experimental support for the "Format Document" command
 * Add "Add argument to predicate/non-terminal" refactoring support
 * Add "Reorder predicate/non-terminal arguments" refactoring support
 * Add "Remove argument from predicate/non-terminal" refactoring support

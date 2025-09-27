@@ -28,6 +28,7 @@ For details, see [Configuration](#configuration). This extension includes a walk
 
 - [Syntax highlighting](#syntax-highlighting)
 - [Snippets](#indentation-snippets-and-auto-completion)
+- [Formatting support](#formatting-support)
 - [Linter](#linter)
 - [Commands](#commands)
 - [Code Navigation](#code-navigation)
@@ -88,6 +89,10 @@ Refer to the table below for other snippets:
 |    public | Public predicate                     |
 
 ![snippets](images/snippets.gif)
+
+### Formatting support
+
+Experimental support for the "Format Document" command is provided. The formatting rules follow the Logtalk [coding style guidelines](https://logtalk.org/coding_style_guidelines.html).
 
 ### Linter
 
