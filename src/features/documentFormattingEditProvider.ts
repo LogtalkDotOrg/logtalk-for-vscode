@@ -54,7 +54,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     try {
       // Find all entity opening and closing directives
-      const allEntities = this.findAllEntityDirectives(document);
+      const allEntities = this.findAllEntities(document);
 
       if (allEntities.length === 0) {
         this.logger.debug("No entity directives found, skipping formatting");
@@ -88,13 +88,24 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Find all entity opening and closing directives in the document
    */
-  private findAllEntityDirectives(document: TextDocument): { opening: Range; closing: Range }[] {
+  private findAllEntities(document: TextDocument): { opening: Range; closing: Range }[] {
+    const fullRange = new Range(
+      new Position(0, 0),
+      new Position(document.lineCount - 1, document.lineAt(document.lineCount - 1).text.length)
+    );
+    return this.findAllEntitiesInRange(document, fullRange);
+  }
+
+  /**
+   * Find all entity opening and closing directives within a specific range of the document
+   */
+  public findAllEntitiesInRange(document: TextDocument, range: Range): { opening: Range; closing: Range }[] {
     const entities: { opening: Range; closing: Range }[] = [];
     const openingDirectives: { range: Range; type: string }[] = [];
     const closingDirectives: { range: Range; type: string }[] = [];
 
-    // First pass: find all opening and closing directives
-    for (let lineNum = 0; lineNum < document.lineCount; lineNum++) {
+    // First pass: find all opening and closing directives within the specified range
+    for (let lineNum = range.start.line; lineNum <= range.end.line; lineNum++) {
       const lineText = document.lineAt(lineNum).text.trim();
 
       // Look for entity opening directive
@@ -103,21 +114,21 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         this.logger.debug(`Found entity opening directive at line ${lineNum + 1}: "${lineText}"`);
         const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
         this.logger.debug(`Directive range: lines ${directiveRange.start + 1}-${directiveRange.end + 1}`);
-        const range = new Range(
+        const entityRange = new Range(
           new Position(directiveRange.start, 0),
           new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
         );
-        openingDirectives.push({ range, type: openingMatch[1] });
+        openingDirectives.push({ range: entityRange, type: openingMatch[1] });
       }
 
       // Look for entity closing directive
       const closingMatch = lineText.match(/^:-\s+end_(object|protocol|category)\./);
       if (closingMatch) {
-        const range = new Range(
+        const entityRange = new Range(
           new Position(lineNum, 0),
           new Position(lineNum, document.lineAt(lineNum).text.length)
         );
-        closingDirectives.push({ range, type: closingMatch[1] });
+        closingDirectives.push({ range: entityRange, type: closingMatch[1] });
       }
     }
 
@@ -147,7 +158,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Format entity opening directive to start at column 0 with empty line after
    */
-  private formatEntityOpeningDirective(document: TextDocument, range: Range, edits: TextEdit[]): void {
+  public formatEntityOpeningDirective(document: TextDocument, range: Range, edits: TextEdit[]): void {
     const directiveText = document.getText(range);
     const formattedDirective = this.formatEntityOpeningDirectiveContent(directiveText);
 
@@ -216,7 +227,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Format entity closing directive to start at column 0 with single empty line before and after
    */
-  private formatEntityClosingDirective(document: TextDocument, range: Range, edits: TextEdit[]): void {
+  public formatEntityClosingDirective(document: TextDocument, range: Range, edits: TextEdit[]): void {
     const directiveText = document.getText(range).trim();
 
     // Find the last non-empty line before the closing directive
@@ -264,7 +275,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Ensure all content inside entity is indented by at least one tab
    * Handles comments, directives, predicate clauses, and grammar rules specifically
    */
-  private indentEntityContent(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
+  public indentEntityContent(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
     this.logger.debug(`Indenting entity content from line ${startLine + 1} to ${endLine + 1}`);
     let indentedItems = 0;
 
@@ -647,7 +658,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       directiveText += document.lineAt(lineNum).text + '\n';
     }
 
-    // Parse alias directive: :- alias(Object, [list]).
+    // Parse alias directive: :- alias(Object, List).
     const normalizedText = directiveText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const match = normalizedText.match(/^:-\s+alias\(\s*(.*)\)\s*\.$/);
     if (!match) {

@@ -92,7 +92,13 @@ Refer to the table below for other snippets:
 
 ### Formatting support
 
-Experimental support for the "Format Document" command is provided. The formatting rules follow the Logtalk [coding style guidelines](https://logtalk.org/coding_style_guidelines.html).
+Experimental support for the "Format Document" and "Format Selection" commands is provided. The formatting rules follow the Logtalk [coding style guidelines](https://logtalk.org/coding_style_guidelines.html). Currently, the following formatting rules are supported:
+
+- Space-to-tab conversion is performed using the editor's tab size setting
+- Mixed indentation is handled by converting all spaces to tabs based on the tab size setting
+- Entity opening and closing directives are formatted to start at column 0 with empty lines before and after
+- All content inside entity opening and closing directives is indented by at least one tab
+- All directives with a list argument are formatted to use multi-line syntax with one list item per line
 
 ### Linter
 

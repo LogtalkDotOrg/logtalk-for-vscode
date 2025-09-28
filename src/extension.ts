@@ -40,6 +40,7 @@ import { LogtalkRenameProvider } from "./features/renameProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
+import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
 
@@ -510,12 +511,24 @@ export function activate(context: ExtensionContext) {
     languages.registerDocumentFormattingEditProvider(LOGTALK_MODE, documentFormattingProvider)
   );
 
+  const documentRangeFormattingProvider = new LogtalkDocumentRangeFormattingEditProvider();
+  context.subscriptions.push(
+    languages.registerDocumentRangeFormattingEditProvider(LOGTALK_MODE, documentRangeFormattingProvider)
+  );
+
   // Register chained formatting command (indentation conversion + Logtalk formatting)
   context.subscriptions.push(
     commands.registerCommand('logtalk.format.withIndentationConversion', async () => {
       await documentFormattingProvider.formatDocumentWithIndentationConversion();
     })
   );
+  // Register chained range formatting command (indentation conversion + Logtalk range formatting)
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.format.range.withIndentationConversion', async () => {
+      await documentRangeFormattingProvider.formatDocumentRangeWithIndentationConversion();
+    })
+  );
+
   context.subscriptions.push(
     workspace.onDidChangeTextDocument(event => {
       // Update diagnostics for all diagnostic collections
