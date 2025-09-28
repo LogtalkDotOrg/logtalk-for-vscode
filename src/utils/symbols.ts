@@ -6,10 +6,15 @@ import { TextDocument } from "vscode";
  * Regular expressions for matching Logtalk symbols
  */
 export const SymbolRegexes = {
-  // Entity opening directives (updated to handle multi-line directives)
-  object: /^(?:\s*\:- object\()/,
-  protocol: /^(?:\s*\:- protocol\()/,
-  category: /^(?:\s*\:- category\()/,
+  // Entity opening directives + entity identifier
+  object: /^(?:\:- object\()([^(),.]+(\(.*\))?)/,
+  protocol: /^(?:\:- protocol\()([^(),.]+(\(.*\))?)/,
+  category: /^(?:\:- category\()([^(),.]+(\(.*\))?)/,
+
+  // Entity opening directives
+  openingObject: /^(?:\:- object\()/,
+  openingProtocol: /^(?:\:- protocol\()/,
+  openingCategory: /^(?:\:- category\()/,
 
   // Entity ending directives
   endObject: /^(?:\:- end_object\.)/,
@@ -602,10 +607,19 @@ export const PatternSets = {
   /**
    * Entity opening patterns
    */
-  entityOpening: [
+  entityOpeningWithId: [
     { regex: SymbolRegexes.object, type: SymbolTypes.OBJECT },
     { regex: SymbolRegexes.protocol, type: SymbolTypes.PROTOCOL },
     { regex: SymbolRegexes.category, type: SymbolTypes.CATEGORY }
+  ],
+
+  /**
+   * Entity opening patterns
+   */
+  entityOpening: [
+    { regex: SymbolRegexes.openingObject, type: SymbolTypes.OBJECT },
+    { regex: SymbolRegexes.openingProtocol, type: SymbolTypes.PROTOCOL },
+    { regex: SymbolRegexes.openingCategory, type: SymbolTypes.CATEGORY }
   ],
 
   /**

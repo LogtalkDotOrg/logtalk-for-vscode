@@ -43,7 +43,7 @@ export class LogtalkDocumentSymbolProvider implements DocumentSymbolProvider {
 
         if (startsWithDirective) {
           // Check for entity opening directives
-          const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpening);
+          const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpeningWithId);
           if (entityMatch) {
             const endRegex = entityMatch.type === SymbolTypes.OBJECT ? SymbolRegexes.endObject :
                             entityMatch.type === SymbolTypes.PROTOCOL ? SymbolRegexes.endProtocol :

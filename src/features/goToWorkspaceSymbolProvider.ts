@@ -54,7 +54,7 @@ export class LogtalkWorkspaceSymbolProvider implements WorkspaceSymbolProvider {
 
           if (startsWithDirective) {
             // Check for entity opening directives
-            const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpening);
+            const entityMatch = SymbolUtils.matchFirst(lineText, PatternSets.entityOpeningWithId);
             if (entityMatch) {
               const symbolKind = entityMatch.type === SymbolTypes.OBJECT ? SymbolKind.Class :
                                 entityMatch.type === SymbolTypes.PROTOCOL ? SymbolKind.Interface :
