@@ -45,11 +45,18 @@ export const SymbolRegexes = {
   dynamic: /^\s*\:- dynamic\(/,
   discontiguous: /^\s*\:- discontiguous\(/,
   multifile: /^\s*\:- multifile\(/,
+  alias: /^\s*\:- alias\(/,
   synchronized: /^\s*\:- synchronized\(/,
   coinductive: /^\s*\:- coinductive\(/,
 
   // Entity directive patterns
   entityInfo: /^\s*\:- info\(\[/,
+  entityInitialization: /^\s*\:- initialization\(/,
+  entitySetLogtalkFlag: /^\s*\:- set_logtalk_flag\(/,
+  entityOp: /^\s*\:- op\(/,
+  entityUses: /^\s*\:- uses\(/,
+  entityUseModule: /^\s*\:- use_module\(/,
+  entityInclude: /^\s*\:- include\(/,
 
   // General directive pattern (starts with :-)
   directive: /^\s*\:-/,
@@ -660,6 +667,7 @@ export const PatternSets = {
     { regex: SymbolRegexes.dynamic, type: 'dynamic' },
     { regex: SymbolRegexes.discontiguous, type: 'discontiguous' },
     { regex: SymbolRegexes.multifile, type: 'multifile' },
+    { regex: SymbolRegexes.alias, type: 'alias' },
     { regex: SymbolRegexes.synchronized, type: 'synchronized' },
     { regex: SymbolRegexes.coinductive, type: 'coinductive' }
   ],
@@ -668,7 +676,13 @@ export const PatternSets = {
    * Entity directive patterns (non-opening/closing)
    */
   entityDirectives: [
-    { regex: SymbolRegexes.entityInfo, type: 'entity_info' }
+    { regex: SymbolRegexes.entityInfo, type: 'entity_info' },
+    { regex: SymbolRegexes.entityInitialization, type: 'entity_initialization' },
+    { regex: SymbolRegexes.entitySetLogtalkFlag, type: 'entity_set_logtalk_flag' },
+    { regex: SymbolRegexes.entityOp, type: 'entity_op' },
+    { regex: SymbolRegexes.entityUses, type: 'entity_use_module' },
+    { regex: SymbolRegexes.entityUseModule, type: 'entity_use_module' },
+    { regex: SymbolRegexes.entityInclude, type: 'entity_include' }
   ],
 
   /**
