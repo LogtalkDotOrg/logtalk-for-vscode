@@ -590,18 +590,18 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const normalizedText = directiveText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const match = normalizedText.match(/^:-\s+uses\(\s*(.*)\)\s*\.$/);
     if (!match) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const argumentsText = match[1].trim();
     if (!argumentsText) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     // Use ArgumentUtils to parse all directive arguments
     const directiveArguments = ArgumentUtils.parseArguments(argumentsText);
     if (directiveArguments.length !== 2) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const objectName = directiveArguments[0].trim();
@@ -610,27 +610,27 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     // Extract list content from [...]
     const listMatch = listArgument.match(/^\[(.*)\]$/);
     if (!listMatch) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const listContent = listMatch[1].trim();
     if (!listContent) {
       // Empty list case
-      return initialIndent + '\t:- uses(' + objectName + ', []).';
+      return initialIndent + ':- uses(' + objectName + ', []).';
     }
 
     const elements = ArgumentUtils.parseArguments(listContent);
 
-    let formatted = initialIndent + '\t:- uses(' + objectName + ', [\n';
+    let formatted = initialIndent + ':- uses(' + objectName + ', [\n';
     elements.forEach((element, index) => {
-      formatted += initialIndent + '\t\t' + element.trim();
+      formatted += initialIndent + '\t' + element.trim();
       if (index < elements.length - 1) {
         formatted += ',\n';
       } else {
         formatted += '\n';
       }
     });
-    formatted += initialIndent + '\t]).';
+    formatted += initialIndent + ']).';
 
     return formatted;
   }
@@ -662,18 +662,18 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const normalizedText = directiveText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const match = normalizedText.match(/^:-\s+alias\(\s*(.*)\)\s*\.$/);
     if (!match) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const argumentsText = match[1].trim();
     if (!argumentsText) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     // Use ArgumentUtils to parse all directive arguments
     const directiveArguments = ArgumentUtils.parseArguments(argumentsText);
     if (directiveArguments.length !== 2) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const objectName = directiveArguments[0].trim();
@@ -682,27 +682,27 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     // Extract list content from [...]
     const listMatch = listArgument.match(/^\[(.*)\]$/);
     if (!listMatch) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const listContent = listMatch[1].trim();
     if (!listContent) {
       // Empty list case
-      return initialIndent + '\t:- alias(' + objectName + ', []).';
+      return initialIndent + ':- alias(' + objectName + ', []).';
     }
 
     const elements = ArgumentUtils.parseArguments(listContent);
 
-    let formatted = initialIndent + '\t:- alias(' + objectName + ', [\n';
+    let formatted = initialIndent + ':- alias(' + objectName + ', [\n';
     elements.forEach((element, index) => {
-      formatted += initialIndent + '\t\t' + element.trim();
+      formatted += initialIndent + '\t' + element.trim();
       if (index < elements.length - 1) {
         formatted += ',\n';
       } else {
         formatted += '\n';
       }
     });
-    formatted += initialIndent + '\t]).';
+    formatted += initialIndent + ']).';
 
     return formatted;
   }
@@ -734,18 +734,18 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const normalizedText = directiveText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const match = normalizedText.match(/^:-\s+use_module\(\s*(.*)\)\s*\.$/);
     if (!match) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const argumentsText = match[1].trim();
     if (!argumentsText) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     // Use ArgumentUtils to parse all directive arguments
     const directiveArguments = ArgumentUtils.parseArguments(argumentsText);
     if (directiveArguments.length !== 2) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const moduleName = directiveArguments[0].trim();
@@ -754,27 +754,27 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     // Extract list content from [...]
     const listMatch = listArgument.match(/^\[(.*)\]$/);
     if (!listMatch) {
-      return initialIndent + '\t' + directiveText.trim();
+      return initialIndent + directiveText.trim();
     }
 
     const listContent = listMatch[1].trim();
     if (!listContent) {
       // Empty list case
-      return initialIndent + '\t:- use_module(' + moduleName + ', []).';
+      return initialIndent + ':- use_module(' + moduleName + ', []).';
     }
 
     const elements = ArgumentUtils.parseArguments(listContent);
 
-    let formatted = initialIndent + '\t:- use_module(' + moduleName + ', [\n';
+    let formatted = initialIndent + ':- use_module(' + moduleName + ', [\n';
     elements.forEach((element, index) => {
-      formatted += initialIndent + '\t\t' + element.trim();
+      formatted += initialIndent + '\t' + element.trim();
       if (index < elements.length - 1) {
         formatted += ',\n';
       } else {
         formatted += '\n';
       }
     });
-    formatted += initialIndent + '\t]).';
+    formatted += initialIndent + ']).';
 
     return formatted;
   }
