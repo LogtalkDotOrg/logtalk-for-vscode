@@ -305,12 +305,26 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         }
         lineNum++;
         continue;
-      } else if (trimmedText.startsWith(':-')) {
+      }
+      
       // Handle directives (starting with :-)
+      if (trimmedText.startsWith(':-')) {
         this.logger.debug(`  Found directive at line ${lineNum + 1}: "${trimmedText}"`);
         const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
         // Call the appropriate formatter based on directive type
-        if (/^:-\s+info\(\s*\[/.test(trimmedText)) {
+        if (/^:-\s+(object|protocol|category)\(/.test(trimmedText)) {
+          // entity opening directive
+          this.formatEntityOpeningDirective(document, new Range(
+            new Position(directiveRange.start, 0),
+            new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+          ), edits);
+        } else if (/^:-\s+(end_object|end_protocol|end_category)\./.test(trimmedText)) {
+          // entity closing directive
+          this.formatEntityClosingDirective(document, new Range(
+            new Position(directiveRange.start, 0),
+            new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+          ), edits);
+        } else if (/^:-\s+info\(\s*\[/.test(trimmedText)) {
           // info/1 directive with list
           this.formatInfo1Directive(document, directiveRange, edits);
         } else if (/^:-\s+info\((?!\s*\[)[^,]+,/.test(trimmedText)) {
@@ -347,18 +361,20 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         }
         lineNum = directiveRange.end + 1;
         continue;
-      } else if (trimmedText.includes('-->')) {
+      }
+      
       // Handle grammar rules (containing -->)
+      if (trimmedText.includes('-->')) {
         this.logger.debug(`  Found grammar rule at line ${lineNum + 1}: "${trimmedText}"`);
         const ruleRange = PredicateUtils.getClauseRange(document, lineNum);
-        this.indentRange(document, ruleRange.start, ruleRange.end, edits);
+        this.formatClauseOrGrammarRule(document, ruleRange.start, ruleRange.end, edits);
         lineNum = ruleRange.end + 1;
         continue;
       } else {
         // Handle predicate clauses (facts and rules)
         this.logger.debug(`  Found predicate clause at line ${lineNum + 1}: "${trimmedText}"`);
         const clauseRange = PredicateUtils.getClauseRange(document, lineNum);
-        this.indentRange(document, clauseRange.start, clauseRange.end, edits);
+        this.formatClauseOrGrammarRule(document, clauseRange.start, clauseRange.end, edits);
         lineNum = clauseRange.end + 1;
         continue;
       }
@@ -395,10 +411,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Helper method to indent all lines in a range
    */
-  private indentRange(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
+  private formatClauseOrGrammarRule(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
+    let initialIndent = '\t';
+    if (document.lineAt(startLine).text.startsWith('\t')) {
+      initialIndent = '';
+    }
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const line = document.lineAt(lineNum);
-      const lineText = line.text.trim();
+      const lineText = line.text.trimEnd();
       this.logger.debug(`    Indenting line ${lineNum + 1}: "${lineText}"`);
 
       // Skip empty lines
@@ -414,19 +434,19 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Handle clause head lines containing ":-"
         if (lineText.includes(':-')) {
           const result = this.formatClauseOrGrammarHeadLine(lineText, ':-');
-          processedText = '\t' + result.text;
+          processedText = initialIndent + result.text;
           extractedComment = result.comment;
         }
         // Handle grammar rule head lines containing "-->"
         else if (lineText.includes('-->')) {
           const result = this.formatClauseOrGrammarHeadLine(lineText, '-->');
-          processedText = '\t' + result.text;
+          processedText = initialIndent + result.text;
           extractedComment = result.comment;
         } else {
-          processedText = '\t' + lineText;
+          processedText = initialIndent + lineText;
         }
       } else {
-        processedText = '\t\t' + lineText;
+        processedText = initialIndent + lineText;
       }
       this.logger.debug(`    Processed text: ${processedText}`);
       this.logger.debug(`    Extracted comment: ${extractedComment}`);
@@ -439,7 +459,8 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           new Position(lineNum, lineText.length)
         );
         edits.push(TextEdit.replace(range, processedText));
-        edits.push(TextEdit.insert(new Position(lineNum + 1, 0), '\t\t' + extractedComment + '\n'));
+        processedText = initialIndent + '\t' + lineText;
+        edits.push(TextEdit.insert(new Position(lineNum + 1, 0), initialIndent + '\t' + extractedComment + '\n'));
       } else {
         // Normal line replacement
         const range = new Range(
