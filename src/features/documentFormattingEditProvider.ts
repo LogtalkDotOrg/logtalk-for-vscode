@@ -313,7 +313,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         const endifLine = this.findMatchingEndif(document, lineNum);
         if (endifLine !== -1) {
           if (!lineText.startsWith('\t')) {
-            this.indentRangeWithInitialIndent(document, lineNum, endifLine, edits);
+            this.indentRange(document, lineNum, endifLine, edits);
             indentedItems++;
           }
           lineNum = endifLine + 1;
@@ -341,6 +341,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         } else if (/^:-\s+info\(\s*\[/.test(trimmedText)) {
           // info/1 directive with list
           this.formatInfo1Directive(document, directiveRange, edits);
+        } else if (/^:-\s+initialization\(\s*\[/.test(trimmedText)) {
+          // initialization/1 directive
+          this.formatInitialization1Directive(document, directiveRange, edits);
         } else if (/^:-\s+info\((?!\s*\[)[^,]+,/.test(trimmedText)) {
           // info/2 directive
           this.formatInfo2Directive(document, directiveRange, edits);
@@ -369,7 +372,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           // Other directives - just indent if needed
           if (!lineText.startsWith('\t')) {
             this.logger.debug(`  Found other directive at line ${lineNum + 1}: "${trimmedText}"`);
-            this.indentRangeWithInitialIndent(document, directiveRange.start, directiveRange.end, edits);
+            this.indentRange(document, directiveRange.start, directiveRange.end, edits);
             indentedItems++;
           }
         }
@@ -384,12 +387,22 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         this.formatClauseOrGrammarRule(document, ruleRange.start, ruleRange.end, edits);
         lineNum = ruleRange.end + 1;
         continue;
-      } else {
+      } else if (trimmedText.includes(':-')) {
         // Handle predicate clauses (facts and rules)
-        this.logger.debug(`  Found predicate clause at line ${lineNum + 1}: "${trimmedText}"`);
+        this.logger.debug(`  Found predicate rule at line ${lineNum + 1}: "${trimmedText}"`);
         const clauseRange = PredicateUtils.getClauseRange(document, lineNum);
         this.formatClauseOrGrammarRule(document, clauseRange.start, clauseRange.end, edits);
         lineNum = clauseRange.end + 1;
+        continue;
+      } else {
+        // Handle predicate facts
+        const factRange = PredicateUtils.getClauseRange(document, lineNum);
+        if (!lineText.startsWith('\t')) {
+            this.logger.debug(`  Found predicate fact at line ${lineNum + 1}: "${trimmedText}"`);
+            this.indentRange(document, factRange.start, factRange.end, edits);
+            indentedItems++;
+        }
+        lineNum = factRange.end + 1;
         continue;
       }
 
@@ -402,7 +415,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Helper method to indent all lines in a range with initial indent
    */
-  private indentRangeWithInitialIndent(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
+  private indentRange(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const line = document.lineAt(lineNum);
       const lineText = line.text;
@@ -559,12 +572,41 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatInfo1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     const formattedInfo1 = this.formatListDirectiveContent(document, directiveRange, 'info');
 
+    // Add empty line after directive if not present
+    const nextLineNum = directiveRange.end + 1;
+    let finalText = formattedInfo1;
+
+    if (nextLineNum < document.lineCount) {
+      const nextLine = document.lineAt(nextLineNum).text;
+      if (nextLine.trim() !== '') {
+        finalText += '\n';
+      }
+    }
+
     const range = new Range(
       new Position(directiveRange.start, 0),
       new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
     );
 
-    edits.push(TextEdit.replace(range, formattedInfo1));
+    edits.push(TextEdit.replace(range, finalText));
+  }
+
+  /**
+   * Format a single initialization/1 directive using pre-computed range
+   */
+  private formatInitialization1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    if (!document.lineAt(directiveRange.start).text.startsWith('\t')) {
+      this.indentRange(document, directiveRange.start, directiveRange.end, edits);
+    }
+
+    // Add empty line after directive if not present
+    const nextLineNum = directiveRange.end + 1;
+    if (nextLineNum < document.lineCount) {
+      const nextLine = document.lineAt(nextLineNum).text;
+      if (nextLine.trim() !== '') {
+        edits.push(TextEdit.insert(new Position(directiveRange.end + 1, 0), '\n'));
+      }
+    }
   }
 
   /**
