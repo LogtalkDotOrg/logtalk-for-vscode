@@ -306,20 +306,34 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         lineNum++;
         continue;
       }
-      
+
+      // Handle if/1 conditional compilation directives
+      if (/^:-\s+if\(/.test(trimmedText)) {
+        this.logger.debug(`  Found if/1 conditional compilation directive at line ${lineNum + 1}: "${trimmedText}"`);
+        const endifLine = this.findMatchingEndif(document, lineNum);
+        if (endifLine !== -1) {
+          if (!lineText.startsWith('\t')) {
+            this.indentRangeWithInitialIndent(document, lineNum, endifLine, edits);
+            indentedItems++;
+          }
+          lineNum = endifLine + 1;
+          continue;
+        }
+      }
+
       // Handle directives (starting with :-)
       if (trimmedText.startsWith(':-')) {
         this.logger.debug(`  Found directive at line ${lineNum + 1}: "${trimmedText}"`);
         const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
         // Call the appropriate formatter based on directive type
         if (/^:-\s+(object|protocol|category)\(/.test(trimmedText)) {
-          // entity opening directive
+          // entity opening directive (when using the "Format Selection" command)
           this.formatEntityOpeningDirective(document, new Range(
             new Position(directiveRange.start, 0),
             new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
           ), edits);
         } else if (/^:-\s+(end_object|end_protocol|end_category)\./.test(trimmedText)) {
-          // entity closing directive
+          // entity closing directive (when using the "Format Selection" command)
           this.formatEntityClosingDirective(document, new Range(
             new Position(directiveRange.start, 0),
             new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
@@ -505,6 +519,38 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     }
 
     return { text: beforeOperator + operator + afterOperator, comment: null };
+  }
+
+  /**
+   * Find the matching endif directive for a given if directive, handling nested if/endif blocks
+   */
+  private findMatchingEndif(document: TextDocument, ifLineNum: number): number {
+    let nestingLevel = 1; // Start with 1 for the initial if directive
+
+    for (let lineNum = ifLineNum + 1; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Check for nested if directives
+      if (/^:-\s+if\(/.test(lineText)) {
+        nestingLevel++;
+        this.logger.debug(`  Found nested if at line ${lineNum + 1}, nesting level: ${nestingLevel}`);
+      }
+      // Check for endif directives
+      else if (/^:-\s+endif\s*\./.test(lineText)) {
+        nestingLevel--;
+        this.logger.debug(`  Found endif at line ${lineNum + 1}, nesting level: ${nestingLevel}`);
+
+        // If we've found the matching endif for our original if
+        if (nestingLevel === 0) {
+          this.logger.debug(`  Found matching endif at line ${lineNum + 1} for if at line ${ifLineNum + 1}`);
+          return lineNum;
+        }
+      }
+    }
+
+    // No matching endif found
+    this.logger.warn(`No matching endif found for if directive at line ${ifLineNum + 1}`);
+    return -1;
   }
 
   /**

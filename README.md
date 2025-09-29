@@ -100,6 +100,8 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 - All content inside entity opening and closing directives is indented by at least one tab
 - All directives with a list argument are formatted to use multi-line syntax with one list item per line
 
+You can verify the changes before saving them using the "File: Compare Active File with Saved" command.
+
 ### Linter
 
 - Errors/warnings when compiling source files are added to the "PROBLEMS" pane.
