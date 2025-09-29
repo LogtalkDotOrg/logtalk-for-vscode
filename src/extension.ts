@@ -547,8 +547,8 @@ export function activate(context: ExtensionContext) {
         const section = workspace.getConfiguration("logtalk");
         const makeOnSave = section.get<boolean>("make.onSave", false);
 
-        if (makeOnSave) {
-          // Call the logtalk.make.reload command
+        if (makeOnSave && LogtalkTerminal.hasUserCodeLoaded()) {
+          // Call the logtalk.make.reload command only if there's user code loaded
           commands.executeCommand('logtalk.make.reload', document.uri);
         }
       }

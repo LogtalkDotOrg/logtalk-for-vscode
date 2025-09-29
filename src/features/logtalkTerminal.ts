@@ -1365,6 +1365,15 @@ export default class LogtalkTerminal {
     }
   }
 
+  /**
+   * Check if there's user code loaded (more than just the core directory)
+   * @returns true if there are loaded directories beyond the core directory
+   */
+  public static hasUserCodeLoaded(): boolean {
+    // More than one entry means there's user code loaded (core directory is always loaded)
+    return LogtalkTerminal._loadedDirectories.size > 1;
+  }
+
   public static clearLoadedDirectories(): void {
     LogtalkTerminal._loadedDirectories.clear();
   }
