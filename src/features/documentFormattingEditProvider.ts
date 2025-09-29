@@ -76,6 +76,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
         // 3. Indent all content inside the entity and apply specific directive formatting
         this.indentEntityContent(document, entityInfo.opening.end.line + 1, entityInfo.closing.start.line - 1, edits);
+      
+        // 4. Ensure a single empty line at the end of the document
+        this.ensureSingleEmptyLineAtDocumentEnd(document, edits);
       }
 
     } catch (error) {
@@ -1181,6 +1184,43 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         new Position(lineNum, lineText.length)
       );
       edits.push(TextEdit.replace(range, indentedText));
+    }
+  }
+
+  /**
+   * Ensure a final newline at the end of the document
+   */
+  private ensureSingleEmptyLineAtDocumentEnd(document: TextDocument, edits: TextEdit[]): void {
+    if (document.lineCount === 0) {
+      // Empty document, do nothing
+      return;
+    }
+
+    const lastLineIndex = document.lineCount - 1;
+    const lastLine = document.lineAt(lastLineIndex);
+
+    // Check if the last line is empty
+    if (lastLine.text.trim() === '') {
+      // Last line is empty, find the last line with content
+      let lastContentLineIndex = lastLineIndex - 1;
+
+      // Find the last line with actual content
+      while (lastContentLineIndex >= 0 && document.lineAt(lastContentLineIndex).text.trim() === '') {
+        lastContentLineIndex--;
+      }
+
+      if (lastContentLineIndex >= 0) {
+        // Remove all empty lines after the last content line
+        const startPosition = new Position(lastContentLineIndex + 1, 0);
+        const endPosition = new Position(lastLineIndex, lastLine.text.length);
+
+        // Delete all the empty lines (the last content line already has its newline)
+        edits.push(TextEdit.delete(new Range(startPosition, endPosition)));
+      }
+    } else {
+      // Last line has content but no final newline, add one
+      const endPosition = new Position(lastLineIndex, lastLine.text.length);
+      edits.push(TextEdit.insert(endPosition, '\n'));
     }
   }
 
