@@ -109,7 +109,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const lineText = document.lineAt(lineNum).text.trim();
 
       // Look for entity opening directive
-      const openingMatch = lineText.match(/^:-\s+(object|protocol|category)\(/);
+      const openingMatch = lineText.match(/^:-\s*(object|protocol|category)\(/);
       if (openingMatch) {
         this.logger.debug(`Found entity opening directive at line ${lineNum + 1}: "${lineText}"`);
         const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
@@ -122,7 +122,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
 
       // Look for entity closing directive
-      const closingMatch = lineText.match(/^:-\s+end_(object|protocol|category)\./);
+      const closingMatch = lineText.match(/^:-\s*end_(object|protocol|category)\./);
       if (closingMatch) {
         const entityRange = new Range(
           new Position(lineNum, 0),
@@ -184,7 +184,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const normalizedText = directiveText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
 
     // Parse entity directive: :- entity_type(arguments...).
-    const match = normalizedText.match(/^(:-\s+(object|protocol|category)\(\s*)(.*)(\)\s*\.\s*)$/);
+    const match = normalizedText.match(/^:-\s*(object|protocol|category)\(\s*(.*)\)\s*\.\s*$/);
     if (!match) {
       // If parsing fails, fall back to simple formatting
       return directiveText.split('\n').map((line, index) => {
@@ -196,9 +196,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }).join('\n');
     }
 
-    const prefix = match[1]; // ":- object("
-    const argumentsText = match[3].trim(); // "entity_name, implements(...), imports(...)"
-    const suffix = match[4]; // ")."
+    const entityType = match[1]; // "object", "protocol", or "category"
+    const argumentsText = match[2].trim(); // "entity_name, implements(...), imports(...)"
+    const prefix = `:- ${entityType}(`; // Ensure single space between :- and directive name
+    const suffix = ').'; // ")."
 
     if (!argumentsText || argumentsText === '') {
       return prefix + suffix;
@@ -250,8 +251,12 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       replaceStartChar = 0;
     }
 
+    // Ensure proper spacing in closing directive
+    const match = directiveText.match(/^:-\s*(end_(?:object|protocol|category))\./);
+    const formattedDirective = match ? `:- ${match[1]}.` : directiveText;
+
     // Create the replacement text: single empty line + closing directive
-    let finalText = '\n' + directiveText;
+    let finalText = '\n' + formattedDirective;
 
     // Add empty line after closing directive if not at end of file
     const nextLineNum = range.end.line + 1;
@@ -308,17 +313,15 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
 
       // Handle if/1 conditional compilation directives
-      if (/^:-\s+if\(/.test(trimmedText)) {
+      if (/^:-\s*if\(/.test(trimmedText)) {
         this.logger.debug(`  Found if/1 conditional compilation directive at line ${lineNum + 1}: "${trimmedText}"`);
         const endifLine = this.findMatchingEndif(document, lineNum);
         if (endifLine !== -1) {
-          if (!lineText.startsWith('\t')) {
-            this.indentRange(document, lineNum, endifLine, edits);
-            indentedItems++;
-          }
-          lineNum = endifLine + 1;
-          continue;
+          this.formatIfBlock(document, lineNum, endifLine, edits);
+          indentedItems++;
         }
+        lineNum = endifLine + 1;
+        continue;
       }
 
       // Handle directives (starting with :-)
@@ -326,46 +329,49 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         this.logger.debug(`  Found directive at line ${lineNum + 1}: "${trimmedText}"`);
         const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
         // Call the appropriate formatter based on directive type
-        if (/^:-\s+(object|protocol|category)\(/.test(trimmedText)) {
+        if (/^:-\s*(object|protocol|category)\(/.test(trimmedText)) {
           // entity opening directive (when using the "Format Selection" command)
           this.formatEntityOpeningDirective(document, new Range(
             new Position(directiveRange.start, 0),
             new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
           ), edits);
-        } else if (/^:-\s+(end_object|end_protocol|end_category)\./.test(trimmedText)) {
+        } else if (/^:-\s*(end_object|end_protocol|end_category)\./.test(trimmedText)) {
           // entity closing directive (when using the "Format Selection" command)
           this.formatEntityClosingDirective(document, new Range(
             new Position(directiveRange.start, 0),
             new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
           ), edits);
-        } else if (/^:-\s+info\(\s*\[/.test(trimmedText)) {
+        } else if (/^:-\s*info\(\s*\[/.test(trimmedText)) {
           // info/1 directive with list
           this.formatInfo1Directive(document, directiveRange, edits);
-        } else if (/^:-\s+initialization\(\s*\[/.test(trimmedText)) {
+        } else if (/^:-\s*initialization\(\s*\[/.test(trimmedText)) {
           // initialization/1 directive
           this.formatInitialization1Directive(document, directiveRange, edits);
-        } else if (/^:-\s+info\((?!\s*\[)[^,]+,/.test(trimmedText)) {
+        } else if (/^:-\s*mode\(/.test(trimmedText)) {
+          // info/2 directive
+          this.formatMode2Directive(document, directiveRange, edits);
+        } else if (/^:-\s*info\((?!\s*\[)[^,]+,/.test(trimmedText)) {
           // info/2 directive
           this.formatInfo2Directive(document, directiveRange, edits);
-        } else if (/^:-\s+uses\((?!\s*\[)/.test(trimmedText)) {
+        } else if (/^:-\s*uses\((?!\s*\[)/.test(trimmedText)) {
           // uses/2 directive
           this.formatUses2Directive(document, directiveRange, edits);
-        } else if (/^:-\s+alias\(/.test(trimmedText)) {
+        } else if (/^:-\s*alias\(/.test(trimmedText)) {
           // alias/2 directive
-          this.formatAliasDirective(document, directiveRange, edits);
-        } else if (/^:-\s+uses\(\s*\[/.test(trimmedText)) {
+          this.formatAlias2Directive(document, directiveRange, edits);
+        } else if (/^:-\s*uses\(\s*\[/.test(trimmedText)) {
           // uses/1 directive with list
           this.formatUses1Directive(document, directiveRange, edits);
-        } else if (/^:-\s+use_module\(\s*\[/.test(trimmedText)) {
+        } else if (/^:-\s*use_module\(\s*\[/.test(trimmedText)) {
           // use_module/1 directive with list
           this.formatUseModule1Directive(document, directiveRange, edits);
-        } else if (/^:-\s+(public|protected|private)\(\s*\[/.test(trimmedText)) {
-          // scope directives with list
+        } else if (/^:-\s*(public|protected|private)\(/.test(trimmedText)) {
+          // scope directives
           this.formatScopeDirective(document, directiveRange, edits);
-        } else if (/^:-\s+(discontiguous|dynamic|coinductive|multifile|synchronized)\(\s*\[/.test(trimmedText)) {
+        } else if (/^:-\s*(discontiguous|dynamic|coinductive|multifile|synchronized)\(\s*\[/.test(trimmedText)) {
           // predicate property directives with list
           this.formatPredicatePropertyDirective(document, directiveRange, edits);
-        } else if (/^:-\s+use_module\([^,]+,/.test(trimmedText)) {
+        } else if (/^:-\s*use_module\([^,]+,/.test(trimmedText)) {
           // use_module/2 directive
           this.formatUseModule2Directive(document, directiveRange, edits);
         } else {
@@ -379,7 +385,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         lineNum = directiveRange.end + 1;
         continue;
       }
-      
+
       // Handle grammar rules (containing -->)
       if (trimmedText.includes('-->')) {
         this.logger.debug(`  Found grammar rule at line ${lineNum + 1}: "${trimmedText}"`);
@@ -544,12 +550,12 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const lineText = document.lineAt(lineNum).text.trim();
 
       // Check for nested if directives
-      if (/^:-\s+if\(/.test(lineText)) {
+      if (/^:-\s*if\(/.test(lineText)) {
         nestingLevel++;
         this.logger.debug(`  Found nested if at line ${lineNum + 1}, nesting level: ${nestingLevel}`);
       }
       // Check for endif directives
-      else if (/^:-\s+endif\s*\./.test(lineText)) {
+      else if (/^:-\s*endif\s*\./.test(lineText)) {
         nestingLevel--;
         this.logger.debug(`  Found endif at line ${lineNum + 1}, nesting level: ${nestingLevel}`);
 
@@ -610,6 +616,58 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   }
 
   /**
+   * Format a single mode/2 directive using pre-computed range
+   */
+  private formatMode2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    const formattedMode = this.formatMode2DirectiveContent(document, directiveRange);
+
+    const range = new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    );
+
+    edits.push(TextEdit.replace(range, formattedMode));
+  }
+
+  /**
+   * Format the content of a mode/2 directive
+   */
+  private formatMode2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text;
+    }
+    directiveText = directiveText.trim();
+
+    // Parse mode/2 directive: :- mode(template, solutions).
+    const normalizedText = directiveText.replace(/\s+/g, ' ');
+    const match = normalizedText.match(/^:-\s*mode\(\s*(.*)\)\s*\.$/);
+    if (!match) {
+      // If parsing fails, ensure proper spacing in the directive
+      const reformattedDirective = normalizedText.replace(/^:-\s*(\w+)/, ':- $1');
+      return '\t' + reformattedDirective;
+    }
+
+    const argumentsText = match[1].trim();
+    if (!argumentsText) {
+      return '\t:- mode().';
+    }
+
+    // Use ArgumentUtils to parse the two arguments
+    const directiveArguments = ArgumentUtils.parseArguments(argumentsText);
+    if (directiveArguments.length !== 2) {
+      // If not exactly 2 arguments, ensure proper spacing and return
+      return '\t:- mode(' + argumentsText + ').';
+    }
+
+    const template = directiveArguments[0].trim();
+    const solutions = directiveArguments[1].trim();
+
+    // Format with proper spacing: single space after :- and single space between arguments
+    return '\t:- mode(' + template + ', ' + solutions + ').';
+  }
+
+  /**
    * Format a single info/2 directive using pre-computed range
    */
   private formatInfo2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
@@ -635,7 +693,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     // Parse info/2 directive: :- info(predicate/arity, [list]).
     const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s+info\(\s*(.*)\)\s*\.$/);
+    const match = normalizedText.match(/^:-\s*info\(\s*(.*)\)\s*\.$/);
     if (!match) {
       return '\t' + directiveText;
     }
@@ -750,7 +808,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     // Parse uses directive: :- uses(Object, [list]).
     const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s+uses\(\s*(.*)\)\s*\.$/);
+    const match = normalizedText.match(/^:-\s*uses\(\s*(.*)\)\s*\.$/);
     if (!match) {
       return '\t' + directiveText;
     }
@@ -778,7 +836,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const listContent = listMatch[1].trim();
     if (!listContent) {
       // Empty list case
-      return '\t' + ':- uses(' + objectName + ', []).';
+      return '\t:- uses(' + objectName + ', []).';
     }
 
     const elements = ArgumentUtils.parseArguments(listContent);
@@ -800,8 +858,8 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Format a single alias/2 directive using pre-computed range
    */
-  private formatAliasDirective(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    const formattedAlias = this.formatAliasDirectiveContent(document, directiveRange);
+  private formatAlias2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    const formattedAlias = this.formatAlias2DirectiveContent(document, directiveRange);
 
     const range = new Range(
       new Position(directiveRange.start, 0),
@@ -814,7 +872,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Format the content of an alias/2 directive
    */
-  private formatAliasDirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
+  private formatAlias2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
       directiveText += document.lineAt(lineNum).text;
@@ -823,7 +881,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     // Parse alias directive: :- alias(Object, List).
     const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s+alias\(\s*(.*)\)\s*\.$/);
+    const match = normalizedText.match(/^:-\s*alias\(\s*(.*)\)\s*\.$/);
     if (!match) {
       return '\t' + directiveText;
     }
@@ -851,7 +909,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const listContent = listMatch[1].trim();
     if (!listContent) {
       // Empty list case
-      return '\t' + ':- alias(' + objectName + ', []).';
+      return '\t:- alias(' + objectName + ', []).';
     }
 
     const elements = ArgumentUtils.parseArguments(listContent);
@@ -896,7 +954,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     // Parse use_module directive: :- use_module(Module, [list]).
     const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s+use_module\(\s*(.*)\)\s*\.$/);
+    const match = normalizedText.match(/^:-\s*use_module\(\s*(.*)\)\s*\.$/);
     if (!match) {
       return '\t' + directiveText.trim();
     }
@@ -976,18 +1034,56 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatScopeDirective(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     const lineText = document.lineAt(directiveRange.start).text.trim();
-    const match = lineText.match(/^:-\s+(public|protected|private)\(/);
+    const match = lineText.match(/^:-\s*(public|protected|private)\(/);
     if (match) {
       const directiveName = match[1];
-      const formattedScope = this.formatListDirectiveContent(document, directiveRange, directiveName);
 
-      const range = new Range(
-        new Position(directiveRange.start, 0),
-        new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
-      );
+      // Check if this is a list directive or single indicator directive
+      if (/^:-\s*(public|protected|private)\(\s*\[/.test(lineText)) {
+        // List directive - use existing list formatter
+        const formattedScope = this.formatListDirectiveContent(document, directiveRange, directiveName);
 
-      edits.push(TextEdit.replace(range, formattedScope));
+        const range = new Range(
+          new Position(directiveRange.start, 0),
+          new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+        );
+
+        edits.push(TextEdit.replace(range, formattedScope));
+      } else {
+        // Single indicator directive - format with proper spacing
+        const formattedScope = this.formatSingleIndicatorDirective(document, directiveRange, directiveName);
+
+        const range = new Range(
+          new Position(directiveRange.start, 0),
+          new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+        );
+
+        edits.push(TextEdit.replace(range, formattedScope));
+      }
     }
+  }
+
+  /**
+   * Format a single indicator directive (non-list) with proper spacing
+   */
+  private formatSingleIndicatorDirective(document: TextDocument, directiveRange: { start: number; end: number }, directiveName: string): string {
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text;
+    }
+    directiveText = directiveText.trim();
+
+    // Parse the directive: :- directiveName(indicator).
+    const normalizedText = directiveText.replace(/\s+/g, ' ');
+    const match = normalizedText.match(/^:-\s*\w+\(\s*(.*)\)\s*\.$/);
+    if (!match) {
+      // If parsing fails, ensure proper spacing in the directive
+      const reformattedDirective = normalizedText.replace(/^:-\s*(\w+)/, ':- $1');
+      return '\t' + reformattedDirective;
+    }
+
+    const indicatorText = match[1].trim();
+    return `\t:- ${directiveName}(${indicatorText}).`;
   }
 
   /**
@@ -995,7 +1091,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatPredicatePropertyDirective(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     const lineText = document.lineAt(directiveRange.start).text.trim();
-    const match = lineText.match(/^:-\s+(discontiguous|dynamic|coinductive|multifile|synchronized)\(/);
+    const match = lineText.match(/^:-\s*(discontiguous|dynamic|coinductive|multifile|synchronized)\(/);
     if (match) {
       const directiveName = match[1];
       const formattedProperty = this.formatListDirectiveContent(document, directiveRange, directiveName);
@@ -1022,20 +1118,15 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     // Normalize the text to extract list content
     const normalizedText = directiveText.replace(/\s+/g, ' ');
 
-    // Find position after "directiveName(["
-    const openIndex = normalizedText.indexOf('([');
-    if (openIndex === -1) {
-      return '\t' + directiveText;
+    // Parse the directive to ensure proper formatting
+    const directiveMatch = normalizedText.match(/^:-\s*\w+\(\s*\[(.*)\]\s*\)\s*\.$/);
+    if (!directiveMatch) {
+      // If parsing fails, ensure proper spacing in the directive
+      const reformattedDirective = normalizedText.replace(/^:-\s*(\w+)/, ':- $1');
+      return '\t' + reformattedDirective;
     }
 
-    // Find the list content between [ and ]
-    const afterOpen = normalizedText.substring(openIndex + 2); // Skip past '(['
-    const closeIndex = afterOpen.lastIndexOf(']).');
-    if (closeIndex === -1) {
-      return '\t' + directiveText;
-    }
-
-    const listContent = afterOpen.substring(0, closeIndex).trim();
+    const listContent = directiveMatch[1].trim();
     if (!listContent) {
       return `\t:- ${directiveName}([]).`;
     }
@@ -1056,4 +1147,41 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     return formatted;
   }
+
+  /**
+   * Format a conditional compilation block (if/elif/else/endif) with proper spacing
+   */
+  private formatIfBlock(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
+    for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+      const line = document.lineAt(lineNum);
+      const lineText = line.text;
+
+      // Skip empty lines
+      if (lineText.trim() === '') {
+        continue;
+      }
+
+      let processedText = lineText;
+      const trimmedText = lineText.trim();
+
+      // Check if this line contains a conditional compilation directive
+      const match = trimmedText.match(/^:-\s*(if|elif|else|endif)(.*)$/);
+      if (match) {
+        // Format the conditional directive
+        const directiveName = match[1];
+        const remainder = match[2]; // Everything after the directive name
+        processedText = `:- ${directiveName}${remainder}`;
+      }
+
+      // Add tab to non-empty lines
+      const indentedText = '\t' + processedText;
+      this.logger.debug(`    Formatting conditional block line ${lineNum + 1}: "${lineText}" → "${indentedText}"`);
+      const range = new Range(
+        new Position(lineNum, 0),
+        new Position(lineNum, lineText.length)
+      );
+      edits.push(TextEdit.replace(range, indentedText));
+    }
+  }
+
 }
