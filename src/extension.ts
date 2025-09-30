@@ -113,6 +113,21 @@ export function activate(context: ExtensionContext) {
   LogtalkJupyter.init(context);
   Utils.init(context);
 
+  // Check Logtalk version
+  Utils.checkLogtalkVersion().then(isVersionSufficient => {
+    if (!isVersionSufficient) {
+      const minVersion = `${Utils.LOGTALK_MIN_VERSION_MAJOR}.${Utils.LOGTALK_MIN_VERSION_MINOR}.${Utils.LOGTALK_MIN_VERSION_PATCH}`;
+      window.showWarningMessage(
+        `Logtalk version ${minVersion} or later is required. Some features may not work correctly with older versions.`
+      );
+      logger.warn(`Logtalk version check failed. Minimum required version: ${minVersion}`);
+    } else {
+      logger.info('Logtalk version check passed');
+    }
+  }).catch(error => {
+    logger.error('Failed to check Logtalk version:', error);
+  });
+
   // Initialize chat participant
   chatParticipant = new LogtalkChatParticipant(context);
 

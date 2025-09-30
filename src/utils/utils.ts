@@ -26,6 +26,11 @@ import { getLogger } from "./logger";
 import { PatternSets } from "./symbols";
 
 export class Utils {
+  // Minimum required Logtalk version
+  public static readonly LOGTALK_MIN_VERSION_MAJOR = 3;
+  public static readonly LOGTALK_MIN_VERSION_MINOR = 94;
+  public static readonly LOGTALK_MIN_VERSION_PATCH = 0;
+
   private static logtalkHome: string;
   private static backend: string;
   private static script: string;
@@ -140,6 +145,39 @@ export class Utils {
        }
     }
 
+  }
+
+  /**
+   * Checks if the installed Logtalk version meets the minimum required version.
+   * @returns true if the installed version is >= minimum required version, false otherwise
+   */
+  public static async checkLogtalkVersion(): Promise<boolean> {
+    try {
+      const query = `(current_logtalk_flag(version_data, logtalk(CurrentMajor,CurrentMinor,CurrentPatch,_)), logtalk(CurrentMajor,CurrentMinor,CurrentPatch) @>= logtalk(${Utils.LOGTALK_MIN_VERSION_MAJOR},${Utils.LOGTALK_MIN_VERSION_MINOR},${Utils.LOGTALK_MIN_VERSION_PATCH}) -> halt(0); halt(1)).`;
+
+      let env;
+      if (process.platform === 'win32') {
+        env = workspace.getConfiguration("terminal.integrated.env.windows");
+      } else if (process.platform === 'darwin') {
+        env = workspace.getConfiguration("terminal.integrated.env.osx");
+      } else {
+        env = workspace.getConfiguration("terminal.integrated.env.linux");
+      }
+
+      const result = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
+        env: Object.assign({}, process.env, env),
+        encoding: "utf8",
+        input: query,
+        timeout: 5000 // 5 second timeout
+      });
+
+      // Exit code 0 means version is sufficient, 1 means it's too old
+      return result.status === 0;
+    } catch (error) {
+      Utils.logger.error(`Error checking Logtalk version: ${error}`);
+      // If we can't check the version, assume it's okay to avoid blocking the extension
+      return true;
+    }
   }
 
   private static loadSnippets(context: ExtensionContext) {
