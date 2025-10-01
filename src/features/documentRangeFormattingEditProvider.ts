@@ -47,7 +47,16 @@ export class LogtalkDocumentRangeFormattingEditProvider implements DocumentRange
       await vscode.commands.executeCommand('editor.action.indentationToTabs');
       this.logger.debug('Successfully executed indentationToTabs command');
 
-      // Step 2: Apply Logtalk-specific range formatting
+      // Step 2: Update the editor options to use tabs for this document
+      this.logger.debug('Updating editor options to use tabs');
+      activeEditor.options = {
+        ...activeEditor.options,
+        tabSize: 4, // Use the configurationDefaults "editor.tabSize" from package.json
+        insertSpaces: false
+      };
+      this.logger.debug('Successfully updated editor options to use tabs');
+
+      // Step 3: Apply Logtalk-specific range formatting
       this.logger.debug('Applying Logtalk-specific range formatting');
       await vscode.commands.executeCommand('editor.action.formatSelection');
       this.logger.debug('Successfully applied Logtalk range formatting');

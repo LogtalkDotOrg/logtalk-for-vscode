@@ -2,7 +2,8 @@
 
 ## [0.56.0]
 
-* Improve reformatting of predicate and non-terminal rules
+* Improve formatting of predicate and non-terminal rules
+* Fix formatting commands to set the editor to use tabs for indentation after converting spaces to tabs
 
 ## [0.55.0]
 
