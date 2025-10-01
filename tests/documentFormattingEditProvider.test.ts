@@ -2286,4 +2286,61 @@ insert_top(List, Key-Value) :-
     assert.ok(outerElif!.startsWith('\t:- elif'), 'Outer elif should have 1 tab');
     assert.ok(!outerElif!.startsWith('\t\t'), 'Outer elif should NOT have 2 tabs');
   });
+
+  test('should format info/1 directive with parameters and remarks as multi-line', async () => {
+    const info1Content = `:- object(test).
+
+	:- info([version is 1:0:0, author is 'Paulo Moura', date is 2024-01-15, parameters is ['Name', 'Age', 'City'], remarks is ['First remark', 'Second remark', 'Third remark'], comment is 'Test object']).
+
+:- end_object.`;
+
+    const info1Doc = await vscode.workspace.openTextDocument({
+      content: info1Content,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      info1Doc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = info1Doc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = info1Doc.offsetAt(edit.range.start);
+      const endOffset = info1Doc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    const lines = formattedText.split('\n');
+
+    // Check that parameters is formatted as multi-line
+    const parametersLine = lines.find(line => line.includes('parameters is ['));
+    assert.ok(parametersLine, 'Should find parameters key');
+    assert.ok(parametersLine!.includes('parameters is ['), 'Parameters should start with "parameters is ["');
+
+    // Check that parameter elements are on separate lines
+    const nameParam = lines.find(line => line.trim() === "'Name',");
+    assert.ok(nameParam, 'Should find Name parameter on its own line');
+    assert.ok(nameParam!.startsWith('\t\t\t'), 'Name parameter should be indented with 3 tabs');
+
+    const ageParam = lines.find(line => line.trim() === "'Age',");
+    assert.ok(ageParam, 'Should find Age parameter on its own line');
+
+    const cityParam = lines.find(line => line.trim() === "'City'");
+    assert.ok(cityParam, 'Should find City parameter on its own line (no comma)');
+
+    // Check that remarks is formatted as multi-line
+    const remarksLine = lines.find(line => line.includes('remarks is ['));
+    assert.ok(remarksLine, 'Should find remarks key');
+
+    const firstRemark = lines.find(line => line.trim() === "'First remark',");
+    assert.ok(firstRemark, 'Should find first remark on its own line');
+    assert.ok(firstRemark!.startsWith('\t\t\t'), 'First remark should be indented with 3 tabs');
+
+    // Check that closing bracket for parameters/remarks is properly indented
+    const closingBrackets = lines.filter(line => line.trim() === ']' || line.trim() === '],');
+    assert.ok(closingBrackets.length >= 2, 'Should find at least 2 closing brackets for parameters and remarks');
+  });
 });

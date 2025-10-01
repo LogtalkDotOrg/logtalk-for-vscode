@@ -291,3 +291,86 @@ foo(X).
     });
   });
 });
+
+import { ArgumentUtils } from '../src/utils/argumentUtils';
+
+suite('ArgumentUtils Test Suite', () => {
+
+  suite('parseArguments function', () => {
+
+    test('should parse simple arguments', () => {
+      const result = ArgumentUtils.parseArguments('a, b, c');
+      assert.deepStrictEqual(result, ['a', 'b', 'c']);
+    });
+
+    test('should handle arguments with parentheses', () => {
+      const result = ArgumentUtils.parseArguments('foo(a, b), bar(c), d');
+      assert.deepStrictEqual(result, ['foo(a, b)', 'bar(c)', 'd']);
+    });
+
+    test('should handle arguments with square brackets', () => {
+      const result = ArgumentUtils.parseArguments('[a, b, c], d, [e, f]');
+      assert.deepStrictEqual(result, ['[a, b, c]', 'd', '[e, f]']);
+    });
+
+    test('should handle arguments with curly braces', () => {
+      const result = ArgumentUtils.parseArguments('{a, b, c}, d, {e, f}');
+      assert.deepStrictEqual(result, ['{a, b, c}', 'd', '{e, f}']);
+    });
+
+    test('should handle nested structures', () => {
+      const result = ArgumentUtils.parseArguments('foo([a, b]), bar({c, d}), baz((e, f))');
+      assert.deepStrictEqual(result, ['foo([a, b])', 'bar({c, d})', 'baz((e, f))']);
+    });
+
+    test('should handle complex nested curly braces', () => {
+      const result = ArgumentUtils.parseArguments('X, {a, b, {c, d}}, Y');
+      assert.deepStrictEqual(result, ['X', '{a, b, {c, d}}', 'Y']);
+    });
+
+    test('should handle quoted strings with commas', () => {
+      const result = ArgumentUtils.parseArguments("'hello, world', foo, \"test, data\"");
+      assert.deepStrictEqual(result, ["'hello, world'", 'foo', '"test, data"']);
+    });
+
+    test('should handle empty argument list', () => {
+      const result = ArgumentUtils.parseArguments('');
+      assert.deepStrictEqual(result, []);
+    });
+
+    test('should handle single argument', () => {
+      const result = ArgumentUtils.parseArguments('foo');
+      assert.deepStrictEqual(result, ['foo']);
+    });
+
+    test('should handle mixed grouping constructs', () => {
+      const result = ArgumentUtils.parseArguments('foo([a, {b, c}]), {d, [e, f]}, (g, h)');
+      assert.deepStrictEqual(result, ['foo([a, {b, c}])', '{d, [e, f]}', '(g, h)']);
+    });
+
+    test('should handle quoted atoms ending with 0', () => {
+      const result = ArgumentUtils.parseArguments("'1900', '2000', 'test'");
+      assert.deepStrictEqual(result, ["'1900'", "'2000'", "'test'"]);
+    });
+
+    test('should handle character code notation', () => {
+      const result = ArgumentUtils.parseArguments("0'a, 0'b, 0'0");
+      assert.deepStrictEqual(result, ["0'a", "0'b", "0'0"]);
+    });
+
+    test('should handle complex example from iso8601.lgt', () => {
+      const result = ArgumentUtils.parseArguments(
+        "'Date, reduced, year (section 5.2.1.2 b)' - date_string('YYYY',Day,'1900') - {Day = [1900]}, " +
+        "'Date, reduced, century (section 5.2.1.2 c)' - date_string('YY',2456557,Str) - {Str = '20'}"
+      );
+      assert.strictEqual(result.length, 2, 'Should parse as 2 arguments');
+      assert.ok(result[0].includes("'Date, reduced, year"), 'First argument should contain year example');
+      assert.ok(result[1].includes("'Date, reduced, century"), 'Second argument should contain century example');
+    });
+
+    test('should handle quoted atoms with commas inside predicate calls', () => {
+      const result = ArgumentUtils.parseArguments("foo('a, b, c'), bar('d, e'), baz");
+      assert.deepStrictEqual(result, ["foo('a, b, c')", "bar('d, e')", "baz"]);
+    });
+  });
+});

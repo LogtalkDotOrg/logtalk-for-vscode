@@ -833,7 +833,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format a single info/1 directive using pre-computed range
    */
   private formatInfo1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    const formattedInfo1 = this.formatListDirectiveContent(document, directiveRange, 'info');
+    const formattedInfo1 = this.formatInfo1DirectiveContent(document, directiveRange);
 
     // Add empty line after directive if not present
     const nextLineNum = directiveRange.end + 1;
@@ -852,6 +852,84 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     );
 
     edits.push(TextEdit.replace(range, finalText));
+  }
+
+  /**
+   * Format the content of an info/1 directive
+   */
+  private formatInfo1DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text;
+    }
+    directiveText = directiveText.trim();
+
+    // Normalize the text to extract list content
+    const normalizedText = directiveText.replace(/\s+/g, ' ');
+
+    // Parse the directive to ensure proper formatting
+    const directiveMatch = normalizedText.match(/^:-\s*info\(\s*\[(.*)\]\s*\)\s*\.$/);
+    if (!directiveMatch) {
+      // If parsing fails, ensure proper spacing in the directive
+      const reformattedDirective = normalizedText.replace(/^:-\s*(info)/, ':- $1');
+      return '\t' + reformattedDirective;
+    }
+
+    const listContent = directiveMatch[1].trim();
+    if (!listContent) {
+      return '\t:- info([]).';
+    }
+
+    // Parse elements and format with special handling for parameters and remarks
+    const elements = ArgumentUtils.parseArguments(listContent);
+
+    let formatted = '\t:- info([\n';
+    elements.forEach((element, index) => {
+      const formattedElement = this.formatInfo1Element(element.trim());
+      formatted += '\t\t' + formattedElement;
+      if (index < elements.length - 1) {
+        formatted += ',\n';
+      } else {
+        formatted += '\n';
+      }
+    });
+    formatted += '\t]).';
+
+    return formatted;
+  }
+
+  /**
+   * Format individual elements in info/1 directives, with special handling for
+   * parameters and remarks keys that contain lists
+   */
+  private formatInfo1Element(element: string): string {
+    // Check if this element contains parameters or remarks with lists
+    const listKeyMatch = element.match(/^(parameters|remarks)\s+is\s+\[(.*)\]$/);
+    if (listKeyMatch) {
+      const key = listKeyMatch[1];
+      const listContent = listKeyMatch[2].trim();
+
+      if (!listContent) {
+        return key + ' is []';
+      }
+
+      const listElements = ArgumentUtils.parseArguments(listContent);
+      let formatted = key + ' is [\n';
+      listElements.forEach((listElement, index) => {
+        formatted += '\t\t\t' + listElement.trim();
+        if (index < listElements.length - 1) {
+          formatted += ',\n';
+        } else {
+          formatted += '\n';
+        }
+      });
+      formatted += '\t\t]';
+
+      return formatted;
+    }
+
+    // For other elements, return as-is
+    return element;
   }
 
   /**
@@ -1042,7 +1120,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatInfo2Element(element: string): string {
     // Check if this element contains arguments, exceptions, or examples with lists
-    const listKeyMatch = element.match(/^(arguments|exceptions|examples)\s+is\s+\[(.*)\]$/);
+    const listKeyMatch = element.match(/^(arguments|exceptions|examples|remarks)\s+is\s+\[(.*)\]$/);
     if (listKeyMatch) {
       const key = listKeyMatch[1];
       const listContent = listKeyMatch[2].trim();
@@ -1052,13 +1130,6 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
 
       const listElements = ArgumentUtils.parseArguments(listContent);
-
-      if (listElements.length === 1) {
-        // Single element - keep on same line
-        return key + ' is [' + listContent + ']';
-      }
-
-      // Multiple elements - format as multi-line
       let formatted = key + ' is [\n';
       listElements.forEach((listElement, index) => {
         formatted += '\t\t\t' + listElement.trim();

@@ -6,7 +6,7 @@
 export class ArgumentUtils {
 
   /**
-   * Parse arguments from a string, handling nested parentheses and commas
+   * Parse arguments from a string, handling nested parentheses, brackets, braces, and commas
    * @param argsText The text containing the arguments (without outer parentheses)
    * @returns Array of argument strings
    */
@@ -19,6 +19,7 @@ export class ArgumentUtils {
     let currentArg = '';
     let parenDepth = 0;
     let bracketDepth = 0;
+    let braceDepth = 0;
     let inQuotes = false;
     let inSingleQuotes = false;
     let escapeNext = false;
@@ -46,14 +47,14 @@ export class ArgumentUtils {
 
       if (char === "'" && !inQuotes) {
         // Check if this is a character code notation (zero followed by single quote)
-        // Look back to see if the previous character is a zero
-        if (i > 0 && argsText[i - 1] === '0') {
+        // This only applies when we're NOT already inside a single-quoted string
+        if (!inSingleQuotes && i > 0 && argsText[i - 1] === '0') {
           // This is character code notation like 0'0, 0'\n, etc.
           // Don't treat as quoted string, just add to current argument
           currentArg += char;
           continue;
         } else {
-          // This is a regular quoted string
+          // This is a regular quoted string (opening or closing quote)
           inSingleQuotes = !inSingleQuotes;
           currentArg += char;
           continue;
@@ -77,7 +78,13 @@ export class ArgumentUtils {
       } else if (char === ']') {
         bracketDepth--;
         currentArg += char;
-      } else if (char === ',' && parenDepth === 0 && bracketDepth === 0) {
+      } else if (char === '{') {
+        braceDepth++;
+        currentArg += char;
+      } else if (char === '}') {
+        braceDepth--;
+        currentArg += char;
+      } else if (char === ',' && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
         // Found a top-level comma - end of current argument
         args.push(currentArg.trim());
         currentArg = '';
@@ -130,14 +137,14 @@ export class ArgumentUtils {
 
       if (char === "'" && !inQuotes) {
         // Check if this is a character code notation (zero followed by single quote)
-        // Look back to see if the previous character is a zero
-        if (i > 0 && text[i - 1] === '0') {
+        // This only applies when we're NOT already inside a single-quoted string
+        if (!inSingleQuotes && i > 0 && text[i - 1] === '0') {
           // This is character code notation like 0'0, 0'\n, etc.
           // Skip the quote and the next character (which is the character being coded)
           i++; // Skip the character after the quote
           continue;
         } else {
-          // This is a regular quoted string
+          // This is a regular quoted string (opening or closing quote)
           inSingleQuotes = !inSingleQuotes;
           continue;
         }

@@ -2,6 +2,7 @@
 
 ## [0.57.0]
 
+* Improve formatting of `info/1` and `info/2` directives
 * Improve formatting of predicate directives, predicate definitions, and non-terminal definitions by inserting an empty line when switching to a different predicate/non-terminal
 * Improve formatting of conditional compilation blocks
 * Fix formatting of multi-line facts
