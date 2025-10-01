@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.55.0]
+
+* Fix typo in minimum Logtalk required version
+
 ## [0.54.0]
 
 * Add Logtalk version checking at extension activation to ensure compatibility with minimum required version
