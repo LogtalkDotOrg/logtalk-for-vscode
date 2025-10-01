@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.57.0]
+
+* Improve formatting of predicate directives, predicate definitions, and non-terminal definitions by inserting an empty line when switching to a different predicate/non-terminal
+
 ## [0.56.0]
 
 * Improve formatting of predicate and non-terminal rules

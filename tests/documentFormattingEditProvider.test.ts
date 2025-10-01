@@ -1741,4 +1741,369 @@ insert_top(List, Key-Value) :-
     // the async formatDocumentWithIndentationConversion command instead
     assert.strictEqual(edits.length, 0, 'Should return empty edits when spaces detected (async conversion will be triggered)');
   });
+
+  test('should separate predicates with different indicators with empty lines', async () => {
+    const multiPredicateContent = `:- object(test).
+
+	foo(X) :-
+		write(X).
+	foo(X, Y) :-
+		write(X), write(Y).
+	bar(Z) :-
+		write(Z).
+	bar(A, B) :-
+		write(A), write(B).
+
+:- end_object.`;
+
+    const multiPredicateDoc = await vscode.workspace.openTextDocument({
+      content: multiPredicateContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      multiPredicateDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = multiPredicateDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = multiPredicateDoc.offsetAt(edit.range.start);
+      const endOffset = multiPredicateDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that there's an empty line between foo/2 and bar/1
+    const lines = formattedText.split('\n');
+    let foundFoo2 = false;
+    let foundEmptyAfterFoo2 = false;
+    let foundBar1 = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('foo(X, Y)')) {
+        foundFoo2 = true;
+      } else if (foundFoo2 && !foundEmptyAfterFoo2 && line === '') {
+        foundEmptyAfterFoo2 = true;
+      } else if (foundEmptyAfterFoo2 && line.startsWith('bar(Z)')) {
+        foundBar1 = true;
+        break;
+      }
+    }
+
+    assert.ok(foundFoo2, 'Should find foo/2 predicate');
+    assert.ok(foundEmptyAfterFoo2, 'Should have empty line after foo/2');
+    assert.ok(foundBar1, 'Should find bar/1 predicate after empty line');
+  });
+
+  test('should separate grammar rules with different indicators with empty lines', async () => {
+    const multiGrammarContent = `:- object(test).
+
+	sentence --> noun, verb.
+	sentence --> noun, verb, object.
+	noun --> [cat].
+	noun --> [dog].
+
+:- end_object.`;
+
+    const multiGrammarDoc = await vscode.workspace.openTextDocument({
+      content: multiGrammarContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      multiGrammarDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = multiGrammarDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = multiGrammarDoc.offsetAt(edit.range.start);
+      const endOffset = multiGrammarDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that there's an empty line between sentence//0 and noun//0
+    const lines = formattedText.split('\n');
+    let foundSentence2 = false;
+    let foundEmptyAfterSentence = false;
+    let foundNoun = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('sentence --> noun, verb, object')) {
+        foundSentence2 = true;
+      } else if (foundSentence2 && !foundEmptyAfterSentence && line === '') {
+        foundEmptyAfterSentence = true;
+      } else if (foundEmptyAfterSentence && line.startsWith('noun -->')) {
+        foundNoun = true;
+        break;
+      }
+    }
+
+    assert.ok(foundSentence2, 'Should find sentence//0 grammar rule with 3 elements');
+    assert.ok(foundEmptyAfterSentence, 'Should have empty line after sentence//0');
+    assert.ok(foundNoun, 'Should find noun//0 grammar rule after empty line');
+  });
+
+  test('should separate facts with different indicators with empty lines', async () => {
+    const multiFactContent = `:- object(test).
+
+	foo(a).
+	foo(b).
+	bar(x).
+	bar(y).
+
+:- end_object.`;
+
+    const multiFactDoc = await vscode.workspace.openTextDocument({
+      content: multiFactContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      multiFactDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = multiFactDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = multiFactDoc.offsetAt(edit.range.start);
+      const endOffset = multiFactDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that there's an empty line between foo/1 facts and bar/1 facts
+    const lines = formattedText.split('\n');
+    let foundFooB = false;
+    let foundEmptyAfterFoo = false;
+    let foundBarX = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line === 'foo(b).') {
+        foundFooB = true;
+      } else if (foundFooB && !foundEmptyAfterFoo && line === '') {
+        foundEmptyAfterFoo = true;
+      } else if (foundEmptyAfterFoo && line === 'bar(x).') {
+        foundBarX = true;
+        break;
+      }
+    }
+
+    assert.ok(foundFooB, 'Should find foo(b) fact');
+    assert.ok(foundEmptyAfterFoo, 'Should have empty line after foo/1 facts');
+    assert.ok(foundBarX, 'Should find bar(x) fact after empty line');
+  });
+
+  test('should separate mode/2 directives for different predicates with empty lines', async () => {
+    const multiModeContent = `:- object(test).
+
+	:- mode(foo(+integer), one).
+	:- mode(foo(+atom), one).
+	:- mode(bar(-list), zero_or_more).
+	:- mode(bar(+term, -term), one).
+
+:- end_object.`;
+
+    const multiModeDoc = await vscode.workspace.openTextDocument({
+      content: multiModeContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      multiModeDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = multiModeDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = multiModeDoc.offsetAt(edit.range.start);
+      const endOffset = multiModeDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that there's an empty line between foo/1 modes and bar/1 modes
+    const lines = formattedText.split('\n');
+    let foundFooAtom = false;
+    let foundEmptyAfterFoo = false;
+    let foundBarList = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.includes('mode(foo(+atom)')) {
+        foundFooAtom = true;
+      } else if (foundFooAtom && !foundEmptyAfterFoo && line === '') {
+        foundEmptyAfterFoo = true;
+      } else if (foundEmptyAfterFoo && line.includes('mode(bar(-list)')) {
+        foundBarList = true;
+        break;
+      }
+    }
+
+    assert.ok(foundFooAtom, 'Should find mode for foo/1 with atom');
+    assert.ok(foundEmptyAfterFoo, 'Should have empty line after foo/1 modes');
+    assert.ok(foundBarList, 'Should find mode for bar/1 after empty line');
+  });
+
+  test('should separate info/2 directives for different predicates with empty lines', async () => {
+    const multiInfoContent = `:- object(test).
+
+	:- info(foo/1, [comment is 'First predicate']).
+	:- info(foo/2, [comment is 'Second version']).
+	:- info(bar/1, [comment is 'Different predicate']).
+
+:- end_object.`;
+
+    const multiInfoDoc = await vscode.workspace.openTextDocument({
+      content: multiInfoContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      multiInfoDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = multiInfoDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = multiInfoDoc.offsetAt(edit.range.start);
+      const endOffset = multiInfoDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that there's an empty line between foo/2 info and bar/1 info
+    const lines = formattedText.split('\n');
+    let foundFoo2 = false;
+    let foundEmptyAfterFoo = false;
+    let foundBar1 = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.includes('info(foo/2')) {
+        foundFoo2 = true;
+      } else if (foundFoo2 && !foundEmptyAfterFoo && line === '') {
+        foundEmptyAfterFoo = true;
+      } else if (foundEmptyAfterFoo && line.includes('info(bar/1')) {
+        foundBar1 = true;
+        break;
+      }
+    }
+
+    assert.ok(foundFoo2, 'Should find info for foo/2');
+    assert.ok(foundEmptyAfterFoo, 'Should have empty line after foo/2 info');
+    assert.ok(foundBar1, 'Should find info for bar/1 after empty line');
+  });
+
+  test('should separate scope directives for different predicates with empty lines', async () => {
+    const multiScopeContent = `:- object(test).
+
+	:- public(foo/1).
+	:- public(foo/2).
+	:- public(bar/1).
+
+:- end_object.`;
+
+    const multiScopeDoc = await vscode.workspace.openTextDocument({
+      content: multiScopeContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      multiScopeDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = multiScopeDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = multiScopeDoc.offsetAt(edit.range.start);
+      const endOffset = multiScopeDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that there's an empty line between foo/2 and bar/1
+    const lines = formattedText.split('\n');
+    let foundFoo2 = false;
+    let foundEmptyAfterFoo = false;
+    let foundBar1 = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.includes('public(foo/2)')) {
+        foundFoo2 = true;
+      } else if (foundFoo2 && !foundEmptyAfterFoo && line === '') {
+        foundEmptyAfterFoo = true;
+      } else if (foundEmptyAfterFoo && line.includes('public(bar/1)')) {
+        foundBar1 = true;
+        break;
+      }
+    }
+
+    assert.ok(foundFoo2, 'Should find public for foo/2');
+    assert.ok(foundEmptyAfterFoo, 'Should have empty line after foo/2');
+    assert.ok(foundBar1, 'Should find public for bar/1 after empty line');
+  });
+
+  test('should extract indicators from callable forms in mode/2 directives', async () => {
+    const callableFormContent = `:- object(test).
+
+	:- mode(foo(+integer), one).
+	:- mode(foo(+atom, -term), one).
+	:- mode(bar(-list), zero_or_more).
+
+:- end_object.`;
+
+    const callableFormDoc = await vscode.workspace.openTextDocument({
+      content: callableFormContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      callableFormDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = callableFormDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = callableFormDoc.offsetAt(edit.range.start);
+      const endOffset = callableFormDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that there's an empty line between foo/2 and bar/1
+    const lines = formattedText.split('\n');
+    let foundFoo2 = false;
+    let foundEmptyAfterFoo = false;
+    let foundBar1 = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.includes('mode(foo(+atom, -term)')) {
+        foundFoo2 = true;
+      } else if (foundFoo2 && !foundEmptyAfterFoo && line === '') {
+        foundEmptyAfterFoo = true;
+      } else if (foundEmptyAfterFoo && line.includes('mode(bar(-list)')) {
+        foundBar1 = true;
+        break;
+      }
+    }
+
+    assert.ok(foundFoo2, 'Should find mode for foo/2 with callable form');
+    assert.ok(foundEmptyAfterFoo, 'Should have empty line after foo/2 modes');
+    assert.ok(foundBar1, 'Should find mode for bar/1 after empty line');
+  });
 });
