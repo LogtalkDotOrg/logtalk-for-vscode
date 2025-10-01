@@ -2206,4 +2206,84 @@ insert_top(List, Key-Value) :-
     assert.ok(!foundEmptyAfterSecond, 'Should NOT have empty line between facts of same predicate');
     assert.ok(foundMultiLineFact, 'Should find the multi-line doc_goal fact');
   });
+
+  test('should properly indent nested conditional compilation blocks', async () => {
+    const nestedIfContent = `:- object(test).
+
+:- if(current_logtalk_flag(prolog_dialect, swi)).
+	swi_specific_code.
+	:- if(current_logtalk_flag(version_data, logtalk(3,_,_,_))).
+		logtalk3_swi_code.
+	:- else.
+		logtalk2_swi_code.
+	:- endif.
+	more_swi_code.
+:- elif(current_logtalk_flag(prolog_dialect, gnu)).
+	gnu_specific_code.
+:- else.
+	default_code.
+:- endif.
+
+:- end_object.`;
+
+    const nestedIfDoc = await vscode.workspace.openTextDocument({
+      content: nestedIfContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      nestedIfDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = nestedIfDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = nestedIfDoc.offsetAt(edit.range.start);
+      const endOffset = nestedIfDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    const lines = formattedText.split('\n');
+
+    // Check outer if directive (should have 1 tab)
+    const outerIf = lines.find(line => line.includes(':- if(current_logtalk_flag(prolog_dialect, swi))'));
+    assert.ok(outerIf, 'Should find outer if directive');
+    assert.ok(outerIf!.startsWith('\t:- if'), 'Outer if should have 1 tab');
+    assert.ok(!outerIf!.startsWith('\t\t'), 'Outer if should NOT have 2 tabs');
+
+    // Check outer if content (should have 2 tabs - one more than if directive)
+    const outerContent = lines.find(line => line.includes('swi_specific_code'));
+    assert.ok(outerContent, 'Should find outer if content');
+    assert.ok(outerContent!.startsWith('\t\t') && !outerContent!.startsWith('\t\t\t'), 'Outer if content should have 2 tabs');
+
+    // Check nested if directive (should have 2 tabs - inside outer if block, same level as outer content)
+    const nestedIf = lines.find(line => line.includes(':- if(current_logtalk_flag(version_data'));
+    assert.ok(nestedIf, 'Should find nested if directive');
+    assert.ok(nestedIf!.startsWith('\t\t:- if') && !nestedIf!.startsWith('\t\t\t'), 'Nested if should have 2 tabs');
+
+    // Check nested if content (should have 3 tabs - one more than nested if directive)
+    const nestedContent = lines.find(line => line.includes('logtalk3_swi_code'));
+    assert.ok(nestedContent, 'Should find nested if content');
+    assert.ok(nestedContent!.startsWith('\t\t\t') && !nestedContent!.startsWith('\t\t\t\t'), 'Nested if content should have 3 tabs');
+
+    // Check nested else directive (should have 2 tabs - same level as nested if)
+    const nestedElseIndex = lines.findIndex(line => line.trim() === ':- else.' && lines.indexOf(line) > lines.findIndex(l => l.includes('logtalk3_swi_code')));
+    assert.ok(nestedElseIndex > 0, 'Should find nested else directive');
+    const nestedElse = lines[nestedElseIndex];
+    assert.ok(nestedElse!.startsWith('\t\t:- else') && !nestedElse!.startsWith('\t\t\t'), 'Nested else should have 2 tabs');
+
+    // Check nested endif directive (should have 2 tabs - same level as nested if)
+    const nestedEndifIndex = lines.findIndex(line => line.trim() === ':- endif.' && lines.indexOf(line) < lines.findIndex(l => l.includes('more_swi_code')));
+    assert.ok(nestedEndifIndex > 0, 'Should find nested endif directive');
+    const nestedEndif = lines[nestedEndifIndex];
+    assert.ok(nestedEndif!.startsWith('\t\t:- endif') && !nestedEndif!.startsWith('\t\t\t'), 'Nested endif should have 2 tabs');
+
+    // Check outer elif directive (should have 1 tab)
+    const outerElif = lines.find(line => line.includes(':- elif(current_logtalk_flag(prolog_dialect, gnu))'));
+    assert.ok(outerElif, 'Should find outer elif directive');
+    assert.ok(outerElif!.startsWith('\t:- elif'), 'Outer elif should have 1 tab');
+    assert.ok(!outerElif!.startsWith('\t\t'), 'Outer elif should NOT have 2 tabs');
+  });
 });

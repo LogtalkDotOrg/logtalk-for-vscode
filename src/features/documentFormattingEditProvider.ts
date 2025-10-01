@@ -1484,38 +1484,78 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   }
 
   /**
-   * Format a conditional compilation block (if/elif/else/endif) with proper spacing
+   * Format a conditional compilation block (if/elif/else/endif) with proper spacing and nesting
    */
   private formatIfBlock(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
+    // Determine the base indentation level (should be one tab for entity content)
+    let baseIndent = '\t';
+    if (document.lineAt(startLine).text.startsWith('\t')) {
+      baseIndent = '';
+    }
+
+    // Track nesting level for nested if/endif blocks
+    let nestingLevel = 0;
+
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const line = document.lineAt(lineNum);
       const lineText = line.text;
+      const trimmedText = lineText.trim();
 
       // Skip empty lines
-      if (lineText.trim() === '') {
+      if (trimmedText === '') {
         continue;
       }
 
-      let processedText = lineText;
-      const trimmedText = lineText.trim();
-
       // Check if this line contains a conditional compilation directive
-      const match = trimmedText.match(/^:-\s*(if|elif|else|endif)(.*)$/);
-      if (match) {
-        // Format the conditional directive
-        const directiveName = match[1];
-        const remainder = match[2]; // Everything after the directive name
-        processedText = `:- ${directiveName}${remainder}`;
-      }
+      const directiveMatch = trimmedText.match(/^:-\s*(if|elif|else|endif)(.*)$/);
 
-      // Add tab to non-empty lines
-      const indentedText = '\t' + processedText;
-      this.logger.debug(`    Formatting conditional block line ${lineNum + 1}: "${lineText}" → "${indentedText}"`);
-      const range = new Range(
-        new Position(lineNum, 0),
-        new Position(lineNum, lineText.length)
-      );
-      edits.push(TextEdit.replace(range, indentedText));
+      if (directiveMatch) {
+        const directiveName = directiveMatch[1];
+        const remainder = directiveMatch[2]; // Everything after the directive name
+
+        // Determine the indentation level for this directive
+        let directiveNestingLevel = nestingLevel;
+
+        // elif, else, and endif should be at the same level as their corresponding if
+        // So we need to use the nesting level BEFORE the current if block
+        if (directiveName === 'elif' || directiveName === 'else' || directiveName === 'endif') {
+          directiveNestingLevel = nestingLevel - 1;
+        }
+
+        // Format the directive with base indent plus nesting indent
+        const directiveIndent = baseIndent + '\t'.repeat(directiveNestingLevel);
+        const formattedDirective = `${directiveIndent}${lineText}`;
+
+        this.logger.debug(`    Formatting conditional directive at line ${lineNum + 1}, nesting=${nestingLevel}, directive_nesting=${directiveNestingLevel}: "${trimmedText}" → "${formattedDirective}"`);
+
+        const range = new Range(
+          new Position(lineNum, 0),
+          new Position(lineNum, lineText.length)
+        );
+        edits.push(TextEdit.replace(range, formattedDirective));
+
+        // Adjust nesting level AFTER formatting
+        if (directiveName === 'if') {
+          nestingLevel++;
+        } else if (directiveName === 'endif') {
+          nestingLevel--;
+        }
+        // elif and else don't change nesting level
+      } else {
+        // This is content between conditional directives
+        // Content should be indented one level deeper than the current if directive
+        // The current if is at level (nestingLevel - 1), so content is at nestingLevel
+        const contentIndent = baseIndent + '\t'.repeat(nestingLevel);
+        const formattedContent = contentIndent + lineText;
+
+        this.logger.debug(`    Formatting conditional block content at line ${lineNum + 1}, nesting=${nestingLevel}: "${trimmedText}" → "${formattedContent}"`);
+
+        const range = new Range(
+          new Position(lineNum, 0),
+          new Position(lineNum, lineText.length)
+        );
+        edits.push(TextEdit.replace(range, formattedContent));
+      }
     }
   }
 

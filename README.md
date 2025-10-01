@@ -100,7 +100,7 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 - All content inside entity opening and closing directives is indented by at least one tab
 - All directives with a list argument are formatted to use multi-line syntax with one list item per line
 
-You can verify the changes before saving them using the "File: Compare Active File with Saved" command.
+You can verify the changes before saving them using the "File: Compare Active File with Saved" command, which also allow selectively undoing formatting changes.
 
 ### Linter
 
@@ -244,7 +244,7 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
-Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be previewed. But the files changed are opened in the editor and the user can verify the changes before saving them (using e.g. the "File: Compare Active File with Saved" command). Note that most refactoring operations require the code to be loaded.
+Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them. After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be previewed. But the files changed are opened in the editor and the user can verify the changes before saving them (using e.g. the "File: Compare Active File with Saved" command, which also allow selectively undoing refactoring changes). Note that most refactoring operations require the code to be loaded.
 
 #### Code extraction
 
