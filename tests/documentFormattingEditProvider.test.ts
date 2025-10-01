@@ -2152,4 +2152,58 @@ insert_top(List, Key-Value) :-
       assert.ok(line.startsWith('\t'), 'Block comment lines should be indented');
     });
   });
+
+  test('should not insert empty line between multi-line facts of same predicate', async () => {
+    const multiLineFactContent = `:- object(test).
+
+	doc_goal(set_logtalk_flag(source_data,on)).
+	doc_goal(logtalk_load([lgtdoc(loader), diagrams(loader)])).
+	doc_goal((
+		git::commit_hash('$LOGTALKHOME', LogtalkHash),
+		atomic_list_concat(['https://github.com/', LogtalkHash], URL)
+	)).
+
+:- end_object.`;
+
+    const multiLineFactDoc = await vscode.workspace.openTextDocument({
+      content: multiLineFactContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      multiLineFactDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = multiLineFactDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = multiLineFactDoc.offsetAt(edit.range.start);
+      const endOffset = multiLineFactDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that there's NO empty line between the single-line facts and the multi-line fact
+    const lines = formattedText.split('\n');
+    let foundSecondFact = false;
+    let foundEmptyAfterSecond = false;
+    let foundMultiLineFact = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.includes('doc_goal(logtalk_load([lgtdoc')) {
+        foundSecondFact = true;
+      } else if (foundSecondFact && !foundMultiLineFact && line === '') {
+        foundEmptyAfterSecond = true;
+      } else if (line.includes('doc_goal((')) {
+        foundMultiLineFact = true;
+        break;
+      }
+    }
+
+    assert.ok(foundSecondFact, 'Should find the second doc_goal fact');
+    assert.ok(!foundEmptyAfterSecond, 'Should NOT have empty line between facts of same predicate');
+    assert.ok(foundMultiLineFact, 'Should find the multi-line doc_goal fact');
+  });
 });

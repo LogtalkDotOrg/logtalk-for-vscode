@@ -461,8 +461,15 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
         this.logger.debug(`  Found predicate fact at line ${lineNum + 1}: "${trimmedText}"`);
 
-        // Extract indicator from the fact
-        const indicator = this.extractIndicatorFromTerm(trimmedText, false);
+        // Extract the complete fact text (may be multi-line)
+        let factText = '';
+        for (let factLineNum = factRange.start; factLineNum <= factRange.end; factLineNum++) {
+          factText += document.lineAt(factLineNum).text.trim() + ' ';
+        }
+        factText = factText.trim();
+
+        // Extract indicator from the complete fact
+        const indicator = this.extractIndicatorFromTerm(factText, false);
 
         // Insert empty line if different indicator
         if (this.lastTermType === "predicate" && this.lastTermIndicator !== "" && indicator !== "" && this.lastTermIndicator !== indicator) {
