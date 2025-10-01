@@ -2106,4 +2106,50 @@ insert_top(List, Key-Value) :-
     assert.ok(foundEmptyAfterFoo, 'Should have empty line after foo/2 modes');
     assert.ok(foundBar1, 'Should find mode for bar/1 after empty line');
   });
+
+  test('should not double-indent clauses after block comments', async () => {
+    const blockCommentContent = `:- object(test).
+
+/*
+	file_lines(Filename, Lines) :-
+		file_tokens(Filename, Tokens).
+*/
+	sentence_delimeter(SDelim) :- SDelim='<next_sentence>'.
+
+:- end_object.`;
+
+    const blockCommentDoc = await vscode.workspace.openTextDocument({
+      content: blockCommentContent,
+      language: 'logtalk'
+    });
+
+    const edits = provider.provideDocumentFormattingEdits(
+      blockCommentDoc,
+      { tabSize: 4, insertSpaces: false },
+      new vscode.CancellationTokenSource().token
+    );
+
+    // Apply edits to get the formatted text
+    let formattedText = blockCommentDoc.getText();
+    for (const edit of edits.reverse()) {
+      const startOffset = blockCommentDoc.offsetAt(edit.range.start);
+      const endOffset = blockCommentDoc.offsetAt(edit.range.end);
+      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
+    }
+
+    // Check that the clause is still indented with only one tab
+    const lines = formattedText.split('\n');
+    const clauseLine = lines.find(line => line.includes('sentence_delimeter'));
+
+    assert.ok(clauseLine, 'Should find the sentence_delimeter clause');
+    assert.ok(clauseLine!.startsWith('\t'), 'Clause should be indented with a tab');
+    assert.ok(!clauseLine!.startsWith('\t\t'), 'Clause should NOT be double-indented');
+
+    // Also verify block comment lines are properly indented
+    const blockCommentLines = lines.filter(line => line.includes('file_lines') || line.includes('file_tokens'));
+    assert.ok(blockCommentLines.length > 0, 'Should find block comment content');
+    blockCommentLines.forEach(line => {
+      assert.ok(line.startsWith('\t'), 'Block comment lines should be indented');
+    });
+  });
 });

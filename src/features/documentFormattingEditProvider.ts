@@ -335,10 +335,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         continue;
       }
 
-      // Handle comments - indent with one tab if they start at character zero
+      // Handle line comments - indent with one tab if they start at character zero
       if (trimmedText.startsWith('%')) {
         if (!lineText.startsWith('\t') && lineText.startsWith('%')) {
-          this.logger.debug(`  Indenting comment at line ${lineNum + 1}: "${lineText}"`);
+          this.logger.debug(`  Indenting line comment at line ${lineNum + 1}: "${lineText}"`);
           const indentedText = '\t' + lineText;
           const range = new Range(
             new Position(lineNum, 0),
@@ -348,6 +348,15 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           indentedItems++;
         }
         lineNum++;
+        continue;
+      }
+
+      // Handle block comments - indent all lines and don't change lastTermType
+      if (trimmedText.startsWith('/*')) {
+        const blockEndLine = this.indentBlockComment(document, lineNum, endLine, edits);
+        indentedItems++;
+        // Move past the block comment without changing lastTermType or lastTermIndicator
+        lineNum = blockEndLine + 1;
         continue;
       }
 
@@ -507,6 +516,46 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       );
       edits.push(TextEdit.replace(range, newText));
     }
+  }
+
+  /**
+   * Helper method to get the range of a block comment
+   * @param document The text document
+   * @param startLine The line number where the block comment starts
+   * @param maxEndLine The maximum line number to search for the end of the block comment
+   * @returns An object with start and end line numbers of the block comment
+   */
+  private getBlockCommentRange(document: TextDocument, startLine: number, maxEndLine: number): { start: number; end: number } {
+    let blockEndLine = startLine;
+    while (blockEndLine <= maxEndLine) {
+      const blockLine = document.lineAt(blockEndLine).text;
+      if (blockLine.includes('*/')) {
+        break;
+      }
+      blockEndLine++;
+    }
+
+    return { start: startLine, end: blockEndLine };
+  }
+
+  /**
+   * Helper method to indent a block comment
+   * @param document The text document
+   * @param startLine The line number where the block comment starts
+   * @param maxEndLine The maximum line number to search for the end of the block comment
+   * @param edits The array of text edits to add indentation edits to
+   * @returns The line number where the block comment ends
+   */
+  private indentBlockComment(document: TextDocument, startLine: number, maxEndLine: number, edits: TextEdit[]): number {
+    this.logger.debug(`  Found block comment at line ${startLine + 1}`);
+
+    // Get the range of the block comment
+    const blockRange = this.getBlockCommentRange(document, startLine, maxEndLine);
+
+    // Indent all lines in the block comment
+    this.indentRange(document, blockRange.start, blockRange.end, edits);
+
+    return blockRange.end;
   }
 
   /**
