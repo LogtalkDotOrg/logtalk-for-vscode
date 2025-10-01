@@ -63,9 +63,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     this.logger.debug('Received formatting options - tabSize:', options.tabSize, 'insertSpaces:', options.insertSpaces);
 
+    // Check if document actually contains spaces for indentation
+    const documentText = document.getText();
+    const hasSpaceIndentation = /^\s*[ ]{2,}/m.test(documentText); // Look for lines with 2+ leading spaces
+    this.logger.debug('Document analysis - hasSpaceIndentation:', hasSpaceIndentation, 'options.insertSpaces:', options.insertSpaces);
+
     // If document uses spaces, trigger the chained formatting command asynchronously
     // and return empty edits (the command will handle everything)
-    if (options.insertSpaces) {
+    if (options.insertSpaces || hasSpaceIndentation) {
       this.logger.debug('Document uses spaces - triggering automatic indentation conversion + formatting');
       // Trigger the chained formatting asynchronously
       setTimeout(() => {
