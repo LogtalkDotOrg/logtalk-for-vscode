@@ -1705,4 +1705,40 @@ insert_top(List, Key-Value) :-
     assert.ok(usesEdit, 'Should have edit for uses directive');
     assert.ok(usesEdit.newText.startsWith('\t'), 'Uses directive should be indented with tab');
   });
+
+  test('should detect spaces and trigger automatic conversion', async () => {
+    // Create a document that uses spaces for indentation
+    const spaceIndentedContent = `:- object(test).
+
+    :- info([
+        version is 1:0:0,
+        author is 'Test Author'
+    ]).
+
+    test_predicate :-
+        write('Hello World').
+
+:- end_object.`;
+
+    const spaceDocument = await vscode.workspace.openTextDocument({
+      content: spaceIndentedContent,
+      language: 'logtalk'
+    });
+
+    // Simulate VS Code detecting spaces (insertSpaces: true)
+    const spaceOptions: vscode.FormattingOptions = {
+      tabSize: 4,
+      insertSpaces: true  // This simulates VS Code's auto-detection of spaces
+    };
+
+    const edits = provider.provideDocumentFormattingEdits(
+      spaceDocument,
+      spaceOptions,
+      new vscode.CancellationTokenSource().token
+    );
+
+    // When spaces are detected, the formatter returns empty edits and triggers
+    // the async formatDocumentWithIndentationConversion command instead
+    assert.strictEqual(edits.length, 0, 'Should return empty edits when spaces detected (async conversion will be triggered)');
+  });
 });

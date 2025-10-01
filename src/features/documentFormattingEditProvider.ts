@@ -61,6 +61,24 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   ): TextEdit[] {
     const edits: TextEdit[] = [];
 
+    this.logger.debug('Received formatting options - tabSize:', options.tabSize, 'insertSpaces:', options.insertSpaces);
+
+    // If document uses spaces, trigger the chained formatting command asynchronously
+    // and return empty edits (the command will handle everything)
+    if (options.insertSpaces) {
+      this.logger.debug('Document uses spaces - triggering automatic indentation conversion + formatting');
+      // Trigger the chained formatting asynchronously
+      setTimeout(() => {
+        this.formatDocumentWithIndentationConversion().catch(error => {
+          this.logger.error(`Error during automatic indentation conversion: ${error.message}`);
+        });
+      }, 0);
+      // Return empty edits - the async command will handle the formatting
+      return [];
+    }
+
+    this.logger.debug('Document uses tabs, proceeding with normal Logtalk formatting');
+
     try {
       // Find all entity opening and closing directives
       const allEntities = this.findAllEntities(document);

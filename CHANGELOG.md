@@ -3,6 +3,7 @@
 ## [0.56.0]
 
 * Improve formatting of predicate and non-terminal rules
+* Fix the "Format Document" and "Format Selection" commands to also convert space-based indentation to tabs
 * Fix formatting commands to set the editor to use tabs for indentation after converting spaces to tabs
 
 ## [0.55.0]
