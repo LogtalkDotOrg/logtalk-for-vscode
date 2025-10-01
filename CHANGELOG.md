@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.56.0]
+
+* Improve reformatting of predicate and non-terminal rules
+
 ## [0.55.0]
 
 * Fix typo in minimum Logtalk required version

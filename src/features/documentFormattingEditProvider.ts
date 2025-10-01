@@ -540,6 +540,12 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       };
     }
 
+    // No comment found - ensure space after operator if there's content
+    const trimmedAfter = afterOperator.trim();
+    if (trimmedAfter) {
+      return { text: beforeOperator + operator + ' ' + trimmedAfter, comment: null };
+    }
+
     return { text: beforeOperator + operator + afterOperator, comment: null };
   }
 
