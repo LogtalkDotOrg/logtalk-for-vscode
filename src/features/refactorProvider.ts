@@ -175,7 +175,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     // Check for replace magic number refactoring
-    if (!selection.isEmpty) {
+    if (!selection.isEmpty && selection.start.line === selection.end.line) {
       const selectedText = document.getText(selection);
       const isNumeric = this.isNumericLiteral(selectedText);
       const isInRuleBody = this.isInsideRuleBody(document, selection.start);

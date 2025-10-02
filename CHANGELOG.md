@@ -2,6 +2,7 @@
 
 ## [0.58.0]
 
+* Improve "Replace magic number with predicate call" refactoring applicability check performance
 * Fix refreshing the editor indentation guides/rulers after running the formatting commands
 
 ## [0.57.0]
