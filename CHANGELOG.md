@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.58.0]
+
+* Fix refreshing the editor indentation guides/rulers after running the formatting commands
+
 ## [0.57.0]
 
 * Improve formatting of `info/1` and `info/2` directives

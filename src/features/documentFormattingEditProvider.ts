@@ -44,6 +44,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         tabSize: 4, // Use the configurationDefaults "editor.tabSize" from package.json
         insertSpaces: false
       };
+      await vscode.commands.executeCommand('editor.action.detectIndentation');
       this.logger.debug('Successfully updated editor options to use tabs');
 
       // Step 3: Apply Logtalk-specific formatting
