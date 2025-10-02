@@ -6,6 +6,7 @@
 * Improve formatting of predicate directives, predicate definitions, and non-terminal definitions by inserting an empty line when switching to a different predicate/non-terminal
 * Improve formatting of conditional compilation blocks
 * Fix formatting of multi-line facts
+* Fix formatting bug in moving comment after the neck operator to the next line
 
 ## [0.56.0]
 

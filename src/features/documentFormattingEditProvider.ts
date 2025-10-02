@@ -627,8 +627,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           new Position(lineNum, lineText.length)
         );
         edits.push(TextEdit.replace(range, processedText));
-        processedText = initialIndent + '\t' + lineText;
-        edits.push(TextEdit.insert(new Position(lineNum + 1, 0), initialIndent + '\t' + extractedComment + '\n'));
+        edits.push(TextEdit.insert(new Position(lineNum + 1, 0), '\t\t' + extractedComment + '\n'));
       } else {
         // Normal line replacement
         const range = new Range(
