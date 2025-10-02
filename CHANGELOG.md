@@ -4,6 +4,7 @@
 
 * Improve "Replace magic number with predicate call" refactoring applicability check performance
 * Fix refreshing the editor indentation guides/rulers after running the formatting commands
+* Fix case where applying the formatting commands to documents with mixed and inconsistent indentation could cause an infinite loop
 
 ## [0.57.0]
 
