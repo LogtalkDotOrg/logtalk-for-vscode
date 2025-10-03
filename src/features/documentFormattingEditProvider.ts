@@ -644,12 +644,95 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   }
 
   /**
+   * Find the position of an operator at the top level (not inside parentheses, brackets, braces, or quotes)
+   * @param text The text to search in
+   * @param operator The operator to find (e.g., ':-' or '-->')
+   * @returns The index of the operator, or -1 if not found at top level
+   */
+  private findTopLevelOperator(text: string, operator: string): number {
+    let parenDepth = 0;
+    let bracketDepth = 0;
+    let braceDepth = 0;
+    let inQuotes = false;
+    let inSingleQuotes = false;
+    let escapeNext = false;
+    let inCharCode = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      // Handle character code notation first
+      if (inCharCode) {
+        if (char === '\\') {
+          if (i + 1 < text.length) {
+            i++;
+          }
+        }
+        inCharCode = false;
+        continue;
+      }
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"' && !inSingleQuotes) {
+        inQuotes = !inQuotes;
+        continue;
+      }
+
+      if (char === "'" && !inQuotes) {
+        if (!inSingleQuotes && i > 0 && text[i - 1] === '0') {
+          inCharCode = true;
+          continue;
+        } else {
+          inSingleQuotes = !inSingleQuotes;
+          continue;
+        }
+      }
+
+      if (inQuotes || inSingleQuotes) {
+        continue;
+      }
+
+      if (char === '(') {
+        parenDepth++;
+      } else if (char === ')') {
+        parenDepth--;
+      } else if (char === '[') {
+        bracketDepth++;
+      } else if (char === ']') {
+        bracketDepth--;
+      } else if (char === '{') {
+        braceDepth++;
+      } else if (char === '}') {
+        braceDepth--;
+      }
+
+      // Check for operator at top level
+      if (parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+        if (text.substring(i, i + operator.length) === operator) {
+          return i;
+        }
+      }
+    }
+
+    return -1;
+  }
+
+  /**
    * Format a predicate clause head or a grammar rule head line to ensure proper spacing and handle line comments
    * Also extracts the predicate/non-terminal indicator for tracking
    */
   private formatClauseOrGrammarHeadLine(lineText: string, operator: string): { text: string; comment: string | null; indicator: string } {
-    // Find the operator position
-    const operatorIndex = lineText.indexOf(operator);
+    // Find the operator position at the top level (not inside parentheses, brackets, or braces)
+    const operatorIndex = this.findTopLevelOperator(lineText, operator);
     if (operatorIndex === -1) {
       return { text: lineText, comment: null, indicator: '' };
     }
