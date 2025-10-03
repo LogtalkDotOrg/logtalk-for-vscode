@@ -3,9 +3,11 @@
 ## [0.59.0]
 
 * More compact formatting of list-based directives
+* Move any comment or goal after the neck operator (`:-` or `-->`) to the next line and indented
 * Make the "logtalk.format.withIndentationConversion" command an internal command
+* Improve insertion of empty lines before different types of directives
 * Fix formatting of rules with occurrences of the `:-` or `-->` operators in head arguments
-* Fix bug parsing `0'Char` character code notation predicate/non-terminal arguments
+* Fix bug parsing `0'Char` character code notation in predicate/non-terminal arguments
 
 ## [0.58.0]
 

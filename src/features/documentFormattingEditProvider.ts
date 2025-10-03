@@ -18,6 +18,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private logger = getLogger();
   private lastTermType = "";
   private lastTermIndicator = "";
+  private lastPredicateIndicator = "";
 
   /**
    * Custom command that chains native indentation conversion with Logtalk formatting
@@ -203,18 +204,16 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const directiveText = document.getText(range);
     const formattedDirective = this.formatEntityOpeningDirectiveContent(directiveText);
 
-    // Add empty line after directive if not present
-    const nextLineNum = range.end.line + 1;
-    let finalText = formattedDirective;
+    edits.push(TextEdit.replace(range, formattedDirective));
 
-    if (nextLineNum < document.lineCount) {
-      const nextLine = document.lineAt(nextLineNum).text;
-      if (nextLine.trim() !== '') {
-        finalText += '\n';
-      }
+    // Update the last term indicator
+    // Extract entity type from directive (object, protocol, or category)
+    const match = directiveText.match(/^:-\s*(object|protocol|category)\(/);
+    if (match) {
+      const entityType = match[1];
+      this.lastTermIndicator = `${entityType}/1`; // or higher arity depending on arguments
+      this.lastPredicateIndicator = "";
     }
-
-    edits.push(TextEdit.replace(range, finalText));
   }
 
   /**
@@ -315,6 +314,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     );
 
     edits.push(TextEdit.replace(replaceRange, finalText));
+
+    // Update the last term indicator
+    // Extract entity type from directive (end_object, end_protocol, or end_category)
+    const entityMatch = directiveText.match(/^:-\s*(end_(?:object|protocol|category))\./);
+    if (entityMatch) {
+      this.lastTermIndicator = `${entityMatch[1]}/0`;
+      this.lastPredicateIndicator = "";
+    }
   }
 
   /**
@@ -336,6 +343,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         lineNum++;
         this.lastTermType = "";
         this.lastTermIndicator = "";
+        this.lastPredicateIndicator = "";
         continue;
       }
 
@@ -380,6 +388,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         lineNum = endifLine + 1;
         this.lastTermType = "directive";
         this.lastTermIndicator = "";
+        this.lastPredicateIndicator = "";
         continue;
       }
 
@@ -387,6 +396,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       if (trimmedText.startsWith(':-')) {
         this.logger.debug(`  Found directive at line ${lineNum + 1}: "${trimmedText}"`);
         const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+        this.logger.debug(`  Directive range: lines ${directiveRange.start + 1}-${directiveRange.end + 1}`);
         // Call the appropriate formatter based on directive type
         if (/^:-\s*(object|protocol|category)\(/.test(trimmedText)) {
           // entity opening directive (when using the "Format Selection" command)
@@ -434,14 +444,31 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           // use_module/2 directive
           this.formatUseModule2Directive(document, directiveRange, edits);
         } else {
-          // Other directives - just indent if needed
+          // Other directives - just add an empty line before if not already present and indent if needed
+          if (directiveRange.start > 0) {
+            const prevLine = document.lineAt(directiveRange.start - 1);
+            if (prevLine.text.trim() !== '') {
+              edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+            }
+          }
           if (!lineText.startsWith('\t')) {
             this.logger.debug(`  Found other directive at line ${lineNum + 1}: "${trimmedText}"`);
             this.indentRange(document, directiveRange.start, directiveRange.end, edits);
             indentedItems++;
           }
-          // Reset indicator for directives that don't track predicates
-          this.lastTermIndicator = "";
+          // Extract directive name and set lastTermIndicator
+          // Match directive name with optional arguments: :- directive_name or :- directive_name(...)
+          const directiveMatch = trimmedText.match(/^:-\s*([a-z_][a-zA-Z0-9_]*)(?:\(|\.|$)/);
+          if (directiveMatch) {
+            const directiveName = directiveMatch[1];
+            // Determine arity: 0 if followed by '.', otherwise assume 1 or more
+            const hasArgs = trimmedText.match(/^:-\s*[a-z_][a-zA-Z0-9_]*\(/);
+            this.lastTermIndicator = hasArgs ? `${directiveName}/1` : `${directiveName}/0`;
+          } else {
+            this.lastTermIndicator = "";
+          }
+          this.logger.debug(`  Updated lastTermIndicator to: ${this.lastTermIndicator}`);
+          this.lastPredicateIndicator = "";
         }
         lineNum = directiveRange.end + 1;
         this.lastTermType = "directive";
@@ -495,9 +522,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           indentedItems++;
         }
 
-        // Update the last term indicator
+        // Update the last term and predicate indicators
         if (indicator) {
           this.lastTermIndicator = indicator;
+          this.lastPredicateIndicator = indicator;
         }
 
         lineNum = factRange.end + 1;
@@ -594,9 +622,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
             edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
           }
 
-          // Update the last term indicator
+          // Update the last term and predicate indicators
           if (result.indicator) {
             this.lastTermIndicator = result.indicator;
+            this.lastPredicateIndicator = result.indicator;
           }
         // Handle grammar rule head lines containing "-->"
         } else if (lineText.includes('-->')) {
@@ -616,9 +645,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
             edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
           }
 
-          // Update the last term indicator
+          // Update the last term and predicate indicators
           if (result.indicator) {
             this.lastTermIndicator = result.indicator;
+            this.lastPredicateIndicator = result.indicator;
           }
         } else {
           processedHead = initialIndent + lineText;
@@ -898,14 +928,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatInfo1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     const formattedInfo1 = this.formatInfo1DirectiveContent(document, directiveRange);
 
-    // Add empty line after directive if not present
-    const nextLineNum = directiveRange.end + 1;
+    // Add empty line before directive if not present
+    const previousLineNum = directiveRange.start - 1;
     let finalText = formattedInfo1;
 
-    if (nextLineNum < document.lineCount) {
-      const nextLine = document.lineAt(nextLineNum).text;
-      if (nextLine.trim() !== '') {
-        finalText += '\n';
+    if (previousLineNum >= 0) {
+      const previousLine = document.lineAt(previousLineNum).text;
+      if (previousLine.trim() !== '') {
+        finalText = '\n' + finalText;
       }
     }
 
@@ -1003,12 +1033,12 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       this.indentRange(document, directiveRange.start, directiveRange.end, edits);
     }
 
-    // Add empty line after directive if not present
-    const nextLineNum = directiveRange.end + 1;
-    if (nextLineNum < document.lineCount) {
-      const nextLine = document.lineAt(nextLineNum).text;
-      if (nextLine.trim() !== '') {
-        edits.push(TextEdit.insert(new Position(directiveRange.end + 1, 0), '\n'));
+    // Add empty line before directive if not present
+    const previousLineNum = directiveRange.start - 1;
+    if (previousLineNum < document.lineCount) {
+      const previousLine = document.lineAt(previousLineNum).text;
+      if (previousLine.trim() !== '') {
+        edits.push(TextEdit.insert(new Position(directiveRange.start - 1, 0), '\n'));
       }
     }
   }
@@ -1023,12 +1053,12 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       directiveText += document.lineAt(lineNum).text;
     }
 
-    const indicator = this.extractIndicatorFromDirective(directiveText);
-    this.logger.debug(`mode/2 directive: indicator="${indicator}", lastTermIndicator="${this.lastTermIndicator}"`);
+    const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
+    this.logger.debug(`mode/2 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
     // Insert empty line if switching to a different predicate/non-terminal
-    if (indicator && this.lastTermIndicator !== "" && indicator !== this.lastTermIndicator) {
-      this.logger.debug(`Inserting empty line before mode/2 directive (different indicator)`);
+    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+      this.logger.debug(`Inserting empty line before mode/2 directive (different predicate)`);
       edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
     }
 
@@ -1041,9 +1071,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     edits.push(TextEdit.replace(range, formattedMode));
 
-    // Update the last term indicator
-    if (indicator) {
-      this.lastTermIndicator = indicator;
+    // Update the last term indicator to "mode/2" and predicate indicator to the predicate being described
+    this.lastTermIndicator = "mode/2";
+    if (predicateIndicator) {
+      this.lastPredicateIndicator = predicateIndicator;
     }
   }
 
@@ -1095,10 +1126,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       directiveText += document.lineAt(lineNum).text;
     }
 
-    const indicator = this.extractIndicatorFromDirective(directiveText);
+    const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
 
     // Insert empty line if switching to a different predicate/non-terminal
-    if (indicator && this.lastTermIndicator !== "" && indicator !== this.lastTermIndicator) {
+    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
       edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
     }
 
@@ -1111,9 +1142,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     edits.push(TextEdit.replace(range, formattedInfo2));
 
-    // Update the last term indicator
-    if (indicator) {
-      this.lastTermIndicator = indicator;
+    // Update the last term indicator to "info/2" and predicate indicator to the predicate being described
+    this.lastTermIndicator = "info/2";
+    if (predicateIndicator) {
+      this.lastPredicateIndicator = predicateIndicator;
     }
   }
 
@@ -1434,6 +1466,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format a single uses/1 directive using pre-computed range
    */
   private formatUses1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    // Insert empty line before directive if previous line is not empty and lastTermIndicator is not "uses/1"
+    if (directiveRange.start > 0) {
+      const prevLine = document.lineAt(directiveRange.start - 1);
+      if (prevLine.text.trim() !== '' && this.lastTermIndicator !== "uses/1") {
+        edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+      }
+    }
+
     const formattedUses1 = this.formatListDirectiveContent(document, directiveRange, 'uses');
 
     const range = new Range(
@@ -1442,12 +1482,24 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     );
 
     edits.push(TextEdit.replace(range, formattedUses1));
+
+    // Update the last term indicator
+    this.lastTermIndicator = "uses/1";
+    this.lastPredicateIndicator = "";
   }
 
   /**
    * Format a single use_module/1 directive using pre-computed range
    */
   private formatUseModule1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    // Insert empty line before directive if previous line is not empty and lastTermIndicator is not "use_module/1"
+    if (directiveRange.start > 0) {
+      const prevLine = document.lineAt(directiveRange.start - 1);
+      if (prevLine.text.trim() !== '' && this.lastTermIndicator !== "use_module/1") {
+        edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+      }
+    }
+
     const formattedUseModule = this.formatListDirectiveContent(document, directiveRange, 'use_module');
 
     const range = new Range(
@@ -1456,6 +1508,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     );
 
     edits.push(TextEdit.replace(range, formattedUseModule));
+
+    // Update the last term indicator
+    this.lastTermIndicator = "use_module/1";
+    this.lastPredicateIndicator = "";
   }
 
   /**
@@ -1473,13 +1529,13 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         directiveText += document.lineAt(lineNum).text;
       }
 
-      const indicator = this.extractIndicatorFromDirective(directiveText);
-      this.logger.debug(`scope directive: indicator="${indicator}", lastTermIndicator="${this.lastTermIndicator}"`);
+      const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
+      this.logger.debug(`scope directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
       // Insert empty line if switching to a different predicate/non-terminal
       // (only for single indicator directives, not lists)
-      if (indicator && this.lastTermIndicator !== "" && indicator !== this.lastTermIndicator) {
-        this.logger.debug(`Inserting empty line before scope directive (different indicator)`);
+      if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+        this.logger.debug(`Inserting empty line before scope directive (different predicate)`);
         edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
       }
 
@@ -1494,6 +1550,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         );
 
         edits.push(TextEdit.replace(range, formattedScope));
+
+        // Update the last term indicator to the directive name (e.g., "public/1")
+        this.lastTermIndicator = `${directiveName}/1`;
+        // For list directives, reset predicate indicator
+        this.lastPredicateIndicator = "";
       } else {
         // Single indicator directive - format with proper spacing
         const formattedScope = this.formatSingleIndicatorDirective(document, directiveRange, directiveName);
@@ -1505,9 +1566,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
         edits.push(TextEdit.replace(range, formattedScope));
 
-        // Update the last term indicator (only for single indicator directives)
-        if (indicator) {
-          this.lastTermIndicator = indicator;
+        // Update the last term indicator to the directive name and predicate indicator
+        this.lastTermIndicator = `${directiveName}/1`;
+        if (predicateIndicator) {
+          this.lastPredicateIndicator = predicateIndicator;
         }
       }
     }
@@ -1551,10 +1613,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         directiveText += document.lineAt(lineNum).text;
       }
 
-      const indicator = this.extractIndicatorFromDirective(directiveText);
+      const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
 
       // Insert empty line if switching to a different predicate/non-terminal
-      if (indicator && this.lastTermIndicator !== "" && indicator !== this.lastTermIndicator) {
+      if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
         edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
       }
 
@@ -1567,9 +1629,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
       edits.push(TextEdit.replace(range, formattedProperty));
 
-      // Update the last term indicator
-      if (indicator) {
-        this.lastTermIndicator = indicator;
+      // Update the last term indicator to the directive name and predicate indicator
+      this.lastTermIndicator = `${directiveName}/1`;
+      if (predicateIndicator) {
+        this.lastPredicateIndicator = predicateIndicator;
       }
     }
   }

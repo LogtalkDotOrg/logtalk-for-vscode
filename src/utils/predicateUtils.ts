@@ -47,14 +47,26 @@ export class PredicateUtils {
     const totalLines = doc.lineCount;
     let endLine = startLine;
 
-    // Find the end of the directive by looking for the closing ).
-    // Only match when ). is followed by whitespace and/or line comment
-    for (let lineNum = startLine; lineNum < totalLines; lineNum++) {
-      const lineText = doc.lineAt(lineNum).text;
-      // Match ). followed by optional whitespace and optional line comment
-      if (/\)\.(\s*(%.*)?)?$/.test(lineText)) {
-        endLine = lineNum;
-        break;
+    // Check if the directive has arguments or not
+    const firstLineText = doc.lineAt(startLine).text;
+    const hasArguments = /^:-\s*[a-z_][a-zA-Z0-9_]*\(/.test(firstLineText.trim());
+
+    if (hasArguments) {
+      // Find the end of the directive by looking for the closing ).
+      // Only match when ). is followed by whitespace and/or line comment
+      for (let lineNum = startLine; lineNum < totalLines; lineNum++) {
+        const lineText = doc.lineAt(lineNum).text;
+        // Match ). followed by optional whitespace and optional line comment
+        if (/\)\.(\s*(%.*)?)?$/.test(lineText)) {
+          endLine = lineNum;
+          break;
+        }
+      }
+    } else {
+      // Directive without arguments - look for just the period
+      // Match :- directive_name. on the same line
+      if (/^:-\s*[a-z_][a-zA-Z0-9_]*\.(\s*(%.*)?)?$/.test(firstLineText.trim())) {
+        endLine = startLine;
       }
     }
 
