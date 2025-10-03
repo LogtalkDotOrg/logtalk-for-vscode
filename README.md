@@ -104,6 +104,7 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 - An empty line is added if missing between definitions of different predicates/non-terminals
 - A space is added if missing after the neck operator (`:-`) in directives
 - A space is added if missing before the neck operator (`:-` or `-->`) in predicate/non-terminal rules
+- Any comment or goal after the neck operator (`:-` or `-->`) is moved to the next line and indented
 - Conditional compilation blocks are formatted by aligning conditional compilation directives according to their nesting level
 
 You can verify the changes before saving them using the "File: Compare Active File with Saved" command, which also allow selectively undoing formatting changes.

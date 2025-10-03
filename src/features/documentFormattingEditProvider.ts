@@ -571,16 +571,19 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         continue;
       }
 
-      let processedText = lineText;
-      let extractedComment: string | null = null;
+      let processedHead = lineText;
+      let extractedContentAfterHead: string | null = null;
 
       // Check if this is the first line and contains ":- " or "-->"
       if (lineNum === startLine) {
         // Handle clause head lines containing ":-"
         if (lineText.includes(':-')) {
           const result = this.formatClauseOrGrammarHeadLine(lineText, ':-');
-          processedText = initialIndent + result.text;
-          extractedComment = result.comment;
+          processedHead = initialIndent + result.head;
+          // If there's content after the head, extract it to move to next line
+          if (result.contentAfterHead) {
+            extractedContentAfterHead = result.contentAfterHead;
+          }
 
           // Insert empty line if switching from non-terminal or directive to predicate
           if (this.lastTermType === "non_terminal" || this.lastTermType === "directive") {
@@ -598,8 +601,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Handle grammar rule head lines containing "-->"
         } else if (lineText.includes('-->')) {
           const result = this.formatClauseOrGrammarHeadLine(lineText, '-->');
-          processedText = initialIndent + result.text;
-          extractedComment = result.comment;
+          processedHead = initialIndent + result.head;
+          // If there's content after the head, extract it to move to next line
+          if (result.contentAfterHead) {
+            extractedContentAfterHead = result.contentAfterHead;
+          }
 
           // Insert empty line if switching from predicate or directive to non-terminal
           if (this.lastTermType === "predicate" || this.lastTermType === "directive") {
@@ -615,30 +621,31 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
             this.lastTermIndicator = result.indicator;
           }
         } else {
-          processedText = initialIndent + lineText;
+          processedHead = initialIndent + lineText;
         }
       } else {
-        processedText = initialIndent + lineText;
+        processedHead = initialIndent + lineText;
       }
-      this.logger.debug(`    Processed text: ${processedText}`);
-      this.logger.debug(`    Extracted comment: ${extractedComment}`);
+      this.logger.debug(`    Processed head: ${processedHead}`);
+      this.logger.debug(`    Extracted content after head: ${extractedContentAfterHead}`);
 
-      // If there's an extracted comment, we need to handle the line replacement differently
-      if (extractedComment) {
-        // Replace the current line with the processed text
+      // If there's content after the head, move it to the next line with proper indentation
+      if (extractedContentAfterHead) {
+        // Replace the current line with just the head
         const range = new Range(
           new Position(lineNum, 0),
           new Position(lineNum, lineText.length)
         );
-        edits.push(TextEdit.replace(range, processedText));
-        edits.push(TextEdit.insert(new Position(lineNum + 1, 0), '\t\t' + extractedComment + '\n'));
+        edits.push(TextEdit.replace(range, processedHead));
+        // Insert the content after head on the next line with double indentation
+        edits.push(TextEdit.insert(new Position(lineNum + 1, 0), '\t\t' + extractedContentAfterHead + '\n'));
       } else {
         // Normal line replacement
         const range = new Range(
           new Position(lineNum, 0),
           new Position(lineNum, line.text.length)
         );
-        edits.push(TextEdit.replace(range, processedText));
+        edits.push(TextEdit.replace(range, processedHead));
       }
     }
   }
@@ -727,14 +734,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   }
 
   /**
-   * Format a predicate clause head or a grammar rule head line to ensure proper spacing and handle line comments
-   * Also extracts the predicate/non-terminal indicator for tracking
+   * Format a predicate clause head or a grammar rule head line
+   * Extracts the head (before operator), content after head, and predicate/non-terminal indicator
    */
-  private formatClauseOrGrammarHeadLine(lineText: string, operator: string): { text: string; comment: string | null; indicator: string } {
+  private formatClauseOrGrammarHeadLine(lineText: string, operator: string): { head: string; contentAfterHead: string; indicator: string } {
     // Find the operator position at the top level (not inside parentheses, brackets, or braces)
     const operatorIndex = this.findTopLevelOperator(lineText, operator);
     if (operatorIndex === -1) {
-      return { text: lineText, comment: null, indicator: '' };
+      return { head: lineText, contentAfterHead: '', indicator: '' };
     }
 
     // Extract the predicate/non-terminal indicator (functor/arity or functor//arity)
@@ -763,27 +770,13 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         beforeOperator = beforeOperator + ' ';
     }
 
-    // Check for line comments after the operator
-    const commentMatch = afterOperator.match(/^(.*?)(\s*%.*?)$/);
-    if (commentMatch) {
-      const mainContent = commentMatch[1].trim();
-      const comment = commentMatch[2].trim();
+    // Format the head with operator
+    const formattedHead = beforeOperator + operator;
 
-      // Return the main content without the comment, and the comment separately
-      return {
-        text: beforeOperator + operator + (mainContent ? ' ' + mainContent : ''),
-        comment: comment,
-        indicator: indicator
-      };
-    }
+    // Extract content after operator (trimmed, if any)
+    const contentAfterHead = afterOperator.trim();
 
-    // No comment found - ensure space after operator if there's content
-    const trimmedAfter = afterOperator.trim();
-    if (trimmedAfter) {
-      return { text: beforeOperator + operator + ' ' + trimmedAfter, comment: null, indicator: indicator };
-    }
-
-    return { text: beforeOperator + operator + afterOperator, comment: null, indicator: indicator };
+    return { head: formattedHead, contentAfterHead: contentAfterHead, indicator: indicator };
   }
 
   /**
