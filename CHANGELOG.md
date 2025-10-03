@@ -3,6 +3,7 @@
 ## [0.59.0]
 
 * More compact formatting of list-based directives
+* Make the "logtalk.format.withIndentationConversion" command an internal command
 * Fix formatting of rules with occurrences of the `:-` or `-->` operators in head arguments
 * Fix bug parsing `0'Char` character code notation predicate/non-terminal arguments
 
