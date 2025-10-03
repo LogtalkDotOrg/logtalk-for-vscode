@@ -23,9 +23,26 @@ export class ArgumentUtils {
     let inQuotes = false;
     let inSingleQuotes = false;
     let escapeNext = false;
+    let inCharCode = false;
 
     for (let i = 0; i < argsText.length; i++) {
       const char = argsText[i];
+
+      // Handle character code notation: after 0' we need to consume the character
+      // This must be checked BEFORE backslash and quote handling
+      if (inCharCode) {
+        currentArg += char;
+        if (char === '\\') {
+          // Escape sequence in char code (e.g., 0'\\, 0'\', 0'\")
+          // Need to consume the next character as well
+          if (i + 1 < argsText.length) {
+            i++;
+            currentArg += argsText[i];
+          }
+        }
+        inCharCode = false;
+        continue;
+      }
 
       if (escapeNext) {
         currentArg += char;
@@ -49,8 +66,9 @@ export class ArgumentUtils {
         // Check if this is a character code notation (zero followed by single quote)
         // This only applies when we're NOT already inside a single-quoted string
         if (!inSingleQuotes && i > 0 && argsText[i - 1] === '0') {
-          // This is character code notation like 0'0, 0'\n, etc.
-          // Don't treat as quoted string, just add to current argument
+          // This is character code notation like 0'x, 0'\n, etc.
+          // Set flag to handle the next character(s) specially
+          inCharCode = true;
           currentArg += char;
           continue;
         } else {
@@ -116,9 +134,24 @@ export class ArgumentUtils {
     let inQuotes = false;
     let inSingleQuotes = false;
     let escapeNext = false;
+    let inCharCode = false;
 
     for (let i = openParenPos + 1; i < text.length; i++) {
       const char = text[i];
+
+      // Handle character code notation: after 0' we need to consume the character
+      // This must be checked BEFORE backslash and quote handling
+      if (inCharCode) {
+        if (char === '\\') {
+          // Escape sequence in char code (e.g., 0'\\, 0'\', 0'\")
+          // Need to consume the next character as well
+          if (i + 1 < text.length) {
+            i++;
+          }
+        }
+        inCharCode = false;
+        continue;
+      }
 
       if (escapeNext) {
         escapeNext = false;
@@ -139,9 +172,9 @@ export class ArgumentUtils {
         // Check if this is a character code notation (zero followed by single quote)
         // This only applies when we're NOT already inside a single-quoted string
         if (!inSingleQuotes && i > 0 && text[i - 1] === '0') {
-          // This is character code notation like 0'0, 0'\n, etc.
-          // Skip the quote and the next character (which is the character being coded)
-          i++; // Skip the character after the quote
+          // This is character code notation like 0'x, 0'\n, etc.
+          // Set flag to handle the next character(s) specially
+          inCharCode = true;
           continue;
         } else {
           // This is a regular quoted string (opening or closing quote)

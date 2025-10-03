@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.59.0]
+
+* Fix bug parsing `0'Char` character code notation predicate/non-terminal arguments
+
 ## [0.58.0]
 
 * Improve "Replace magic number with predicate call" refactoring applicability check performance
