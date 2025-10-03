@@ -437,17 +437,23 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         } else if (/^:-\s*(public|protected|private)\(/.test(trimmedText)) {
           // scope directives
           this.formatScopeDirective(document, directiveRange, edits);
-        } else if (/^:-\s*(discontiguous|dynamic|coinductive|multifile|synchronized)\(\s*\[/.test(trimmedText)) {
-          // predicate property directives with list
+        } else if (/^:-\s*(discontiguous|dynamic|coinductive|multifile|synchronized)\(/.test(trimmedText)) {
+          // predicate property directives (single indicator or list)
           this.formatPredicatePropertyDirective(document, directiveRange, edits);
         } else if (/^:-\s*use_module\([^,]+,/.test(trimmedText)) {
           // use_module/2 directive
           this.formatUseModule2Directive(document, directiveRange, edits);
+        } else if (/^:-\s*meta_predicate\(/.test(trimmedText)) {
+          // meta_predicate/1 directive
+          this.formatMetaPredicate1Directive(document, directiveRange, edits);
+        } else if (/^:-\s*meta_non_terminal\(/.test(trimmedText)) {
+          // meta_non_terminal/1 directive
+          this.formatMetaNonTerminal1Directive(document, directiveRange, edits);
         } else {
           // Other directives - just add an empty line before if not already present and indent if needed
           if (directiveRange.start > 0) {
             const prevLine = document.lineAt(directiveRange.start - 1);
-            if (prevLine.text.trim() !== '') {
+            if (prevLine.text.trim() !== '' && !prevLine.text.trim().startsWith('%')) {
               edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
             }
           }
@@ -1515,6 +1521,120 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   }
 
   /**
+   * Format a single meta_predicate/1 directive using pre-computed range
+   */
+  private formatMetaPredicate1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    const lineText = document.lineAt(directiveRange.start).text.trim();
+
+    // Extract directive text to get the predicate indicator from meta template
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text;
+    }
+
+    const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
+    this.logger.debug(`meta_predicate/1 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
+
+    // Insert empty line if switching to a different predicate
+    // (only for single template directives, not lists)
+    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+      this.logger.debug(`Inserting empty line before meta_predicate/1 directive (different predicate)`);
+      edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+    }
+
+    // Check if this is a list directive or single template directive
+    if (/^:-\s*meta_predicate\(\s*\[/.test(lineText)) {
+      // List directive - use existing list formatter
+      const formattedMetaPredicate = this.formatListDirectiveContent(document, directiveRange, 'meta_predicate');
+
+      const range = new Range(
+        new Position(directiveRange.start, 0),
+        new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+      );
+
+      edits.push(TextEdit.replace(range, formattedMetaPredicate));
+
+      // Update the last term indicator to "meta_predicate/1"
+      this.lastTermIndicator = "meta_predicate/1";
+      // For list directives, reset predicate indicator
+      this.lastPredicateIndicator = "";
+    } else {
+      // Single template directive - format with proper spacing
+      const formattedMetaPredicate = this.formatSingleIndicatorDirective(document, directiveRange, 'meta_predicate');
+
+      const range = new Range(
+        new Position(directiveRange.start, 0),
+        new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+      );
+
+      edits.push(TextEdit.replace(range, formattedMetaPredicate));
+
+      // Update the last term indicator and predicate indicator
+      this.lastTermIndicator = "meta_predicate/1";
+      if (predicateIndicator) {
+        this.lastPredicateIndicator = predicateIndicator;
+      }
+    }
+  }
+
+  /**
+   * Format a single meta_non_terminal/1 directive using pre-computed range
+   */
+  private formatMetaNonTerminal1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    const lineText = document.lineAt(directiveRange.start).text.trim();
+
+    // Extract directive text to get the non-terminal indicator from meta template
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text;
+    }
+
+    const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
+    this.logger.debug(`meta_non_terminal/1 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
+
+    // Insert empty line if switching to a different non-terminal
+    // (only for single template directives, not lists)
+    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+      this.logger.debug(`Inserting empty line before meta_non_terminal/1 directive (different non-terminal)`);
+      edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+    }
+
+    // Check if this is a list directive or single template directive
+    if (/^:-\s*meta_non_terminal\(\s*\[/.test(lineText)) {
+      // List directive - use existing list formatter
+      const formattedMetaNonTerminal = this.formatListDirectiveContent(document, directiveRange, 'meta_non_terminal');
+
+      const range = new Range(
+        new Position(directiveRange.start, 0),
+        new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+      );
+
+      edits.push(TextEdit.replace(range, formattedMetaNonTerminal));
+
+      // Update the last term indicator to "meta_non_terminal/1"
+      this.lastTermIndicator = "meta_non_terminal/1";
+      // For list directives, reset predicate indicator
+      this.lastPredicateIndicator = "";
+    } else {
+      // Single template directive - format with proper spacing
+      const formattedMetaNonTerminal = this.formatSingleIndicatorDirective(document, directiveRange, 'meta_non_terminal');
+
+      const range = new Range(
+        new Position(directiveRange.start, 0),
+        new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+      );
+
+      edits.push(TextEdit.replace(range, formattedMetaNonTerminal));
+
+      // Update the last term indicator and predicate indicator
+      this.lastTermIndicator = "meta_non_terminal/1";
+      if (predicateIndicator) {
+        this.lastPredicateIndicator = predicateIndicator;
+      }
+    }
+  }
+
+  /**
    * Format a single scope directive using pre-computed range
    */
   private formatScopeDirective(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
@@ -1600,6 +1720,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
   /**
    * Format a single predicate property directive using pre-computed range
+   * Handles both single indicator and list forms
    */
   private formatPredicatePropertyDirective(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     const lineText = document.lineAt(directiveRange.start).text.trim();
@@ -1607,32 +1728,54 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     if (match) {
       const directiveName = match[1];
 
-      // Extract directive text to get the first indicator from the list
+      // Extract directive text to get the indicator (for single indicator directives)
       let directiveText = '';
       for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
         directiveText += document.lineAt(lineNum).text;
       }
 
       const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
+      this.logger.debug(`${directiveName}/1 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
       // Insert empty line if switching to a different predicate/non-terminal
+      // (only for single indicator directives, not lists)
       if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+        this.logger.debug(`Inserting empty line before ${directiveName}/1 directive (different predicate: ${predicateIndicator} != ${this.lastPredicateIndicator})`);
         edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
       }
 
-      const formattedProperty = this.formatListDirectiveContent(document, directiveRange, directiveName);
+      // Check if this is a list directive or single indicator directive
+      if (/^:-\s*(discontiguous|dynamic|coinductive|multifile|synchronized)\(\s*\[/.test(lineText)) {
+        // List directive - use existing list formatter
+        const formattedProperty = this.formatListDirectiveContent(document, directiveRange, directiveName);
 
-      const range = new Range(
-        new Position(directiveRange.start, 0),
-        new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
-      );
+        const range = new Range(
+          new Position(directiveRange.start, 0),
+          new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+        );
 
-      edits.push(TextEdit.replace(range, formattedProperty));
+        edits.push(TextEdit.replace(range, formattedProperty));
 
-      // Update the last term indicator to the directive name and predicate indicator
-      this.lastTermIndicator = `${directiveName}/1`;
-      if (predicateIndicator) {
-        this.lastPredicateIndicator = predicateIndicator;
+        // Update the last term indicator to the directive name (e.g., "dynamic/1")
+        this.lastTermIndicator = `${directiveName}/1`;
+        // For list directives, reset predicate indicator
+        this.lastPredicateIndicator = "";
+      } else {
+        // Single indicator directive - format with proper spacing
+        const formattedProperty = this.formatSingleIndicatorDirective(document, directiveRange, directiveName);
+
+        const range = new Range(
+          new Position(directiveRange.start, 0),
+          new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+        );
+
+        edits.push(TextEdit.replace(range, formattedProperty));
+
+        // Update the last term indicator to the directive name and predicate indicator
+        this.lastTermIndicator = `${directiveName}/1`;
+        if (predicateIndicator) {
+          this.lastPredicateIndicator = predicateIndicator;
+        }
       }
     }
   }
