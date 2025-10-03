@@ -451,9 +451,23 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           this.formatMetaNonTerminal1Directive(document, directiveRange, edits);
         } else {
           // Other directives - just add an empty line before if not already present and indent if needed
+          let lastTermIndicator = "";
+          let directiveName = ""
+          // Extract directive name
+          // Match directive name with optional arguments: :- directive_name or :- directive_name(...)
+          const directiveMatch = trimmedText.match(/^:-\s*([a-z_][a-zA-Z0-9_]*)(?:\(|\.|$)/);
+          if (directiveMatch) {
+            directiveName = directiveMatch[1];
+            // Determine arity: 0 if followed by '.', otherwise assume 1 or more
+            const hasArgs = trimmedText.match(/^:-\s*[a-z_][a-zA-Z0-9_]*\(/);
+            lastTermIndicator = hasArgs ? `${directiveName}/1` : `${directiveName}/0`;
+          } else {
+            lastTermIndicator = "";
+          }
+          // Insert empty line before directive if previous line is not empty and lastTermIndicator is not the same
           if (directiveRange.start > 0) {
             const prevLine = document.lineAt(directiveRange.start - 1);
-            if (prevLine.text.trim() !== '' && !prevLine.text.trim().startsWith('%')) {
+            if (prevLine.text.trim() !== '' && !prevLine.text.trim().startsWith('%')  && this.lastTermIndicator !== lastTermIndicator) {
               edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
             }
           }
@@ -462,17 +476,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
             this.indentRange(document, directiveRange.start, directiveRange.end, edits);
             indentedItems++;
           }
-          // Extract directive name and set lastTermIndicator
-          // Match directive name with optional arguments: :- directive_name or :- directive_name(...)
-          const directiveMatch = trimmedText.match(/^:-\s*([a-z_][a-zA-Z0-9_]*)(?:\(|\.|$)/);
-          if (directiveMatch) {
-            const directiveName = directiveMatch[1];
-            // Determine arity: 0 if followed by '.', otherwise assume 1 or more
-            const hasArgs = trimmedText.match(/^:-\s*[a-z_][a-zA-Z0-9_]*\(/);
-            this.lastTermIndicator = hasArgs ? `${directiveName}/1` : `${directiveName}/0`;
-          } else {
-            this.lastTermIndicator = "";
-          }
+          this.lastTermIndicator = lastTermIndicator;
           this.logger.debug(`  Updated lastTermIndicator to: ${this.lastTermIndicator}`);
           this.lastPredicateIndicator = "";
         }
@@ -842,16 +846,43 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
   /**
    * Extract the predicate or non-terminal indicator from a directive
-   * Handles two cases:
+   * Handles multiple cases:
    * 1. Directives with explicit indicators: info(foo/2, ...), public(bar/1)
-   * 2. Directives with callable forms: mode(foo(+int), one), meta_predicate(bar(*, ::))
+   * 2. Directives with qualified indicators: public(foo::bar/1), public(foo(a,b)::bar/1), public(module:bar/1)
+   * 3. Directives with callable forms: mode(foo(+int), one), meta_predicate(bar(*, ::))
+   * 4. Directives with qualified callable forms: mode(foo::bar(+int), one), mode(foo(a)::bar(+int), one)
    * @param directiveText The text of the directive
-   * @returns The indicator in the form functor/arity or functor//arity, or empty string if not found
+   * @returns The indicator in the form functor/arity or functor//arity, with optional qualification, or empty string if not found
    */
   private extractIndicatorFromDirective(directiveText: string): string {
     const trimmed = directiveText.trim();
 
-    // First, try to match explicit indicator patterns: name/arity or name//arity
+    // First, try to match explicit qualified indicator patterns
+    // Examples: foo::bar/2, foo(a,b)::bar/2, module:bar/2
+    // Pattern: (entity_name or entity_name(...)) followed by :: or : followed by predicate/arity or predicate//arity
+    const qualifiedIndicatorMatch = trimmed.match(/([a-z][a-zA-Z0-9_]*)(?:\([^)]*\))?\s*(::?)\s*([a-z][a-zA-Z0-9_]*)\s*(\/\/|\/)\s*(\d+)/);
+    if (qualifiedIndicatorMatch) {
+      const entityName = qualifiedIndicatorMatch[1];
+      const qualOp = qualifiedIndicatorMatch[2]; // :: or :
+      const predicateName = qualifiedIndicatorMatch[3];
+      const arityOp = qualifiedIndicatorMatch[4]; // // or /
+      const arity = qualifiedIndicatorMatch[5];
+
+      // Check if entity is parametric by looking for parentheses after entity name
+      const entityParamsMatch = trimmed.match(new RegExp(`${entityName}\\(([^)]*)\\)`));
+      if (entityParamsMatch) {
+        // Parametric entity - extract parameters and count them
+        const paramsText = entityParamsMatch[1];
+        const params = ArgumentUtils.parseArguments(paramsText);
+        const entityArity = params.length;
+        return `${entityName}/${entityArity}${qualOp}${predicateName}${arityOp}${arity}`;
+      } else {
+        // Non-parametric entity
+        return `${entityName}${qualOp}${predicateName}${arityOp}${arity}`;
+      }
+    }
+
+    // Second, try to match explicit non-qualified indicator patterns: name/arity or name//arity
     const indicatorMatch = trimmed.match(/([a-z][a-zA-Z0-9_]*)\/\/(\d+)|([a-z][a-zA-Z0-9_]*)\/(\d+)/);
     if (indicatorMatch) {
       // Check if it's a non-terminal (// notation)
@@ -864,7 +895,51 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
     }
 
-    // Second, try to extract from callable form (e.g., mode(foo(+int), one))
+    // Third, try to extract from qualified callable form
+    // Examples: dynamic(foo::bar/1), multifile(module:foo//2)
+    const qualifiedCallableMatch = trimmed.match(/^:-\s*\w+\(\s*([a-z][a-zA-Z0-9_]*)(?:\([^)]*\))?\s*(::?)\s*([a-z][a-zA-Z0-9_]*)\s*\(/);
+    if (qualifiedCallableMatch) {
+      const entityName = qualifiedCallableMatch[1];
+      const qualOp = qualifiedCallableMatch[2]; // :: or :
+      const predicateName = qualifiedCallableMatch[3];
+
+      // Check if entity is parametric
+      const entityParamsMatch = trimmed.match(new RegExp(`${entityName}\\(([^)]*)\\)\\s*${qualOp}`));
+      let entityQualifier = entityName;
+      if (entityParamsMatch) {
+        // Parametric entity - extract parameters and count them
+        const paramsText = entityParamsMatch[1];
+        const params = ArgumentUtils.parseArguments(paramsText);
+        const entityArity = params.length;
+        entityQualifier = `${entityName}/${entityArity}`;
+      }
+
+      // Find the predicate arguments
+      const predicateStart = trimmed.indexOf(predicateName);
+      const openParenPos = trimmed.indexOf('(', predicateStart + predicateName.length);
+
+      if (openParenPos !== -1) {
+        // Use ArgumentUtils to find the matching closing parenthesis
+        const closeParenPos = ArgumentUtils.findMatchingCloseParen(trimmed, openParenPos);
+
+        if (closeParenPos !== -1) {
+          // Extract the arguments between the parentheses
+          const argsText = trimmed.substring(openParenPos + 1, closeParenPos);
+          const args = ArgumentUtils.parseArguments(argsText);
+          const arity = args.length;
+
+          // Determine if it's a non-terminal:
+          // - For meta_non_terminal/1 directive, it's always a non-terminal
+          // - For mode/2 and meta_predicate/1 directives, use / notation (predicates)
+          // - For other directives with callable forms, use / notation
+          const isNonTerminal = /^:-\s*meta_non_terminal\(/.test(trimmed);
+
+          return isNonTerminal ? `${entityQualifier}${qualOp}${predicateName}//${arity}` : `${entityQualifier}${qualOp}${predicateName}/${arity}`;
+        }
+      }
+    }
+
+    // Fourth, try to extract from non-qualified callable form (e.g., mode(foo(+int), one))
     // Match the directive name and extract the first argument
     const callableMatch = trimmed.match(/^:-\s*\w+\(\s*([a-z][a-zA-Z0-9_]*)\s*\(/);
     if (callableMatch) {
@@ -884,8 +959,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           const args = ArgumentUtils.parseArguments(argsText);
           const arity = args.length;
 
-          // Determine if it's a non-terminal by checking the directive name
-          // meta_non_terminal/1 uses // notation, others use / notation
+          // Determine if it's a non-terminal:
+          // - For meta_non_terminal/1 directive, it's always a non-terminal
+          // - For mode/2 and meta_predicate/1 directives, use / notation (predicates)
+          // - For other directives with callable forms, use / notation
           const isNonTerminal = /^:-\s*meta_non_terminal\(/.test(trimmed);
 
           return isNonTerminal ? `${functor}//${arity}` : `${functor}/${arity}`;
@@ -1063,7 +1140,8 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     this.logger.debug(`mode/2 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
     // Insert empty line if switching to a different predicate/non-terminal
-    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+    // Don't insert if we can assume it's a mode/2 directive for the same non-terminal
+    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator.replace(/\//g, '//') === this.lastPredicateIndicator) {
       this.logger.debug(`Inserting empty line before mode/2 directive (different predicate)`);
       edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
     }
