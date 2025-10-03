@@ -1277,11 +1277,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     const elements = ArgumentUtils.parseArguments(listContent);
 
-    let formatted = '\t:- uses(' + objectName + ', [\n';
+    let formatted = '\t:- uses(' + objectName + ', [\n\t\t';
     elements.forEach((element, index) => {
-      formatted += '\t\t' + element.trim();
+      formatted += element.trim();
       if (index < elements.length - 1) {
-        formatted += ',\n';
+        formatted += ', ';
       } else {
         formatted += '\n';
       }
@@ -1350,11 +1350,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     const elements = ArgumentUtils.parseArguments(listContent);
 
-    let formatted = '\t:- alias(' + objectName + ', [\n';
+    let formatted = '\t:- alias(' + objectName + ', [\n\t\t';
     elements.forEach((element, index) => {
-      formatted += '\t\t' + element.trim();
+      formatted += element.trim();
       if (index < elements.length - 1) {
-        formatted += ',\n';
+        formatted += ', ';
       } else {
         formatted += '\n';
       }
@@ -1423,11 +1423,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     const elements = ArgumentUtils.parseArguments(listContent);
 
-    let formatted = '\t:- use_module(' + moduleName + ', [\n';
+    let formatted = '\t:- use_module(' + moduleName + ', [\n\t\t';
     elements.forEach((element, index) => {
-      formatted += '\t\t' + element.trim();
+      formatted += element.trim();
       if (index < elements.length - 1) {
-        formatted += ',\n';
+        formatted += ', ';
       } else {
         formatted += '\n';
       }
@@ -1610,11 +1610,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     // Parse arguments and format
     const elements = ArgumentUtils.parseArguments(listContent);
 
-    let formatted = `\t:- ${directiveName}([\n`;
+    let formatted = `\t:- ${directiveName}([\n\t\t`;
     elements.forEach((element, index) => {
-      formatted += `\t\t${element.trim()}`;
+      formatted += `${element.trim()}`;
       if (index < elements.length - 1) {
-        formatted += ',\n';
+        formatted += ', ';
       } else {
         formatted += '\n';
       }

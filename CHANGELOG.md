@@ -2,6 +2,7 @@
 
 ## [0.59.0]
 
+* More compact formatting of list-based directives
 * Fix formatting of rules with occurrences of the `:-` or `-->` operators in head arguments
 * Fix bug parsing `0'Char` character code notation predicate/non-terminal arguments
 
