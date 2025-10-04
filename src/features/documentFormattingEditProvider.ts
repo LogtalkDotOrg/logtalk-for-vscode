@@ -8,7 +8,8 @@ import {
   Position,
   Range,
   TextDocument,
-  TextEdit
+  TextEdit,
+  workspace
 } from "vscode";
 import { getLogger } from "../utils/logger";
 import { PredicateUtils } from "../utils/predicateUtils";
@@ -1055,7 +1056,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     let formatted = '\t:- info([\n';
     elements.forEach((element, index) => {
-      const formattedElement = this.formatInfo1Element(element.trim());
+      const formattedElement = this.formatInfo1Element(document, element.trim());
       formatted += '\t\t' + formattedElement;
       if (index < elements.length - 1) {
         formatted += ',\n';
@@ -1072,7 +1073,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format individual elements in info/1 directives, with special handling for
    * parameters and remarks keys that contain lists
    */
-  private formatInfo1Element(element: string): string {
+  private formatInfo1Element(document: TextDocument, element: string): string {
     // Check if this element contains keys whose values are list of pairs
     const listPairsKeyMatch = element.match(/^(parameters|remarks)\s+is\s+\[(.*)\]$/);
     if (listPairsKeyMatch) {
@@ -1108,17 +1109,35 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         return key + ' is []';
       }
 
-      const listElements = ArgumentUtils.parseArguments(listContent);
-      let formatted = key + ' is [\n\t\t\t';
-      listElements.forEach((listElement, index) => {
-        formatted += listElement.trim();
-        if (index < listElements.length - 1) {
-          formatted += ', ';
+      // Get the ruler and tab size settings
+      const config = workspace.getConfiguration('editor', document.uri);
+      const rulers = config.get<number[]>('rulers', []);
+      const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
+      const tabSize = config.get<number>('tabSize', 4);
+
+      const elements = ArgumentUtils.parseArguments(listContent);
+      let formatted = key + ' is [\n\t\t\t' + elements[0];
+      let currentLineLength = 3 * tabSize + elements[0].length;
+      let index = 1;
+
+      while (index < elements.length) {
+        const element = elements[index];
+        const elementLength = element.length + 2
+        if (currentLineLength + 2 + elementLength > maxLineLength) {
+          // Start a new line
+          formatted += ',\n\t\t\t';
+          currentLineLength = 3 * tabSize;
         } else {
-          formatted += '\n';
+          // Add separator from previous element
+          formatted += ', ';
+          currentLineLength += 2;
         }
-      });
-      formatted += '\t\t]';
+        // Add element to current line
+        formatted += elements[index];
+        currentLineLength += elementLength;
+        index = index + 1;
+      };
+      formatted += '\n\t\t]';
 
       return formatted;
     }
@@ -1322,7 +1341,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     let formatted = '\t:- info(' + predicateIndicator + ', [\n';
     elements.forEach((element, index) => {
-      const formattedElement = this.formatInfo2Element(element.trim());
+      const formattedElement = this.formatInfo2Element(document, element.trim());
       formatted += '\t\t' + formattedElement;
       if (index < elements.length - 1) {
         formatted += ',\n';
@@ -1339,7 +1358,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format individual elements in info/2 directives, with special handling for
    * arguments, exceptions, and examples keys that contain lists
    */
-  private formatInfo2Element(element: string): string {
+  private formatInfo2Element(document: TextDocument, element: string): string {
     // Check if this element contains arguments, exceptions, or examples with lists
     const listPairsKeyMatch = element.match(/^(arguments|exceptions|examples|remarks)\s+is\s+\[(.*)\]$/);
     if (listPairsKeyMatch) {
@@ -1375,18 +1394,35 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         return key + ' is []';
       }
 
-      const listElements = ArgumentUtils.parseArguments(listContent);
-      let formatted = key + ' is [\n\t\t\t';
-      listElements.forEach((listElement, index) => {
-        formatted += listElement.trim();
-        if (index < listElements.length - 1) {
-          formatted += ', ';
-        } else {
-          formatted += '\n';
-        }
-      });
-      formatted += '\t\t]';
+      // Get the ruler and tab size settings
+      const config = workspace.getConfiguration('editor', document.uri);
+      const rulers = config.get<number[]>('rulers', []);
+      const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
+      const tabSize = config.get<number>('tabSize', 4);
 
+      const elements = ArgumentUtils.parseArguments(listContent);
+      let formatted = key + ' is [\n\t\t\t' + elements[0];
+      let currentLineLength = 3 * tabSize + elements[0].length; // Start with three tabs
+      let index = 1;
+
+      while (index < elements.length) {
+        const element = elements[index];
+        const elementLength = element.length + 2
+        if (currentLineLength + 2 + elementLength > maxLineLength) {
+          // Start a new line
+          formatted += ',\n\t\t\t';
+          currentLineLength = 3 * tabSize;
+        } else {
+          // Add separator from previous element
+          formatted += ', ';
+          currentLineLength += 2;
+        }
+        // Add element to current line
+        formatted += elements[index];
+        currentLineLength += elementLength;
+        index = index + 1;
+      };
+      formatted += '\n\t\t]';
       return formatted;
     }
 
@@ -1457,16 +1493,34 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     const elements = ArgumentUtils.parseArguments(listContent);
 
-    let formatted = '\t:- uses(' + objectName + ', [\n\t\t';
-    elements.forEach((element, index) => {
-      formatted += element.trim();
-      if (index < elements.length - 1) {
-        formatted += ', ';
+    // Get the ruler and tab size settings
+    const config = workspace.getConfiguration('editor', document.uri);
+    const rulers = config.get<number[]>('rulers', []);
+    const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
+    const tabSize = config.get<number>('tabSize', 4);
+
+    let formatted = '\t:- uses(' + objectName + ', [\n\t\t' + elements[0];
+    let currentLineLength = 2 * tabSize + elements[0].length;
+
+    let index = 1;
+    while(index < elements.length) {
+      const element = elements[index];
+      const elementLength = element.length + 2
+      if (currentLineLength + 2 + elementLength > maxLineLength) {
+        // Start a new line
+        formatted += ',\n\t\t';
+        currentLineLength = 2 * tabSize;
       } else {
-        formatted += '\n';
+        // Add separator from previous element
+        formatted += ', ';
+        currentLineLength += 2;
       }
-    });
-    formatted += '\t]).';
+      // Add element to current line
+      formatted += elements[index];
+      currentLineLength += elementLength;
+      index = index + 1;
+    };
+    formatted += '\n\t]).';
 
     return formatted;
   }
@@ -1532,18 +1586,35 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       return '\t:- alias(' + objectName + ', []).';
     }
 
-    const elements = ArgumentUtils.parseArguments(listContent);
+    // Get the ruler and tab size settings
+    const config = workspace.getConfiguration('editor', document.uri);
+    const rulers = config.get<number[]>('rulers', []);
+    const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
+    const tabSize = config.get<number>('tabSize', 4);
 
-    let formatted = '\t:- alias(' + objectName + ', [\n\t\t';
-    elements.forEach((element, index) => {
-      formatted += element.trim();
-      if (index < elements.length - 1) {
-        formatted += ', ';
+    const elements = ArgumentUtils.parseArguments(listContent);
+    let formatted = '\t:- alias(' + objectName + ', [\n\t\t' + elements[0];
+    let currentLineLength = 2 * tabSize + elements[0].length;
+    let index = 1;
+
+    while(index < elements.length) {
+      const element = elements[index];
+      const elementLength = element.length + 2
+      if (currentLineLength + 2 + elementLength > maxLineLength) {
+        // Start a new line
+        formatted += ',\n\t\t';
+        currentLineLength = 2 * tabSize;
       } else {
-        formatted += '\n';
+        // Add separator from previous element
+        formatted += ', ';
+        currentLineLength += 2;
       }
-    });
-    formatted += '\t]).';
+      // Add element to current line
+      formatted += elements[index];
+      currentLineLength += elementLength;
+      index = index + 1;
+    };
+    formatted += '\n\t]).';
 
     return formatted;
   }
@@ -1948,19 +2019,36 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       return `\t:- ${directiveName}([]).`;
     }
 
+    // Get the ruler and tab size settings
+    const config = workspace.getConfiguration('editor', document.uri);
+    const rulers = config.get<number[]>('rulers', []);
+    const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
+    const tabSize = config.get<number>('tabSize', 4);
+
     // Parse arguments and format
     const elements = ArgumentUtils.parseArguments(listContent);
+    let formatted = `\t:- ${directiveName}([\n\t\t` + elements[0];
+    let currentLineLength = 2 * tabSize + elements[0].length;
+    let index = 1;
 
-    let formatted = `\t:- ${directiveName}([\n\t\t`;
-    elements.forEach((element, index) => {
-      formatted += `${element.trim()}`;
-      if (index < elements.length - 1) {
-        formatted += ', ';
+    while (index < elements.length) {
+      const element = elements[index];
+      const elementLength = element.length + 2
+      if (currentLineLength + 2 + elementLength > maxLineLength) {
+        // Start a new line
+        formatted += ',\n\t\t';
+        currentLineLength = 2 * tabSize;
       } else {
-        formatted += '\n';
+        // Add separator from previous element
+        formatted += ', ';
+        currentLineLength += 2;
       }
-    });
-    formatted += `\t]).`;
+      // Add element to current line
+      formatted += elements[index];
+      currentLineLength += elementLength;
+      index = index + 1;
+    };
+    formatted += '\n\t]).';
 
     return formatted;
   }
