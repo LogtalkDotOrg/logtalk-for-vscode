@@ -1073,8 +1073,33 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * parameters and remarks keys that contain lists
    */
   private formatInfo1Element(element: string): string {
-    // Check if this element contains parameters or remarks with lists
-    const listKeyMatch = element.match(/^(parameters|remarks)\s+is\s+\[(.*)\]$/);
+    // Check if this element contains keys whose values are list of pairs
+    const listPairsKeyMatch = element.match(/^(parameters|remarks)\s+is\s+\[(.*)\]$/);
+    if (listPairsKeyMatch) {
+      const key = listPairsKeyMatch[1];
+      const listPairsContent = listPairsKeyMatch[2].trim();
+
+      if (!listPairsContent) {
+        return key + ' is []';
+      }
+
+      const listPairElements = ArgumentUtils.parseArguments(listPairsContent);
+      let formatted = key + ' is [\n';
+      listPairElements.forEach((listElement, index) => {
+        formatted += '\t\t\t' + listElement.trim();
+        if (index < listPairElements.length - 1) {
+          formatted += ',\n';
+        } else {
+          formatted += '\n';
+        }
+      });
+      formatted += '\t\t]';
+
+      return formatted;
+    }
+
+    // Check if this element contains keys whose values are list of elements
+    const listKeyMatch = element.match(/^(parnames|see_also)\s+is\s+\[(.*)\]$/);
     if (listKeyMatch) {
       const key = listKeyMatch[1];
       const listContent = listKeyMatch[2].trim();
@@ -1084,11 +1109,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
 
       const listElements = ArgumentUtils.parseArguments(listContent);
-      let formatted = key + ' is [\n';
+      let formatted = key + ' is [\n\t\t\t';
       listElements.forEach((listElement, index) => {
-        formatted += '\t\t\t' + listElement.trim();
+        formatted += listElement.trim();
         if (index < listElements.length - 1) {
-          formatted += ',\n';
+          formatted += ', ';
         } else {
           formatted += '\n';
         }
@@ -1316,7 +1341,32 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatInfo2Element(element: string): string {
     // Check if this element contains arguments, exceptions, or examples with lists
-    const listKeyMatch = element.match(/^(arguments|exceptions|examples|remarks)\s+is\s+\[(.*)\]$/);
+    const listPairsKeyMatch = element.match(/^(arguments|exceptions|examples|remarks)\s+is\s+\[(.*)\]$/);
+    if (listPairsKeyMatch) {
+      const key = listPairsKeyMatch[1];
+      const listPairsContent = listPairsKeyMatch[2].trim();
+
+      if (!listPairsContent) {
+        return key + ' is []';
+      }
+
+      const listPairElements = ArgumentUtils.parseArguments(listPairsContent);
+      let formatted = key + ' is [\n';
+      listPairElements.forEach((listElement, index) => {
+        formatted += '\t\t\t' + listElement.trim();
+        if (index < listPairElements.length - 1) {
+          formatted += ',\n';
+        } else {
+          formatted += '\n';
+        }
+      });
+      formatted += '\t\t]';
+
+      return formatted;
+    }
+
+    // Check if this element contains arguments, exceptions, or examples with lists
+    const listKeyMatch = element.match(/^(argnames|see_also)\s+is\s+\[(.*)\]$/);
     if (listKeyMatch) {
       const key = listKeyMatch[1];
       const listContent = listKeyMatch[2].trim();
@@ -1326,11 +1376,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
 
       const listElements = ArgumentUtils.parseArguments(listContent);
-      let formatted = key + ' is [\n';
+      let formatted = key + ' is [\n\t\t\t';
       listElements.forEach((listElement, index) => {
-        formatted += '\t\t\t' + listElement.trim();
+        formatted += listElement.trim();
         if (index < listElements.length - 1) {
-          formatted += ',\n';
+          formatted += ', ';
         } else {
           formatted += '\n';
         }
