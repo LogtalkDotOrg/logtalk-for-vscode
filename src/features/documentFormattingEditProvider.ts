@@ -420,6 +420,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         } else if (/^:-\s*mode\(/.test(trimmedText)) {
           // mode/2 directive
           this.formatMode2Directive(document, directiveRange, edits);
+        } else if (/^:-\s*mode_non_terminal\(/.test(trimmedText)) {
+          // mode_non_terminal/2 directive
+          this.formatModeNonTerminal2Directive(document, directiveRange, edits);
         } else if (/^:-\s*info\((?!\s*\[)[^,]+,/.test(trimmedText)) {
           // info/2 directive
           this.formatInfo2Directive(document, directiveRange, edits);
@@ -1196,14 +1199,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     let predicateIndicator = this.extractIndicatorFromDirective(directiveText);
     this.logger.debug(`mode/2 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
-    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator.replace(/\/\//g, '/') === this.lastPredicateIndicator.replace(/\/\//g, '/')) {
-      predicateIndicator = this.lastPredicateIndicator;
-    }
 
     // Insert empty line if switching to a different predicate/non-terminal
-    // Don't insert if we can assume it's a mode/2 directive for the same predicate/non-terminal
     if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-      this.logger.debug(`Inserting empty line before mode/2 directive (different predicate)`);
+      this.logger.debug(`Inserting empty line before mode/2 directive (different predicate/non-terminal)`);
       edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
     }
 
@@ -1259,6 +1258,82 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     // Format with proper spacing: single space after :- and single space between arguments
     return '\t:- mode(' + template + ', ' + solutions + ').';
+  }
+
+  /**
+   * Format a single mode_non_terminal/2 directive using pre-computed range
+   */
+  private formatModeNonTerminal2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    // Extract directive text to get the indicator
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text;
+    }
+
+    let predicateIndicator = this.extractIndicatorFromDirective(directiveText);
+    this.logger.debug(`mode_non_terminal/2 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
+    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator.replace(/\/\//g, '/') === this.lastPredicateIndicator.replace(/\/\//g, '/')) {
+      predicateIndicator = this.lastPredicateIndicator;
+    }
+
+    // Insert empty line if switching to a different predicate/non-terminal
+    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+      this.logger.debug(`Inserting empty line before mode_non_terminal/2 directive (different predicate/non-terminal)`);
+      edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+    }
+
+    const formattedMode = this.formatModeNonTerminal2DirectiveContent(document, directiveRange);
+
+    const range = new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    );
+
+    edits.push(TextEdit.replace(range, formattedMode));
+
+    // Update the last term indicator to "mode_non_terminal/2" and predicate indicator to the predicate being described
+    this.lastTermIndicator = "mode_non_terminal/2";
+    if (predicateIndicator) {
+      this.lastPredicateIndicator = predicateIndicator;
+    }
+  }
+
+  /**
+   * Format the content of a mode_non_terminal/2 directive
+   */
+  private formatModeNonTerminal2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text;
+    }
+    directiveText = directiveText.trim();
+
+    // Parse mode/2 directive: :- mode(template, solutions).
+    const normalizedText = directiveText.replace(/\s+/g, ' ');
+    const match = normalizedText.match(/^:-\s*mode_non_terminal\(\s*(.*)\)\s*\.$/);
+    if (!match) {
+      // If parsing fails, ensure proper spacing in the directive
+      const reformattedDirective = normalizedText.replace(/^:-\s*(\w+)/, ':- $1');
+      return '\t' + reformattedDirective;
+    }
+
+    const argumentsText = match[1].trim();
+    if (!argumentsText) {
+      return '\t:- mode_non_terminal().';
+    }
+
+    // Use ArgumentUtils to parse the two arguments
+    const directiveArguments = ArgumentUtils.parseArguments(argumentsText);
+    if (directiveArguments.length !== 2) {
+      // If not exactly 2 arguments, ensure proper spacing and return
+      return '\t:- mode_non_terminal(' + argumentsText + ').';
+    }
+
+    const template = directiveArguments[0].trim();
+    const solutions = directiveArguments[1].trim();
+
+    // Format with proper spacing: single space after :- and single space between arguments
+    return '\t:- mode_non_terminal(' + template + ', ' + solutions + ').';
   }
 
   /**

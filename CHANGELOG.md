@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.60.0]
+
+* Add support for syntax highlighting and formatting of `mode_non_terminal/2` directives
+
 ## [0.59.0]
 
 * More compact formatting of list-based directives
