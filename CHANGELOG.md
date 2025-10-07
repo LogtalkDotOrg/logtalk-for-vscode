@@ -9,6 +9,7 @@
 * Improve formatting of line comments to only indent if they start at character zero but not followed by indented content
 * Improve formatting of block comments to indent just the content or the full block comment depending on whether the comment delimiters are on separate lines
 * Fix bug in parsing quoted atoms in entity and predicate names in directives
+* Fix bug where multiple empty lines would be added at the end of the file
 
 ## [0.59.0]
 

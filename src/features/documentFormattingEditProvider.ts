@@ -116,10 +116,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
         // 3. Indent all content inside the entity and apply specific directive formatting
         this.indentEntityContent(document, entityInfo.opening.end.line + 1, entityInfo.closing.start.line - 1, edits);
-      
-        // 4. Ensure a single empty line at the end of the document
-        this.ensureSingleEmptyLineAtDocumentEnd(document, edits);
       }
+
+      // Ensure a single empty line at the end of the document
+      this.ensureSingleEmptyLineAtDocumentEnd(document, edits);
 
     } catch (error) {
       this.logger.error(`Error during document formatting: ${error.message}`);
@@ -2312,6 +2312,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     } else {
       // Last line has content but no final newline, add one
       const endPosition = new Position(lastLineIndex, lastLine.text.length);
+      this.logger.debug(`Adding final newline at end of document`);
       edits.push(TextEdit.insert(endPosition, '\n'));
     }
   }
