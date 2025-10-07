@@ -96,6 +96,7 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 
 - Space-to-tab conversion is performed using the editor's tab size setting
 - Mixed indentation is handled by converting all spaces to tabs based on the tab size setting
+- Consecutive empty lines are collapsed into a single empty line
 - Entity opening and closing directives are formatted to start at column 0 with empty lines before and after
 - Entity opening directives are formatted to use multi-line layout when there are multiple relations
 - Content inside entity opening and closing directives is indented by one tab

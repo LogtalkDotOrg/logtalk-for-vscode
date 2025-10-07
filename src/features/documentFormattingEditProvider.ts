@@ -339,8 +339,12 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const lineText = line.text;
       const trimmedText = lineText.trim();
 
-      // Skip empty lines
+      // Skip and collapse consecutive empty lines
       if (trimmedText === '') {
+        const prevLine = lineNum - 1;
+        if (prevLine >= 0 && document.lineAt(prevLine).text.trim() === '') {
+          edits.push(TextEdit.delete(new Range(new Position(prevLine, 0), new Position(lineNum, 0))));
+        }
         lineNum++;
         this.lastTermType = "";
         this.lastTermIndicator = "";

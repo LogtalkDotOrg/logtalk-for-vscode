@@ -3,6 +3,7 @@
 ## [0.60.0]
 
 * Add support for syntax highlighting and formatting of `mode_non_terminal/2` directives
+* Update the formatting commands to collapse consecutive empty lines into a single empty line
 
 ## [0.59.0]
 
