@@ -6,6 +6,7 @@
 * Update the formatting commands to collapse consecutive empty lines into a single empty line
 * Improve formatting of line comments to only indent if they start at character zero but not followed by indented content
 * Improve formatting of block comments to indent just the content or the full block comment depending on whether the comment delimiters are on separate lines
+* Fix bug in parsing quoted atoms in entity and predicate names in directives
 
 ## [0.59.0]
 

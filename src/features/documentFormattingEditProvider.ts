@@ -854,7 +854,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Extract the predicate or non-terminal indicator from a directive
    * Handles multiple cases:
-   * 1. Directives with explicit indicators: info(foo/2, ...), public(bar/1)
+   * 1. Directives with explicit indicators: info(foo/2, ...), public(bar/1), private('REFINED_TERM'/3)
    * 2. Directives with qualified indicators: public(foo::bar/1), public(foo(a,b)::bar/1), public(module:bar/1)
    * 3. Directives with callable forms: mode(foo(+int), one), meta_predicate(bar(*, ::))
    * 4. Directives with qualified callable forms: mode(foo::bar(+int), one), mode(foo(a)::bar(+int), one)
@@ -864,10 +864,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private extractIndicatorFromDirective(directiveText: string): string {
     const trimmed = directiveText.trim();
 
+    // Atom pattern: either unquoted (lowercase start) or quoted (single quotes)
+    const atomPattern = `(?:'[^']*'|[a-z][a-zA-Z0-9_]*)`;
+
     // First, try to match explicit qualified indicator patterns
-    // Examples: foo::bar/2, foo(a,b)::bar/2, module:bar/2
+    // Examples: foo::bar/2, foo(a,b)::bar/2, module:bar/2, foo::'QUOTED'/2
     // Pattern: (entity_name or entity_name(...)) followed by :: or : followed by predicate/arity or predicate//arity
-    const qualifiedIndicatorMatch = trimmed.match(/([a-z][a-zA-Z0-9_]*)(?:\([^)]*\))?\s*(::?)\s*([a-z][a-zA-Z0-9_]*)\s*(\/\/|\/)\s*(\d+)/);
+    const qualifiedIndicatorRegex = new RegExp(`(${atomPattern})(?:\\([^)]*\\))?\\s*(::?)\\s*(${atomPattern})\\s*(\\/\\/|\\/)\\s*(\\d+)`);
+    const qualifiedIndicatorMatch = trimmed.match(qualifiedIndicatorRegex);
     if (qualifiedIndicatorMatch) {
       const entityName = qualifiedIndicatorMatch[1];
       const qualOp = qualifiedIndicatorMatch[2]; // :: or :
@@ -876,7 +880,8 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const arity = qualifiedIndicatorMatch[5];
 
       // Check if entity is parametric by looking for parentheses after entity name
-      const entityParamsMatch = trimmed.match(new RegExp(`${entityName}\\(([^)]*)\\)`));
+      const escapedEntityName = entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const entityParamsMatch = trimmed.match(new RegExp(`${escapedEntityName}\\(([^)]*)\\)`));
       if (entityParamsMatch) {
         // Parametric entity - extract parameters and count them
         const paramsText = entityParamsMatch[1];
@@ -890,28 +895,28 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     }
 
     // Second, try to match explicit non-qualified indicator patterns: name/arity or name//arity
-    const indicatorMatch = trimmed.match(/([a-z][a-zA-Z0-9_]*)\/\/(\d+)|([a-z][a-zA-Z0-9_]*)\/(\d+)/);
+    // Examples: foo/2, bar//1, 'REFINED_TERM'/3
+    const indicatorRegex = new RegExp(`(${atomPattern})\\s*(\\/\\/|\\/)\\s*(\\d+)`);
+    const indicatorMatch = trimmed.match(indicatorRegex);
     if (indicatorMatch) {
-      // Check if it's a non-terminal (// notation)
-      if (indicatorMatch[1] && indicatorMatch[2]) {
-        return `${indicatorMatch[1]}//${indicatorMatch[2]}`;
-      }
-      // Otherwise it's a predicate (/ notation)
-      if (indicatorMatch[3] && indicatorMatch[4]) {
-        return `${indicatorMatch[3]}/${indicatorMatch[4]}`;
-      }
+      const functor = indicatorMatch[1];
+      const arityOp = indicatorMatch[2]; // // or /
+      const arity = indicatorMatch[3];
+      return `${functor}${arityOp}${arity}`;
     }
 
     // Third, try to extract from qualified callable form
-    // Examples: dynamic(foo::bar/1), multifile(module:foo//2)
-    const qualifiedCallableMatch = trimmed.match(/^:-\s*\w+\(\s*([a-z][a-zA-Z0-9_]*)(?:\([^)]*\))?\s*(::?)\s*([a-z][a-zA-Z0-9_]*)\s*\(/);
+    // Examples: dynamic(foo::bar/1), multifile(module:foo//2), private(foo::'QUOTED'/1)
+    const qualifiedCallableRegex = new RegExp(`^:-\\s*\\w+\\(\\s*(${atomPattern})(?:\\([^)]*\\))?\\s*(::?)\\s*(${atomPattern})\\s*\\(`);
+    const qualifiedCallableMatch = trimmed.match(qualifiedCallableRegex);
     if (qualifiedCallableMatch) {
       const entityName = qualifiedCallableMatch[1];
       const qualOp = qualifiedCallableMatch[2]; // :: or :
       const predicateName = qualifiedCallableMatch[3];
 
       // Check if entity is parametric
-      const entityParamsMatch = trimmed.match(new RegExp(`${entityName}\\(([^)]*)\\)\\s*${qualOp}`));
+      const escapedEntityName = entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const entityParamsMatch = trimmed.match(new RegExp(`${escapedEntityName}\\(([^)]*)\\)\\s*${qualOp}`));
       let entityQualifier = entityName;
       if (entityParamsMatch) {
         // Parametric entity - extract parameters and count them
@@ -921,8 +926,15 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         entityQualifier = `${entityName}/${entityArity}`;
       }
 
-      // Find the predicate arguments
-      const predicateStart = trimmed.indexOf(predicateName);
+      // Find the predicate arguments - need to handle quoted atoms
+      let predicateStart: number;
+      if (predicateName.startsWith("'")) {
+        // Quoted atom - search for the exact quoted string
+        predicateStart = trimmed.indexOf(predicateName);
+      } else {
+        // Unquoted atom
+        predicateStart = trimmed.indexOf(predicateName);
+      }
       const openParenPos = trimmed.indexOf('(', predicateStart + predicateName.length);
 
       if (openParenPos !== -1) {
@@ -946,14 +958,22 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
     }
 
-    // Fourth, try to extract from non-qualified callable form (e.g., mode(foo(+int), one))
+    // Fourth, try to extract from non-qualified callable form (e.g., mode(foo(+int), one), mode('QUOTED'(+int), one))
     // Match the directive name and extract the first argument
-    const callableMatch = trimmed.match(/^:-\s*\w+\(\s*([a-z][a-zA-Z0-9_]*)\s*\(/);
+    const callableRegex = new RegExp(`^:-\\s*\\w+\\(\\s*(${atomPattern})\\s*\\(`);
+    const callableMatch = trimmed.match(callableRegex);
     if (callableMatch) {
       const functor = callableMatch[1];
 
-      // Find the opening parenthesis after the functor
-      const functorStart = trimmed.indexOf(functor);
+      // Find the opening parenthesis after the functor - need to handle quoted atoms
+      let functorStart: number;
+      if (functor.startsWith("'")) {
+        // Quoted atom - search for the exact quoted string
+        functorStart = trimmed.indexOf(functor);
+      } else {
+        // Unquoted atom
+        functorStart = trimmed.indexOf(functor);
+      }
       const openParenPos = trimmed.indexOf('(', functorStart + functor.length);
 
       if (openParenPos !== -1) {
