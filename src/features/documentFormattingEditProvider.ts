@@ -304,6 +304,19 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     if (nextLineNum < document.lineCount) {
       const nextLine = document.lineAt(nextLineNum).text;
       if (nextLine.trim() !== '') {
+        if (nextLine.trim().match(/:-\s*(object|protocol|category)\(/)) {
+          finalText += '\n\n';
+        } else {
+          finalText += '\n';
+        }
+      }
+    }
+
+    // Add a second empty line if the next term is an entity opening directive
+    const nextNextLineNum = nextLineNum + 1;
+    if (nextNextLineNum < document.lineCount) {
+      const nextNextLine = document.lineAt(nextNextLineNum).text;
+      if (nextNextLine.trim().match(/:-\s*(object|protocol|category)\(/)) {
         finalText += '\n';
       }
     }

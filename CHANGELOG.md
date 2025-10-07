@@ -4,6 +4,7 @@
 
 * Add support for syntax highlighting and formatting of `mode_non_terminal/2` directives
 * Update the formatting commands to collapse consecutive empty lines into a single empty line
+* Ensure that multiple entities in the same file are separated by two or more empty lines
 * Improve insertion of empty lines before different types of terms
 * Improve formatting of line comments to only indent if they start at character zero but not followed by indented content
 * Improve formatting of block comments to indent just the content or the full block comment depending on whether the comment delimiters are on separate lines

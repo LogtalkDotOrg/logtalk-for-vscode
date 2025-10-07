@@ -98,6 +98,7 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 - Mixed indentation is handled by converting all spaces to tabs based on the tab size setting
 - Consecutive empty lines are collapsed into a single empty line
 - Entity opening and closing directives are formatted to start at column 0 with empty lines before and after
+- Multiple entities in the same file are separated by two or more empty lines
 - Entity opening directives are formatted to use multi-line layout when there are multiple relations
 - Content inside entity opening and closing directives is indented by one tab
 - Directives with list arguments are formatted to use multi-line syntax (taking into account the `editor.rulers` and `editor.tabSize` settings)
