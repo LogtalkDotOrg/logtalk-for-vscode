@@ -332,6 +332,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   public indentEntityContent(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
     this.logger.debug(`Indenting entity content from line ${startLine + 1} to ${endLine + 1}`);
     let indentedItems = 0;
+    this.lastTermType = "";
+    this.lastTermIndicator = "";
+    this.lastPredicateIndicator = "";
 
     let lineNum = startLine;
     while (lineNum <= endLine) {
@@ -346,9 +349,6 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           edits.push(TextEdit.delete(new Range(new Position(prevLine, 0), new Position(lineNum, 0))));
         }
         lineNum++;
-        this.lastTermType = "";
-        this.lastTermIndicator = "";
-        this.lastPredicateIndicator = "";
         continue;
       }
 
@@ -524,13 +524,18 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Extract indicator from the complete fact
         const indicator = this.extractIndicatorFromTerm(factText, false);
 
-        // Insert empty line if different indicator
-        if (this.lastTermType === "predicate" && this.lastTermIndicator !== "" && indicator !== "" && this.lastTermIndicator !== indicator) {
-          edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
-        }
-        // Insert empty line if switching from non-terminal or directive
-        else if (this.lastTermType === "non_terminal" || this.lastTermType === "directive") {
-          edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+        // Insert empty line if no empty line or comment separator in the previous line and
+        // if different indicator or switching from non-terminal or directive
+        const prevLine = lineNum - 1;
+        if (prevLine >= 0) {
+          const prevLineText = document.lineAt(prevLine).text.trim();
+          if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+            if (this.lastTermType === "predicate" && this.lastTermIndicator !== "" && indicator !== "" && this.lastTermIndicator !== indicator) {
+              edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+            } else if (this.lastTermType === "non_terminal" || this.lastTermType === "directive") {
+              edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+            }
+          }
         }
 
         // Indent the fact if needed
@@ -630,13 +635,18 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
             extractedContentAfterHead = result.contentAfterHead;
           }
 
-          // Insert empty line if switching from non-terminal or directive to predicate
-          if (this.lastTermType === "non_terminal" || this.lastTermType === "directive") {
-            edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
-          }
-          // Insert empty line if same type (predicate) but different indicator
-          else if (this.lastTermType === "predicate" && this.lastTermIndicator !== "" && result.indicator !== "" && this.lastTermIndicator !== result.indicator) {
-            edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+          // Insert empty line if no empty line or comment separator in the previous line and
+          // switching from non-terminal or directive to predicate or if same type (predicate) but different indicator
+          const prevLine = lineNum - 1;
+          if (prevLine >= 0) {
+            const prevLineText = document.lineAt(prevLine).text.trim();
+            if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+              if (this.lastTermType === "non_terminal" || this.lastTermType === "directive") {
+                edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+              } else if (this.lastTermType === "predicate" && this.lastTermIndicator !== "" && result.indicator !== "" && this.lastTermIndicator !== result.indicator) {
+                edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+              }
+            }
           }
 
           // Update the last term and predicate indicators
@@ -653,13 +663,18 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
             extractedContentAfterHead = result.contentAfterHead;
           }
 
-          // Insert empty line if switching from predicate or directive to non-terminal
-          if (this.lastTermType === "predicate" || this.lastTermType === "directive") {
-            edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
-          }
-          // Insert empty line if same type (non-terminal) but different indicator
-          else if (this.lastTermType === "non_terminal" && this.lastTermIndicator !== "" && result.indicator !== "" && this.lastTermIndicator !== result.indicator) {
-            edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+          // Insert empty line if no empty line or comment separator in the previous line and
+          // switching from predicate or directive to non-terminal or if same type (non-terminal) but different indicator
+          const prevLine = lineNum - 1;
+          if (prevLine >= 0) {
+            const prevLineText = document.lineAt(prevLine).text.trim();
+            if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+              if (this.lastTermType === "predicate" || this.lastTermType === "directive") {
+                edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+              } else if (this.lastTermType === "non_terminal" && this.lastTermIndicator !== "" && result.indicator !== "" && this.lastTermIndicator !== result.indicator) {
+                edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
+              }
+            }
           }
 
           // Update the last term and predicate indicators
@@ -1969,11 +1984,20 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
       this.logger.debug(`scope directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
-      // Insert empty line if switching to a different predicate/non-terminal
-      // (only for single indicator directives, not lists)
-      if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-        this.logger.debug(`Inserting empty line before scope directive (different predicate)`);
-        edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+      // Insert empty line if no empty line or comment separator in the previous line and
+      // and if switching to a different predicate/non-terminal (only for single indicator directives, not lists)
+      const prevLine = directiveRange.start - 1;
+      if (prevLine >= 0) {
+        const prevLineText = document.lineAt(prevLine).text.trim();
+        if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+          if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+            this.logger.debug(`Inserting empty line before scope directive (different predicate)`);
+            edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+          } else if (this.lastPredicateIndicator === "" && this.lastTermType === "directive") {
+            this.logger.debug(`Inserting empty line before scope directive (entity directive before)`);
+            edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+          }
+        }
       }
 
       // Check if this is a list directive or single indicator directive
@@ -2054,11 +2078,20 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
       this.logger.debug(`${directiveName}/1 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
-      // Insert empty line if switching to a different predicate/non-terminal
-      // (only for single indicator directives, not lists)
-      if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-        this.logger.debug(`Inserting empty line before ${directiveName}/1 directive (different predicate: ${predicateIndicator} != ${this.lastPredicateIndicator})`);
-        edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+      // Insert empty line if no empty line or comment separator in the previous line and
+      // and if switching to a different predicate/non-terminal (only for single indicator directives, not lists)
+      const prevLine = directiveRange.start - 1;
+      if (prevLine >= 0) {
+        const prevLineText = document.lineAt(prevLine).text.trim();
+        if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+          if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
+            this.logger.debug(`Inserting empty line before ${directiveName}/1 directive (different predicate: ${predicateIndicator} != ${this.lastPredicateIndicator})`);
+           edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+          } else if (this.lastPredicateIndicator === "" && this.lastTermType === "directive") {
+            this.logger.debug(`Inserting empty line before ${directiveName}/1 directive (entity directive before)`);
+            edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+          }
+        }
       }
 
       // Check if this is a list directive or single indicator directive
