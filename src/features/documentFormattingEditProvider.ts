@@ -352,9 +352,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         continue;
       }
 
-      // Handle line comments - indent with one tab if they start at character zero
+      // Handle line comments - indent if they start at character zero but not followed by indented content
       if (trimmedText.startsWith('%')) {
-        if (!lineText.startsWith('\t') && lineText.startsWith('%')) {
+        if (!lineText.startsWith('\t') && !lineText.startsWith('%\t')) {
           this.logger.debug(`  Indenting line comment at line ${lineNum + 1}: "${lineText}"`);
           const indentedText = '\t' + lineText;
           const range = new Range(
