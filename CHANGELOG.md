@@ -5,6 +5,7 @@
 * Add support for syntax highlighting and formatting of `mode_non_terminal/2` directives
 * Update the formatting commands to collapse consecutive empty lines into a single empty line
 * Improve formatting of line comments to only indent if they start at character zero but not followed by indented content
+* Improve formatting of block comments to indent just the content or the full block comment depending on whether the comment delimiters are on separate lines
 
 ## [0.59.0]
 

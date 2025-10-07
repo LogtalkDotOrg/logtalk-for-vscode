@@ -372,9 +372,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       if (trimmedText.startsWith('/*')) {
         // Get the range of the block comment
         const blockRange = this.getBlockCommentRange(document, lineNum);
-        if (!lineText.startsWith('\t') && lineText.startsWith('/*')) {
-          // Indent all lines in the block comment
-          this.indentRange(document, blockRange.start, blockRange.end, edits);
+        if (!lineText.startsWith('\t')) {
+          if (trimmedText === '/*' && document.lineAt(blockRange.end).text.trim() === '*/') {
+            // Indent content inside the block comment
+            this.indentEntityContent(document, blockRange.start + 1, blockRange.end - 1, edits);
+          } else {
+            // Indent all lines in the block comment
+            this.indentRange(document, blockRange.start, blockRange.end, edits);
+          }
           indentedItems++;
         }
         // Move past the block comment without changing lastTermType or lastTermIndicator

@@ -108,6 +108,7 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 - Any comment or goal after the neck operator (`:-` or `-->`) is moved to the next line and indented
 - Conditional compilation blocks are formatted by aligning conditional compilation directives according to their nesting level
 - Line comments are indented if they start at character zero but are not followed by indented content
+- Block comments content are indented when the comment delimiters are on separate lines; otherwise, the full block comment is indented
 
 You can verify the changes before saving them using the "File: Compare Active File with Saved" command, which also allow selectively undoing formatting changes.
 
