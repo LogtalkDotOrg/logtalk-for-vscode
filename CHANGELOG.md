@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.61.0]
+
+* Fix formatting commands bug where whitespace in quoted atoms would be changed
+
 ## [0.60.0]
 
 * Add support for syntax highlighting and formatting of `mode_non_terminal/2` directives

@@ -119,13 +119,13 @@ export class LogtalkDocumentRangeFormattingEditProvider implements DocumentRange
       // Format each entity found in the range
       for (const entityInfo of allEntities) {
         // 1. Format entity opening directive (ensure it starts at column 0 with empty line after)
-        this.documentFormatter.formatEntityOpeningDirective(document, entityInfo.opening, edits);
+        this.documentFormatter.formatEntityOpeningDirective(document, {start: entityInfo.opening.start.line, end: entityInfo.opening.end.line}, edits);
 
-        // 2. Format entity closing directive (ensure it starts at column 0 with empty line after)
-        this.documentFormatter.formatEntityClosingDirective(document, entityInfo.closing, edits);
-
-        // 3. Indent all content inside the entity and apply specific directive formatting
+        // 2. Indent all content inside the entity and apply specific directive formatting
         this.documentFormatter.indentEntityContent(document, entityInfo.opening.end.line + 1, entityInfo.closing.start.line - 1, edits);
+
+        // 3. Format entity closing directive (ensure it starts at column 0 with empty line after)
+        this.documentFormatter.formatEntityClosingDirective(document, { start: entityInfo.closing.start.line, end: entityInfo.closing.end.line}, edits);
       }
 
     } catch (error) {

@@ -109,13 +109,13 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       // Format each entity found in the document
       for (const entityInfo of allEntities) {
         // 1. Format entity opening directive (ensure it starts at column 0 with empty line after)
-        this.formatEntityOpeningDirective(document, entityInfo.opening, edits);
+        this.formatEntityOpeningDirective(document, { start: entityInfo.opening.start.line, end: entityInfo.opening.end.line}, edits);
 
-        // 2. Format entity closing directive (ensure it starts at column 0 with empty line after)
-        this.formatEntityClosingDirective(document, entityInfo.closing, edits);
-
-        // 3. Indent all content inside the entity and apply specific directive formatting
+        // 2. Indent all content inside the entity and apply specific directive formatting
         this.indentEntityContent(document, entityInfo.opening.end.line + 1, entityInfo.closing.start.line - 1, edits);
+
+        // 3. Format entity closing directive (ensure it starts at column 0 with empty line after)
+        this.formatEntityClosingDirective(document, { start: entityInfo.closing.start.line, end: entityInfo.closing.end.line}, edits);
       }
 
       // Ensure a single empty line at the end of the document
@@ -201,10 +201,18 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Format entity opening directive to start at column 0 with empty line after
    */
-  public formatEntityOpeningDirective(document: TextDocument, range: Range, edits: TextEdit[]): void {
-    const directiveText = document.getText(range);
+  public formatEntityOpeningDirective(document: TextDocument, directiveRange: {start: number, end: number}, edits: TextEdit[]): void {
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text.trim();
+    }
+
     const formattedDirective = this.formatEntityOpeningDirectiveContent(directiveText);
 
+    const range = new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    );
     edits.push(TextEdit.replace(range, formattedDirective));
 
     // Update the last term indicator
@@ -221,11 +229,8 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format the content of an entity opening directive with proper multi-line structure
    */
   private formatEntityOpeningDirectiveContent(directiveText: string): string {
-    // Remove all newlines and normalize whitespace
-    const normalizedText = directiveText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-
     // Parse entity directive: :- entity_type(arguments...).
-    const match = normalizedText.match(/^:-\s*(object|protocol|category)\(\s*(.*)\)\s*\.\s*$/);
+    const match = directiveText.match(/^:-\s*(object|protocol|category)\(\s*(.*)\)\s*\.\s*$/);
     if (!match) {
       // If parsing fails, fall back to simple formatting
       return directiveText.split('\n').map((line, index) => {
@@ -269,11 +274,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Format entity closing directive to start at column 0 with single empty line before and after
    */
-  public formatEntityClosingDirective(document: TextDocument, range: Range, edits: TextEdit[]): void {
-    const directiveText = document.getText(range).trim();
+  public formatEntityClosingDirective(document: TextDocument, directiveRange: {start: number, end: number}, edits: TextEdit[]): void {
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text.trim();
+    }
 
     // Find the last non-empty line before the closing directive
-    let lastContentLine = range.start.line - 1;
+    let lastContentLine = directiveRange.start - 1;
     while (lastContentLine >= 0 && document.lineAt(lastContentLine).text.trim() === '') {
       lastContentLine--;
     }
@@ -300,7 +308,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     let finalText = '\n' + formattedDirective;
 
     // Add empty line after closing directive if not at end of file
-    const nextLineNum = range.end.line + 1;
+    const nextLineNum = directiveRange.end + 1;
     if (nextLineNum < document.lineCount) {
       const nextLine = document.lineAt(nextLineNum).text;
       if (nextLine.trim() !== '') {
@@ -322,12 +330,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     }
 
     // Replace from after the last content line to the end of the closing directive
-    const replaceRange = new Range(
+    const range = new Range(
       new Position(replaceStartLine, replaceStartChar),
-      range.end
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
     );
-
-    edits.push(TextEdit.replace(replaceRange, finalText));
+    edits.push(TextEdit.replace(range, finalText));
 
     // Update the last term indicator
     // Extract entity type from directive (end_object, end_protocol, or end_category)
@@ -359,6 +366,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       if (trimmedText === '') {
         const prevLine = lineNum - 1;
         if (prevLine >= 0 && document.lineAt(prevLine).text.trim() === '') {
+          this.logger.debug(`  Collapsing consecutive empty lines at line ${lineNum + 1}`);
           edits.push(TextEdit.delete(new Range(new Position(prevLine, 0), new Position(lineNum, 0))));
         }
         lineNum++;
@@ -423,20 +431,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Call the appropriate formatter based on directive type
         if (/^:-\s*(object|protocol|category)\(/.test(trimmedText)) {
           // entity opening directive (when using the "Format Selection" command)
-          this.formatEntityOpeningDirective(document, new Range(
-            new Position(directiveRange.start, 0),
-            new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
-          ), edits);
+          this.formatEntityOpeningDirective(document, directiveRange, edits);
         } else if (/^:-\s*(end_object|end_protocol|end_category)\./.test(trimmedText)) {
           // entity closing directive (when using the "Format Selection" command)
-          this.formatEntityClosingDirective(document, new Range(
-            new Position(directiveRange.start, 0),
-            new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
-          ), edits);
+          this.formatEntityClosingDirective(document, directiveRange, edits);
         } else if (/^:-\s*info\(\s*\[/.test(trimmedText)) {
           // info/1 directive with list
           this.formatInfo1Directive(document, directiveRange, edits);
-        } else if (/^:-\s*initialization\(\s*\[/.test(trimmedText)) {
+        } else if (/^:-\s*initialization\(/.test(trimmedText)) {
           // initialization/1 directive
           this.formatInitialization1Directive(document, directiveRange, edits);
         } else if (/^:-\s*mode\(/.test(trimmedText)) {
@@ -1091,18 +1093,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatInfo1DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
-
-    // Normalize the text to extract list content
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
 
     // Parse the directive to ensure proper formatting
-    const directiveMatch = normalizedText.match(/^:-\s*info\(\s*\[(.*)\]\s*\)\s*\.$/);
+    const directiveMatch = directiveText.match(/^:-\s*info\(\s*\[(.*)\]\s*\)\s*\.$/);
     if (!directiveMatch) {
       // If parsing fails, ensure proper spacing in the directive
-      const reformattedDirective = normalizedText.replace(/^:-\s*(info)/, ':- $1');
+      const reformattedDirective = directiveText.replace(/^:-\s*(info)/, ':- $1');
       return '\t' + reformattedDirective;
     }
 
@@ -1217,8 +1215,8 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     // Add empty line before directive if not present
     const previousLineNum = directiveRange.start - 1;
     if (previousLineNum < document.lineCount) {
-      const previousLine = document.lineAt(previousLineNum).text;
-      if (previousLine.trim() !== '') {
+      const previousLine = document.lineAt(previousLineNum).text.trim();
+      if (previousLine !== '' && !previousLine.startsWith('%')) {
         edits.push(TextEdit.insert(new Position(directiveRange.start - 1, 0), '\n'));
       }
     }
@@ -1251,7 +1249,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     // Extract directive text to get the indicator
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
 
     let predicateIndicator = this.extractIndicatorFromDirective(directiveText);
@@ -1285,16 +1283,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatMode2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
-
+ 
     // Parse mode/2 directive: :- mode(template, solutions).
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s*mode\(\s*(.*)\)\s*\.$/);
+    const match = directiveText.match(/^:-\s*mode\(\s*(.*)\)\s*\.$/);
     if (!match) {
       // If parsing fails, ensure proper spacing in the directive
-      const reformattedDirective = normalizedText.replace(/^:-\s*(\w+)/, ':- $1');
+      const reformattedDirective = directiveText.replace(/^:-\s*(\w+)/, ':- $1');
       return '\t' + reformattedDirective;
     }
 
@@ -1361,16 +1357,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatModeNonTerminal2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
 
     // Parse mode/2 directive: :- mode(template, solutions).
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s*mode_non_terminal\(\s*(.*)\)\s*\.$/);
+    const match = directiveText.match(/^:-\s*mode_non_terminal\(\s*(.*)\)\s*\.$/);
     if (!match) {
       // If parsing fails, ensure proper spacing in the directive
-      const reformattedDirective = normalizedText.replace(/^:-\s*(\w+)/, ':- $1');
+      const reformattedDirective = directiveText.replace(/^:-\s*(\w+)/, ':- $1');
       return '\t' + reformattedDirective;
     }
 
@@ -1432,13 +1426,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatInfo2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
 
     // Parse info/2 directive: :- info(predicate/arity, [list]).
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s*info\(\s*(.*)\)\s*\.$/);
+    const match = directiveText.match(/^:-\s*info\(\s*(.*)\)\s*\.$/);
     if (!match) {
       return '\t' + directiveText;
     }
@@ -1586,13 +1578,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatUses2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
 
     // Parse uses directive: :- uses(Object, [list]).
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s*uses\(\s*(.*)\)\s*\.$/);
+    const match = directiveText.match(/^:-\s*uses\(\s*(.*)\)\s*\.$/);
     if (!match) {
       return '\t' + directiveText;
     }
@@ -1681,13 +1671,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatAlias2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
 
     // Parse alias directive: :- alias(Object, List).
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s*alias\(\s*(.*)\)\s*\.$/);
+    const match = directiveText.match(/^:-\s*alias\(\s*(.*)\)\s*\.$/);
     if (!match) {
       return '\t' + directiveText;
     }
@@ -1776,13 +1764,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatUseModule2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
 
     // Parse use_module directive: :- use_module(Module, [list]).
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s*use_module\(\s*(.*)\)\s*\.$/);
+    const match = directiveText.match(/^:-\s*use_module\(\s*(.*)\)\s*\.$/);
     if (!match) {
       return '\t' + directiveText.trim();
     }
@@ -2055,16 +2041,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatSingleIndicatorDirective(document: TextDocument, directiveRange: { start: number; end: number }, directiveName: string): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
 
     // Parse the directive: :- directiveName(indicator).
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
-    const match = normalizedText.match(/^:-\s*\w+\(\s*(.*)\)\s*\.$/);
+    const match = directiveText.match(/^:-\s*\w+\(\s*(.*)\)\s*\.$/);
     if (!match) {
       // If parsing fails, ensure proper spacing in the directive
-      const reformattedDirective = normalizedText.replace(/^:-\s*(\w+)/, ':- $1');
+      const reformattedDirective = directiveText.replace(/^:-\s*(\w+)/, ':- $1');
       return '\t' + reformattedDirective;
     }
 
@@ -2149,18 +2133,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private formatListDirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }, directiveName: string): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text;
+      directiveText += document.lineAt(lineNum).text.trim();
     }
-    directiveText = directiveText.trim();
-
-    // Normalize the text to extract list content
-    const normalizedText = directiveText.replace(/\s+/g, ' ');
 
     // Parse the directive to ensure proper formatting
-    const directiveMatch = normalizedText.match(/^:-\s*\w+\(\s*\[(.*)\]\s*\)\s*\.$/);
+    const directiveMatch = directiveText.match(/^:-\s*\w+\(\s*\[(.*)\]\s*\)\s*\.$/);
     if (!directiveMatch) {
       // If parsing fails, ensure proper spacing in the directive
-      const reformattedDirective = normalizedText.replace(/^:-\s*(\w+)/, ':- $1');
+      const reformattedDirective = directiveText.replace(/^:-\s*(\w+)/, ':- $1');
       return '\t' + reformattedDirective;
     }
 
