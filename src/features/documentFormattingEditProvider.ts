@@ -1211,8 +1211,36 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format a single initialization/1 directive using pre-computed range
    */
   private formatInitialization1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    if (!document.lineAt(directiveRange.start).text.startsWith('\t')) {
-      this.indentRange(document, directiveRange.start, directiveRange.end, edits);
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text.trim();
+    }
+
+    // Parse the directive
+    const match = directiveText.match(/^:-\s*initialization\((.*)\)\s*\.$/);
+    const argumentText = match[1].trim();
+    let formatted = '';
+    if (!argumentText) {
+      formatted = '\t' + directiveText;
+    } else {
+      // Parse the directive argument
+      const goalsText = argumentText.match(/^\((.*)\)/);
+      if (!goalsText) {
+        formatted = '\t:- initialization(' + argumentText + ').';
+      } else {
+        const directiveGoals = ArgumentUtils.parseArguments(goalsText[1]);
+        if (directiveGoals.length < 2) {
+          formatted = '\t:- initialization(' + directiveGoals[0] + ').';
+        } else {
+          formatted = '\t:- initialization((\n\t\t';
+          let index = 0;
+          while (index < directiveGoals.length - 1) {
+            formatted += directiveGoals[index] + ',\n\t\t';
+            index = index + 1;
+          };
+          formatted += directiveGoals[index] + '\n\t)).';
+        }
+      }
     }
 
     // Add empty line before directive if not present
@@ -1223,6 +1251,13 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         edits.push(TextEdit.insert(new Position(directiveRange.start - 1, 0), '\n'));
       }
     }
+
+    // Replace the directive with the formatted text
+    const range = new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    );
+    edits.push(TextEdit.replace(range, formatted));
   }
 
   /**

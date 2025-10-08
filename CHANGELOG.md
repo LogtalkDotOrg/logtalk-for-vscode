@@ -2,6 +2,7 @@
 
 ## [0.61.0]
 
+* Improve formatting of `initialization/1` directives
 * Fix formatting commands bug where whitespace in quoted atoms would be changed
 * Fix formatting commands bug where consecutive empty lines before an ending entity directive could prevent document formatting
 
