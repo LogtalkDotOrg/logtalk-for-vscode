@@ -165,7 +165,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
 
       // Look for entity closing directive
-      const closingMatch = lineText.match(/^:-\s*end_(object|protocol|category)\./);
+      const closingMatch = lineText.match(/^:-\s*end_(object|protocol|category)\s*\./);
       if (closingMatch) {
         const entityRange = new Range(
           new Position(lineNum, 0),
@@ -275,37 +275,20 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format entity closing directive to start at column 0 with single empty line before and after
    */
   public formatEntityClosingDirective(document: TextDocument, directiveRange: {start: number, end: number}, edits: TextEdit[]): void {
-    let directiveText = '';
-    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text.trim();
-    }
-
-    // Find the last non-empty line before the closing directive
-    let lastContentLine = directiveRange.start - 1;
-    while (lastContentLine >= 0 && document.lineAt(lastContentLine).text.trim() === '') {
-      lastContentLine--;
-    }
-
-    // Determine the range to replace (from after last content line to end of closing directive)
-    let replaceStartLine = lastContentLine + 1;
-    let replaceStartChar = 0;
-
-    // If there's content before, start from the next line
-    if (lastContentLine >= 0) {
-      replaceStartLine = lastContentLine + 1;
-      replaceStartChar = 0;
-    } else {
-      // If no content before (shouldn't happen in normal entities), start from beginning
-      replaceStartLine = 0;
-      replaceStartChar = 0;
-    }
+    let directiveText = document.lineAt(directiveRange.start).text.trim();
 
     // Ensure proper spacing in closing directive
-    const match = directiveText.match(/^:-\s*(end_(?:object|protocol|category))\./);
-    const formattedDirective = match ? `:- ${match[1]}.` : directiveText;
+    const match = directiveText.match(/^:-\s*(end_(?:object|protocol|category))\s*\./);
+    let finalText = match ? `:- ${match[1]}.` : directiveText;
 
-    // Create the replacement text: single empty line + closing directive
-    let finalText = '\n' + formattedDirective;
+    // Add empty line before directive if not present
+    const previousLineNum = directiveRange.start - 1;
+    if (previousLineNum < document.lineCount) {
+      const previousLine = document.lineAt(previousLineNum).text.trim();
+      if (previousLine !== '') {
+        finalText = '\n' + finalText;
+      }
+    }
 
     // Add empty line after closing directive if not at end of file
     const nextLineNum = directiveRange.end + 1;
@@ -331,14 +314,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     // Replace from after the last content line to the end of the closing directive
     const range = new Range(
-      new Position(replaceStartLine, replaceStartChar),
+      new Position(directiveRange.start, 0),
       new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
     );
     edits.push(TextEdit.replace(range, finalText));
 
     // Update the last term indicator
     // Extract entity type from directive (end_object, end_protocol, or end_category)
-    const entityMatch = directiveText.match(/^:-\s*(end_(?:object|protocol|category))\./);
+    const entityMatch = directiveText.match(/^:-\s*(end_(?:object|protocol|category))\s*\./);
     if (entityMatch) {
       this.lastTermIndicator = `${entityMatch[1]}/0`;
       this.lastPredicateIndicator = "";
@@ -357,6 +340,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     this.lastPredicateIndicator = "";
 
     let lineNum = startLine;
+
     while (lineNum <= endLine) {
       const line = document.lineAt(lineNum);
       const lineText = line.text;
@@ -364,12 +348,23 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
       // Skip and collapse consecutive empty lines
       if (trimmedText === '') {
-        const prevLine = lineNum - 1;
-        if (prevLine >= 0 && document.lineAt(prevLine).text.trim() === '') {
-          this.logger.debug(`  Collapsing consecutive empty lines at line ${lineNum + 1}`);
-          edits.push(TextEdit.delete(new Range(new Position(prevLine, 0), new Position(lineNum, 0))));
+        // Look ahead to find all consecutive empty lines
+        let nextLine = lineNum + 1;
+        while (nextLine <= endLine && document.lineAt(nextLine).text.trim() === '') {
+          nextLine++;
         }
-        lineNum++;
+
+        // If there are one or more empty lines following this one, delete them
+        if (nextLine > lineNum + 1) {
+          this.logger.debug(`  Collapsing ${nextLine - lineNum - 1} consecutive empty lines after line ${lineNum + 1}`);
+          // Delete from the line after the first empty line to the last consecutive empty line
+          const deleteStart = lineNum + 1;
+          const deleteEnd = nextLine;
+          edits.push(TextEdit.delete(new Range(new Position(deleteStart, 0), new Position(deleteEnd, 0))));
+        }
+
+        // Skip past all the empty lines (keep the first one, we've deleted the rest)
+        lineNum = nextLine;
         continue;
       }
 

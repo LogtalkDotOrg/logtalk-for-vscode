@@ -3,6 +3,7 @@
 ## [0.61.0]
 
 * Fix formatting commands bug where whitespace in quoted atoms would be changed
+* Fix formatting commands bug where consecutive empty lines before an ending entity directive could prevent document formatting
 
 ## [0.60.0]
 
