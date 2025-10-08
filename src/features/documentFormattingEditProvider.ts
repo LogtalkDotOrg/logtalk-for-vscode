@@ -2272,7 +2272,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Content should be indented one level deeper than the current if directive
         // The current if is at level (nestingLevel - 1), so content is at nestingLevel
         const contentIndent = baseIndent + '\t'.repeat(nestingLevel);
-        const formattedContent = contentIndent + lineText;
+        const formattedContent = lineText.startsWith(contentIndent) ? lineText : contentIndent + lineText;
 
         this.logger.debug(`    Formatting conditional block content at line ${lineNum + 1}, nesting=${nestingLevel}: "${trimmedText}" → "${formattedContent}"`);
 
