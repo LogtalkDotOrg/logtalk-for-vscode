@@ -498,7 +498,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           } else {
             lastTermIndicator = "";
           }
-          this.insertEmptyLineBeforeIfRequired(document, directiveRange.start, "directive", lastTermIndicator, edits);
+          this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", lastTermIndicator, edits);
           if (!lineText.startsWith('\t')) {
             this.logger.debug(`  Found other directive at line ${lineNum + 1}: "${trimmedText}"`);
             this.indentRange(document, directiveRange.start, directiveRange.end, edits);
@@ -906,8 +906,8 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private extractIndicatorFromDirective(directiveText: string): string {
     const trimmed = directiveText.trim();
 
-    // Atom pattern: either unquoted (lowercase start) or quoted (single quotes)
-    const atomPattern = `(?:'[^']*'|[a-z][a-zA-Z0-9_]*)`;
+    // Atom pattern: either unquoted (lowercase start), quoted (single quotes), or parenthesized operator
+    const atomPattern = `(?:'[^']*'|\\([^)]+\\)|[a-z][a-zA-Z0-9_]*)`;
 
     // First, try to match explicit qualified indicator patterns
     // Examples: foo::bar/2, foo(a,b)::bar/2, module:bar/2, foo::'QUOTED'/2
@@ -937,8 +937,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     }
 
     // Second, try to match explicit non-qualified indicator patterns: name/arity or name//arity
-    // Examples: foo/2, bar//1, 'REFINED_TERM'/3
-    const indicatorRegex = new RegExp(`(${atomPattern})\\s*(\\/\\/|\\/)\\s*(\\d+)`);
+    // Examples: foo/2, bar//1, 'REFINED_TERM'/3, (=~=)/2
+    // Match after directive name and opening paren: :- directive_name(indicator)
+    const indicatorRegex = new RegExp(`^:-\\s*\\w+\\(\\s*(${atomPattern})\\s*(\\/\\/|\\/)\\s*(\\d+)`);
     const indicatorMatch = trimmed.match(indicatorRegex);
     if (indicatorMatch) {
       const functor = indicatorMatch[1];
@@ -1275,13 +1276,54 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * @param indicator The term indicator to check against (e.g., "uses/1", "use_module/1")
    * @param edits The array of text edits to add to
    */
-  private insertEmptyLineBeforeIfRequired(document: TextDocument, line: number, termType: string, indicator: string, edits: TextEdit[]): void {
+  private insertEmptyLineBeforeEntityDirectiveIfRequired(document: TextDocument, line: number, termType: string, indicator: string, edits: TextEdit[]): void {
     if (line > 0) {
       const prevLine = document.lineAt(line - 1);
       if (prevLine.text.trim() === '' || prevLine.text.trim().startsWith('%') || prevLine.text.trim().endsWith('*/')) {
         return;
       } else if (this.lastTermType !== termType || this.lastTermIndicator !== indicator) {
         edits.push(TextEdit.insert(new Position(line, 0), '\n'));
+      }
+    }
+  }
+
+  /**
+   * Insert empty line if no empty line or comment separator in the previous line and
+   * and if switching to a different predicate/non-terminal (only for single indicator directives, not lists)
+   * @param document The text document
+   * @param directiveRange The directive range
+   * @param predicateIndicator The predicate indicator to check against (e.g., "foo/2")
+   * @param edits The array of text edits to add to
+   */
+  private insertEmptyLineBeforePredicateDirectiveIfRequired(document: TextDocument, directiveRange: { start: number; end: number }, predicateIndicator: string, edits: TextEdit[]): void {
+    const prevLine = directiveRange.start - 1;
+    if (prevLine >= 0) {
+      const prevLineText = document.lineAt(prevLine).text.trim();
+      if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+        // Normalize indicators to treat '=~='/2 and (=~=)/2 as the same
+        // Extract the name part (before / or //) and check if it needs normalization
+        const normalizeIndicator = (indicator: string): string => {
+          if (!indicator) return indicator;
+          const slashPos = indicator.indexOf('/');
+          if (slashPos === -1) return indicator;
+          const name = indicator.substring(0, slashPos);
+          const rest = indicator.substring(slashPos);
+          // Normalize if name is quoted: (name) -> 'name'
+          if (name.length >= 2 && name[0] === "(" && name[name.length - 1] === ")") {
+            return "'" + name.substring(1, name.length - 1) + "'" + rest;
+          }
+          // Already normalized if name is single quoted: 'name'
+          return indicator;
+        };
+
+        const predicateIndicatorNormalized = normalizeIndicator(predicateIndicator);
+        const lastPredicateIndicatorNormalized = normalizeIndicator(this.lastPredicateIndicator);
+
+        if (predicateIndicatorNormalized && lastPredicateIndicatorNormalized !== "" && predicateIndicatorNormalized !== lastPredicateIndicatorNormalized) {
+          edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+        } else if (lastPredicateIndicatorNormalized === "" && this.lastTermType === "directive") {
+          edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
+        }
       }
     }
   }
@@ -1299,11 +1341,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     let predicateIndicator = this.extractIndicatorFromDirective(directiveText);
     this.logger.debug(`mode/2 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
-    // Insert empty line if switching to a different predicate/non-terminal
-    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-      this.logger.debug(`Inserting empty line before mode/2 directive (different predicate/non-terminal)`);
-      edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-    }
+    this.insertEmptyLineBeforePredicateDirectiveIfRequired(document, directiveRange, predicateIndicator, edits);
 
     const formattedMode = this.formatMode2DirectiveContent(document, directiveRange);
 
@@ -1373,11 +1411,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       predicateIndicator = this.lastPredicateIndicator;
     }
 
-    // Insert empty line if switching to a different predicate/non-terminal
-    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-      this.logger.debug(`Inserting empty line before mode_non_terminal/2 directive (different predicate/non-terminal)`);
-      edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-    }
+    this.insertEmptyLineBeforePredicateDirectiveIfRequired(document, directiveRange, predicateIndicator, edits);
 
     const formattedMode = this.formatModeNonTerminal2DirectiveContent(document, directiveRange);
 
@@ -1443,10 +1477,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
     const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
 
-    // Insert empty line if switching to a different predicate/non-terminal
-    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-      edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-    }
+    this.insertEmptyLineBeforePredicateDirectiveIfRequired(document, directiveRange, predicateIndicator, edits);
 
     const formattedInfo2 = this.formatInfo2DirectiveContent(document, directiveRange);
 
@@ -1599,7 +1630,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format a single uses/2 directive using pre-computed range
    */
   private formatUses2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    this.insertEmptyLineBeforeIfRequired(document, directiveRange.start, "directive", "uses/2", edits);
+    this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "uses/2", edits);
     const formattedUses = this.formatUses2DirectiveContent(document, directiveRange);
 
     const range = new Range(
@@ -1689,7 +1720,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format a single alias/2 directive using pre-computed range
    */
   private formatAlias2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    this.insertEmptyLineBeforeIfRequired(document, directiveRange.start, "directive", "alias/2", edits);
+    this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "alias/2", edits);
     const formattedAlias = this.formatAlias2DirectiveContent(document, directiveRange);
 
     const range = new Range(
@@ -1778,7 +1809,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format a single use_module/2 directive using pre-computed range
    */
   private formatUseModule2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    this.insertEmptyLineBeforeIfRequired(document, directiveRange.start, "directive", "use_module/2", edits);
+    this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "use_module/2", edits);
     const formattedUseModule = this.formatUseModule2DirectiveContent(document, directiveRange);
 
     const range = new Range(
@@ -1854,7 +1885,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format a single uses/1 directive using pre-computed range
    */
   private formatUses1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    this.insertEmptyLineBeforeIfRequired(document, directiveRange.start, "directive", "uses/1", edits);
+    this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "uses/1", edits);
     const formattedUses1 = this.formatListDirectiveContent(document, directiveRange, 'uses');
 
     const range = new Range(
@@ -1872,7 +1903,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Format a single use_module/1 directive using pre-computed range
    */
   private formatUseModule1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    this.insertEmptyLineBeforeIfRequired(document, directiveRange.start, "directive", "use_module/1", edits);
+    this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "use_module/1", edits);
     const formattedUseModule = this.formatListDirectiveContent(document, directiveRange, 'use_module');
 
     const range = new Range(
@@ -1901,12 +1932,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
     this.logger.debug(`meta_predicate/1 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
-    // Insert empty line if switching to a different predicate
-    // (only for single template directives, not lists)
-    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-      this.logger.debug(`Inserting empty line before meta_predicate/1 directive (different predicate)`);
-      edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-    }
+    this.insertEmptyLineBeforePredicateDirectiveIfRequired(document, directiveRange, predicateIndicator, edits);
 
     // Check if this is a list directive or single template directive
     if (/^:-\s*meta_predicate\(\s*\[/.test(lineText)) {
@@ -1958,12 +1984,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
     this.logger.debug(`meta_non_terminal/1 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
-    // Insert empty line if switching to a different non-terminal
-    // (only for single template directives, not lists)
-    if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-      this.logger.debug(`Inserting empty line before meta_non_terminal/1 directive (different non-terminal)`);
-      edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-    }
+    this.insertEmptyLineBeforePredicateDirectiveIfRequired(document, directiveRange, predicateIndicator, edits);
 
     // Check if this is a list directive or single template directive
     if (/^:-\s*meta_non_terminal\(\s*\[/.test(lineText)) {
@@ -2018,21 +2039,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
       this.logger.debug(`scope directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
-      // Insert empty line if no empty line or comment separator in the previous line and
-      // and if switching to a different predicate/non-terminal (only for single indicator directives, not lists)
-      const prevLine = directiveRange.start - 1;
-      if (prevLine >= 0) {
-        const prevLineText = document.lineAt(prevLine).text.trim();
-        if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
-          if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-            this.logger.debug(`Inserting empty line before scope directive (different predicate)`);
-            edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-          } else if (this.lastPredicateIndicator === "" && this.lastTermType === "directive") {
-            this.logger.debug(`Inserting empty line before scope directive (entity directive before)`);
-            edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-          }
-        }
-      }
+      this.insertEmptyLineBeforePredicateDirectiveIfRequired(document, directiveRange, predicateIndicator, edits);
 
       // Check if this is a list directive or single indicator directive
       if (/^:-\s*(public|protected|private)\(\s*\[/.test(lineText)) {
@@ -2110,21 +2117,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const predicateIndicator = this.extractIndicatorFromDirective(directiveText);
       this.logger.debug(`${directiveName}/1 directive: predicateIndicator="${predicateIndicator}", lastPredicateIndicator="${this.lastPredicateIndicator}"`);
 
-      // Insert empty line if no empty line or comment separator in the previous line and
-      // and if switching to a different predicate/non-terminal (only for single indicator directives, not lists)
-      const prevLine = directiveRange.start - 1;
-      if (prevLine >= 0) {
-        const prevLineText = document.lineAt(prevLine).text.trim();
-        if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
-          if (predicateIndicator && this.lastPredicateIndicator !== "" && predicateIndicator !== this.lastPredicateIndicator) {
-            this.logger.debug(`Inserting empty line before ${directiveName}/1 directive (different predicate: ${predicateIndicator} != ${this.lastPredicateIndicator})`);
-           edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-          } else if (this.lastPredicateIndicator === "" && this.lastTermType === "directive") {
-            this.logger.debug(`Inserting empty line before ${directiveName}/1 directive (entity directive before)`);
-            edits.push(TextEdit.insert(new Position(directiveRange.start, 0), '\n'));
-          }
-        }
-      }
+      this.insertEmptyLineBeforePredicateDirectiveIfRequired(document, directiveRange, predicateIndicator, edits);
 
       // Check if this is a list directive or single indicator directive
       if (/^:-\s*(discontiguous|dynamic|coinductive|multifile|synchronized)\(\s*\[/.test(lineText)) {

@@ -2,6 +2,7 @@
 
 ## [0.62.0]
 
+* Improve predicate declarations formatting when predicates are also operators
 * Fix formatting of facts with occurrences of the `:-` or `-->` operators in their arguments
 
 ## [0.61.0]
