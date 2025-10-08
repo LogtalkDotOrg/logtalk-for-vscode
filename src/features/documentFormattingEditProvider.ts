@@ -272,6 +272,17 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   }
 
   /**
+   * Get ruler length and tab size settings from editor configuration
+   */
+  private rulerAndTabSettings(document: TextDocument): { rulerLength: number; tabSize: number } {
+    const config = workspace.getConfiguration('editor', document.uri);
+    const rulers = config.get<number[]>('rulers', []);
+    const rulerLength = rulers.length > 0 ? rulers[0] : 79;
+    const tabSize = config.get<number>('tabSize', 4);
+    return { rulerLength, tabSize };
+  }
+
+  /**
    * Format entity closing directive to start at column 0 with single empty line before and after
    */
   public formatEntityClosingDirective(document: TextDocument, directiveRange: {start: number, end: number}, edits: TextEdit[]): void {
@@ -1163,10 +1174,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
 
       // Get the ruler and tab size settings
-      const config = workspace.getConfiguration('editor', document.uri);
-      const rulers = config.get<number[]>('rulers', []);
-      const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
-      const tabSize = config.get<number>('tabSize', 4);
+      const { rulerLength, tabSize } = this.rulerAndTabSettings(document);
 
       const elements = ArgumentUtils.parseArguments(listContent);
       let formatted = key + ' is [\n\t\t\t' + elements[0];
@@ -1176,7 +1184,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       while (index < elements.length) {
         const element = elements[index];
         const elementLength = element.length + 2
-        if (currentLineLength + 2 + elementLength > maxLineLength) {
+        if (currentLineLength + 2 + elementLength > rulerLength) {
           // Start a new line
           formatted += ',\n\t\t\t';
           currentLineLength = 3 * tabSize;
@@ -1514,10 +1522,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       }
 
       // Get the ruler and tab size settings
-      const config = workspace.getConfiguration('editor', document.uri);
-      const rulers = config.get<number[]>('rulers', []);
-      const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
-      const tabSize = config.get<number>('tabSize', 4);
+      const { rulerLength, tabSize } = this.rulerAndTabSettings(document);
 
       const elements = ArgumentUtils.parseArguments(listContent);
       let formatted = key + ' is [\n\t\t\t' + elements[0];
@@ -1527,7 +1532,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       while (index < elements.length) {
         const element = elements[index];
         const elementLength = element.length + 2
-        if (currentLineLength + 2 + elementLength > maxLineLength) {
+        if (currentLineLength + 2 + elementLength > rulerLength) {
           // Start a new line
           formatted += ',\n\t\t\t';
           currentLineLength = 3 * tabSize;
@@ -1611,10 +1616,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const elements = ArgumentUtils.parseArguments(listContent);
 
     // Get the ruler and tab size settings
-    const config = workspace.getConfiguration('editor', document.uri);
-    const rulers = config.get<number[]>('rulers', []);
-    const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
-    const tabSize = config.get<number>('tabSize', 4);
+    const { rulerLength, tabSize } = this.rulerAndTabSettings(document);
 
     let formatted = '\t:- uses(' + objectName + ', [\n\t\t' + elements[0];
     let currentLineLength = 2 * tabSize + elements[0].length;
@@ -1623,7 +1625,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     while(index < elements.length) {
       const element = elements[index];
       const elementLength = element.length + 2
-      if (currentLineLength + 2 + elementLength > maxLineLength) {
+      if (currentLineLength + 2 + elementLength > rulerLength) {
         // Start a new line
         formatted += ',\n\t\t';
         currentLineLength = 2 * tabSize;
@@ -1702,10 +1704,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     }
 
     // Get the ruler and tab size settings
-    const config = workspace.getConfiguration('editor', document.uri);
-    const rulers = config.get<number[]>('rulers', []);
-    const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
-    const tabSize = config.get<number>('tabSize', 4);
+    const { rulerLength, tabSize } = this.rulerAndTabSettings(document);
 
     const elements = ArgumentUtils.parseArguments(listContent);
     let formatted = '\t:- alias(' + objectName + ', [\n\t\t' + elements[0];
@@ -1715,7 +1714,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     while(index < elements.length) {
       const element = elements[index];
       const elementLength = element.length + 2
-      if (currentLineLength + 2 + elementLength > maxLineLength) {
+      if (currentLineLength + 2 + elementLength > rulerLength) {
         // Start a new line
         formatted += ',\n\t\t';
         currentLineLength = 2 * tabSize;
@@ -2145,10 +2144,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     }
 
     // Get the ruler and tab size settings
-    const config = workspace.getConfiguration('editor', document.uri);
-    const rulers = config.get<number[]>('rulers', []);
-    const maxLineLength = rulers.length > 0 ? rulers[0] : 79;
-    const tabSize = config.get<number>('tabSize', 4);
+    const { rulerLength, tabSize } = this.rulerAndTabSettings(document);
 
     // Parse arguments and format
     const elements = ArgumentUtils.parseArguments(listContent);
@@ -2159,7 +2155,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     while (index < elements.length) {
       const element = elements[index];
       const elementLength = element.length + 2
-      if (currentLineLength + 2 + elementLength > maxLineLength) {
+      if (currentLineLength + 2 + elementLength > rulerLength) {
         // Start a new line
         formatted += ',\n\t\t';
         currentLineLength = 2 * tabSize;
