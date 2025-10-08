@@ -513,16 +513,16 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         continue;
       }
 
-      // Handle grammar rules (containing -->)
-      if (trimmedText.includes('-->')) {
+      // Handle grammar rules (containing --> at top level)
+      if (this.findTopLevelOperator(trimmedText, '-->') !== -1) {
         this.logger.debug(`  Found grammar rule at line ${lineNum + 1}: "${trimmedText}"`);
         const ruleRange = PredicateUtils.getClauseRange(document, lineNum);
         this.formatClauseOrGrammarRule(document, ruleRange.start, ruleRange.end, edits);
         lineNum = ruleRange.end + 1;
         this.lastTermType = "non_terminal";
         continue;
-      } else if (trimmedText.includes(':-')) {
-        // Handle predicate clauses (facts and rules)
+      } else if (this.findTopLevelOperator(trimmedText, ':-') !== -1) {
+        // Handle predicate clauses (rules with :- at top level)
         this.logger.debug(`  Found predicate rule at line ${lineNum + 1}: "${trimmedText}"`);
         const clauseRange = PredicateUtils.getClauseRange(document, lineNum);
         this.formatClauseOrGrammarRule(document, clauseRange.start, clauseRange.end, edits);
@@ -544,6 +544,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
         // Extract indicator from the complete fact
         const indicator = this.extractIndicatorFromTerm(factText, false);
+        this.logger.debug(`  Fact indicator: "${indicator}", lastTermIndicator: "${this.lastTermIndicator}", lastTermType: "${this.lastTermType}"`);
 
         // Insert empty line if no empty line or comment separator in the previous line and
         // if different indicator or switching from non-terminal or directive
@@ -552,8 +553,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           const prevLineText = document.lineAt(prevLine).text.trim();
           if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
             if (this.lastTermType === "predicate" && this.lastTermIndicator !== "" && indicator !== "" && this.lastTermIndicator !== indicator) {
+              this.logger.debug(`  Inserting empty line before fact (different predicate: ${indicator} != ${this.lastTermIndicator})`);
               edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
             } else if (this.lastTermType === "non_terminal" || this.lastTermType === "directive") {
+              this.logger.debug(`  Inserting empty line before fact (switching from ${this.lastTermType})`);
               edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
             }
           }
@@ -650,6 +653,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Handle clause head lines containing ":-"
         if (lineText.includes(':-')) {
           const result = this.formatClauseOrGrammarHeadLine(lineText, ':-');
+          this.logger.debug(`    Clause indicator: "${result.indicator}", lastTermIndicator: "${this.lastTermIndicator}", lastTermType: "${this.lastTermType}"`);
           processedHead = initialIndent + result.head;
           // If there's content after the head, extract it to move to next line
           if (result.contentAfterHead) {
@@ -663,8 +667,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
             const prevLineText = document.lineAt(prevLine).text.trim();
             if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
               if (this.lastTermType === "non_terminal" || this.lastTermType === "directive") {
+                this.logger.debug(`    Inserting empty line before clause (switching from ${this.lastTermType})`);
                 edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
               } else if (this.lastTermType === "predicate" && this.lastTermIndicator !== "" && result.indicator !== "" && this.lastTermIndicator !== result.indicator) {
+                this.logger.debug(`    Inserting empty line before clause (different predicate: ${result.indicator} != ${this.lastTermIndicator})`);
                 edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
               }
             }

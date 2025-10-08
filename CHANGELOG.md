@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.62.0]
+
+* Fix formatting of facts with occurrences of the `:-` or `-->` operators in their arguments
+
 ## [0.61.0]
 
 * Improve formatting of `initialization/1` directives
