@@ -277,7 +277,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private rulerAndTabSettings(document: TextDocument): { rulerLength: number; tabSize: number } {
     const config = workspace.getConfiguration('editor', document.uri);
     const rulers = config.get<number[]>('rulers', []);
-    const rulerLength = rulers.length > 0 ? rulers[0] : 79;
+    const rulerLength = rulers.length > 0 ? rulers[0] : 119;
     const tabSize = config.get<number>('tabSize', 4);
     return { rulerLength, tabSize };
   }
@@ -1160,6 +1160,20 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const { rulerLength, tabSize } = this.rulerAndTabSettings(document);
 
       const elements = ArgumentUtils.parseArguments(listContent);
+
+      // Calculate the length if formatted as a single line
+      // Format: "key is [element1, element2, ...]"
+      // Indentation: 2 tabs (for info/1 element indentation)
+      const singleLineContent = elements.join(', ');
+      const singleLineLength = 2 * tabSize + key.length + ' is ['.length + singleLineContent.length + ']'.length;
+
+      // Check if single-line format fits within ruler length
+      if (singleLineLength <= rulerLength) {
+        // Use single-line format
+        return key + ' is [' + singleLineContent + ']';
+      }
+
+      // Use multi-line format
       let formatted = key + ' is [\n\t\t\t' + elements[0];
       let currentLineLength = 3 * tabSize + elements[0].length;
       let index = 1;
@@ -1534,7 +1548,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * arguments, exceptions, and examples keys that contain lists
    */
   private formatInfo2Element(document: TextDocument, element: string): string {
-    // Check if this element contains arguments, exceptions, or examples with lists
+    // Check if this element contains arguments, exceptions, examples, or remarks data
     const listPairsKeyMatch = element.match(/^(arguments|exceptions|examples|remarks)\s+is\s+\[(.*)\]$/);
     if (listPairsKeyMatch) {
       const key = listPairsKeyMatch[1];
@@ -1559,7 +1573,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       return formatted;
     }
 
-    // Check if this element contains arguments, exceptions, or examples with lists
+    // Check if this element contains argnames or see_also data
     const listKeyMatch = element.match(/^(argnames|see_also)\s+is\s+\[(.*)\]$/);
     if (listKeyMatch) {
       const key = listKeyMatch[1];
@@ -1573,6 +1587,20 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       const { rulerLength, tabSize } = this.rulerAndTabSettings(document);
 
       const elements = ArgumentUtils.parseArguments(listContent);
+
+      // Calculate the length if formatted as a single line
+      // Format: "key is [element1, element2, ...]"
+      // Indentation: 2 tabs (for info/2 element indentation)
+      const singleLineContent = elements.join(', ');
+      const singleLineLength = 2 * tabSize + key.length + ' is ['.length + singleLineContent.length + ']'.length;
+
+      // Check if single-line format fits within ruler length
+      if (singleLineLength <= rulerLength) {
+        // Use single-line format
+        return key + ' is [' + singleLineContent + ']';
+      }
+
+      // Use multi-line format
       let formatted = key + ' is [\n\t\t\t' + elements[0];
       let currentLineLength = 3 * tabSize + elements[0].length; // Start with three tabs
       let index = 1;

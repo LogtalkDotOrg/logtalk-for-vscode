@@ -2,6 +2,7 @@
 
 ## [0.63.0]
 
+* Update `info/1` and `info/2` formatting to decide between single- or multi-line format based on the editor ruler length for keys whose values are lists of non-pairs elements
 * Ensure basic spacing formatting of all directives
 * When using the "Save All" command, call the "Logtalk: Make - Reload" command once after all files are saved rather than per file
 * After formatting a conditional compilation block, don't reset the data on the latest term type, term indicator, and predicate indicator
