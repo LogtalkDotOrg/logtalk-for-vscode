@@ -5,7 +5,7 @@
  */
 
 const vscode = require('vscode');
-const { LogtalkRenameProvider } = require('./out/src/features/renameProvider');
+const { LogtalkRenameProvider } = require('../out/src/features/renameProvider');
 
 async function testMultiLineDirectiveFix() {
     console.log('Testing multi-line scope directive fix...');

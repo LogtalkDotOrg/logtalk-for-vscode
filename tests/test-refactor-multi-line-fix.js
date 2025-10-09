@@ -5,7 +5,7 @@
  */
 
 const vscode = require('vscode');
-const { LogtalkRefactorProvider } = require('./out/src/features/refactorProvider');
+const { LogtalkRefactorProvider } = require('../out/src/features/refactorProvider');
 
 async function testRefactorMultiLineDirectiveFix() {
     console.log('Testing multi-line scope directive fix for refactoring...');

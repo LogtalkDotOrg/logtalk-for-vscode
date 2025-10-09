@@ -1,6 +1,6 @@
 // Test script to demonstrate the new non-persistent loaded directories tracking
 
-import LogtalkTerminal from './src/features/logtalkTerminal';
+import LogtalkTerminal from '../src/features/logtalkTerminal';
 
 // Test the new in-memory loaded directories tracking
 function testLoadedDirectories() {
