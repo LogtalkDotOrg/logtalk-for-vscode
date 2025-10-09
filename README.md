@@ -101,7 +101,9 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 - Multiple entities in the same file are separated by two or more empty lines
 - Entity opening directives are formatted to use multi-line layout when there are multiple relations
 - Content inside entity opening and closing directives is indented by one tab
-- Directives with list arguments are formatted to use multi-line syntax (taking into account the `editor.rulers` and `editor.tabSize` settings)
+- Directives with list arguments are formatted to use multi-line syntax (depending on the `editor.rulers` and `editor.tabSize` settings)
+- Documentation directives key values that are lists of pairs are formatted to use multi-line syntax (depending on the `editor.rulers` and `editor.tabSize` settings)
+- Documentation directives key values that are lists of non-pair elements are formatted to use either single- or multi-line syntax (depending on the `editor.rulers` and `editor.tabSize` settings)
 - An empty line is added if missing between declarations of different predicates/non-terminals
 - An empty line is added if missing between definitions of different predicates/non-terminals
 - A space is added if missing after the neck operator (`:-`) in directives
