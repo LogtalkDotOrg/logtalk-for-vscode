@@ -1,6 +1,10 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 
+// Note: The make on save feature uses a 500ms debounce timer to handle "Save All" efficiently.
+// When multiple files are saved in quick succession, the make command is called only once
+// after the last save, rather than once per file.
+
 suite('Make On Save Test Suite', () => {
 
   suite('logtalk.make.onSave setting', () => {

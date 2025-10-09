@@ -56,6 +56,8 @@ let watcher: any;
 let testsCodeLensProvider: LogtalkTestsCodeLensProvider;
 let metricsCodeLensProvider: LogtalkMetricsCodeLensProvider;
 let refactorProvider: LogtalkRefactorProvider;
+let makeOnSaveTimer: NodeJS.Timeout | undefined;
+let savedLogtalkFiles: Set<string> = new Set();
 
 function getLogLevelDescription(level: string): string {
   switch (level) {
@@ -555,6 +557,7 @@ export function activate(context: ExtensionContext) {
   );
 
   // Add onDidSaveTextDocument event handler for auto-reload functionality
+  // Use debouncing to handle "Save All" command - only call make once after all files are saved
   context.subscriptions.push(
     workspace.onDidSaveTextDocument(document => {
       // Check if the saved document is a Logtalk file
@@ -563,8 +566,27 @@ export function activate(context: ExtensionContext) {
         const makeOnSave = section.get<boolean>("make.onSave", false);
 
         if (makeOnSave && LogtalkTerminal.hasUserCodeLoaded()) {
-          // Call the logtalk.make.reload command only if there's user code loaded
-          commands.executeCommand('logtalk.make.reload', document.uri);
+          // Track this file as saved
+          savedLogtalkFiles.add(document.uri.toString());
+
+          // Clear any existing timer
+          if (makeOnSaveTimer) {
+            clearTimeout(makeOnSaveTimer);
+          }
+
+          // Set a new timer to call make after a short delay
+          // This allows "Save All" to save multiple files before make is called once
+          makeOnSaveTimer = setTimeout(() => {
+            // Call the logtalk.make.reload command only if there's user code loaded
+            // Use the URI of the first saved file (make operates on the whole project)
+            const firstUri = Array.from(savedLogtalkFiles)[0];
+            if (firstUri) {
+              commands.executeCommand('logtalk.make.reload', document.uri);
+            }
+            // Clear the saved files set
+            savedLogtalkFiles.clear();
+            makeOnSaveTimer = undefined;
+          }, 500); // 500ms debounce delay
         }
       }
     })
@@ -648,5 +670,15 @@ export function deactivate() {
     }
   } catch (error) {
     logger.error('Error disposing refactor provider:', error);
+  }
+
+  try {
+    if (makeOnSaveTimer) {
+      clearTimeout(makeOnSaveTimer);
+      makeOnSaveTimer = undefined;
+    }
+    savedLogtalkFiles.clear();
+  } catch (error) {
+    logger.error('Error cleaning up make on save timer:', error);
   }
 }
