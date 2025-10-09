@@ -444,9 +444,6 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         } else if (/^:-\s*initialization\(/.test(trimmedText)) {
           // initialization/1 directive
           this.formatInitialization1Directive(document, directiveRange, edits);
-        } else if (/^:-\s*set_logtalk_flag\(/.test(trimmedText)) {
-          // mode/2 directive
-          this.formatSetLogtalkFlag2Directive(document, directiveRange, edits);
         } else if (/^:-\s*mode\(/.test(trimmedText)) {
           // mode/2 directive
           this.formatMode2Directive(document, directiveRange, edits);
@@ -484,29 +481,8 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           // meta_non_terminal/1 directive
           this.formatMetaNonTerminal1Directive(document, directiveRange, edits);
         } else {
-          // Other directives - just add an empty line before if not already present and indent if needed
-          let lastTermIndicator = "";
-          let directiveName = ""
-          // Extract directive name
-          // Match directive name with optional arguments: :- directive_name or :- directive_name(...)
-          const directiveMatch = trimmedText.match(/^:-\s*([a-z_][a-zA-Z0-9_]*)(?:\(|\.|$)/);
-          if (directiveMatch) {
-            directiveName = directiveMatch[1];
-            // Determine arity: 0 if followed by '.', otherwise assume 1 or more
-            const hasArgs = trimmedText.match(/^:-\s*[a-z_][a-zA-Z0-9_]*\(/);
-            lastTermIndicator = hasArgs ? `${directiveName}/1` : `${directiveName}/0`;
-          } else {
-            lastTermIndicator = "";
-          }
-          this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", lastTermIndicator, edits);
-          if (!lineText.startsWith('\t')) {
-            this.logger.debug(`  Found other directive at line ${lineNum + 1}: "${trimmedText}"`);
-            this.indentRange(document, directiveRange.start, directiveRange.end, edits);
-            indentedItems++;
-          }
-          this.lastTermIndicator = lastTermIndicator;
-          this.logger.debug(`  Updated lastTermIndicator to: ${this.lastTermIndicator}`);
-          this.lastPredicateIndicator = "";
+          // Other directives - format with basic spacing rules
+          this.formatOtherDirective(document, directiveRange, edits);
         }
         lineNum = directiveRange.end + 1;
         this.lastTermType = "directive";
@@ -1329,51 +1305,6 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   }
 
   /**
-   * Format a single set_logtalk_flag/2 directive using pre-computed range
-   */
-  private formatSetLogtalkFlag2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
-    // Parse set_logtalk_flag/2 directive: :- set_logtalk_flag(flag, value).
-    let directiveText = '';
-    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
-      directiveText += document.lineAt(lineNum).text.trim();
-    }
-
-    const match = directiveText.match(/^:-\s*set_logtalk_flag\(\s*(.*)\)\s*\.$/);
-    let reformattedDirective = '';
-    if (!match) {
-      // If parsing fails, ensure proper spacing in the directive
-      reformattedDirective = directiveText.replace(/^:-\s*(\w+)/, ':- $1');
-    }
-
-    const argumentsText = match[1].trim();
-    if (!argumentsText) {
-      reformattedDirective = '\t:- mode().';
-    }
-
-    // Use ArgumentUtils to parse the two arguments
-    const directiveArguments = ArgumentUtils.parseArguments(argumentsText);
-    if (directiveArguments.length !== 2) {
-      // If not exactly 2 arguments, ensure proper spacing and return
-      reformattedDirective = '\t:- mode(' + argumentsText + ').';
-    }
-
-    const flag = directiveArguments[0].trim();
-    const value = directiveArguments[1].trim();
-
-    // Format with proper spacing: single space after :- and single space between arguments
-    reformattedDirective = '\t:- set_logtalk_flag(' + flag + ', ' + value + ').';
-    const range = new Range(
-      new Position(directiveRange.start, 0),
-      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
-    );
-    edits.push(TextEdit.replace(range, reformattedDirective));
-
-    // Update the last term indicator to "set_logtalk_flag/2" and predicate indicator to the predicate being described
-    this.lastTermIndicator = "set_logtalk_flag/2";
-    this.lastPredicateIndicator = "";
-  }
-
-  /**
    * Format a single mode/2 directive using pre-computed range
    */
   private formatMode2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
@@ -2064,6 +1995,78 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         this.lastPredicateIndicator = predicateIndicator;
       }
     }
+  }
+
+  /**
+   * Format other directives (not specifically handled by other formatters)
+   * Ensures: (1) single space after ":-" and (2) single space separating arguments if there are two or more
+   */
+  private formatOtherDirective(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    const lineText = document.lineAt(directiveRange.start).text;
+    const trimmedText = lineText.trim();
+
+    // Extract directive text from all lines in the range
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text.trim();
+    }
+
+    // Extract directive name and determine arity
+    let lastTermIndicator = "";
+    let directiveName = "";
+    const directiveMatch = trimmedText.match(/^:-\s*([a-z_][a-zA-Z0-9_]*)(?:\(|\.|$)/);
+    if (directiveMatch) {
+      directiveName = directiveMatch[1];
+      const hasArgs = trimmedText.match(/^:-\s*[a-z_][a-zA-Z0-9_]*\(/);
+      lastTermIndicator = hasArgs ? `${directiveName}/1` : `${directiveName}/0`;
+    } else {
+      lastTermIndicator = "";
+    }
+
+    // Add empty line before directive if required
+    this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", lastTermIndicator, edits);
+
+    // Format the directive with proper spacing
+    let formattedDirective = directiveText;
+
+    // Ensure single space after ":-"
+    formattedDirective = formattedDirective.replace(/^:-\s*/, ':- ');
+
+    // If directive has arguments (contains parentheses), ensure single space between arguments
+    if (formattedDirective.includes('(')) {
+      // Match the directive pattern: :- directive_name(args).
+      const match = formattedDirective.match(/^(:-\s*[a-z_][a-zA-Z0-9_]*\()(.*)(\)\s*\.)$/);
+      if (match) {
+        const prefix = match[1];  // ":- directive_name("
+        const argsText = match[2]; // arguments
+        const suffix = match[3];   // ")."
+
+        // Parse arguments and check if there are multiple
+        const args = ArgumentUtils.parseArguments(argsText);
+        if (args.length >= 2) {
+          // Format with single space after commas
+          formattedDirective = prefix + args.join(', ') + suffix;
+        }
+      }
+    }
+
+    // Add indentation
+    formattedDirective = '\t' + formattedDirective;
+
+    // Apply the formatting
+    if (!lineText.startsWith('\t') || directiveText !== formattedDirective.substring(1)) {
+      const range = new Range(
+        new Position(directiveRange.start, 0),
+        new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+      );
+      edits.push(TextEdit.replace(range, formattedDirective));
+      this.logger.debug(`  Formatted other directive at line ${directiveRange.start + 1}: "${trimmedText}"`);
+    }
+
+    // Update tracking variables
+    this.lastTermIndicator = lastTermIndicator;
+    this.logger.debug(`  Updated lastTermIndicator to: ${this.lastTermIndicator}`);
+    this.lastPredicateIndicator = "";
   }
 
   /**
