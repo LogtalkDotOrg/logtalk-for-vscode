@@ -423,9 +423,6 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           indentedItems++;
         }
         lineNum = endifLine + 1;
-        this.lastTermType = "directive";
-        this.lastTermIndicator = "";
-        this.lastPredicateIndicator = "";
         continue;
       }
 

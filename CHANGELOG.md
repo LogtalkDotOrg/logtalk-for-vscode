@@ -3,6 +3,7 @@
 ## [0.63.0]
 
 * When using the "Save All" command, call the "Logtalk: Make - Reload" command once after all files are saved rather than per file
+* After formatting a conditional compilation block, don't reset the data on the latest term type, term indicator, and predicate indicator
 
 ## [0.62.0]
 
