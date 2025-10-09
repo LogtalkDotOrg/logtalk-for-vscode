@@ -2,6 +2,7 @@
 
 ## [0.63.0]
 
+* Improve formatting of `set_logtalk_flag/2` directives
 * When using the "Save All" command, call the "Logtalk: Make - Reload" command once after all files are saved rather than per file
 * After formatting a conditional compilation block, don't reset the data on the latest term type, term indicator, and predicate indicator
 

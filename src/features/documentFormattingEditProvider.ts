@@ -444,6 +444,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         } else if (/^:-\s*initialization\(/.test(trimmedText)) {
           // initialization/1 directive
           this.formatInitialization1Directive(document, directiveRange, edits);
+        } else if (/^:-\s*set_logtalk_flag\(/.test(trimmedText)) {
+          // mode/2 directive
+          this.formatSetLogtalkFlag2Directive(document, directiveRange, edits);
         } else if (/^:-\s*mode\(/.test(trimmedText)) {
           // mode/2 directive
           this.formatMode2Directive(document, directiveRange, edits);
@@ -1323,6 +1326,51 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         }
       }
     }
+  }
+
+  /**
+   * Format a single set_logtalk_flag/2 directive using pre-computed range
+   */
+  private formatSetLogtalkFlag2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
+    // Parse set_logtalk_flag/2 directive: :- set_logtalk_flag(flag, value).
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text.trim();
+    }
+
+    const match = directiveText.match(/^:-\s*set_logtalk_flag\(\s*(.*)\)\s*\.$/);
+    let reformattedDirective = '';
+    if (!match) {
+      // If parsing fails, ensure proper spacing in the directive
+      reformattedDirective = directiveText.replace(/^:-\s*(\w+)/, ':- $1');
+    }
+
+    const argumentsText = match[1].trim();
+    if (!argumentsText) {
+      reformattedDirective = '\t:- mode().';
+    }
+
+    // Use ArgumentUtils to parse the two arguments
+    const directiveArguments = ArgumentUtils.parseArguments(argumentsText);
+    if (directiveArguments.length !== 2) {
+      // If not exactly 2 arguments, ensure proper spacing and return
+      reformattedDirective = '\t:- mode(' + argumentsText + ').';
+    }
+
+    const flag = directiveArguments[0].trim();
+    const value = directiveArguments[1].trim();
+
+    // Format with proper spacing: single space after :- and single space between arguments
+    reformattedDirective = '\t:- set_logtalk_flag(' + flag + ', ' + value + ').';
+    const range = new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    );
+    edits.push(TextEdit.replace(range, reformattedDirective));
+
+    // Update the last term indicator to "set_logtalk_flag/2" and predicate indicator to the predicate being described
+    this.lastTermIndicator = "set_logtalk_flag/2";
+    this.lastPredicateIndicator = "";
   }
 
   /**
