@@ -34,6 +34,7 @@ For details, see [Configuration](#configuration). This extension includes a walk
 - [Code Navigation](#code-navigation)
 - [Refactoring support](#refactoring-support)
 - [Debugging support](#debugging-support)
+- [Testing support](#testing-support)
 - [Hover contents](#hover-contents)
 - [Chat Participant](#chat-participant)
 
@@ -311,6 +312,10 @@ VSCode usability issues that affect debugging support:
 - VScode "Toggle Activate Breakpoints" button in the "Run and Debug" pane doesn't generate an event that can be handled by extensions. Use instead the Logtalk icon in the top-right corner to toggle debugging.
 - VSCode doesn't support disabling menu items that are not supported by language extensions.
 - When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
+
+### Testing support
+
+Experimental support for the VS Code Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" command at least once, the "Testing" pane shows all the test results. You can then run tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name.
 
 ### Hover contents
 

@@ -578,7 +578,7 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static async runTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runAllTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -592,11 +592,11 @@ export default class LogtalkTerminal {
     let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
+    if (section) {
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
     }
     // Open the Text Document
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
@@ -630,18 +630,133 @@ export default class LogtalkTerminal {
             testsReporter.lint(textDocument, message);
             message = '';
             test = false;
-          } 
+          }
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
             linter.lint(message);
             message = '';
-          } 
+          }
         }
       }
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Tests completed.");
+    LogtalkTestsCodeLensProvider.outdated = false;
+  }
+
+  public static async runFileTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
+    // Declare Variables
+    const dir0 = path.dirname(uri.fsPath);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const file = path.resolve(uri.fsPath).split(path.sep).join("/");
+    let textDocument = null;
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) {
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
+    }
+    // Open the Text Document
+    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    // Clear the Scratch Message File
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Create the Terminal
+    LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal.sendString(`vscode::tests_file('${dir}','${file}').\r`, true);
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir0, ".vscode_loading_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      let test = false;
+      for (let line of lines) {
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+          testsReporter.clear(line);
+        } else if (test || line.includes('cpu/wall seconds')) {
+          test = true;
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            testsReporter.lint(textDocument, message);
+            message = '';
+            test = false;
+          }
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(message);
+            message = '';
+          }
+        }
+      }
+    }
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
+    window.showInformationMessage("Tests from file completed.");
+    LogtalkTestsCodeLensProvider.outdated = false;
+  }
+
+  public static async runObjectTests(uri: Uri, object: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+    if (typeof uri === 'undefined') {
+      uri = window.activeTextEditor.document.uri;
+    }
+    // Declare Variables
+    const dir0 = path.dirname(uri.fsPath);
+    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const file = path.resolve(uri.fsPath).split(path.sep).join("/");
+    let textDocument = null;
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) {
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
+    }
+    // Open the Text Document
+    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    // Clear the Scratch Message File
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
+    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    // Create the Terminal
+    LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal.sendString(`vscode::tests_object('${dir}','${object}').\r`, true);
+    // Parse any test results
+    if(fs.existsSync(`${compilerMessagesFile}`)) {
+      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+      let message = '';
+      let test = false;
+      for (let line of lines) {
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+          testsReporter.clear(line);
+        } else if (test || line.includes('cpu/wall seconds')) {
+          test = true;
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            testsReporter.lint(textDocument, message);
+            message = '';
+            test = false;
+          }
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(message);
+            message = '';
+          }
+        }
+      }
+    }
+
+    window.showInformationMessage("Tests from object completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
   }
 

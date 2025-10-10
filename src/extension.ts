@@ -36,6 +36,7 @@ import { LogtalkCallHierarchyProvider } from "./features/callHierarchyProvider";
 import { LogtalkTypeHierarchyProvider } from "./features/typeHierarchyProvider";
 import { LogtalkMetricsCodeLensProvider } from "./features/metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./features/testsCodeLensProvider";
+import { LogtalkTestsExplorerProvider } from "./features/testsExplorerProvider";
 import { LogtalkRenameProvider } from "./features/renameProvider";
 import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
@@ -54,6 +55,7 @@ let documentationLinter: LogtalkDocumentationLinter;
 let chatParticipant: LogtalkChatParticipant;
 let watcher: any;
 let testsCodeLensProvider: LogtalkTestsCodeLensProvider;
+let testsExplorerProvider: LogtalkTestsExplorerProvider;
 let metricsCodeLensProvider: LogtalkMetricsCodeLensProvider;
 let refactorProvider: LogtalkRefactorProvider;
 let makeOnSaveTimer: NodeJS.Timeout | undefined;
@@ -298,7 +300,9 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.make.circular",             callback: uri  => LogtalkTerminal.makeCircular(uri, linter)},
     { command: "logtalk.make.clean",                callback: uri  => LogtalkTerminal.makeClean(uri, linter)},
     { command: "logtalk.make.caches",               callback: uri  => LogtalkTerminal.makeCaches(uri, linter)},
-    { command: "logtalk.run.tests",                 callback: uri  => LogtalkTerminal.runTests(uri, linter, testsReporter)},
+    { command: "logtalk.run.tests",                 callback: uri  => LogtalkTerminal.runAllTests(uri, linter, testsReporter)},
+    { command: "logtalk.run.file.tests",            callback: uri  => LogtalkTerminal.runFileTests(uri, linter, testsReporter)},
+    { command: "logtalk.run.object.tests",          callback: (uri, object) => LogtalkTerminal.runObjectTests(uri, object, linter, testsReporter)},
     { command: "logtalk.run.test",                  callback: (uri, object, test) => LogtalkTerminal.runTest(uri, object, test, linter, testsReporter)},
     { command: "logtalk.run.doclet",                callback: uri  => LogtalkTerminal.runDoclet(uri, linter)},
     { command: "logtalk.scan.deadCode",             callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
@@ -506,6 +510,8 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerCodeLensProvider(LOGTALK_MODE, testsCodeLensProvider)
   );
+  testsExplorerProvider = new LogtalkTestsExplorerProvider();
+  context.subscriptions.push(testsExplorerProvider);
   metricsCodeLensProvider = new LogtalkMetricsCodeLensProvider();
   context.subscriptions.push(
     languages.registerCodeLensProvider(LOGTALK_MODE, metricsCodeLensProvider)
@@ -654,6 +660,14 @@ export function deactivate() {
     }
   } catch (error) {
     logger.error('Error disposing tests code lens provider:', error);
+  }
+
+  try {
+    if (testsExplorerProvider) {
+      testsExplorerProvider.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing tests explorer provider:', error);
   }
 
   try {
