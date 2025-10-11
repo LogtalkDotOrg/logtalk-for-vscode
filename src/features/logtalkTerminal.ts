@@ -699,7 +699,6 @@ export default class LogtalkTerminal {
         }
       }
     }
-    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Tests from file completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
   }
@@ -822,7 +821,6 @@ export default class LogtalkTerminal {
         }
       }
     }
-    LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Test completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
   }

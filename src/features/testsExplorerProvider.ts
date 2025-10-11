@@ -102,9 +102,6 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.disposables.push(runProfile);
 
-    // Watch for workspace folders to discover test result files
-    this.discoverTestResultFiles();
-
     // Watch for workspace folder changes
     const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders(() => {
       this.discoverTestResultFiles();
@@ -138,8 +135,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         this.logger.info(`Using file URI: ${firstFileUri.fsPath}`);
         await commands.executeCommand('logtalk.run.tests', firstFileUri);
       } else {
-        this.logger.warn('No test files found to run');
+        this.logger.warn('No test runs so far; running all tests via tester file');
+        await commands.executeCommand('logtalk.run.tests', undefined);
       }
+      // Watch for workspace folders to discover test result files
+      this.discoverTestResultFiles();
       return;
     }
 
