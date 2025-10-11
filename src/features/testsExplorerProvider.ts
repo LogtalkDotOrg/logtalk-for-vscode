@@ -382,11 +382,15 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       testsByFile.get(normalizedPath)!.push(result);
     }
 
+    // Track which test IDs should exist after this update
+    const expectedTestIds = new Set<string>();
+
     // Create or update test items for each file
     for (const [filePath, tests] of testsByFile) {
       const fileUri = Uri.file(filePath);
       const fileId = fileUri.toString();
-      
+      expectedTestIds.add(fileId);
+
       // Get or create file-level test item
       let fileItem = this.testItems.get(fileId);
       if (!fileItem) {
@@ -414,9 +418,14 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         testsByObject.get(test.object)!.push(test);
       }
 
+      // Track which object IDs should exist for this file
+      const expectedObjectIds = new Set<string>();
+
       // Create or update object-level and test-level items
       for (const [objectName, objectTests] of testsByObject) {
         const objectId = `${fileId}::${objectName}`;
+        expectedTestIds.add(objectId);
+        expectedObjectIds.add(objectId);
 
         let objectItem = this.testItems.get(objectId);
         if (!objectItem) {
@@ -436,9 +445,14 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           });
         }
 
+        // Track which test IDs should exist for this object
+        const expectedTestIdsForObject = new Set<string>();
+
         // Create individual test items
         for (const test of objectTests) {
           const testId = `${objectId}::${test.test}`;
+          expectedTestIds.add(testId);
+          expectedTestIdsForObject.add(testId);
 
           let testItem = this.testItems.get(testId);
           if (!testItem) {
@@ -469,8 +483,35 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             );
           }
         }
+
+        // Remove test items that are no longer in this object
+        objectItem.children.forEach(child => {
+          if (!expectedTestIdsForObject.has(child.id)) {
+            this.logger.debug(`Removing test item: ${child.id}`);
+            objectItem.children.delete(child.id);
+            this.testItems.delete(child.id);
+          }
+        });
       }
+
+      // Remove object items that are no longer in this file
+      fileItem.children.forEach(child => {
+        if (!expectedObjectIds.has(child.id)) {
+          this.logger.debug(`Removing object item: ${child.id}`);
+          fileItem.children.delete(child.id);
+          this.testItems.delete(child.id);
+        }
+      });
     }
+
+    // Remove file items that are no longer in the results
+    this.controller.items.forEach(fileItem => {
+      if (!expectedTestIds.has(fileItem.id)) {
+        this.logger.debug(`Removing file item: ${fileItem.id}`);
+        this.controller.items.delete(fileItem.id);
+        this.testItems.delete(fileItem.id);
+      }
+    });
 
     // Update test states based on results
     this.updateTestStates(testResults);
