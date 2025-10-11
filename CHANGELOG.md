@@ -1,8 +1,12 @@
 # Changelog
 
-## [0.63.0]
+## [0.64.0]
 
 * Add experimental support for the VS Code Testing API
+* Delete any existing `.vscode_test_results` files at extension activation
+
+## [0.63.0]
+
 * Update `info/1` and `info/2` formatting to decide between single- or multi-line format based on the editor ruler length for keys whose values are lists of non-pairs elements
 * Ensure basic spacing formatting of most directives (outside conditional compilation blocks)
 * When using the "Save All" command, call the "Logtalk: Make - Reload" command once after all files are saved rather than per file

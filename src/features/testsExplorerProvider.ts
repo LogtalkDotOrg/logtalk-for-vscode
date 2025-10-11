@@ -47,6 +47,7 @@ import {
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import * as fsp from "fs/promises";
 import { getLogger } from "../utils/logger";
 
 interface TestResultData {
@@ -102,6 +103,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.disposables.push(runProfile);
 
+    // Watch for workspace folders to discover test result files
+    this.discoverTestResultFiles();
+
     // Watch for workspace folder changes
     const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders(() => {
       this.discoverTestResultFiles();
@@ -138,8 +142,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         this.logger.warn('No test runs so far; running all tests via tester file');
         await commands.executeCommand('logtalk.run.tests', undefined);
       }
-      // Watch for workspace folders to discover test result files
-      this.discoverTestResultFiles();
+
       return;
     }
 
@@ -198,6 +201,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       // Search for all .vscode_test_results files in the workspace
       const pattern = new RelativePattern(folder, '**/.vscode_test_results');
       const files = await workspace.findFiles(pattern);
+      await files.forEach(uri => fsp.rm(`${uri.fsPath}`, { force: true }));
 
       for (const file of files) {
         this.watchTestResultFile(file);
