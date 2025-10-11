@@ -4,6 +4,7 @@
 
 * Add experimental support for the VS Code Testing API
 * Delete any existing `.vscode_test_results` files at extension activation
+* Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests
 
 ## [0.63.0]
 

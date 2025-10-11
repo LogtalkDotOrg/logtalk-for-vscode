@@ -120,7 +120,9 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
         for (match of matches) {
           index = codeLenses.findIndex((element) => (element.command.tooltip == "Re-run all tests") && (element.range.start.line == parseInt(match[1]) - 1));
           if (index != -1) {
-            codeLenses[index].command.title = codeLenses[index].command.title + " (outdated)";
+            if (!codeLenses[index].command.title.includes('(outdated)')) {
+              codeLenses[index].command.title = codeLenses[index].command.title + " (outdated)";  
+            }
           } else {
             codeLenses.push(
               new CodeLens(
