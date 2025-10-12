@@ -126,10 +126,12 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
 
     return (<any>window).onDidCloseTerminal(terminal => {
-      // Clear the in-memory loaded directories set when terminal closes
-      LogtalkTerminal._loadedDirectories.clear();
-      LogtalkTerminal._terminal = null;
-      terminal.dispose();
+      // Only clear if the closed terminal is the Logtalk terminal
+      if (terminal === LogtalkTerminal._terminal) {
+        LogtalkTerminal._loadedDirectories.clear();
+        LogtalkTerminal._terminal = null;
+        terminal.dispose();
+      }
     });
   }
 
@@ -137,6 +139,10 @@ export default class LogtalkTerminal {
     if (LogtalkTerminal._terminal) {
       return;
     }
+
+    // Set to a placeholder to prevent concurrent calls from creating multiple terminals
+    // This will be replaced with the actual terminal below
+    LogtalkTerminal._terminal = null as any;
 
     let section = workspace.getConfiguration("logtalk");
     if (section) {
