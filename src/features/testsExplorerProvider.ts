@@ -81,6 +81,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private testItemMetadata: WeakMap<TestItem, TestItemMetadata> = new WeakMap();
   private logger = getLogger();
   private disposables: Disposable[] = [];
+  private currentTestRunRequest: TestRunRequest | null = null; // Store the current test run request
 
   constructor() {
     // Create the test controller
@@ -131,6 +132,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private async runTests(request: TestRunRequest, token: any): Promise<void> {
     this.logger.debug('runTests method called');
     this.logger.debug(`request.include is ${request.include ? 'defined' : 'undefined'}`);
+
+    // Store the current test run request so it can be used when creating test runs from results
+    this.currentTestRunRequest = request;
 
     // If no specific tests are selected, run all tests via the tester file
     if (!request.include) {
@@ -320,7 +324,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       this.createTestItems(testResults, summaryResults, uri);
 
       // Create a test run to register that tests have been executed
-      // This is needed so VS Code shows the run button on the root node
+      // Always create a test run so "Rerun Last Run" button works
       if (testResults.length > 0) {
         this.createTestRunFromResults(testResults);
       }
@@ -336,30 +340,40 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private createTestRunFromResults(testResults: TestResultData[]): void {
     this.logger.debug('Creating test run from results to register with VS Code');
 
-    // Collect all test items that have results
-    const testItemsToRun: TestItem[] = [];
-    for (const result of testResults) {
-      const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
-      const fileUri = Uri.file(normalizedPath);
-      const testId = `${fileUri.toString()}::${result.object}::${result.test}`;
-      const testItem = this.testItems.get(testId);
-      if (testItem) {
-        testItemsToRun.push(testItem);
+    // Use the stored test run request if available, otherwise create a new one
+    // Using the original request is crucial for "Rerun Last Run" to work
+    let request: TestRunRequest;
+
+    if (this.currentTestRunRequest) {
+      this.logger.debug('Using stored test run request from runTests method');
+      request = this.currentTestRunRequest;
+    } else {
+      this.logger.debug('No stored request found, creating new TestRunRequest (results loaded from file)');
+      // Collect all test items that have results
+      const testItemsToRun: TestItem[] = [];
+      for (const result of testResults) {
+        const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
+        const fileUri = Uri.file(normalizedPath);
+        const testId = `${fileUri.toString()}::${result.object}::${result.test}`;
+        const testItem = this.testItems.get(testId);
+        if (testItem) {
+          testItemsToRun.push(testItem);
+        }
       }
+
+      if (testItemsToRun.length === 0) {
+        this.logger.warn('No test items found to create test run');
+        return;
+      }
+
+      request = new TestRunRequest(testItemsToRun);
     }
 
-    if (testItemsToRun.length === 0) {
-      this.logger.warn('No test items found to create test run');
-      return;
-    }
-
-    // Create a test run with the test items
-    // Pass the test items in the request so VS Code knows what was run
-    const request = new TestRunRequest(testItemsToRun);
+    // Create a test run with the request
     const testRun = this.controller.createTestRun(
       request,
       'Logtalk Tests',
-      false // persist = false, since we can reload from file
+      true // persist = true, so "Rerun Last Run" button works
     );
 
     // Update test states based on results
@@ -390,7 +404,10 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     }
 
     testRun.end();
-    this.logger.debug('Test run created and ended - VS Code should now show run button');
+    this.logger.debug('Test run created and ended');
+
+    // Don't clear currentTestRunRequest here - keep it so "Rerun Last Run" works
+    // It will be replaced when a new test run starts
   }
 
   /**
