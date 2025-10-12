@@ -748,7 +748,10 @@ export default class LogtalkTerminal {
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::tests_object('${dir}','${object}').\r`, true);
-    // Parse any test results
+    // Parse any compiler errors or warnings
+    const marker = path.join(dir0, ".vscode_loading_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
       let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
       let message = '';
