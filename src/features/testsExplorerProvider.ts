@@ -18,13 +18,14 @@
  * - Supports running all tests in an object (test suite) from the Tests Explorer
  * - Supports running all tests in a file from the Tests Explorer
  * - Supports running all tests via tester file from the Tests Explorer root
+ * - Supports running tests across multiple workspace folders
  *
  * Test Result File Format:
  * - Individual tests: File:<path>;Line:<line>;Object:<object>;Test:<test>;Status:<status>
  * - Test summaries: File:<path>;Line:<line>;Status:<status>
  *
  * Running Tests:
- * - Root (all tests): Executes logtalk.run.tests with (workspaceUri) - runs via tester file
+ * - Root (all tests): Executes logtalk.run.tests with (workspaceUri) - runs via tester file for each workspace folder
  * - File level: Executes logtalk.run.file.tests with (fileUri) - runs only tests in that file
  * - Object level: Executes logtalk.run.object.tests with (fileUri, objectName) - runs only tests in that object
  * - Individual test: Executes logtalk.run.test with (fileUri, objectName, testName) - runs only that test
@@ -134,21 +135,38 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     // If no specific tests are selected, run all tests via the tester file
     if (!request.include) {
       this.logger.info('Running all tests via tester file (no specific tests selected)');
-      // Get the first file item to extract a test file URI
-      let firstFileUri: Uri | undefined;
+
+      // Collect one representative file from each workspace folder
+      const workspaceFolderUris = new Map<string, Uri>();
+
       this.controller.items.forEach(item => {
-        if (!firstFileUri) {
-          const metadata = this.testItemMetadata.get(item);
-          this.logger.debug(`Checking item: ${item.id}, metadata type: ${metadata?.type}`);
-          if (metadata && metadata.type === 'file') {
-            firstFileUri = metadata.fileUri;
+        const metadata = this.testItemMetadata.get(item);
+        this.logger.debug(`Checking item: ${item.id}, metadata type: ${metadata?.type}`);
+
+        if (metadata && metadata.type === 'file') {
+          // Get the workspace folder for this file
+          const workspaceFolder = workspace.getWorkspaceFolder(metadata.fileUri);
+
+          if (workspaceFolder) {
+            const workspaceFolderKey = workspaceFolder.uri.toString();
+
+            // Only add if we haven't seen this workspace folder before
+            if (!workspaceFolderUris.has(workspaceFolderKey)) {
+              workspaceFolderUris.set(workspaceFolderKey, metadata.fileUri);
+              this.logger.debug(`Added file ${metadata.fileUri.fsPath} for workspace folder ${workspaceFolder.name}`);
+            }
           }
         }
       });
 
-      if (firstFileUri) {
-        this.logger.info(`Using file URI: ${firstFileUri.fsPath}`);
-        await commands.executeCommand('logtalk.run.tests', firstFileUri);
+      if (workspaceFolderUris.size > 0) {
+        this.logger.info(`Running tests for ${workspaceFolderUris.size} workspace folder(s)`);
+
+        // Run tests for each workspace folder
+        for (const fileUri of workspaceFolderUris.values()) {
+          this.logger.info(`Running tests for workspace folder with file URI: ${fileUri.fsPath}`);
+          await commands.executeCommand('logtalk.run.tests', fileUri);
+        }
       } else {
         this.logger.warn('No test runs so far; running all tests via tester file');
         await commands.executeCommand('logtalk.run.tests', undefined);
