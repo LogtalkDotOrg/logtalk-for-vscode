@@ -113,7 +113,31 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
             )
           );
         }
-        // clause coverage and test results summary
+        // test results summary
+        regex = new RegExp("File:" + file + ";Line:(\\d+);Object:.*;Status:(.*)", "ig");
+        matches = out.matchAll(regex);
+        match = null;
+        for (match of matches) {
+          index = codeLenses.findIndex((element) => (element.command.tooltip == "Re-run all tests") && (element.range.start.line == parseInt(match[1]) - 1));
+          if (index != -1) {
+            if (!codeLenses[index].command.title.includes('(outdated)')) {
+              codeLenses[index].command.title = codeLenses[index].command.title + " (outdated)";  
+            }
+          } else {
+            codeLenses.push(
+              new CodeLens(
+                new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
+                {
+                  title: match[2] + outdated,
+                  tooltip: "Re-run all tests",
+                  command: "logtalk.run.tests",
+                  arguments: [doc.uri]
+                }
+              )
+            );
+          }
+        }
+        // clause coverage
         regex = new RegExp("File:" + file + ";Line:(\\d+);Status:(.*)", "ig");
         matches = out.matchAll(regex);
         match = null;

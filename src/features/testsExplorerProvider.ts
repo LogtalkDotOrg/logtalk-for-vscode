@@ -66,6 +66,7 @@ interface TestResultData {
 interface TestSummaryData {
   file: string;
   line: number;
+  object: string;
   status: string;
 }
 
@@ -405,8 +406,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const testRegex = /File:(.+?);Line:(\d+);Object:(.+?);Test:(.+?);Status:(.+)/i;
 
       // Parse test summary results
-      // Format: File:<path>;Line:<line>;Status:<status>
-      const summaryRegex = /File:(.+?);Line:(\d+);Status:(.+)/i;
+      // Format: File:<path>;Line:<line>;Object:<object>;Status:<status>
+      const summaryRegex = /File:(.+?);Line:(\d+);Object:(.+?);Status:(.+)/i;
 
       const testResults: TestResultData[] = [];
       const summaryResults: TestSummaryData[] = [];
@@ -429,7 +430,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           summaryResults.push({
             file: summaryMatch[1],
             line: parseInt(summaryMatch[2]),
-            status: summaryMatch[3]
+            object: summaryMatch[3],
+            status: summaryMatch[4]
           });
         }
       }
@@ -540,11 +542,24 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       testsByFile.get(normalizedPath)!.push(result);
     }
 
+    // Group summary results by file
+    const summariesByFile = new Map<string, TestSummaryData[]>();
+    for (const summary of summaryResults) {
+      const normalizedPath = path.resolve(summary.file).split(path.sep).join("/");
+      if (!summariesByFile.has(normalizedPath)) {
+        summariesByFile.set(normalizedPath, []);
+      }
+      summariesByFile.get(normalizedPath)!.push(summary);
+    }
+
     // Track which test IDs should exist after this update
     const expectedTestIds = new Set<string>();
 
+    // Combine all files from both test results and summaries
+    const allFiles = new Set([...testsByFile.keys(), ...summariesByFile.keys()]);
+
     // Create or update test items for each file
-    for (const [filePath, tests] of testsByFile) {
+    for (const filePath of allFiles) {
       const fileUri = Uri.file(filePath);
       const fileId = fileUri.toString();
       expectedTestIds.add(fileId);
@@ -578,6 +593,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       });
       fileItem.children.replace([]);
 
+      const tests = testsByFile.get(filePath) || [];
+      const summaries = summariesByFile.get(filePath) || [];
+
       // Group tests by object
       const testsByObject = new Map<string, TestResultData[]>();
       for (const test of tests) {
@@ -587,10 +605,22 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         testsByObject.get(test.object)!.push(test);
       }
 
+      // Group object-level summaries by object
+      const objectSummaries = new Map<string, TestSummaryData>();
+      for (const summary of summaries) {
+        objectSummaries.set(summary.object, summary);
+      }
+
+      // Combine all objects from both test results and summaries
+      const allObjects = new Set([...testsByObject.keys(), ...objectSummaries.keys()]);
+
       // Create object-level and test-level items
-      for (const [objectName, objectTests] of testsByObject) {
+      for (const objectName of allObjects) {
         const objectId = `${fileId}::${objectName}`;
         expectedTestIds.add(objectId);
+
+        const objectTests = testsByObject.get(objectName) || [];
+        const objectSummary = objectSummaries.get(objectName);
 
         // Create object item (always create new since we cleared children)
         const objectItem = this.controller.createTestItem(
@@ -598,6 +628,15 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           objectName,
           fileUri
         );
+
+        // If we have an object summary, set the range from it
+        if (objectSummary) {
+          objectItem.range = new Range(
+            new Position(objectSummary.line - 1, 0),
+            new Position(objectSummary.line - 1, 0)
+          );
+        }
+
         fileItem.children.add(objectItem);
         this.testItems.set(objectId, objectItem);
 
@@ -608,7 +647,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           objectName: objectName
         });
 
-        // Create individual test items
+        // Create individual test items (only if we have test results)
         for (const test of objectTests) {
           const testId = `${objectId}::${test.test}`;
           expectedTestIds.add(testId);
