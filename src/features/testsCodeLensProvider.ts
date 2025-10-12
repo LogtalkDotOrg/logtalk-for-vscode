@@ -113,8 +113,8 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
             )
           );
         }
-        // test results summary
-        regex = new RegExp("File:" + file + ";Line:(\\d+);Object:.*;Status:(.*)", "ig");
+        // test results summary (object-level summaries without Test field)
+        regex = new RegExp("File:" + file + ";Line:(\\d+);Object:([^;]+);Status:(.*)", "ig");
         matches = out.matchAll(regex);
         match = null;
         for (match of matches) {
@@ -128,7 +128,7 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
               new CodeLens(
                 new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
                 {
-                  title: match[2] + outdated,
+                  title: match[3] + outdated,
                   tooltip: "Re-run all tests",
                   command: "logtalk.run.tests",
                   arguments: [doc.uri]
