@@ -2,6 +2,7 @@
 
 ## [0.64.0]
 
+* Changed test results summary displayed using CodeLens in the tests object to re-run only the object tests
 * Add experimental support for the VS Code Testing API
 * Delete any existing `.vscode_test_results` files at extension activation
 * Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests

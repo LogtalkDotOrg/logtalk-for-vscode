@@ -129,9 +129,9 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
                 new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
                 {
                   title: match[3] + outdated,
-                  tooltip: "Re-run all tests",
-                  command: "logtalk.run.tests",
-                  arguments: [doc.uri]
+                  tooltip: "Re-run object tests",
+                  command: "logtalk.run.object.tests",
+                  arguments: [doc.uri, match[2]]
                 }
               )
             );
