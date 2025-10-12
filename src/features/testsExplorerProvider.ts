@@ -11,6 +11,8 @@
  * - Creates a hierarchical test structure: File > Object > Test
  * - Updates test states (passed, failed, skipped) based on test results
  * - Watches for changes to test result files and updates the UI accordingly
+ * - Invalidates test results when source files are modified
+ * - Removes stale test items when they are no longer in the results file
  * - Integrates with logtalk.run.tests, logtalk.run.file.tests, logtalk.run.object.tests, and logtalk.run.test commands
  * - Supports running individual tests from the Tests Explorer
  * - Supports running all tests in an object (test suite) from the Tests Explorer
@@ -111,6 +113,15 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       this.discoverTestResultFiles();
     });
     this.disposables.push(workspaceFoldersListener);
+
+    // Watch for source file changes to invalidate test results
+    const textDocumentListener = workspace.onDidChangeTextDocument(event => {
+      // Only process Logtalk files
+      if (event.document.languageId === 'logtalk') {
+        this.invalidateTestResultsForFile(event.document.uri);
+      }
+    });
+    this.disposables.push(textDocumentListener);
   }
 
   /**
@@ -409,6 +420,17 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         });
       }
 
+      // Clear existing children and rebuild from scratch
+      // This ensures invalidated tests are properly recreated
+      fileItem.children.forEach(child => {
+        // Remove all descendants from the testItems map
+        child.children.forEach(grandchild => {
+          this.testItems.delete(grandchild.id);
+        });
+        this.testItems.delete(child.id);
+      });
+      fileItem.children.replace([]);
+
       // Group tests by object
       const testsByObject = new Map<string, TestResultData[]>();
       for (const test of tests) {
@@ -418,90 +440,54 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         testsByObject.get(test.object)!.push(test);
       }
 
-      // Track which object IDs should exist for this file
-      const expectedObjectIds = new Set<string>();
-
-      // Create or update object-level and test-level items
+      // Create object-level and test-level items
       for (const [objectName, objectTests] of testsByObject) {
         const objectId = `${fileId}::${objectName}`;
         expectedTestIds.add(objectId);
-        expectedObjectIds.add(objectId);
 
-        let objectItem = this.testItems.get(objectId);
-        if (!objectItem) {
-          objectItem = this.controller.createTestItem(
-            objectId,
-            objectName,
-            fileUri
-          );
-          fileItem.children.add(objectItem);
-          this.testItems.set(objectId, objectItem);
+        // Create object item (always create new since we cleared children)
+        const objectItem = this.controller.createTestItem(
+          objectId,
+          objectName,
+          fileUri
+        );
+        fileItem.children.add(objectItem);
+        this.testItems.set(objectId, objectItem);
 
-          // Store metadata for object-level item
-          this.testItemMetadata.set(objectItem, {
-            type: 'object',
-            fileUri: fileUri,
-            objectName: objectName
-          });
-        }
-
-        // Track which test IDs should exist for this object
-        const expectedTestIdsForObject = new Set<string>();
+        // Store metadata for object-level item
+        this.testItemMetadata.set(objectItem, {
+          type: 'object',
+          fileUri: fileUri,
+          objectName: objectName
+        });
 
         // Create individual test items
         for (const test of objectTests) {
           const testId = `${objectId}::${test.test}`;
           expectedTestIds.add(testId);
-          expectedTestIdsForObject.add(testId);
 
-          let testItem = this.testItems.get(testId);
-          if (!testItem) {
-            testItem = this.controller.createTestItem(
-              testId,
-              test.test,
-              fileUri
-            );
-            testItem.range = new Range(
-              new Position(test.line - 1, 0),
-              new Position(test.line - 1, 0)
-            );
-            objectItem.children.add(testItem);
-            this.testItems.set(testId, testItem);
+          // Create test item (always create new since we cleared children)
+          const testItem = this.controller.createTestItem(
+            testId,
+            test.test,
+            fileUri
+          );
+          testItem.range = new Range(
+            new Position(test.line - 1, 0),
+            new Position(test.line - 1, 0)
+          );
+          objectItem.children.add(testItem);
+          this.testItems.set(testId, testItem);
 
-            // Store metadata for test-level item
-            this.testItemMetadata.set(testItem, {
-              type: 'test',
-              fileUri: fileUri,
-              objectName: objectName,
-              testName: test.test
-            });
-          } else {
-            // Update the range if it changed
-            testItem.range = new Range(
-              new Position(test.line - 1, 0),
-              new Position(test.line - 1, 0)
-            );
-          }
+          // Store metadata for test-level item
+          this.testItemMetadata.set(testItem, {
+            type: 'test',
+            fileUri: fileUri,
+            objectName: objectName,
+            testName: test.test
+          });
         }
-
-        // Remove test items that are no longer in this object
-        objectItem.children.forEach(child => {
-          if (!expectedTestIdsForObject.has(child.id)) {
-            this.logger.debug(`Removing test item: ${child.id}`);
-            objectItem.children.delete(child.id);
-            this.testItems.delete(child.id);
-          }
-        });
       }
-
-      // Remove object items that are no longer in this file
-      fileItem.children.forEach(child => {
-        if (!expectedObjectIds.has(child.id)) {
-          this.logger.debug(`Removing object item: ${child.id}`);
-          fileItem.children.delete(child.id);
-          this.testItems.delete(child.id);
-        }
-      });
     }
 
     // Remove file items that are no longer in the results
@@ -512,48 +498,6 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         this.testItems.delete(fileItem.id);
       }
     });
-
-    // Update test states based on results
-    this.updateTestStates(testResults);
-  }
-
-  /**
-   * Update test states based on test results
-   */
-  private updateTestStates(testResults: TestResultData[]): void {
-    // Create a test run to update states
-    const run = this.controller.createTestRun(
-      new TestRunRequest(),
-      'Test Results',
-      false // Don't persist
-    );
-
-    for (const result of testResults) {
-      const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
-      const fileUri = Uri.file(normalizedPath);
-      const testId = `${fileUri.toString()}::${result.object}::${result.test}`;
-      
-      const testItem = this.testItems.get(testId);
-      if (testItem) {
-        // Parse status and update test state
-        const status = result.status.toLowerCase();
-        
-        if (status.includes('passed') || status.includes('success')) {
-          run.passed(testItem);
-        } else if (status.includes('failed') || status.includes('error')) {
-          const message = new TestMessage(result.status);
-          message.location = new Location(
-            fileUri,
-            new Position(result.line - 1, 0)
-          );
-          run.failed(testItem, message);
-        } else if (status.includes('skipped')) {
-          run.skipped(testItem);
-        }
-      }
-    }
-
-    run.end();
   }
 
   /**
@@ -563,6 +507,44 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     // Remove all test items (they will be recreated when the file is updated)
     this.controller.items.replace([]);
     this.testItems.clear();
+  }
+
+  /**
+   * Invalidate test results for a specific source file
+   * This marks all test items associated with the file as outdated
+   */
+  private invalidateTestResultsForFile(uri: Uri): void {
+    const normalizedPath = path.resolve(uri.fsPath).split(path.sep).join("/");
+    const fileUri = Uri.file(normalizedPath);
+    const fileId = fileUri.toString();
+
+    this.logger.debug(`Invalidating test results for file: ${fileUri.fsPath}`);
+
+    // Find the file-level test item
+    const fileItem = this.testItems.get(fileId);
+
+    if (!fileItem) {
+      // No test items for this file
+      return;
+    }
+
+    // Collect all test items for this file (file, objects, and individual tests)
+    const testItemsToInvalidate: TestItem[] = [fileItem];
+
+    // Add all object-level items
+    fileItem.children.forEach(objectItem => {
+      testItemsToInvalidate.push(objectItem);
+
+      // Add all individual test items
+      objectItem.children.forEach(testItem => {
+        testItemsToInvalidate.push(testItem);
+      });
+    });
+
+    // Invalidate all collected test items
+    this.controller.invalidateTestResults(testItemsToInvalidate);
+
+    this.logger.debug(`Invalidated ${testItemsToInvalidate.length} test item(s) for file: ${fileUri.fsPath}`);
   }
 
   /**
