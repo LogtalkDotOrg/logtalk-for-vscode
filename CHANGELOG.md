@@ -5,7 +5,7 @@
 * Add experimental support for the VS Code Testing API
 * Delete any existing `.vscode_test_results` files at extension activation
 * Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests
-* Fix timing issue that could result in multiple Logtalk terminal being created at startup
+* Fix timing issue that could result in multiple Logtalk terminals being created at startup
 * Fix bug where closing a non-Logtalk terminal would mark the Logtalk terminal as closed
 
 ## [0.63.0]
