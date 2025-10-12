@@ -585,19 +585,29 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static async runAllTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+  public static async runAllTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
-    // Create a test run for this execution
-    const testRun = testsExplorerProvider?.createTestRun();
 
     // Declare Variables
-    const dir0 = path.dirname(uri.fsPath);
+    // Check if URI is a directory or file
+    let dir0: string;
+    let textDocument = null;
+    const stats = fs.statSync(uri.fsPath);
+    if (stats.isDirectory()) {
+      // URI is a directory (e.g., workspace folder)
+      dir0 = uri.fsPath;
+    } else {
+      // URI is a file
+      dir0 = path.dirname(uri.fsPath);
+      // Open the Text Document
+      await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
+    }
+
     const tester0 = path.join(dir0, "tester");
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const tester = path.resolve(tester0).split(path.sep).join("/");
-    let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -608,8 +618,6 @@ export default class LogtalkTerminal {
     } else {
       throw new Error("configuration settings error: logtalk");
     }
-    // Open the Text Document
-    await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
@@ -653,22 +661,12 @@ export default class LogtalkTerminal {
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Tests completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
-
-    // Notify test explorer provider that tests have completed
-    if (testsExplorerProvider && testRun) {
-      const resultsFilePath = path.join(dir0, '.vscode_test_results');
-      if (fs.existsSync(resultsFilePath)) {
-        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath), testRun);
-      }
-    }
   }
 
-  public static async runFileTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+  public static async runFileTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
-    // Create a test run for this execution
-    const testRun = testsExplorerProvider?.createTestRun();
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
@@ -722,22 +720,12 @@ export default class LogtalkTerminal {
     }
     window.showInformationMessage("Tests from file completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
-
-    // Notify test explorer provider that tests have completed
-    if (testsExplorerProvider && testRun) {
-      const resultsFilePath = path.join(dir0, '.vscode_test_results');
-      if (fs.existsSync(resultsFilePath)) {
-        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath), testRun);
-      }
-    }
   }
 
-  public static async runObjectTests(uri: Uri, object: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+  public static async runObjectTests(uri: Uri, object: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
-    // Create a test run for this execution
-    const testRun = testsExplorerProvider?.createTestRun();
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
@@ -789,22 +777,12 @@ export default class LogtalkTerminal {
 
     window.showInformationMessage("Tests from object completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
-
-    // Notify test explorer provider that tests have completed
-    if (testsExplorerProvider && testRun) {
-      const resultsFilePath = path.join(dir0, '.vscode_test_results');
-      if (fs.existsSync(resultsFilePath)) {
-        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath), testRun);
-      }
-    }
   }
 
-  public static async runTest(uri: Uri, object: string, test: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+  public static async runTest(uri: Uri, object: string, test: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
-    // Create a test run for this execution
-    const testRun = testsExplorerProvider?.createTestRun();
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
@@ -866,14 +844,6 @@ export default class LogtalkTerminal {
     }
     window.showInformationMessage("Test completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
-
-    // Notify test explorer provider that tests have completed
-    if (testsExplorerProvider && testRun) {
-      const resultsFilePath = path.join(dir0, '.vscode_test_results');
-      if (fs.existsSync(resultsFilePath)) {
-        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath), testRun);
-      }
-    }
   }
 
   public static async computeMetrics(uri: Uri) {
@@ -1540,6 +1510,72 @@ export default class LogtalkTerminal {
 
   public static clearLoadedDirectories(): void {
     LogtalkTerminal._loadedDirectories.clear();
+  }
+
+  /**
+   * ViaProfile methods - These create TestRunRequest and call the provider's runTests() method
+   * Used by CodeLens and editor context menu commands
+   */
+
+  public static async runAllTestsViaProfile(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+    if (!testsExplorerProvider) {
+      // Fallback to direct execution if no provider
+      await LogtalkTerminal.runAllTests(uri, linter, testsReporter);
+      return;
+    }
+
+    // Import TestRunRequest
+    const vscode = require('vscode');
+    const request = new vscode.TestRunRequest(undefined, undefined, testsExplorerProvider.runProfile, true); // Run all tests
+    await testsExplorerProvider.runTests(request, undefined, uri); // Pass URI as third parameter
+  }
+
+  public static async runFileTestsViaProfile(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+    if (!testsExplorerProvider) {
+      // Fallback to direct execution if no provider
+      await LogtalkTerminal.runFileTests(uri, linter, testsReporter);
+      return;
+    }
+
+    // Get the file test item
+    const fileTestItem = testsExplorerProvider.getTestItemForFile(uri);
+
+    // Import TestRunRequest
+    const vscode = require('vscode');
+    const request = new vscode.TestRunRequest(fileTestItem ? [fileTestItem] : undefined, undefined, testsExplorerProvider.runProfile, true);
+    await testsExplorerProvider.runTests(request);
+  }
+
+  public static async runObjectTestsViaProfile(uri: Uri, object: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+    if (!testsExplorerProvider) {
+      // Fallback to direct execution if no provider
+      await LogtalkTerminal.runObjectTests(uri, object, linter, testsReporter);
+      return;
+    }
+
+    // Get the object test item
+    const objectTestItem = testsExplorerProvider.getTestItemForObject(uri, object);
+
+    // Import TestRunRequest
+    const vscode = require('vscode');
+    const request = new vscode.TestRunRequest(objectTestItem ? [objectTestItem] : undefined, undefined, testsExplorerProvider.runProfile, true);
+    await testsExplorerProvider.runTests(request);
+  }
+
+  public static async runTestViaProfile(uri: Uri, object: string, test: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+    if (!testsExplorerProvider) {
+      // Fallback to direct execution if no provider
+      await LogtalkTerminal.runTest(uri, object, test, linter, testsReporter);
+      return;
+    }
+
+    // Get the test item
+    const testItem = testsExplorerProvider.getTestItemForTest(uri, object, test);
+
+    // Import TestRunRequest
+    const vscode = require('vscode');
+    const request = new vscode.TestRunRequest(testItem ? [testItem] : undefined, undefined, testsExplorerProvider.runProfile, true);
+    await testsExplorerProvider.runTests(request);
   }
 
 }

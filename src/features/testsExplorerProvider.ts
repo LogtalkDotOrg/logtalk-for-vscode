@@ -41,17 +41,19 @@ import {
   workspace,
   Disposable,
   tests,
+  TestRunProfile,
   TestRunProfileKind,
   Location,
   Position,
   Range,
   RelativePattern,
-  commands
+  CancellationToken
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 import { getLogger } from "../utils/logger";
+import LogtalkTerminal from "./logtalkTerminal";
 
 interface TestResultData {
   file: string;
@@ -75,58 +77,43 @@ interface TestItemMetadata {
 }
 
 export class LogtalkTestsExplorerProvider implements Disposable {
+  public runProfile: TestRunProfile;
   private controller: TestController;
   private testItems: Map<string, TestItem> = new Map();
   private testItemMetadata: WeakMap<TestItem, TestItemMetadata> = new WeakMap();
   private logger = getLogger();
   private disposables: Disposable[] = [];
-  private activeTestRun: TestRun | null = null; // Test run for the current runTests() execution
+  private linter: any; // LogtalkLinter instance
+  private testsReporter: any; // LogtalkTestsReporter instance
 
   /**
-   * Create a test run for external callers (e.g., LogtalkTerminal methods)
-   * If there's an active test run from runTests(), return that instead of creating a new one.
-   * This prevents duplicate test runs when tests are executed from the Testing pane.
-   * @param testItems - Array of test items to include in the run, or undefined for all tests
-   * @param persist - Whether to persist the run for "Rerun Last Run" functionality (default: true)
-   * @returns The created test run or the active test run
+   * Get test item for a file
    */
-  public createTestRun(testItems?: TestItem[], persist: boolean = true): TestRun {
-    // If there's an active test run from runTests(), return it
-    if (this.activeTestRun) {
-      this.logger.debug('Using active test run from Testing pane');
-      return this.activeTestRun;
-    }
-
-    // Otherwise create a new test run (for CodeLens/context menu runs)
-    this.logger.debug('Creating new test run for external execution');
-    const request = testItems ? new TestRunRequest(testItems) : new TestRunRequest(undefined);
-    return this.controller.createTestRun(
-      request,
-      'Logtalk Tests',
-      persist
-    );
+  public getTestItemForFile(uri: Uri): TestItem | undefined {
+    const fileId = uri.toString();
+    return this.testItems.get(fileId);
   }
 
   /**
-   * Method to be called by Logtalk test commands when tests complete
-   * This allows the test explorer to update when tests are run via any method
-   * (Testing pane buttons or editor context menu commands)
-   *
-   * @param resultsFileUri - Optional URI of the specific results file to parse.
-   *                         If not provided, all results files will be parsed.
-   * @param testRun - Optional test run to update with results. If not provided, a new test run will be created.
+   * Get test item for an object (test suite)
    */
-  public async onTestsCompleted(resultsFileUri?: Uri, testRun?: TestRun): Promise<void> {
-    if (resultsFileUri) {
-      this.logger.debug(`Tests completed notification received, parsing results file: ${resultsFileUri.fsPath}`);
-      this.parseTestResultFile(resultsFileUri, testRun);
-    } else {
-      this.logger.debug('Tests completed notification received, parsing all test result files');
-      await this.parseAllTestResultFiles(testRun);
-    }
+  public getTestItemForObject(uri: Uri, objectName: string): TestItem | undefined {
+    const objectId = `${uri.toString()}::${objectName}`;
+    return this.testItems.get(objectId);
   }
 
-  constructor() {
+  /**
+   * Get test item for a specific test
+   */
+  public getTestItemForTest(uri: Uri, objectName: string, testName: string): TestItem | undefined {
+    const testId = `${uri.toString()}::${objectName}::${testName}`;
+    return this.testItems.get(testId);
+  }
+
+  constructor(linter: any, testsReporter: any) {
+    this.linter = linter;
+    this.testsReporter = testsReporter;
+
     // Create the test controller
     this.controller = tests.createTestController(
       'logtalkTests',
@@ -136,7 +123,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     this.disposables.push(this.controller);
 
     // Create a run profile for running tests
-    const runProfile = this.controller.createRunProfile(
+    this.runProfile = this.controller.createRunProfile(
       'Run',
       TestRunProfileKind.Run,
       async (request, token) => {
@@ -148,7 +135,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       true // isDefault
     );
 
-    this.disposables.push(runProfile);
+    this.disposables.push(this.runProfile);
 
     // Clean up any old test result files from previous sessions
     this.cleanupOldTestResultFiles();
@@ -171,111 +158,181 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
   /**
    * Run tests based on the test run request
+   * This method is called both from the Testing pane (via run profile handler)
+   * and from CodeLens/context menu (via ViaProfile methods in LogtalkTerminal)
+   * @param request - The test run request
+   * @param token - Optional cancellation token
+   * @param uri - Optional URI for running tests from a specific file/directory (used by ViaProfile methods)
    */
-  private async runTests(request: TestRunRequest, token: any): Promise<void> {
+  public async runTests(request: TestRunRequest, token?: CancellationToken, uri?: Uri): Promise<void> {
     this.logger.debug('runTests method called');
     this.logger.debug(`request.include is ${request.include ? 'defined' : 'undefined'}`);
+    this.logger.debug(`uri is ${uri ? 'provided: ' + uri.fsPath : 'not provided'}`);
 
-    // Create a test run for this Testing pane execution
-    // Terminal methods will use this via createTestRun() instead of creating their own
-    this.activeTestRun = this.controller.createTestRun(
+    // Create a test run for this execution
+    const testRun = this.controller.createTestRun(
       request,
       'Logtalk Tests',
       true // persist = true for "Rerun Last Run" functionality
     );
-    this.logger.debug('Created active test run for Testing pane');
+    this.logger.debug('Created test run');
 
     try {
       // If no specific tests are selected, run all tests via the tester file
       if (!request.include) {
-      this.logger.info('Running all tests via tester file (no specific tests selected)');
+        this.logger.info('Running all tests via tester file (no specific tests selected)');
 
-      // Collect one representative file from each workspace folder
-      const workspaceFolderUris = new Map<string, Uri>();
+        // If URI is provided (from ViaProfile methods), use it directly
+        if (uri) {
+          this.logger.info(`Running tests for provided URI: ${uri.fsPath}`);
+          await LogtalkTerminal.runAllTests(uri, this.linter, this.testsReporter);
 
-      this.controller.items.forEach(item => {
-        const metadata = this.testItemMetadata.get(item);
-        this.logger.debug(`Checking item: ${item.id}, metadata type: ${metadata?.type}`);
+          // Parse results
+          // Check if URI is a directory or file
+          const stats = fs.statSync(uri.fsPath);
+          const dir0 = stats.isDirectory() ? uri.fsPath : path.dirname(uri.fsPath);
+          const resultsFilePath = path.join(dir0, '.vscode_test_results');
+          if (fs.existsSync(resultsFilePath)) {
+            this.logger.debug(`Parsing results from: ${resultsFilePath}`);
+            this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+          }
 
-        if (metadata && metadata.type === 'file') {
-          // Get the workspace folder for this file
-          const workspaceFolder = workspace.getWorkspaceFolder(metadata.fileUri);
+          testRun.end();
+          return;
+        }
 
-          if (workspaceFolder) {
-            const workspaceFolderKey = workspaceFolder.uri.toString();
+        // Collect one representative file from each workspace folder
+        const workspaceFolderUris = new Map<string, Uri>();
 
-            // Only add if we haven't seen this workspace folder before
-            if (!workspaceFolderUris.has(workspaceFolderKey)) {
-              workspaceFolderUris.set(workspaceFolderKey, metadata.fileUri);
-              this.logger.debug(`Added file ${metadata.fileUri.fsPath} for workspace folder ${workspaceFolder.name}`);
+        this.controller.items.forEach(item => {
+          const metadata = this.testItemMetadata.get(item);
+          this.logger.debug(`Checking item: ${item.id}, metadata type: ${metadata?.type}`);
+
+          if (metadata && metadata.type === 'file') {
+            // Get the workspace folder for this file
+            const workspaceFolder = workspace.getWorkspaceFolder(metadata.fileUri);
+
+            if (workspaceFolder) {
+              const workspaceFolderKey = workspaceFolder.uri.toString();
+
+              // Only add if we haven't seen this workspace folder before
+              if (!workspaceFolderUris.has(workspaceFolderKey)) {
+                workspaceFolderUris.set(workspaceFolderKey, metadata.fileUri);
+                this.logger.debug(`Added file ${metadata.fileUri.fsPath} for workspace folder ${workspaceFolder.name}`);
+              }
+            }
+          }
+        });
+
+        if (workspaceFolderUris.size > 0) {
+          this.logger.info(`Running tests for ${workspaceFolderUris.size} workspace folder(s)`);
+
+          // Run tests for each workspace folder and parse results
+          for (const fileUri of workspaceFolderUris.values()) {
+            this.logger.info(`Running tests for workspace folder with file URI: ${fileUri.fsPath}`);
+
+            // Call LogtalkTerminal directly (not via command)
+            await LogtalkTerminal.runAllTests(fileUri, this.linter, this.testsReporter);
+
+            // Parse results
+            // Check if URI is a directory or file
+            const stats = fs.statSync(fileUri.fsPath);
+            const dir0 = stats.isDirectory() ? fileUri.fsPath : path.dirname(fileUri.fsPath);
+            const resultsFilePath = path.join(dir0, '.vscode_test_results');
+            if (fs.existsSync(resultsFilePath)) {
+              this.logger.debug(`Parsing results from: ${resultsFilePath}`);
+              this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+            }
+          }
+        } else {
+          this.logger.warn('No test runs so far; running all tests via tester file');
+
+          // Get first workspace folder
+          if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
+            const workspaceUri = workspace.workspaceFolders[0].uri;
+            await LogtalkTerminal.runAllTests(workspaceUri, this.linter, this.testsReporter);
+
+            // Parse results
+            const dir0 = workspaceUri.fsPath;
+            const resultsFilePath = path.join(dir0, '.vscode_test_results');
+            if (fs.existsSync(resultsFilePath)) {
+              this.logger.debug(`Parsing results from: ${resultsFilePath}`);
+              this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
             }
           }
         }
-      });
 
-      if (workspaceFolderUris.size > 0) {
-        this.logger.info(`Running tests for ${workspaceFolderUris.size} workspace folder(s)`);
+        testRun.end();
+        return;
+      }
 
-        // Run tests for each workspace folder
-        // Results will be parsed by onTestsCompleted() callback
-        for (const fileUri of workspaceFolderUris.values()) {
-          this.logger.info(`Running tests for workspace folder with file URI: ${fileUri.fsPath}`);
-          await commands.executeCommand('logtalk.run.tests', fileUri);
+      const queue: TestItem[] = [];
+
+      // Collect specific tests to run
+      request.include.forEach(test => queue.push(test));
+
+      // Process each test item
+      for (const test of queue) {
+        if (token?.isCancellationRequested) {
+          break;
         }
-      } else {
-        this.logger.warn('No test runs so far; running all tests via tester file');
-        await commands.executeCommand('logtalk.run.tests', undefined);
-      }
 
-      return;
-    }
-
-    const queue: TestItem[] = [];
-
-    // Collect specific tests to run
-    request.include.forEach(test => queue.push(test));
-
-    // Process each test item
-    // Results will be parsed by onTestsCompleted() callback
-    for (const test of queue) {
-      if (token.isCancellationRequested) {
-        break;
-      }
-
-      const metadata = this.testItemMetadata.get(test);
-      if (!metadata) {
-        this.logger.warn(`No metadata found for test item: ${test.id}`);
-        continue;
-      }
-
-      try {
-        switch (metadata.type) {
-          case 'file':
-            // Run all tests in the file
-            this.logger.info(`Running all tests in file: ${metadata.fileUri.fsPath}`);
-            await commands.executeCommand('logtalk.run.file.tests', metadata.fileUri);
-            break;
-
-          case 'object':
-            // Run all tests in the object (test suite)
-            this.logger.info(`Running all tests for object: ${metadata.objectName} in file: ${metadata.fileUri.fsPath}`);
-            await commands.executeCommand('logtalk.run.object.tests', metadata.fileUri, metadata.objectName);
-            break;
-
-          case 'test':
-            // Run a specific test
-            this.logger.info(`Running test: ${metadata.testName} in object: ${metadata.objectName}`);
-            await commands.executeCommand('logtalk.run.test', metadata.fileUri, metadata.objectName, metadata.testName);
-            break;
+        const metadata = this.testItemMetadata.get(test);
+        if (!metadata) {
+          this.logger.warn(`No metadata found for test item: ${test.id}`);
+          continue;
         }
-      } catch (error) {
-        this.logger.error(`Error running test ${test.id}:`, error);
+
+        try {
+          const dir0 = path.dirname(metadata.fileUri.fsPath);
+          const resultsFilePath = path.join(dir0, '.vscode_test_results');
+
+          switch (metadata.type) {
+            case 'file':
+              // Run all tests in the file
+              this.logger.info(`Running all tests in file: ${metadata.fileUri.fsPath}`);
+              await LogtalkTerminal.runFileTests(metadata.fileUri, this.linter, this.testsReporter);
+
+              // Parse results
+              if (fs.existsSync(resultsFilePath)) {
+                this.logger.debug(`Parsing results from: ${resultsFilePath}`);
+                this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+              }
+              break;
+
+            case 'object':
+              // Run all tests in the object (test suite)
+              this.logger.info(`Running all tests for object: ${metadata.objectName} in file: ${metadata.fileUri.fsPath}`);
+              await LogtalkTerminal.runObjectTests(metadata.fileUri, metadata.objectName!, this.linter, this.testsReporter);
+
+              // Parse results
+              if (fs.existsSync(resultsFilePath)) {
+                this.logger.debug(`Parsing results from: ${resultsFilePath}`);
+                this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+              }
+              break;
+
+            case 'test':
+              // Run a specific test
+              this.logger.info(`Running test: ${metadata.testName} in object: ${metadata.objectName}`);
+              await LogtalkTerminal.runTest(metadata.fileUri, metadata.objectName!, metadata.testName!, this.linter, this.testsReporter);
+
+              // Parse results
+              if (fs.existsSync(resultsFilePath)) {
+                this.logger.debug(`Parsing results from: ${resultsFilePath}`);
+                this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+              }
+              break;
+          }
+        } catch (error) {
+          this.logger.error(`Error running test ${test.id}:`, error);
+        }
       }
-    }
-    } finally {
-      // Clear the active test run after all tests have been executed
-      this.activeTestRun = null;
-      this.logger.debug('Cleared active test run');
+
+      testRun.end();
+    } catch (error) {
+      this.logger.error('Error in runTests:', error);
+      testRun.end();
     }
   }
 

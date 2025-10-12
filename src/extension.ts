@@ -300,10 +300,10 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.make.circular",             callback: uri  => LogtalkTerminal.makeCircular(uri, linter)},
     { command: "logtalk.make.clean",                callback: uri  => LogtalkTerminal.makeClean(uri, linter)},
     { command: "logtalk.make.caches",               callback: uri  => LogtalkTerminal.makeCaches(uri, linter)},
-    { command: "logtalk.run.tests",                 callback: uri  => LogtalkTerminal.runAllTests(uri, linter, testsReporter, testsExplorerProvider)},
-    { command: "logtalk.run.file.tests",            callback: uri  => LogtalkTerminal.runFileTests(uri, linter, testsReporter, testsExplorerProvider)},
-    { command: "logtalk.run.object.tests",          callback: (uri, object) => LogtalkTerminal.runObjectTests(uri, object, linter, testsReporter, testsExplorerProvider)},
-    { command: "logtalk.run.test",                  callback: (uri, object, test) => LogtalkTerminal.runTest(uri, object, test, linter, testsReporter, testsExplorerProvider)},
+    { command: "logtalk.run.tests",                 callback: uri  => LogtalkTerminal.runAllTestsViaProfile(uri, linter, testsReporter, testsExplorerProvider)},
+    { command: "logtalk.run.file.tests",            callback: uri  => LogtalkTerminal.runFileTestsViaProfile(uri, linter, testsReporter, testsExplorerProvider)},
+    { command: "logtalk.run.object.tests",          callback: (uri, object) => LogtalkTerminal.runObjectTestsViaProfile(uri, object, linter, testsReporter, testsExplorerProvider)},
+    { command: "logtalk.run.test",                  callback: (uri, object, test) => LogtalkTerminal.runTestViaProfile(uri, object, test, linter, testsReporter, testsExplorerProvider)},
     { command: "logtalk.run.doclet",                callback: uri  => LogtalkTerminal.runDoclet(uri, linter)},
     { command: "logtalk.scan.deadCode",             callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
     { command: "logtalk.generate.documentation",    callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},
@@ -510,7 +510,7 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerCodeLensProvider(LOGTALK_MODE, testsCodeLensProvider)
   );
-  testsExplorerProvider = new LogtalkTestsExplorerProvider();
+  testsExplorerProvider = new LogtalkTestsExplorerProvider(linter, testsReporter);
   context.subscriptions.push(testsExplorerProvider);
   metricsCodeLensProvider = new LogtalkMetricsCodeLensProvider();
   context.subscriptions.push(
