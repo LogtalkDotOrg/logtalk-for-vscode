@@ -38,7 +38,6 @@ import {
   TestMessage,
   Uri,
   workspace,
-  FileSystemWatcher,
   Disposable,
   tests,
   TestRunProfileKind,
@@ -76,12 +75,29 @@ interface TestItemMetadata {
 
 export class LogtalkTestsExplorerProvider implements Disposable {
   private controller: TestController;
-  private watchers: Map<string, FileSystemWatcher> = new Map();
   private testItems: Map<string, TestItem> = new Map();
   private testItemMetadata: WeakMap<TestItem, TestItemMetadata> = new WeakMap();
   private logger = getLogger();
   private disposables: Disposable[] = [];
   private currentTestRunRequest: TestRunRequest | null = null; // Store the current test run request
+
+  /**
+   * Method to be called by Logtalk test commands when tests complete
+   * This allows the test explorer to update when tests are run via any method
+   * (Testing pane buttons or editor context menu commands)
+   *
+   * @param resultsFileUri - Optional URI of the specific results file to parse.
+   *                         If not provided, all results files will be parsed.
+   */
+  public async onTestsCompleted(resultsFileUri?: Uri): Promise<void> {
+    if (resultsFileUri) {
+      this.logger.debug(`Tests completed notification received, parsing results file: ${resultsFileUri.fsPath}`);
+      this.parseTestResultFile(resultsFileUri);
+    } else {
+      this.logger.debug('Tests completed notification received, parsing all test result files');
+      await this.parseAllTestResultFiles();
+    }
+  }
 
   constructor() {
     // Create the test controller
@@ -107,12 +123,12 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.disposables.push(runProfile);
 
-    // Watch for workspace folders to discover test result files
-    this.discoverTestResultFiles();
+    // Clean up any old test result files from previous sessions
+    this.cleanupOldTestResultFiles();
 
-    // Watch for workspace folder changes
+    // Clean up test result files when workspace folders change
     const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders(() => {
-      this.discoverTestResultFiles();
+      this.cleanupOldTestResultFiles();
     });
     this.disposables.push(workspaceFoldersListener);
 
@@ -167,6 +183,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         this.logger.info(`Running tests for ${workspaceFolderUris.size} workspace folder(s)`);
 
         // Run tests for each workspace folder
+        // Results will be parsed by onTestsCompleted() callback
         for (const fileUri of workspaceFolderUris.values()) {
           this.logger.info(`Running tests for workspace folder with file URI: ${fileUri.fsPath}`);
           await commands.executeCommand('logtalk.run.tests', fileUri);
@@ -185,6 +202,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     request.include.forEach(test => queue.push(test));
 
     // Process each test item
+    // Results will be parsed by onTestsCompleted() callback
     for (const test of queue) {
       if (token.isCancellationRequested) {
         break;
@@ -223,55 +241,52 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   }
 
   /**
-   * Discover all .vscode_test_results files in workspace folders
+   * Clean up old test result files in workspace folders
+   * This is called on startup and when workspace folders change to ensure
+   * we start with a clean slate. Test result files will be recreated when tests are run.
    */
-  private async discoverTestResultFiles(): Promise<void> {
+  private async cleanupOldTestResultFiles(): Promise<void> {
     if (!workspace.workspaceFolders) {
       return;
     }
 
     for (const folder of workspace.workspaceFolders) {
-      // Search for all .vscode_test_results files in the workspace
+      // Search for all .vscode_test_results files in the workspace and delete them
       const pattern = new RelativePattern(folder, '**/.vscode_test_results');
       const files = await workspace.findFiles(pattern);
-      await files.forEach(uri => fsp.rm(`${uri.fsPath}`, { force: true }));
 
       for (const file of files) {
-        this.watchTestResultFile(file);
+        try {
+          await fsp.rm(file.fsPath, { force: true });
+          this.logger.debug(`Deleted old test results file: ${file.fsPath}`);
+        } catch (error) {
+          this.logger.error(`Error deleting test results file ${file.fsPath}:`, error);
+        }
       }
-
-      // Create a watcher for new test result files
-      const watcher = workspace.createFileSystemWatcher(pattern);
-      
-      watcher.onDidCreate(uri => {
-        this.logger.debug(`Test results file created: ${uri.fsPath}`);
-        this.watchTestResultFile(uri);
-      });
-
-      watcher.onDidChange(uri => {
-        this.logger.debug(`Test results file changed: ${uri.fsPath}`);
-        this.parseTestResultFile(uri);
-      });
-
-      watcher.onDidDelete(uri => {
-        this.logger.debug(`Test results file deleted: ${uri.fsPath}`);
-        this.removeTestsForFile(uri);
-      });
-
-      const watcherKey = folder.uri.toString();
-      if (this.watchers.has(watcherKey)) {
-        this.watchers.get(watcherKey)?.dispose();
-      }
-      this.watchers.set(watcherKey, watcher);
-      this.disposables.push(watcher);
     }
+
+    // Clear all test items since we deleted the results files
+    this.controller.items.replace([]);
+    this.testItems.clear();
   }
 
   /**
-   * Watch a specific test result file and parse it
+   * Find and parse all .vscode_test_results files in the workspace
    */
-  private watchTestResultFile(uri: Uri): void {
-    this.parseTestResultFile(uri);
+  private async parseAllTestResultFiles(): Promise<void> {
+    if (!workspace.workspaceFolders) {
+      return;
+    }
+
+    for (const folder of workspace.workspaceFolders) {
+      const pattern = new RelativePattern(folder, '**/.vscode_test_results');
+      const files = await workspace.findFiles(pattern);
+
+      for (const file of files) {
+        this.logger.info(`Parsing test results from: ${file.fsPath}`);
+        this.parseTestResultFile(file);
+      }
+    }
   }
 
   /**
@@ -340,41 +355,49 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private createTestRunFromResults(testResults: TestResultData[]): void {
     this.logger.debug('Creating test run from results to register with VS Code');
 
-    // Use the stored test run request if available, otherwise create a new one
-    // Using the original request is crucial for "Rerun Last Run" to work
-    let request: TestRunRequest;
+    // Collect all test items that have results
+    const testItemsWithResults: TestItem[] = [];
+    for (const result of testResults) {
+      const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
+      const fileUri = Uri.file(normalizedPath);
+      const testId = `${fileUri.toString()}::${result.object}::${result.test}`;
+      const testItem = this.testItems.get(testId);
+      if (testItem) {
+        testItemsWithResults.push(testItem);
+      }
+    }
 
+    if (testItemsWithResults.length === 0) {
+      this.logger.warn('No test items found to create test run');
+      return;
+    }
+
+    // Create a TestRunRequest with the test items that have results
+    // If we have a stored request from runTests, we'll use it to preserve the "Rerun Last Run" functionality
+    // But we need to create the test run with the actual test items that have results
+    let request: TestRunRequest;
     if (this.currentTestRunRequest) {
-      this.logger.debug('Using stored test run request from runTests method');
+      this.logger.debug('Using stored test run request from runTests method for "Rerun Last Run" functionality');
       request = this.currentTestRunRequest;
     } else {
       this.logger.debug('No stored request found, creating new TestRunRequest (results loaded from file)');
-      // Collect all test items that have results
-      const testItemsToRun: TestItem[] = [];
-      for (const result of testResults) {
-        const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
-        const fileUri = Uri.file(normalizedPath);
-        const testId = `${fileUri.toString()}::${result.object}::${result.test}`;
-        const testItem = this.testItems.get(testId);
-        if (testItem) {
-          testItemsToRun.push(testItem);
-        }
-      }
-
-      if (testItemsToRun.length === 0) {
-        this.logger.warn('No test items found to create test run');
-        return;
-      }
-
-      request = new TestRunRequest(testItemsToRun);
+      request = new TestRunRequest(testItemsWithResults);
     }
 
     // Create a test run with the request
+    // Note: We create a fresh test run each time to ensure all current test items are included
+    // VS Code will handle deduplication and show the latest results
+    this.logger.debug(`Creating test run with ${testItemsWithResults.length} test items`);
     const testRun = this.controller.createTestRun(
       request,
       'Logtalk Tests',
       true // persist = true, so "Rerun Last Run" button works
     );
+
+    // Enqueue all test items that have results so they appear in the Test Results pane
+    for (const testItem of testItemsWithResults) {
+      testRun.enqueued(testItem);
+    }
 
     // Update test states based on results
     for (const result of testResults) {
@@ -536,15 +559,6 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   }
 
   /**
-   * Remove all tests associated with a test results file
-   */
-  private removeTestsForFile(uri: Uri): void {
-    // Remove all test items (they will be recreated when the file is updated)
-    this.controller.items.replace([]);
-    this.testItems.clear();
-  }
-
-  /**
    * Invalidate test results for a specific source file
    * This marks all test items associated with the file as outdated
    */
@@ -586,16 +600,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * Dispose of all resources
    */
   public dispose(): void {
-    for (const watcher of this.watchers.values()) {
-      watcher.dispose();
-    }
-    this.watchers.clear();
-    
     for (const disposable of this.disposables) {
       disposable.dispose();
     }
     this.disposables = [];
-    
+
     this.testItems.clear();
   }
 }

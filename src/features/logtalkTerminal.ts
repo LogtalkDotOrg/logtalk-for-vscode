@@ -26,6 +26,7 @@ import LogtalkDeadCodeScanner from "./logtalkDeadCodeScanner";
 import LogtalkDocumentationLinter from "./logtalkDocumentationLinter";
 import { LogtalkMetricsCodeLensProvider } from "./metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./testsCodeLensProvider"
+import { LogtalkTestsExplorerProvider } from "./testsExplorerProvider";
 import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
 import { getLogger } from "../utils/logger";
@@ -578,7 +579,7 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static async runAllTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runAllTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -643,9 +644,17 @@ export default class LogtalkTerminal {
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Tests completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
+
+    // Notify test explorer provider that tests have completed
+    if (testsExplorerProvider) {
+      const resultsFilePath = path.join(dir0, '.vscode_test_results');
+      if (fs.existsSync(resultsFilePath)) {
+        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath));
+      }
+    }
   }
 
-  public static async runFileTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runFileTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -701,9 +710,17 @@ export default class LogtalkTerminal {
     }
     window.showInformationMessage("Tests from file completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
+
+    // Notify test explorer provider that tests have completed
+    if (testsExplorerProvider) {
+      const resultsFilePath = path.join(dir0, '.vscode_test_results');
+      if (fs.existsSync(resultsFilePath)) {
+        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath));
+      }
+    }
   }
 
-  public static async runObjectTests(uri: Uri, object: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runObjectTests(uri: Uri, object: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -757,9 +774,17 @@ export default class LogtalkTerminal {
 
     window.showInformationMessage("Tests from object completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
+
+    // Notify test explorer provider that tests have completed
+    if (testsExplorerProvider) {
+      const resultsFilePath = path.join(dir0, '.vscode_test_results');
+      if (fs.existsSync(resultsFilePath)) {
+        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath));
+      }
+    }
   }
 
-  public static async runTest(uri: Uri, object: string, test: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runTest(uri: Uri, object: string, test: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -773,11 +798,11 @@ export default class LogtalkTerminal {
     let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
+    if (section) {
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
     }
     // Open the Text Document
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
@@ -811,18 +836,26 @@ export default class LogtalkTerminal {
             testsReporter.lint(textDocument, message);
             message = '';
             test = false;
-          } 
+          }
         } else {
           message = message + line + '\n';
           if(line == '*     ' || line == '!     ') {
             linter.lint(message);
             message = '';
-          } 
+          }
         }
       }
     }
     window.showInformationMessage("Test completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
+
+    // Notify test explorer provider that tests have completed
+    if (testsExplorerProvider) {
+      const resultsFilePath = path.join(dir0, '.vscode_test_results');
+      if (fs.existsSync(resultsFilePath)) {
+        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath));
+      }
+    }
   }
 
   public static async computeMetrics(uri: Uri) {
