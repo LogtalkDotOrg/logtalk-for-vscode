@@ -589,6 +589,9 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    // Create a test run for this execution
+    const testRun = testsExplorerProvider?.createTestRun();
+
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const tester0 = path.join(dir0, "tester");
@@ -652,10 +655,10 @@ export default class LogtalkTerminal {
     LogtalkTestsCodeLensProvider.outdated = false;
 
     // Notify test explorer provider that tests have completed
-    if (testsExplorerProvider) {
+    if (testsExplorerProvider && testRun) {
       const resultsFilePath = path.join(dir0, '.vscode_test_results');
       if (fs.existsSync(resultsFilePath)) {
-        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath));
+        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath), testRun);
       }
     }
   }
@@ -664,6 +667,9 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    // Create a test run for this execution
+    const testRun = testsExplorerProvider?.createTestRun();
+
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const dir = path.resolve(dir0).split(path.sep).join("/");
@@ -718,10 +724,10 @@ export default class LogtalkTerminal {
     LogtalkTestsCodeLensProvider.outdated = false;
 
     // Notify test explorer provider that tests have completed
-    if (testsExplorerProvider) {
+    if (testsExplorerProvider && testRun) {
       const resultsFilePath = path.join(dir0, '.vscode_test_results');
       if (fs.existsSync(resultsFilePath)) {
-        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath));
+        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath), testRun);
       }
     }
   }
@@ -730,6 +736,9 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    // Create a test run for this execution
+    const testRun = testsExplorerProvider?.createTestRun();
+
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const dir = path.resolve(dir0).split(path.sep).join("/");
@@ -782,10 +791,10 @@ export default class LogtalkTerminal {
     LogtalkTestsCodeLensProvider.outdated = false;
 
     // Notify test explorer provider that tests have completed
-    if (testsExplorerProvider) {
+    if (testsExplorerProvider && testRun) {
       const resultsFilePath = path.join(dir0, '.vscode_test_results');
       if (fs.existsSync(resultsFilePath)) {
-        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath));
+        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath), testRun);
       }
     }
   }
@@ -794,6 +803,9 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+    // Create a test run for this execution
+    const testRun = testsExplorerProvider?.createTestRun();
+
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const tester0 = path.join(dir0, "tester");
@@ -856,10 +868,10 @@ export default class LogtalkTerminal {
     LogtalkTestsCodeLensProvider.outdated = false;
 
     // Notify test explorer provider that tests have completed
-    if (testsExplorerProvider) {
+    if (testsExplorerProvider && testRun) {
       const resultsFilePath = path.join(dir0, '.vscode_test_results');
       if (fs.existsSync(resultsFilePath)) {
-        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath));
+        await testsExplorerProvider.onTestsCompleted(Uri.file(resultsFilePath), testRun);
       }
     }
   }

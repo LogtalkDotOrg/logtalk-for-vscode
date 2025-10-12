@@ -80,7 +80,32 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private testItemMetadata: WeakMap<TestItem, TestItemMetadata> = new WeakMap();
   private logger = getLogger();
   private disposables: Disposable[] = [];
-  private currentTestRun: TestRun | null = null; // Track test run created from Testing pane for "Rerun Last Run"
+  private activeTestRun: TestRun | null = null; // Test run for the current runTests() execution
+
+  /**
+   * Create a test run for external callers (e.g., LogtalkTerminal methods)
+   * If there's an active test run from runTests(), return that instead of creating a new one.
+   * This prevents duplicate test runs when tests are executed from the Testing pane.
+   * @param testItems - Array of test items to include in the run, or undefined for all tests
+   * @param persist - Whether to persist the run for "Rerun Last Run" functionality (default: true)
+   * @returns The created test run or the active test run
+   */
+  public createTestRun(testItems?: TestItem[], persist: boolean = true): TestRun {
+    // If there's an active test run from runTests(), return it
+    if (this.activeTestRun) {
+      this.logger.debug('Using active test run from Testing pane');
+      return this.activeTestRun;
+    }
+
+    // Otherwise create a new test run (for CodeLens/context menu runs)
+    this.logger.debug('Creating new test run for external execution');
+    const request = testItems ? new TestRunRequest(testItems) : new TestRunRequest(undefined);
+    return this.controller.createTestRun(
+      request,
+      'Logtalk Tests',
+      persist
+    );
+  }
 
   /**
    * Method to be called by Logtalk test commands when tests complete
@@ -89,14 +114,15 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    *
    * @param resultsFileUri - Optional URI of the specific results file to parse.
    *                         If not provided, all results files will be parsed.
+   * @param testRun - Optional test run to update with results. If not provided, a new test run will be created.
    */
-  public async onTestsCompleted(resultsFileUri?: Uri): Promise<void> {
+  public async onTestsCompleted(resultsFileUri?: Uri, testRun?: TestRun): Promise<void> {
     if (resultsFileUri) {
       this.logger.debug(`Tests completed notification received, parsing results file: ${resultsFileUri.fsPath}`);
-      this.parseTestResultFile(resultsFileUri);
+      this.parseTestResultFile(resultsFileUri, testRun);
     } else {
       this.logger.debug('Tests completed notification received, parsing all test result files');
-      await this.parseAllTestResultFiles();
+      await this.parseAllTestResultFiles(testRun);
     }
   }
 
@@ -150,17 +176,18 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     this.logger.debug('runTests method called');
     this.logger.debug(`request.include is ${request.include ? 'defined' : 'undefined'}`);
 
-    // Create a test run for Testing pane runs to enable "Rerun Last Run" functionality
-    // This test run will be updated when results are parsed
-    this.currentTestRun = this.controller.createTestRun(
+    // Create a test run for this Testing pane execution
+    // Terminal methods will use this via createTestRun() instead of creating their own
+    this.activeTestRun = this.controller.createTestRun(
       request,
       'Logtalk Tests',
-      true // persist = true, so "Rerun Last Run" button works
+      true // persist = true for "Rerun Last Run" functionality
     );
-    this.logger.debug('Created test run from Testing pane for "Rerun Last Run" functionality');
+    this.logger.debug('Created active test run for Testing pane');
 
-    // If no specific tests are selected, run all tests via the tester file
-    if (!request.include) {
+    try {
+      // If no specific tests are selected, run all tests via the tester file
+      if (!request.include) {
       this.logger.info('Running all tests via tester file (no specific tests selected)');
 
       // Collect one representative file from each workspace folder
@@ -245,6 +272,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         this.logger.error(`Error running test ${test.id}:`, error);
       }
     }
+    } finally {
+      // Clear the active test run after all tests have been executed
+      this.activeTestRun = null;
+      this.logger.debug('Cleared active test run');
+    }
   }
 
   /**
@@ -279,8 +311,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
   /**
    * Find and parse all .vscode_test_results files in the workspace
+   * @param testRun - Optional test run to update with results
    */
-  private async parseAllTestResultFiles(): Promise<void> {
+  private async parseAllTestResultFiles(testRun?: TestRun): Promise<void> {
     if (!workspace.workspaceFolders) {
       return;
     }
@@ -291,15 +324,17 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       for (const file of files) {
         this.logger.info(`Parsing test results from: ${file.fsPath}`);
-        this.parseTestResultFile(file);
+        this.parseTestResultFile(file, testRun);
       }
     }
   }
 
   /**
    * Parse a .vscode_test_results file and create/update test items
+   * @param uri - URI of the results file to parse
+   * @param testRun - Optional test run to update with results. If not provided, a new test run will be created.
    */
-  private parseTestResultFile(uri: Uri): void {
+  private parseTestResultFile(uri: Uri, testRun?: TestRun): void {
     if (!fs.existsSync(uri.fsPath)) {
       return;
     }
@@ -311,7 +346,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       // Parse individual test results
       // Format: File:<path>;Line:<line>;Object:<object>;Test:<test>;Status:<status>
       const testRegex = /File:(.+?);Line:(\d+);Object:(.+?);Test:(.+?);Status:(.+)/i;
-      
+
       // Parse test summary results
       // Format: File:<path>;Line:<line>;Status:<status>
       const summaryRegex = /File:(.+?);Line:(\d+);Status:(.+)/i;
@@ -345,10 +380,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       // Create test items from the parsed data
       this.createTestItems(testResults, summaryResults, uri);
 
-      // Create a test run to register that tests have been executed
-      // Always create a test run so "Rerun Last Run" button works
+      // Update the test run with results
       if (testResults.length > 0) {
-        this.createTestRunFromResults(testResults);
+        this.updateTestRunFromResults(testResults, testRun);
       }
     } catch (error) {
       this.logger.error(`Error parsing test results file ${uri.fsPath}:`, error);
@@ -356,11 +390,12 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   }
 
   /**
-   * Create a test run from test results to register with VS Code's Testing API
-   * This makes VS Code aware that tests have been run, enabling the run button
+   * Update a test run with test results, or create a new one if not provided
+   * @param testResults - Array of test results to update
+   * @param testRun - Optional test run to update. If not provided, a new test run will be created.
    */
-  private createTestRunFromResults(testResults: TestResultData[]): void {
-    this.logger.debug('Creating test run from results to register with VS Code');
+  private updateTestRunFromResults(testResults: TestResultData[], testRun?: TestRun): void {
+    this.logger.debug('Updating test run from results');
 
     // Collect all test items that have results
     const testItemsWithResults: TestItem[] = [];
@@ -375,29 +410,28 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     }
 
     if (testItemsWithResults.length === 0) {
-      this.logger.warn('No test items found to create test run');
+      this.logger.warn('No test items found to update test run');
       return;
     }
 
-    // Use existing test run from Testing pane if available (for "Rerun Last Run")
-    // Otherwise create a new test run (for CodeLens/context menu runs)
-    let testRun: TestRun;
-    if (this.currentTestRun) {
-      this.logger.debug('Using existing test run from Testing pane for "Rerun Last Run" functionality');
-      testRun = this.currentTestRun;
+    // Use provided test run or create a new one
+    let actualTestRun: TestRun;
+    if (testRun) {
+      this.logger.debug('Using provided test run');
+      actualTestRun = testRun;
     } else {
-      this.logger.debug(`Creating new test run with ${testItemsWithResults.length} test items for external test execution`);
+      this.logger.debug(`Creating new test run with ${testItemsWithResults.length} test items (fallback)`);
       const request = new TestRunRequest(testItemsWithResults);
-      testRun = this.controller.createTestRun(
+      actualTestRun = this.controller.createTestRun(
         request,
         'Logtalk Tests',
-        false // persist = false for CodeLens/context menu runs (don't enable "Rerun Last Run")
+        true // persist = true for "Rerun Last Run" functionality
       );
     }
 
     // Enqueue all test items that have results so they appear in the Test Results pane
     for (const testItem of testItemsWithResults) {
-      testRun.enqueued(testItem);
+      actualTestRun.enqueued(testItem);
     }
 
     // Update test states based on results
@@ -408,33 +442,27 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const testItem = this.testItems.get(testId);
 
       if (testItem) {
-        testRun.started(testItem);
+        actualTestRun.started(testItem);
 
         // Update test state based on status
         const status = result.status.toLowerCase();
         if (status.includes('passed') || status.includes('success')) {
-          testRun.passed(testItem);
+          actualTestRun.passed(testItem);
         } else if (status.includes('failed') || status.includes('error')) {
           const message = new TestMessage(result.status);
           message.location = new Location(
             fileUri,
             new Position(result.line - 1, 0)
           );
-          testRun.failed(testItem, message);
+          actualTestRun.failed(testItem, message);
         } else if (status.includes('skipped')) {
-          testRun.skipped(testItem);
+          actualTestRun.skipped(testItem);
         }
       }
     }
 
-    testRun.end();
-    this.logger.debug('Test run created and ended');
-
-    // Clear the current test run if this was from the Testing pane
-    if (this.currentTestRun === testRun) {
-      this.currentTestRun = null;
-      this.logger.debug('Cleared current test run from Testing pane');
-    }
+    actualTestRun.end();
+    this.logger.debug('Test run updated and ended');
   }
 
   /**
