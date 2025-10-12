@@ -35,6 +35,7 @@ import {
   TestController,
   TestItem,
   TestRunRequest,
+  TestRun,
   TestMessage,
   Uri,
   workspace,
@@ -79,6 +80,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private testItemMetadata: WeakMap<TestItem, TestItemMetadata> = new WeakMap();
   private logger = getLogger();
   private disposables: Disposable[] = [];
+  private currentTestRun: TestRun | null = null; // Track test run created from Testing pane for "Rerun Last Run"
 
   /**
    * Method to be called by Logtalk test commands when tests complete
@@ -148,9 +150,14 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     this.logger.debug('runTests method called');
     this.logger.debug(`request.include is ${request.include ? 'defined' : 'undefined'}`);
 
-    // Don't store the request here because it references test items that will be deleted
-    // and recreated when results are parsed. Instead, createTestRunFromResults will create
-    // a fresh request with the newly created test items.
+    // Create a test run for Testing pane runs to enable "Rerun Last Run" functionality
+    // This test run will be updated when results are parsed
+    this.currentTestRun = this.controller.createTestRun(
+      request,
+      'Logtalk Tests',
+      true // persist = true, so "Rerun Last Run" button works
+    );
+    this.logger.debug('Created test run from Testing pane for "Rerun Last Run" functionality');
 
     // If no specific tests are selected, run all tests via the tester file
     if (!request.include) {
@@ -372,19 +379,21 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       return;
     }
 
-    // Always create a fresh TestRunRequest with the actual test items that have results
-    // This ensures the Testing pane updates correctly with the current test run
-    this.logger.debug(`Creating new TestRunRequest with ${testItemsWithResults.length} test items`);
-    const request = new TestRunRequest(testItemsWithResults);
-
-    // Create a test run with the request
-    // Setting persist=true allows VS Code's "Rerun Last Run" button to work
-    this.logger.debug(`Creating test run with ${testItemsWithResults.length} test items`);
-    const testRun = this.controller.createTestRun(
-      request,
-      'Logtalk Tests',
-      true // persist = true, so "Rerun Last Run" button works
-    );
+    // Use existing test run from Testing pane if available (for "Rerun Last Run")
+    // Otherwise create a new test run (for CodeLens/context menu runs)
+    let testRun: TestRun;
+    if (this.currentTestRun) {
+      this.logger.debug('Using existing test run from Testing pane for "Rerun Last Run" functionality');
+      testRun = this.currentTestRun;
+    } else {
+      this.logger.debug(`Creating new test run with ${testItemsWithResults.length} test items for external test execution`);
+      const request = new TestRunRequest(testItemsWithResults);
+      testRun = this.controller.createTestRun(
+        request,
+        'Logtalk Tests',
+        false // persist = false for CodeLens/context menu runs (don't enable "Rerun Last Run")
+      );
+    }
 
     // Enqueue all test items that have results so they appear in the Test Results pane
     for (const testItem of testItemsWithResults) {
@@ -420,6 +429,12 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     testRun.end();
     this.logger.debug('Test run created and ended');
+
+    // Clear the current test run if this was from the Testing pane
+    if (this.currentTestRun === testRun) {
+      this.currentTestRun = null;
+      this.logger.debug('Cleared current test run from Testing pane');
+    }
   }
 
   /**

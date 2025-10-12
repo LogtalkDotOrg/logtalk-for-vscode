@@ -315,7 +315,7 @@ VSCode usability issues that affect debugging support:
 
 ### Testing support
 
-Experimental support for the VS Code Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" command at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" button at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name.
+Experimental support for the VS Code Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" command at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" button at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can use the "Rerun Last Run" button to re-run the last test run as long as done from these panes. The "Rerun Last Run" button is not available when running tests from the editor context menu or CodeLens.
 
 ### Hover contents
 
