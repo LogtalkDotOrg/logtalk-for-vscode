@@ -47,7 +47,10 @@ import {
   Position,
   Range,
   RelativePattern,
-  CancellationToken
+  CancellationToken,
+  FileCoverage,
+  StatementCoverage,
+  DeclarationCoverage
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
@@ -77,6 +80,13 @@ interface TestItemMetadata {
   testName?: string;
 }
 
+interface CoverageData {
+  file: string;
+  line: number;
+  covered: number;
+  total: number;
+}
+
 export class LogtalkTestsExplorerProvider implements Disposable {
   public runProfile: TestRunProfile;
   private controller: TestController;
@@ -86,6 +96,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private disposables: Disposable[] = [];
   private linter: any; // LogtalkLinter instance
   private testsReporter: any; // LogtalkTestsReporter instance
+  private coverageData: Map<string, CoverageData[]> = new Map(); // Store coverage data by file path
 
   /**
    * Get test item for a file
@@ -123,10 +134,10 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.disposables.push(this.controller);
 
-    // Create a run profile for running tests
+    // Create a run profile for running tests with coverage
     this.runProfile = this.controller.createRunProfile(
       'Run',
-      TestRunProfileKind.Run,
+      TestRunProfileKind.Coverage,
       async (request, token) => {
         this.logger.debug('Run profile handler called');
         this.logger.debug(`request.include: ${request.include ? 'defined' : 'undefined'}`);
@@ -135,6 +146,12 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       },
       true // isDefault
     );
+
+    // Set up coverage loading callback
+    this.runProfile.loadDetailedCoverage = async (testRun, fileCoverage, token) => {
+      this.logger.debug(`loadDetailedCoverage called for ${fileCoverage.uri.fsPath}`);
+      return await this.loadDetailedCoverage(fileCoverage);
+    };
 
     this.disposables.push(this.runProfile);
 
@@ -195,7 +212,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           const resultsFilePath = path.join(dir0, '.vscode_test_results');
           if (fs.existsSync(resultsFilePath)) {
             this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-            this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+            await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
           }
 
           testRun.end();
@@ -242,7 +259,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             const resultsFilePath = path.join(dir0, '.vscode_test_results');
             if (fs.existsSync(resultsFilePath)) {
               this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-              this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+              await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
             }
           }
         } else {
@@ -258,7 +275,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             const resultsFilePath = path.join(dir0, '.vscode_test_results');
             if (fs.existsSync(resultsFilePath)) {
               this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-              this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+              await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
             }
           }
         }
@@ -297,7 +314,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
               }
               break;
 
@@ -309,7 +326,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
               }
               break;
 
@@ -321,7 +338,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
               }
               break;
           }
@@ -382,7 +399,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       for (const file of files) {
         this.logger.info(`Parsing test results from: ${file.fsPath}`);
-        this.parseTestResultFile(file, testRun);
+        await this.parseTestResultFile(file, testRun);
       }
     }
   }
@@ -392,7 +409,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * @param uri - URI of the results file to parse
    * @param testRun - Optional test run to update with results. If not provided, a new test run will be created.
    */
-  private parseTestResultFile(uri: Uri, testRun?: TestRun): void {
+  private async parseTestResultFile(uri: Uri, testRun?: TestRun): Promise<void> {
     if (!fs.existsSync(uri.fsPath)) {
       return;
     }
@@ -409,8 +426,13 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       // Format: File:<path>;Line:<line>;Object:<object>;Status:<status>
       const summaryRegex = /File:(.+?);Line:(\d+);Object:(.+?);Status:(.+)/i;
 
+      // Parse coverage data
+      // Format: File:<path>;Line:<line>;Status:Tests clause coverage: <covered>/<total>
+      const coverageRegex = /File:(.+?);Line:(\d+);Status:Tests clause coverage: (\d+)\/(\d+)/i;
+
       const testResults: TestResultData[] = [];
       const summaryResults: TestSummaryData[] = [];
+      const coverageResults: CoverageData[] = [];
 
       for (const line of lines) {
         const testMatch = line.match(testRegex);
@@ -433,15 +455,34 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             object: summaryMatch[3],
             status: summaryMatch[4]
           });
+          continue;
+        }
+
+        const coverageMatch = line.match(coverageRegex);
+        if (coverageMatch) {
+          coverageResults.push({
+            file: coverageMatch[1],
+            line: parseInt(coverageMatch[2]),
+            covered: parseInt(coverageMatch[3]),
+            total: parseInt(coverageMatch[4])
+          });
         }
       }
 
       // Create test items from the parsed data
       this.createTestItems(testResults, summaryResults, uri);
 
-      // Update the test run with results
-      if (testResults.length > 0) {
-        this.updateTestRunFromResults(testResults, testRun);
+      // Update the test run with results and coverage
+      if (testRun) {
+        // Update coverage data BEFORE updating test results (which ends the run)
+        if (coverageResults.length > 0) {
+          this.updateCoverageFromResults(coverageResults, testRun);
+        }
+
+        // Update test results (this will end the test run)
+        if (testResults.length > 0) {
+          this.updateTestRunFromResults(testResults, testRun);
+        }
       }
     } catch (error) {
       this.logger.error(`Error parsing test results file ${uri.fsPath}:`, error);
@@ -522,6 +563,129 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     actualTestRun.end();
     this.logger.debug('Test run updated and ended');
+  }
+
+  /**
+   * Update test run with coverage data
+   * @param coverageResults - Array of coverage results
+   * @param testRun - Test run to update with coverage
+   */
+  private updateCoverageFromResults(coverageResults: CoverageData[], testRun: TestRun): void {
+    this.logger.debug('Updating coverage from results');
+
+    // Clear previous coverage data
+    this.coverageData.clear();
+
+    // Group coverage data by file
+    const coverageByFile = new Map<string, CoverageData[]>();
+    for (const coverage of coverageResults) {
+      const normalizedPath = path.resolve(coverage.file).split(path.sep).join("/");
+      if (!coverageByFile.has(normalizedPath)) {
+        coverageByFile.set(normalizedPath, []);
+      }
+      coverageByFile.get(normalizedPath)!.push(coverage);
+    }
+
+    // Store coverage data and create FileCoverage for each file
+    for (const [filePath, coverages] of coverageByFile) {
+      const fileUri = Uri.file(filePath);
+
+      // Store coverage data for later retrieval
+      this.coverageData.set(filePath, coverages);
+
+      // Calculate summary statistics
+      let coveredStatements = 0;
+      let totalStatements = coverages.length;
+
+      for (const coverage of coverages) {
+        // If covered === total, the clause is fully covered
+        if (coverage.covered === coverage.total) {
+          coveredStatements++;
+        }
+
+        this.logger.debug(`Line ${coverage.line}: covered=${coverage.covered}, total=${coverage.total}`);
+      }
+
+      // Create file coverage with summary only - details will be loaded via loadDetailedCoverage
+      const fileCoverage = new FileCoverage(
+        fileUri,
+        {
+          covered: coveredStatements,
+          total: totalStatements
+        }
+      );
+
+      testRun.addCoverage(fileCoverage);
+      this.logger.debug(`Added coverage for ${filePath}: ${coveredStatements}/${totalStatements} statements covered`);
+    }
+
+    this.logger.debug('Coverage update completed');
+  }
+
+  /**
+   * Load detailed coverage for a file
+   * @param fileCoverage - The file coverage to load details for
+   * @returns Array of statement coverage details
+   */
+  private async loadDetailedCoverage(fileCoverage: FileCoverage): Promise<StatementCoverage[]> {
+    this.logger.debug(`Loading detailed coverage for ${fileCoverage.uri.fsPath}`);
+
+    const normalizedPath = path.resolve(fileCoverage.uri.fsPath).split(path.sep).join("/");
+    this.logger.debug(`Normalized path: ${normalizedPath}`);
+    this.logger.debug(`Available coverage paths: ${Array.from(this.coverageData.keys()).join(', ')}`);
+
+    const coverages = this.coverageData.get(normalizedPath);
+
+    if (!coverages) {
+      this.logger.debug('No coverage data found for file');
+      return [];
+    }
+
+    this.logger.debug(`Found ${coverages.length} coverage entries for file`);
+
+    // Read the file to get actual line content
+    let fileContent: string;
+    try {
+      const document = await workspace.openTextDocument(fileCoverage.uri);
+      fileContent = document.getText();
+    } catch (error) {
+      this.logger.error(`Failed to open document for detailed coverage: ${fileCoverage.uri.fsPath}`, error);
+      return [];
+    }
+
+    const lines = fileContent.split('\n');
+
+    // Create statement coverage array
+    const statementCoverage: StatementCoverage[] = [];
+    for (const coverage of coverages) {
+      // Create a range that covers the entire line
+      const lineNumber = coverage.line - 1;
+
+      // Validate line number
+      if (lineNumber < 0 || lineNumber >= lines.length) {
+        this.logger.warn(`Invalid line number ${coverage.line} for file ${fileCoverage.uri.fsPath}`);
+        continue;
+      }
+
+      const lineText = lines[lineNumber];
+      const lineLength = lineText.length;
+
+      const startPosition = new Position(lineNumber, 0);
+      const endPosition = new Position(lineNumber, lineLength);
+      const range = new Range(startPosition, endPosition);
+
+      // If covered === total, the clause is fully covered (executed count > 0)
+      // If covered !== total, the clause is not fully covered (execution count = 0)
+      const executionCount = coverage.covered === coverage.total ? 1 : 0;
+
+      this.logger.debug(`Line ${coverage.line}: covered=${coverage.covered}, total=${coverage.total}, executionCount=${executionCount}, range=${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}, lineText="${lineText.trim()}"`);
+
+      // Add statement coverage
+      statementCoverage.push(new StatementCoverage(executionCount, range));
+    }
+
+    this.logger.debug(`Loaded ${statementCoverage.length} coverage items`);
+    return statementCoverage;
   }
 
   /**
