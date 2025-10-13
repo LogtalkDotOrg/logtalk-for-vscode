@@ -683,7 +683,7 @@ export class PredicateUtils {
       }
 
       // Check if this line is a clause for our predicate with the correct arity
-      if (this.isClauseForPredicateWithArity(lineText, predicateName, expectedArity, isNonTerminal)) {
+      if (this.isClauseForPredicateWithArity(document, lineNum, predicateName, expectedArity, isNonTerminal)) {
         const clauseEndLine = this.findClauseEndLine(document, lineNum);
         ranges.push(new Range(
           new Position(lineNum, 0),
@@ -701,14 +701,51 @@ export class PredicateUtils {
 
   /**
    * Check if a line is a clause for a specific predicate/non-terminal with the expected arity
+   * Handles multi-line clause heads by reading additional lines if needed
    */
   private static isClauseForPredicateWithArity(
-    lineText: string,
+    document: TextDocument,
+    startLine: number,
     predicateName: string,
     expectedArity: number,
     isNonTerminal: boolean
   ): boolean {
-    const trimmed = lineText.trim();
+    // Read the complete clause head (may span multiple lines)
+    let clauseHead = '';
+    let currentLine = startLine;
+    let foundEnd = false;
+
+    while (currentLine < document.lineCount && !foundEnd) {
+      const lineText = document.lineAt(currentLine).text;
+      clauseHead += lineText;
+
+      // Check if we've reached the end of the clause head
+      if (lineText.includes(':-') || lineText.includes('-->') || lineText.trim().endsWith('.')) {
+        foundEnd = true;
+      } else {
+        clauseHead += ' '; // Add space between lines
+        currentLine++;
+      }
+    }
+
+    // Extract just the head part (before :-, -->, or .)
+    let headPart = clauseHead;
+    const neckPos = clauseHead.indexOf(':-');
+    const dcgPos = clauseHead.indexOf('-->');
+
+    if (neckPos !== -1 && (dcgPos === -1 || neckPos < dcgPos)) {
+      headPart = clauseHead.substring(0, neckPos);
+    } else if (dcgPos !== -1) {
+      headPart = clauseHead.substring(0, dcgPos);
+    } else {
+      // Fact - remove the trailing period
+      const dotPos = clauseHead.lastIndexOf('.');
+      if (dotPos !== -1) {
+        headPart = clauseHead.substring(0, dotPos);
+      }
+    }
+
+    const trimmed = headPart.trim();
     const escapedName = this.escapeRegex(predicateName);
 
     // Check for multifile clause: Entity::predicate(...)

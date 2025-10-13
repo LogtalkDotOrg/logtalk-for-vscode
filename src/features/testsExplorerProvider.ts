@@ -697,8 +697,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const lineText = document.lineAt(lineNumber).text;
       this.logger.debug(`Processing coverage for line ${coverage.line}: covered=${coverage.covered}, total=${coverage.total}, indexes=[${coverage.coveredIndexes.join(',')}]`);
 
-      // Parse the predicate/non-terminal indicator from the line
-      const predicateIndicator = this.parsePredicateIndicatorFromLine(lineText);
+      // Parse the predicate/non-terminal indicator from the clause head (may be multi-line)
+      const predicateIndicator = this.parsePredicateIndicatorFromClauseHead(document, lineNumber);
       if (!predicateIndicator) {
         this.logger.warn(`Could not parse predicate indicator from line ${coverage.line}: "${lineText.trim()}"`);
         continue;
@@ -707,7 +707,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       this.logger.debug(`Parsed predicate indicator: ${predicateIndicator}`);
 
       // Find all consecutive clauses for this predicate/non-terminal
-      const clauseRanges = PredicateUtils.findConsecutiveClauseRanges(
+      const clauseRanges = PredicateUtils.findConsecutivePredicateClauseRanges(
         document,
         predicateIndicator,
         lineNumber
@@ -732,31 +732,58 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   }
 
   /**
-   * Parse predicate/non-terminal indicator from a clause head line
-   * @param lineText - The line text containing the clause head
+   * Parse predicate/non-terminal indicator from a clause head (may be multi-line)
+   * @param document - The document
+   * @param startLine - The line number where the clause head starts
    * @returns The predicate indicator (name/arity or name//arity) or null if not found
    */
-  private parsePredicateIndicatorFromLine(lineText: string): string | null {
-    const trimmed = lineText.trim();
+  private parsePredicateIndicatorFromClauseHead(document: TextDocument, startLine: number): string | null {
+    // Read the complete clause head (up to :-, -->, or .)
+    let clauseHead = '';
+    let currentLine = startLine;
+    let foundEnd = false;
 
-    // Check for DCG rule (non-terminal)
-    const dcgMatch = trimmed.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\()?/);
-    if (dcgMatch && trimmed.includes('-->')) {
-      const name = dcgMatch[1].replace(/^'|'$/g, '');
-      const hasArgs = dcgMatch[2] === '(';
-      if (hasArgs) {
-        const openParenPos = dcgMatch[0].length - 1;
-        const closeParenPos = ArgumentUtils.findMatchingCloseParen(trimmed, openParenPos);
-        if (closeParenPos === -1) {
-          return null;
-        }
-        const args = trimmed.substring(openParenPos, closeParenPos + 1);
-        const arity = this.countArguments(args);
-        return `${name}//${arity}`;
+    while (currentLine < document.lineCount && !foundEnd) {
+      const lineText = document.lineAt(currentLine).text;
+      clauseHead += lineText;
+
+      // Check if we've reached the end of the clause head
+      if (lineText.includes(':-') || lineText.includes('-->') || lineText.trim().endsWith('.')) {
+        foundEnd = true;
       } else {
-        return `${name}//0`;
+        clauseHead += ' '; // Add space between lines
+        currentLine++;
       }
     }
+
+    // Extract just the head part (before :-, -->, or .)
+    let headPart = clauseHead;
+    const neckPos = clauseHead.indexOf(':-');
+    const dcgPos = clauseHead.indexOf('-->');
+
+    if (neckPos !== -1 && (dcgPos === -1 || neckPos < dcgPos)) {
+      headPart = clauseHead.substring(0, neckPos);
+    } else if (dcgPos !== -1) {
+      headPart = clauseHead.substring(0, dcgPos);
+    } else {
+      // Fact - remove the trailing period
+      const dotPos = clauseHead.lastIndexOf('.');
+      if (dotPos !== -1) {
+        headPart = clauseHead.substring(0, dotPos);
+      }
+    }
+
+    return this.parsePredicateIndicatorFromText(headPart.trim(), clauseHead.includes('-->'));
+  }
+
+  /**
+   * Parse predicate/non-terminal indicator from clause head text
+   * @param headText - The clause head text (without :-, -->, or .)
+   * @param isNonTerminal - Whether this is a DCG rule
+   * @returns The predicate indicator (name/arity or name//arity) or null if not found
+   */
+  private parsePredicateIndicatorFromText(headText: string, isNonTerminal: boolean): string | null {
+    const trimmed = headText.trim();
 
     // Check for multifile clause: Entity::predicate(...)
     const multifileMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)(\(.+\))?::([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\()?/);
@@ -772,28 +799,28 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         }
         const args = trimmed.substring(actualOpenParenPos, closeParenPos + 1);
         const arity = this.countArguments(args);
-        return `${name}/${arity}`;
+        return isNonTerminal ? `${name}//${arity}` : `${name}/${arity}`;
       } else {
-        return `${name}/0`;
+        return isNonTerminal ? `${name}//0` : `${name}/0`;
       }
     }
 
-    // Check for regular predicate clause
-    const predicateMatch = trimmed.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\()?/);
-    if (predicateMatch) {
-      const name = predicateMatch[1].replace(/^'|'$/g, '');
-      const hasArgs = predicateMatch[2] === '(';
+    // Check for regular predicate/non-terminal clause
+    const match = trimmed.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\()?/);
+    if (match) {
+      const name = match[1].replace(/^'|'$/g, '');
+      const hasArgs = match[2] === '(';
       if (hasArgs) {
-        const openParenPos = predicateMatch[0].length - 1;
+        const openParenPos = match[0].length - 1;
         const closeParenPos = ArgumentUtils.findMatchingCloseParen(trimmed, openParenPos);
         if (closeParenPos === -1) {
           return null;
         }
         const args = trimmed.substring(openParenPos, closeParenPos + 1);
         const arity = this.countArguments(args);
-        return `${name}/${arity}`;
+        return isNonTerminal ? `${name}//${arity}` : `${name}/${arity}`;
       } else {
-        return `${name}/0`;
+        return isNonTerminal ? `${name}//0` : `${name}/0`;
       }
     }
 
