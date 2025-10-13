@@ -8,6 +8,7 @@
 * Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests
 * Fix timing issue that could result in multiple Logtalk terminals being created at startup
 * Fix bug where closing a non-Logtalk terminal would mark the Logtalk terminal as closed
+* Fix the delete action for the dead code scanner to correctly check for predicate arity
 
 ## [0.63.0]
 

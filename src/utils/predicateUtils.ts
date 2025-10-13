@@ -424,12 +424,7 @@ export class PredicateUtils {
       const predicateName = parsed.name;
 
       // Find all consecutive clauses/rules
-      const ranges = this.findConsecutivePredicateClauseRanges(
-        document,
-        predicateName,
-        position.line,
-        isNonTerminal
-      );
+      const ranges = this.findConsecutivePredicateClauseRanges(document, indicator, position.line);
 
       if (ranges.length === 0) {
         return null;
@@ -449,63 +444,6 @@ export class PredicateUtils {
     }
   }
 
-
-
-  /**
-   * Find consecutive predicate clauses or non-terminal rules starting from a known position
-   */
-  private static findConsecutivePredicateClauseRanges(
-    document: TextDocument,
-    predicateName: string,
-    startLine: number,
-    isNonTerminal: boolean
-  ): Range[] {
-    const ranges: Range[] = [];
-
-    // Search forwards from startLine to find all consecutive clauses
-    let lineNum = startLine;
-    while (lineNum < document.lineCount) {
-      const lineText = document.lineAt(lineNum).text;
-      const trimmedLine = lineText.trim();
-
-      // Stop if we hit an entity boundary
-      if (this.isEntityBoundary(trimmedLine)) {
-        break;
-      }
-
-      // Skip comments and empty/whitespace-only lines, but continue searching
-      if (trimmedLine === '' || trimmedLine.startsWith('%') ||
-          trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
-        lineNum++;
-        continue;
-      }
-
-      // Stop if we hit a different predicate clause or non-terminal rule
-      if (this.isDifferentPredicateClause(lineText, predicateName, isNonTerminal)) {
-        break;
-      }
-
-      // Check if this is a clause/rule for our predicate/non-terminal
-      if (this.isPredicateClause(lineText, predicateName, isNonTerminal)) {
-        // Find the end of this clause
-        const clauseEndLine = this.findClauseEndLine(document, lineNum);
-
-        // Add the range for this clause
-        ranges.push(new Range(
-          new Position(lineNum, 0),
-          new Position(clauseEndLine, document.lineAt(clauseEndLine).text.length)
-        ));
-
-        // Skip ahead to after the end of this clause
-        lineNum = clauseEndLine + 1;
-      } else {
-        lineNum++;
-      }
-    }
-
-    return ranges;
-  }
-
   /**
    * Check if a line represents an entity boundary
    */
@@ -516,75 +454,6 @@ export class PredicateUtils {
            trimmedLine.startsWith(':- end_object') ||
            trimmedLine.startsWith(':- end_protocol') ||
            trimmedLine.startsWith(':- end_category');
-  }
-
-  /**
-   * Check if a line is a clause for a different predicate or non-terminal
-   */
-  private static isDifferentPredicateClause(lineText: string, predicateName: string, isNonTerminal: boolean = false): boolean {
-    const trimmedLine = lineText.trim();
-
-    // Skip comments, empty lines, and directives - these don't count as different predicates
-    if (trimmedLine.startsWith('%') || trimmedLine === '' || trimmedLine.startsWith(':-') ||
-        trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
-      return false;
-    }
-
-    // Skip lines that are clearly clause body content
-    if (trimmedLine.startsWith(',') || trimmedLine.startsWith(';')) {
-      return false;
-    }
-
-    // Skip lines with significant indentation (likely clause body content)
-    // Predicate clauses typically start at column 0 or with minimal indentation (1-4 spaces)
-    if (/^\s{8,}/.test(lineText)) {
-      return false;
-    }
-
-    // Check if this starts a predicate clause or non-terminal rule
-    if (isNonTerminal) {
-      // For non-terminals, look for pattern: name(...) --> or name -->
-      const nonTerminalPattern = /^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(.*\))?\s*-->/;
-      const match = lineText.match(nonTerminalPattern);
-
-      if (match) {
-        const foundNonTerminalName = match[1];
-        // Only return true if it's a different non-terminal (not our target non-terminal)
-        return foundNonTerminalName !== predicateName;
-      }
-    } else {
-      // For predicates, look for pattern: name(...) :- or name(...)
-      const clausePattern = /^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(.*\))?(\s*:-|\.)/;
-      const match = lineText.match(clausePattern);
-
-      if (match) {
-        const foundPredicateName = match[1];
-        // Only return true if it's a different predicate (not our target predicate)
-        return foundPredicateName !== predicateName;
-      }
-    }
-
-    // If it doesn't match a predicate/non-terminal clause pattern, it's not a different one
-    return false;
-  }
-
-  /**
-   * Check if a line is a clause for the specified predicate or non-terminal
-   */
-  private static isPredicateClause(lineText: string, predicateName: string, isNonTerminal: boolean = false): boolean {
-    if (isNonTerminal) {
-      // A non-terminal rule starts with the non-terminal name followed by optional ( and then -->
-      const nonTerminalPattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}\\s*(\\(.*\\)?\\s*)?-->`);
-      return nonTerminalPattern.test(lineText);
-    } else {
-      // A predicate clause starts with the predicate name followed by:
-      // - ( for predicates with arguments
-      // - :- for rules
-      // - . for facts without arguments (arity 0)
-      // - whitespace followed by . for facts without arguments
-      const clausePattern = new RegExp(`^\\s*${this.escapeRegex(predicateName)}\\s*[\\(:-]|^\\s*${this.escapeRegex(predicateName)}\\s*\\.`);
-      return clausePattern.test(lineText);
-    }
   }
 
   /**
@@ -608,10 +477,6 @@ export class PredicateUtils {
     // If no period found, return the start line
     return startLine;
   }
-
-
-
-
 
   /**
    * Finds the range of a predicate call in a grammar rule starting at the given position
@@ -767,14 +632,14 @@ export class PredicateUtils {
   }
 
   /**
-   * Find consecutive clause ranges for a predicate/non-terminal with arity checking
+   * Find consecutive predicate clause ranges for a predicate/non-terminal with arity checking
    * This is used for test coverage to find all clauses of a specific predicate/arity
    * @param document The document to search
    * @param predicateIndicator The predicate indicator (name/arity or name//arity)
    * @param startLine The line number where the first clause is located
    * @returns Array of ranges for consecutive clauses
    */
-  static findConsecutiveClauseRanges(
+  static findConsecutivePredicateClauseRanges(
     document: TextDocument,
     predicateIndicator: string,
     startLine: number
