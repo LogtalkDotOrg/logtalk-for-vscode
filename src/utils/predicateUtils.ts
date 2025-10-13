@@ -748,6 +748,11 @@ export class PredicateUtils {
     const trimmed = headPart.trim();
     const escapedName = this.escapeRegex(predicateName);
 
+    // Verify that this is actually a non-terminal if isNonTerminal is true
+    if (isNonTerminal && !clauseHead.includes('-->')) {
+      return false;
+    }
+
     // Check for multifile clause: Entity::predicate(...)
     const multifileMatch = trimmed.match(/^\s*([a-zA-Z_][a-zA-Z0-9_]*)(\(.+\))?::/);
     if (multifileMatch) {
@@ -762,6 +767,7 @@ export class PredicateUtils {
 
   /**
    * Check if text matches a predicate/non-terminal with the expected arity
+   * Note: For non-terminals, the caller should verify that --> is present in the full clause
    */
   private static matchesPredicateWithArity(
     text: string,
@@ -769,40 +775,21 @@ export class PredicateUtils {
     expectedArity: number,
     isNonTerminal: boolean
   ): boolean {
-    if (isNonTerminal) {
-      // Match: name(...) --> or name -->
-      const match = text.match(new RegExp(`^\\s*${escapedPredicateName}\\s*(\\()?`));
-      if (!match) {
-        return false;
-      }
-
-      const hasArgs = match[1] === '(';
-      if (!hasArgs) {
-        return expectedArity === 0 && text.includes('-->');
-      }
-
-      // Count arguments
-      const openParenPos = match[0].length - 1;
-      const arity = this.countArityAtPosition(text, openParenPos);
-      return arity === expectedArity && text.includes('-->');
-    } else {
-      // Match: name(...) or name. or name :-
-      const match = text.match(new RegExp(`^\\s*${escapedPredicateName}\\s*(\\()?`));
-      if (!match) {
-        return false;
-      }
-
-      const hasArgs = match[1] === '(';
-      if (!hasArgs) {
-        // Check for name. or name :-
-        return expectedArity === 0 && (text.includes('.') || text.includes(':-'));
-      }
-
-      // Count arguments
-      const openParenPos = match[0].length - 1;
-      const arity = this.countArityAtPosition(text, openParenPos);
-      return arity === expectedArity;
+    // Match: name(...) or name
+    const match = text.match(new RegExp(`^\\s*${escapedPredicateName}\\s*(\\()?`));
+    if (!match) {
+      return false;
     }
+
+    const hasArgs = match[1] === '(';
+    if (!hasArgs) {
+      return expectedArity === 0;
+    }
+
+    // Count arguments
+    const openParenPos = match[0].length - 1;
+    const arity = this.countArityAtPosition(text, openParenPos);
+    return arity === expectedArity;
   }
 
   /**
