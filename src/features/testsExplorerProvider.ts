@@ -903,12 +903,18 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const fileId = fileUri.toString();
       expectedTestIds.add(fileId);
 
+      // Compute relative path from workspace folder for the label
+      const workspaceFolder = workspace.getWorkspaceFolder(fileUri);
+      const fileLabel = workspaceFolder
+        ? workspace.asRelativePath(fileUri, false)
+        : path.basename(filePath);
+
       // Get or create file-level test item
       let fileItem = this.testItems.get(fileId);
       if (!fileItem) {
         fileItem = this.controller.createTestItem(
           fileId,
-          path.basename(filePath),
+          fileLabel,
           fileUri
         );
         this.controller.items.add(fileItem);
