@@ -765,4 +765,194 @@ export class PredicateUtils {
   private static escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
+
+  /**
+   * Find consecutive clause ranges for a predicate/non-terminal with arity checking
+   * This is used for test coverage to find all clauses of a specific predicate/arity
+   * @param document The document to search
+   * @param predicateIndicator The predicate indicator (name/arity or name//arity)
+   * @param startLine The line number where the first clause is located
+   * @returns Array of ranges for consecutive clauses
+   */
+  static findConsecutiveClauseRanges(
+    document: TextDocument,
+    predicateIndicator: string,
+    startLine: number
+  ): Range[] {
+    const ranges: Range[] = [];
+    const isNonTerminal = predicateIndicator.includes('//');
+    const separator = isNonTerminal ? '//' : '/';
+    const parts = predicateIndicator.split(separator);
+
+    if (parts.length !== 2) {
+      return ranges;
+    }
+
+    const predicateName = parts[0];
+    const expectedArity = parseInt(parts[1], 10);
+
+    if (isNaN(expectedArity)) {
+      return ranges;
+    }
+
+    let lineNum = startLine;
+    while (lineNum < document.lineCount) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Stop at directives
+      if (trimmedLine.startsWith(':-')) {
+        break;
+      }
+
+      // Stop at entity boundaries
+      if (this.isEntityBoundary(trimmedLine)) {
+        break;
+      }
+
+      // Skip comments and empty lines
+      if (trimmedLine.startsWith('%') || trimmedLine === '' ||
+          trimmedLine.startsWith('/*') || trimmedLine.startsWith('*') || trimmedLine.startsWith('*/')) {
+        lineNum++;
+        continue;
+      }
+
+      // Check if this line is a clause for our predicate with the correct arity
+      if (this.isClauseForPredicateWithArity(lineText, predicateName, expectedArity, isNonTerminal)) {
+        const clauseEndLine = this.findClauseEndLine(document, lineNum);
+        ranges.push(new Range(
+          new Position(lineNum, 0),
+          new Position(clauseEndLine, document.lineAt(clauseEndLine).text.length)
+        ));
+        lineNum = clauseEndLine + 1;
+      } else {
+        // Different predicate or different arity - stop
+        break;
+      }
+    }
+
+    return ranges;
+  }
+
+  /**
+   * Check if a line is a clause for a specific predicate/non-terminal with the expected arity
+   */
+  private static isClauseForPredicateWithArity(
+    lineText: string,
+    predicateName: string,
+    expectedArity: number,
+    isNonTerminal: boolean
+  ): boolean {
+    const trimmed = lineText.trim();
+    const escapedName = this.escapeRegex(predicateName);
+
+    // Check for multifile clause: Entity::predicate(...)
+    const multifileMatch = trimmed.match(/^\s*([a-zA-Z_][a-zA-Z0-9_]*)(\(.+\))?::/);
+    if (multifileMatch) {
+      // Extract part after ::
+      const afterDoubleColon = trimmed.substring(trimmed.indexOf('::') + 2).trim();
+      return this.matchesPredicateWithArity(afterDoubleColon, escapedName, expectedArity, isNonTerminal);
+    }
+
+    // Regular clause
+    return this.matchesPredicateWithArity(trimmed, escapedName, expectedArity, isNonTerminal);
+  }
+
+  /**
+   * Check if text matches a predicate/non-terminal with the expected arity
+   */
+  private static matchesPredicateWithArity(
+    text: string,
+    escapedPredicateName: string,
+    expectedArity: number,
+    isNonTerminal: boolean
+  ): boolean {
+    if (isNonTerminal) {
+      // Match: name(...) --> or name -->
+      const match = text.match(new RegExp(`^\\s*${escapedPredicateName}\\s*(\\()?`));
+      if (!match) {
+        return false;
+      }
+
+      const hasArgs = match[1] === '(';
+      if (!hasArgs) {
+        return expectedArity === 0 && text.includes('-->');
+      }
+
+      // Count arguments
+      const openParenPos = match[0].length - 1;
+      const arity = this.countArityAtPosition(text, openParenPos);
+      return arity === expectedArity && text.includes('-->');
+    } else {
+      // Match: name(...) or name. or name :-
+      const match = text.match(new RegExp(`^\\s*${escapedPredicateName}\\s*(\\()?`));
+      if (!match) {
+        return false;
+      }
+
+      const hasArgs = match[1] === '(';
+      if (!hasArgs) {
+        // Check for name. or name :-
+        return expectedArity === 0 && (text.includes('.') || text.includes(':-'));
+      }
+
+      // Count arguments
+      const openParenPos = match[0].length - 1;
+      const arity = this.countArityAtPosition(text, openParenPos);
+      return arity === expectedArity;
+    }
+  }
+
+  /**
+   * Count the arity of a predicate/non-terminal at a given position
+   */
+  private static countArityAtPosition(text: string, openParenPos: number): number {
+    if (openParenPos >= text.length || text[openParenPos] !== '(') {
+      return 0;
+    }
+
+    // Find matching closing parenthesis
+    let depth = 0;
+    let closeParenPos = -1;
+
+    for (let i = openParenPos; i < text.length; i++) {
+      const char = text[i];
+      if (char === '(' || char === '[' || char === '{') {
+        depth++;
+      } else if (char === ')' || char === ']' || char === '}') {
+        depth--;
+        if (depth === 0 && char === ')') {
+          closeParenPos = i;
+          break;
+        }
+      }
+    }
+
+    if (closeParenPos === -1) {
+      return 0;
+    }
+
+    // Extract arguments and count them
+    const argsText = text.substring(openParenPos + 1, closeParenPos).trim();
+    if (argsText === '') {
+      return 0;
+    }
+
+    // Count commas at depth 0
+    depth = 0;
+    let count = 1;
+
+    for (let i = 0; i < argsText.length; i++) {
+      const char = argsText[i];
+      if (char === '(' || char === '[' || char === '{') {
+        depth++;
+      } else if (char === ')' || char === ']' || char === '}') {
+        depth--;
+      } else if (char === ',' && depth === 0) {
+        count++;
+      }
+    }
+
+    return count;
+  }
 }

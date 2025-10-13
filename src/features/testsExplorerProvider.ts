@@ -50,13 +50,16 @@ import {
   CancellationToken,
   FileCoverage,
   StatementCoverage,
-  DeclarationCoverage
+  DeclarationCoverage,
+  TextDocument
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 import { getLogger } from "../utils/logger";
 import LogtalkTerminal from "./logtalkTerminal";
+import { PredicateUtils } from "../utils/predicateUtils";
+import { ArgumentUtils } from "../utils/argumentUtils";
 
 interface TestResultData {
   file: string;
@@ -85,6 +88,7 @@ interface CoverageData {
   line: number;
   covered: number;
   total: number;
+  coveredIndexes: number[]; // List of covered clause indexes (1-based)
 }
 
 export class LogtalkTestsExplorerProvider implements Disposable {
@@ -427,8 +431,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const summaryRegex = /File:(.+?);Line:(\d+);Object:(.+?);Status:(.+)/i;
 
       // Parse coverage data
-      // Format: File:<path>;Line:<line>;Status:Tests clause coverage: <covered>/<total>
-      const coverageRegex = /File:(.+?);Line:(\d+);Status:Tests clause coverage: (\d+)\/(\d+)/i;
+      // Format: File:<path>;Line:<line>;Status:Tests clause coverage: <covered>/<total> - (all) or [1,2,3]
+      const coverageRegex = /File:(.+?);Line:(\d+);Status:Tests clause coverage: (\d+)\/(\d+)(?:\s*-\s*(.+))?/i;
 
       const testResults: TestResultData[] = [];
       const summaryResults: TestSummaryData[] = [];
@@ -460,11 +464,31 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
         const coverageMatch = line.match(coverageRegex);
         if (coverageMatch) {
+          const covered = parseInt(coverageMatch[3]);
+          const total = parseInt(coverageMatch[4]);
+          const clauseInfo = coverageMatch[5]; // "(all)" or "[1,2,3]" or undefined
+
+          let coveredIndexes: number[] = [];
+
+          if (clauseInfo) {
+            if (clauseInfo.trim() === '(all)') {
+              // All clauses are covered - generate array [1, 2, ..., total]
+              coveredIndexes = Array.from({ length: total }, (_, i) => i + 1);
+            } else {
+              // Parse the array of covered indexes: [1,2,3]
+              const match = clauseInfo.match(/\[([0-9,\s]+)\]/);
+              if (match) {
+                coveredIndexes = match[1].split(',').map(s => parseInt(s.trim()));
+              }
+            }
+          }
+
           coverageResults.push({
             file: coverageMatch[1],
             line: parseInt(coverageMatch[2]),
-            covered: parseInt(coverageMatch[3]),
-            total: parseInt(coverageMatch[4])
+            covered,
+            total,
+            coveredIndexes
           });
         }
       }
@@ -643,49 +667,168 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.logger.debug(`Found ${coverages.length} coverage entries for file`);
 
-    // Read the file to get actual line content
-    let fileContent: string;
+    // Open the document
+    let document: TextDocument;
     try {
-      const document = await workspace.openTextDocument(fileCoverage.uri);
-      fileContent = document.getText();
+      document = await workspace.openTextDocument(fileCoverage.uri);
     } catch (error) {
       this.logger.error(`Failed to open document for detailed coverage: ${fileCoverage.uri.fsPath}`, error);
       return [];
     }
 
-    const lines = fileContent.split('\n');
-
     // Create statement coverage array
     const statementCoverage: StatementCoverage[] = [];
+
     for (const coverage of coverages) {
-      // Create a range that covers the entire line
       const lineNumber = coverage.line - 1;
 
       // Validate line number
-      if (lineNumber < 0 || lineNumber >= lines.length) {
+      if (lineNumber < 0 || lineNumber >= document.lineCount) {
         this.logger.warn(`Invalid line number ${coverage.line} for file ${fileCoverage.uri.fsPath}`);
         continue;
       }
 
-      const lineText = lines[lineNumber];
-      const lineLength = lineText.length;
+      // Skip if total is 0 (dynamic predicates with no clauses)
+      if (coverage.total === 0) {
+        this.logger.debug(`Skipping line ${coverage.line}: total clauses is 0 (dynamic predicate)`);
+        continue;
+      }
 
-      const startPosition = new Position(lineNumber, 0);
-      const endPosition = new Position(lineNumber, lineLength);
-      const range = new Range(startPosition, endPosition);
+      const lineText = document.lineAt(lineNumber).text;
+      this.logger.debug(`Processing coverage for line ${coverage.line}: covered=${coverage.covered}, total=${coverage.total}, indexes=[${coverage.coveredIndexes.join(',')}]`);
 
-      // If covered === total, the clause is fully covered (executed count > 0)
-      // If covered !== total, the clause is not fully covered (execution count = 0)
-      const executionCount = coverage.covered === coverage.total ? 1 : 0;
+      // Parse the predicate/non-terminal indicator from the line
+      const predicateIndicator = this.parsePredicateIndicatorFromLine(lineText);
+      if (!predicateIndicator) {
+        this.logger.warn(`Could not parse predicate indicator from line ${coverage.line}: "${lineText.trim()}"`);
+        continue;
+      }
 
-      this.logger.debug(`Line ${coverage.line}: covered=${coverage.covered}, total=${coverage.total}, executionCount=${executionCount}, range=${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}, lineText="${lineText.trim()}"`);
+      this.logger.debug(`Parsed predicate indicator: ${predicateIndicator}`);
 
-      // Add statement coverage
-      statementCoverage.push(new StatementCoverage(executionCount, range));
+      // Find all consecutive clauses for this predicate/non-terminal
+      const clauseRanges = PredicateUtils.findConsecutiveClauseRanges(
+        document,
+        predicateIndicator,
+        lineNumber
+      );
+
+      this.logger.debug(`Found ${clauseRanges.length} consecutive clauses for ${predicateIndicator}`);
+
+      // Mark each clause as covered or not covered
+      for (let i = 0; i < clauseRanges.length; i++) {
+        const clauseIndex = i + 1; // 1-based index
+        const isClauseCovered = coverage.coveredIndexes.includes(clauseIndex);
+        const executionCount = isClauseCovered ? 1 : 0;
+
+        this.logger.debug(`Clause ${clauseIndex} at lines ${clauseRanges[i].start.line + 1}-${clauseRanges[i].end.line + 1}: ${isClauseCovered ? 'covered' : 'not covered'}`);
+
+        statementCoverage.push(new StatementCoverage(executionCount, clauseRanges[i]));
+      }
     }
 
     this.logger.debug(`Loaded ${statementCoverage.length} coverage items`);
     return statementCoverage;
+  }
+
+  /**
+   * Parse predicate/non-terminal indicator from a clause head line
+   * @param lineText - The line text containing the clause head
+   * @returns The predicate indicator (name/arity or name//arity) or null if not found
+   */
+  private parsePredicateIndicatorFromLine(lineText: string): string | null {
+    const trimmed = lineText.trim();
+
+    // Check for DCG rule (non-terminal)
+    const dcgMatch = trimmed.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\()?/);
+    if (dcgMatch && trimmed.includes('-->')) {
+      const name = dcgMatch[1].replace(/^'|'$/g, '');
+      const hasArgs = dcgMatch[2] === '(';
+      if (hasArgs) {
+        const openParenPos = dcgMatch[0].length - 1;
+        const closeParenPos = ArgumentUtils.findMatchingCloseParen(trimmed, openParenPos);
+        if (closeParenPos === -1) {
+          return null;
+        }
+        const args = trimmed.substring(openParenPos, closeParenPos + 1);
+        const arity = this.countArguments(args);
+        return `${name}//${arity}`;
+      } else {
+        return `${name}//0`;
+      }
+    }
+
+    // Check for multifile clause: Entity::predicate(...)
+    const multifileMatch = trimmed.match(/^([a-zA-Z_][a-zA-Z0-9_]*)(\(.+\))?::([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\()?/);
+    if (multifileMatch) {
+      const name = multifileMatch[3].replace(/^'|'$/g, '');
+      const hasArgs = multifileMatch[4] === '(';
+      if (hasArgs) {
+        const openParenPos = trimmed.indexOf('::', multifileMatch[1].length) + 2 + multifileMatch[3].length;
+        const actualOpenParenPos = trimmed.indexOf('(', openParenPos);
+        const closeParenPos = ArgumentUtils.findMatchingCloseParen(trimmed, actualOpenParenPos);
+        if (closeParenPos === -1) {
+          return null;
+        }
+        const args = trimmed.substring(actualOpenParenPos, closeParenPos + 1);
+        const arity = this.countArguments(args);
+        return `${name}/${arity}`;
+      } else {
+        return `${name}/0`;
+      }
+    }
+
+    // Check for regular predicate clause
+    const predicateMatch = trimmed.match(/^([a-z][a-zA-Z0-9_]*|'[^']*')\s*(\()?/);
+    if (predicateMatch) {
+      const name = predicateMatch[1].replace(/^'|'$/g, '');
+      const hasArgs = predicateMatch[2] === '(';
+      if (hasArgs) {
+        const openParenPos = predicateMatch[0].length - 1;
+        const closeParenPos = ArgumentUtils.findMatchingCloseParen(trimmed, openParenPos);
+        if (closeParenPos === -1) {
+          return null;
+        }
+        const args = trimmed.substring(openParenPos, closeParenPos + 1);
+        const arity = this.countArguments(args);
+        return `${name}/${arity}`;
+      } else {
+        return `${name}/0`;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Count the number of arguments in a parenthesized argument list
+   * @param argsText - The argument list text including parentheses, e.g., "(X, Y, Z)"
+   * @returns The number of arguments
+   */
+  private countArguments(argsText: string): number {
+    // Remove outer parentheses
+    const inner = argsText.substring(1, argsText.length - 1).trim();
+
+    if (inner === '') {
+      return 0;
+    }
+
+    // Count commas at depth 0
+    let depth = 0;
+    let count = 1;
+
+    for (let i = 0; i < inner.length; i++) {
+      const char = inner[i];
+      if (char === '(' || char === '[' || char === '{') {
+        depth++;
+      } else if (char === ')' || char === ']' || char === '}') {
+        depth--;
+      } else if (char === ',' && depth === 0) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   /**
