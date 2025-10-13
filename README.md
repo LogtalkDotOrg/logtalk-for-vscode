@@ -133,9 +133,10 @@ Project (workspace) commands can be triggered from the command palette by typing
 
 |                         Command | Description                                                        |
 | ------------------------------: | :----------------------------------------------------------------- |
-|                    Open Logtalk | Opens Logtalk in an integrated terminal                            |
 |                  Create Project | Creates a new project with renamed copies of the sample files      |
 |                    Load Project | Loads the loader file found in the workspace root folder           |
+|                    Open Logtalk | Opens Logtalk in an integrated terminal                            |
+|                            Make | Sub-menu with available make targets                               |
 |          Scan Project Dead Code | Recursively scans the workspace root folder for dead code          |
 |         Compute Project Metrics | Recursively computes metrics for the workspace root folder         |
 |  Generate Project Documentation | Recursively generates documentation for the workspace root folder  |
@@ -157,22 +158,24 @@ There are also "Test Documentation Cache" add "Refresh Documentation Cache" comm
 
 These commands can be triggered from the editor/context menu via right-click in the editor area. These commands can also be triggered from the command palette assuming there's an active editor window.
 
-|                 Command | Description                                                         |
-| ----------------------: | :------------------------------------------------------------------ |
-|          Load Directory | Loads the current directory loader file into the Logtalk process    |
-|               Load File | Loads the active source file into the Logtalk process               |
-|         Compute Metrics | Computes metrics for all files in the active source file directory  |
-|               Run Tests | Loads the tester file under the active source file directory        |
-|        Toggle Code Lens | Toggles code lens of test results and cyclomatic complexity         |
-|              Run Doclet | Loads the doclet file under the active source file directory        |
-|          Scan Dead Code | Scans the active source file directory for dead code                |
-|  Generate Documentation | Generates documentation for the active source file directory        |
-|       Generate Diagrams | Generates diagrams for the active source file directory             |
-|        Open Parent File | Opens the file that loaded the active source file if any            |
+|                 Command | Description                                                                      |
+| ----------------------: | :------------------------------------------------------------------------------- |
+|          Load Directory | Loads the current directory loader file into the Logtalk process                 |
+|               Load File | Loads the active source file into the Logtalk process                            |
+|        Open Parent File | Opens the file that loaded the active source file if any                         |
+|                    Make | Sub-menu with available make targets                                             |
+|          Scan Dead Code | Scans the active source file directory for dead code                             |
+|         Compute Metrics | Computes metrics for all files in the active source file directory               |
+|  Generate Documentation | Generates documentation for the active source file directory                     |
+|       Generate Diagrams | Generates diagrams for the active source file directory                          |
+|               Run Tests | Loads the tester file under the active source file directory                     |
+| Run Tests with Coverage | Loads the tester file under the active source file directory and report coverage |
+|              Run Doclet | Loads the doclet file under the active source file directory                     |
+|        Toggle Code Lens | Toggles code lens of test results and cyclomatic complexity                      |
 
 The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Tests" command looks for a `tester.lgt` or `tester.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Doclet" command looks for a `doclet.lgt` or `doclet.logtalk` file in the directory of the selected file, printing a warning if not found.
 
-The "Run Tests" command adds failed tests to the "PROBLEMS" pane. Quick fixes are provided for some test definition warnings.
+The "Run Tests" and "Run Tests with Coverage" commands adds failed tests to the "PROBLEMS" pane. Quick fixes are provided for some test definition warnings.
 
 The "Scan Dead Code" command adds dead code warnings to the "PROBLEMS" pane. Quick fixes are provided for some dead code warnings.
 
@@ -315,7 +318,9 @@ VSCode usability issues that affect debugging support:
 
 ### Testing support
 
-Experimental support for the VS Code Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" command at least once, the "Testing" pane shows all the test results, including code coverage information when available. Alternatively, you can also click in the "Run Tests" button at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run. When available, code coverage information is also shown in the covered source files. Note that coverage data is per predicate clause (or non-terminal rule). Clauses used by the tests will be marked using a green color overlay in the gutter while clauses not used by the tests will be marked using a red color overlay.
+Experimental support for the VS Code Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" or "Logtalk: Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run. When available, code coverage information is also shown in the covered source files. Note that coverage data is per predicate clause (or non-terminal rule). Clauses used by the tests will be marked using a green color overlay in the gutter while clauses not used by the tests will be marked using a red color overlay. Use the editor window "Toggle Inline Coverage" button to toggle the coverage overlay.
+
+Note that collecting code coverage data depends solely on the tests being run. The option between running tests with or without coverage is only used to determine whether to display coverage data when available.
 
 ### Hover contents
 

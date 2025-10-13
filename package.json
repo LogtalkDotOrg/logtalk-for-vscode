@@ -128,6 +128,10 @@
                 "title": "Logtalk: Run Tests"
             },
             {
+                "command": "logtalk.run.tests.coverage",
+                "title": "Logtalk: Run Tests with Coverage"
+            },
+            {
                 "command": "logtalk.scan.deadCode",
                 "title": "Logtalk: Scan Dead Code"
             },
@@ -286,9 +290,14 @@
                     "group": "directory_4@1"
                 },
                 {
-                    "command": "logtalk.run.doclet",
+                    "command": "logtalk.run.tests.coverage",
                     "when": "resourceLangId == logtalk",
                     "group": "directory_4@2"
+                },
+                {
+                    "command": "logtalk.run.doclet",
+                    "when": "resourceLangId == logtalk",
+                    "group": "directory_4@3"
                 },
                 {
                     "submenu": "jupytersubmenu",

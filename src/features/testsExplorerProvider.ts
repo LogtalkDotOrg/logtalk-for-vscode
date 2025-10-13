@@ -50,7 +50,6 @@ import {
   CancellationToken,
   FileCoverage,
   StatementCoverage,
-  DeclarationCoverage,
   TextDocument
 } from "vscode";
 import * as path from "path";
@@ -93,6 +92,7 @@ interface CoverageData {
 
 export class LogtalkTestsExplorerProvider implements Disposable {
   public runProfile: TestRunProfile;
+  public coverageProfile: TestRunProfile;
   private controller: TestController;
   private testItems: Map<string, TestItem> = new Map();
   private testItemMetadata: WeakMap<TestItem, TestItemMetadata> = new WeakMap();
@@ -138,26 +138,41 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.disposables.push(this.controller);
 
-    // Create a run profile for running tests with coverage
+    // Create a run profile for running tests without coverage
     this.runProfile = this.controller.createRunProfile(
       'Run',
-      TestRunProfileKind.Coverage,
+      TestRunProfileKind.Run,
       async (request, token) => {
-        this.logger.debug('Run profile handler called');
+        this.logger.debug('Run profile handler called (no coverage)');
         this.logger.debug(`request.include: ${request.include ? 'defined' : 'undefined'}`);
         this.logger.debug(`Number of controller items: ${this.controller.items.size}`);
-        await this.runTests(request, token);
+        await this.runTests(request, token, false); // false = no coverage
       },
       true // isDefault
     );
 
+    this.disposables.push(this.runProfile);
+
+    // Create a coverage profile for running tests with coverage
+    this.coverageProfile = this.controller.createRunProfile(
+      'Coverage',
+      TestRunProfileKind.Coverage,
+      async (request, token) => {
+        this.logger.debug('Coverage profile handler called');
+        this.logger.debug(`request.include: ${request.include ? 'defined' : 'undefined'}`);
+        this.logger.debug(`Number of controller items: ${this.controller.items.size}`);
+        await this.runTests(request, token, true); // true = with coverage
+      },
+      false // not default
+    );
+
     // Set up coverage loading callback
-    this.runProfile.loadDetailedCoverage = async (testRun, fileCoverage, token) => {
+    this.coverageProfile.loadDetailedCoverage = async (testRun, fileCoverage, token) => {
       this.logger.debug(`loadDetailedCoverage called for ${fileCoverage.uri.fsPath}`);
       return await this.loadDetailedCoverage(fileCoverage);
     };
 
-    this.disposables.push(this.runProfile);
+    this.disposables.push(this.coverageProfile);
 
     // Clean up any old test result files from previous sessions
     this.cleanupOldTestResultFiles();
@@ -184,11 +199,13 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * and from CodeLens/context menu (via ViaProfile methods in LogtalkTerminal)
    * @param request - The test run request
    * @param token - Optional cancellation token
+   * @param withCoverage - Whether to collect and report coverage data (default: false)
    * @param uri - Optional URI for running tests from a specific file/directory (used by ViaProfile methods)
    */
-  public async runTests(request: TestRunRequest, token?: CancellationToken, uri?: Uri): Promise<void> {
+  public async runTests(request: TestRunRequest, token?: CancellationToken, withCoverage: boolean = false, uri?: Uri): Promise<void> {
     this.logger.debug('runTests method called');
     this.logger.debug(`request.include is ${request.include ? 'defined' : 'undefined'}`);
+    this.logger.debug(`withCoverage: ${withCoverage}`);
     this.logger.debug(`uri is ${uri ? 'provided: ' + uri.fsPath : 'not provided'}`);
 
     // Create a test run for this execution
@@ -216,7 +233,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           const resultsFilePath = path.join(dir0, '.vscode_test_results');
           if (fs.existsSync(resultsFilePath)) {
             this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-            await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+            await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
           }
 
           testRun.end();
@@ -263,7 +280,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             const resultsFilePath = path.join(dir0, '.vscode_test_results');
             if (fs.existsSync(resultsFilePath)) {
               this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-              await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+              await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
             }
           }
         } else {
@@ -279,7 +296,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             const resultsFilePath = path.join(dir0, '.vscode_test_results');
             if (fs.existsSync(resultsFilePath)) {
               this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-              await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+              await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
             }
           }
         }
@@ -318,7 +335,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
               }
               break;
 
@@ -330,7 +347,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
               }
               break;
 
@@ -342,7 +359,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun);
+                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
               }
               break;
           }
@@ -412,8 +429,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * Parse a .vscode_test_results file and create/update test items
    * @param uri - URI of the results file to parse
    * @param testRun - Optional test run to update with results. If not provided, a new test run will be created.
+   * @param withCoverage - Whether to process and report coverage data (default: false)
    */
-  private async parseTestResultFile(uri: Uri, testRun?: TestRun): Promise<void> {
+  private async parseTestResultFile(uri: Uri, testRun?: TestRun, withCoverage: boolean = false): Promise<void> {
     if (!fs.existsSync(uri.fsPath)) {
       return;
     }
@@ -499,7 +517,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       // Update the test run with results and coverage
       if (testRun) {
         // Update coverage data BEFORE updating test results (which ends the run)
-        if (coverageResults.length > 0) {
+        // Only process coverage if withCoverage is true
+        if (withCoverage && coverageResults.length > 0) {
           this.updateCoverageFromResults(coverageResults, testRun);
         }
 

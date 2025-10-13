@@ -1530,7 +1530,20 @@ export default class LogtalkTerminal {
     // Import TestRunRequest
     const vscode = require('vscode');
     const request = new vscode.TestRunRequest(undefined, undefined, testsExplorerProvider.runProfile, true); // Run all tests
-    await testsExplorerProvider.runTests(request, undefined, uri); // Pass URI as third parameter
+    await testsExplorerProvider.runTests(request, undefined, false, uri); // Pass withCoverage=false, URI as fourth parameter
+  }
+
+  public static async runAllTestsWithCoverageViaProfile(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
+    if (!testsExplorerProvider) {
+      // Fallback to direct execution if no provider
+      await LogtalkTerminal.runAllTests(uri, linter, testsReporter);
+      return;
+    }
+
+    // Import TestRunRequest
+    const vscode = require('vscode');
+    const request = new vscode.TestRunRequest(undefined, undefined, testsExplorerProvider.coverageProfile, true); // Run all tests with coverage
+    await testsExplorerProvider.runTests(request, undefined, true, uri); // Pass withCoverage=true, URI as fourth parameter
   }
 
   public static async runFileTestsViaProfile(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
