@@ -833,29 +833,15 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * @returns The number of arguments
    */
   private countArguments(argsText: string): number {
-    // Remove outer parentheses
+    // Remove outer parentheses and use ArgumentUtils.parseArguments for robust parsing
     const inner = argsText.substring(1, argsText.length - 1).trim();
 
     if (inner === '') {
       return 0;
     }
 
-    // Count commas at depth 0
-    let depth = 0;
-    let count = 1;
-
-    for (let i = 0; i < inner.length; i++) {
-      const char = inner[i];
-      if (char === '(' || char === '[' || char === '{') {
-        depth++;
-      } else if (char === ')' || char === ']' || char === '}') {
-        depth--;
-      } else if (char === ',' && depth === 0) {
-        count++;
-      }
-    }
-
-    return count;
+    const args = ArgumentUtils.parseArguments(inner);
+    return args.length;
   }
 
   /**

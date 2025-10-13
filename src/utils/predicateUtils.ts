@@ -10,6 +10,7 @@ import {
   Range
 } from "vscode";
 import { getLogger } from "./logger";
+import { ArgumentUtils } from "./argumentUtils";
 
 const logger = getLogger();
 
@@ -800,22 +801,8 @@ export class PredicateUtils {
       return 0;
     }
 
-    // Find matching closing parenthesis
-    let depth = 0;
-    let closeParenPos = -1;
-
-    for (let i = openParenPos; i < text.length; i++) {
-      const char = text[i];
-      if (char === '(' || char === '[' || char === '{') {
-        depth++;
-      } else if (char === ')' || char === ']' || char === '}') {
-        depth--;
-        if (depth === 0 && char === ')') {
-          closeParenPos = i;
-          break;
-        }
-      }
-    }
+    // Find matching closing parenthesis using ArgumentUtils (handles quotes, escapes, etc.)
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(text, openParenPos);
 
     if (closeParenPos === -1) {
       return 0;
@@ -827,21 +814,8 @@ export class PredicateUtils {
       return 0;
     }
 
-    // Count commas at depth 0
-    depth = 0;
-    let count = 1;
-
-    for (let i = 0; i < argsText.length; i++) {
-      const char = argsText[i];
-      if (char === '(' || char === '[' || char === '{') {
-        depth++;
-      } else if (char === ')' || char === ']' || char === '}') {
-        depth--;
-      } else if (char === ',' && depth === 0) {
-        count++;
-      }
-    }
-
-    return count;
+    // Use ArgumentUtils.parseArguments for robust parsing
+    const args = ArgumentUtils.parseArguments(argsText);
+    return args.length;
   }
 }
