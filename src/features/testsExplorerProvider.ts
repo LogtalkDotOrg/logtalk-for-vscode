@@ -571,6 +571,44 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   }
 
   /**
+   * Update test item decoration to indicate flakiness
+   * @param testItem - The test item to update
+   * @param status - The test status string
+   */
+  private updateTestItemDecoration(testItem: TestItem, status: string): void {
+    // Check if the status contains "[flaky]" indicator
+    const isFlaky = status.toLowerCase().includes('[flaky]');
+
+    if (isFlaky) {
+      // Add warning triangle emoji (U+26A0) to indicate flakiness
+      const warningTriangle = '⚠️';
+
+      // Set or update the description to include the flaky indicator
+      if (testItem.description) {
+        // If description already exists, prepend the warning if not already present
+        if (!testItem.description.includes(warningTriangle)) {
+          testItem.description = `${warningTriangle} ${testItem.description}`;
+        }
+      } else {
+        // Set description to just the warning triangle
+        testItem.description = warningTriangle;
+      }
+
+      this.logger.debug(`Marked test item as flaky: ${testItem.id}`);
+    } else {
+      // Remove flaky indicator if it exists and test is no longer flaky
+      if (testItem.description && testItem.description.includes('⚠️')) {
+        testItem.description = testItem.description.replace(/⚠️\s*/, '').trim();
+        // If description becomes empty, set it to undefined
+        if (testItem.description === '') {
+          testItem.description = undefined;
+        }
+        this.logger.debug(`Removed flaky indicator from test item: ${testItem.id}`);
+      }
+    }
+  }
+
+  /**
    * Update a test run with test results, or create a new one if not provided
    * @param testResults - Array of test results to update
    * @param testRun - Optional test run to update. If not provided, a new test run will be created and ended.
@@ -626,6 +664,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const testItem = this.testItems.get(testId);
 
       if (testItem) {
+        // Update test item decoration for flaky tests
+        this.updateTestItemDecoration(testItem, result.status);
+
         actualTestRun.started(testItem);
 
         // Update test state based on status
@@ -1133,6 +1174,10 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             new Position(test.line - 1, 0),
             new Position(test.line - 1, 0)
           );
+
+          // Apply flaky decoration if the test status indicates flakiness
+          this.updateTestItemDecoration(testItem, test.status);
+
           objectItem.children.add(testItem);
           this.testItems.set(testId, testItem);
 

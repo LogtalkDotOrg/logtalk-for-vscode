@@ -1,0 +1,6 @@
+File:/Users/pmoura/Documents/Logtalk/logtalk-for-vscode/tests/test_simple_object.lgt;Line:15;Object:test_simple_object;Test:test_basic_functionality;Status:passed
+File:/Users/pmoura/Documents/Logtalk/logtalk-for-vscode/tests/test_simple_object.lgt;Line:20;Object:test_simple_object;Test:test_edge_case;Status:passed [flaky]
+File:/Users/pmoura/Documents/Logtalk/logtalk-for-vscode/tests/test_simple_object.lgt;Line:25;Object:test_simple_object;Test:test_error_handling;Status:failed
+File:/Users/pmoura/Documents/Logtalk/logtalk-for-vscode/tests/test_simple_object.lgt;Line:30;Object:test_simple_object;Test:test_performance;Status:passed [FLAKY]
+File:/Users/pmoura/Documents/Logtalk/logtalk-for-vscode/tests/test_simple_object.lgt;Line:35;Object:test_simple_object;Test:test_integration;Status:failed [Flaky]
+File:/Users/pmoura/Documents/Logtalk/logtalk-for-vscode/tests/test_simple_object.lgt;Line:40;Object:test_simple_object;Test:test_normal;Status:skipped
