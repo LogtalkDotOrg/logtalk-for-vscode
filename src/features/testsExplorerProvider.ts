@@ -76,8 +76,11 @@ interface TestSummaryData {
 }
 
 interface TestItemMetadata {
-  type: 'file' | 'object' | 'test';
+  type: 'workspace' | 'directory' | 'file' | 'object' | 'test';
   fileUri: Uri;
+  resultsFileUri?: Uri; // The .vscode_test_results file this item came from (not applicable for workspace items)
+  workspaceUri?: Uri; // For workspace root items
+  directoryUri?: Uri; // For directory items
   objectName?: string;
   testName?: string;
 }
@@ -96,6 +99,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private controller: TestController;
   private testItems: Map<string, TestItem> = new Map();
   private testItemMetadata: WeakMap<TestItem, TestItemMetadata> = new WeakMap();
+  private workspaceRootItems: Map<string, TestItem> = new Map(); // Workspace root items (one per workspace folder)
   private logger = getLogger();
   private disposables: Disposable[] = [];
   private linter: any; // LogtalkLinter instance
@@ -205,6 +209,13 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   public async runTests(request: TestRunRequest, token?: CancellationToken, withCoverage: boolean = false, uri?: Uri): Promise<void> {
     this.logger.debug('runTests method called');
     this.logger.debug(`request.include is ${request.include ? 'defined' : 'undefined'}`);
+    if (request.include) {
+      this.logger.debug(`request.include length: ${request.include.length}`);
+      request.include.forEach((item, index) => {
+        const metadata = this.testItemMetadata.get(item);
+        this.logger.debug(`  [${index}] id: ${item.id}, label: ${item.label}, type: ${metadata?.type}`);
+      });
+    }
     this.logger.debug(`withCoverage: ${withCoverage}`);
     this.logger.debug(`uri is ${uri ? 'provided: ' + uri.fsPath : 'not provided'}`);
 
@@ -240,63 +251,67 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           return;
         }
 
-        // Collect one representative file from each workspace folder
-        const workspaceFolderUris = new Map<string, Uri>();
+        // Iterate through all workspace items and run tests for their children
+        // Collect all workspace items first, then process them sequentially
+        const workspaceItems: TestItem[] = [];
+        this.controller.items.forEach(item => workspaceItems.push(item));
 
-        this.controller.items.forEach(item => {
-          const metadata = this.testItemMetadata.get(item);
-          this.logger.debug(`Checking item: ${item.id}, metadata type: ${metadata?.type}`);
+        for (const workspaceItem of workspaceItems) {
+          const workspaceMetadata = this.testItemMetadata.get(workspaceItem);
+          this.logger.debug(`Checking workspace item: ${workspaceItem.id}, metadata type: ${workspaceMetadata?.type}`);
 
-          if (metadata && metadata.type === 'file') {
-            // Get the workspace folder for this file
-            const workspaceFolder = workspace.getWorkspaceFolder(metadata.fileUri);
+          if (workspaceMetadata && workspaceMetadata.type === 'workspace') {
+            // Collect all directory items and check if there are file items directly under workspace
+            const directoryItems: TestItem[] = [];
+            let hasDirectFileChildren = false;
 
-            if (workspaceFolder) {
-              const workspaceFolderKey = workspaceFolder.uri.toString();
+            workspaceItem.children.forEach(item => {
+              const itemMetadata = this.testItemMetadata.get(item);
+              if (itemMetadata) {
+                if (itemMetadata.type === 'directory') {
+                  directoryItems.push(item);
+                } else if (itemMetadata.type === 'file') {
+                  hasDirectFileChildren = true;
+                }
+              }
+            });
 
-              // Only add if we haven't seen this workspace folder before
-              if (!workspaceFolderUris.has(workspaceFolderKey)) {
-                workspaceFolderUris.set(workspaceFolderKey, metadata.fileUri);
-                this.logger.debug(`Added file ${metadata.fileUri.fsPath} for workspace folder ${workspaceFolder.name}`);
+            // If workspace has directory children, run tests for each directory (each has a tester file)
+            if (directoryItems.length > 0) {
+              this.logger.info(`Found ${directoryItems.length} directory items in workspace ${workspaceItem.label}`);
+              for (const dirItem of directoryItems) {
+                const dirMetadata = this.testItemMetadata.get(dirItem);
+                if (dirMetadata && dirMetadata.type === 'directory') {
+                  const dirPath = dirMetadata.directoryUri!.fsPath;
+                  this.logger.info(`Running all tests in directory: ${dirPath}`);
+                  await LogtalkTerminal.runAllTests(dirMetadata.directoryUri!, this.linter, this.testsReporter);
+
+                  // Parse results
+                  const dirResultsFilePath = path.join(dirPath, '.vscode_test_results');
+                  if (fs.existsSync(dirResultsFilePath)) {
+                    this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
+                    await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage);
+                  } else {
+                    this.logger.warn(`Results file not found: ${dirResultsFilePath}`);
+                  }
+                }
               }
             }
-          }
-        });
 
-        if (workspaceFolderUris.size > 0) {
-          this.logger.info(`Running tests for ${workspaceFolderUris.size} workspace folder(s)`);
+            // If workspace has file children directly, run tests for the workspace directory itself
+            if (hasDirectFileChildren) {
+              const workspacePath = workspaceMetadata.workspaceUri!.fsPath;
+              this.logger.info(`Running all tests in workspace directory: ${workspacePath}`);
+              await LogtalkTerminal.runAllTests(workspaceMetadata.workspaceUri!, this.linter, this.testsReporter);
 
-          // Run tests for each workspace folder and parse results
-          for (const fileUri of workspaceFolderUris.values()) {
-            this.logger.info(`Running tests for workspace folder with file URI: ${fileUri.fsPath}`);
-
-            // Call LogtalkTerminal directly (not via command)
-            await LogtalkTerminal.runAllTests(fileUri, this.linter, this.testsReporter);
-
-            // Parse results
-            // Check if URI is a directory or file
-            const stats = fs.statSync(fileUri.fsPath);
-            const dir0 = stats.isDirectory() ? fileUri.fsPath : path.dirname(fileUri.fsPath);
-            const resultsFilePath = path.join(dir0, '.vscode_test_results');
-            if (fs.existsSync(resultsFilePath)) {
-              this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-              await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
-            }
-          }
-        } else {
-          this.logger.warn('No test runs so far; running all tests via tester file');
-
-          // Get first workspace folder
-          if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
-            const workspaceUri = workspace.workspaceFolders[0].uri;
-            await LogtalkTerminal.runAllTests(workspaceUri, this.linter, this.testsReporter);
-
-            // Parse results
-            const dir0 = workspaceUri.fsPath;
-            const resultsFilePath = path.join(dir0, '.vscode_test_results');
-            if (fs.existsSync(resultsFilePath)) {
-              this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-              await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
+              // Parse results
+              const workspaceResultsFilePath = path.join(workspacePath, '.vscode_test_results');
+              if (fs.existsSync(workspaceResultsFilePath)) {
+                this.logger.debug(`Parsing results from: ${workspaceResultsFilePath}`);
+                await this.parseTestResultFile(Uri.file(workspaceResultsFilePath), testRun, withCoverage);
+              } else {
+                this.logger.warn(`Results file not found: ${workspaceResultsFilePath}`);
+              }
             }
           }
         }
@@ -327,6 +342,92 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           const resultsFilePath = path.join(dir0, '.vscode_test_results');
 
           switch (metadata.type) {
+            case 'workspace':
+              // Run all tests in the workspace
+              this.logger.info(`Running all tests in workspace: ${metadata.workspaceUri!.fsPath}`);
+
+              // Collect all directory items and check if there are file items directly under workspace
+              const directoryItems: TestItem[] = [];
+              let hasDirectFileChildren = false;
+
+              test.children.forEach(item => {
+                const itemMetadata = this.testItemMetadata.get(item);
+                if (itemMetadata) {
+                  if (itemMetadata.type === 'directory') {
+                    directoryItems.push(item);
+                  } else if (itemMetadata.type === 'file') {
+                    hasDirectFileChildren = true;
+                  }
+                }
+              });
+
+              // If workspace has directory children, run tests for each directory (each has a tester file)
+              if (directoryItems.length > 0) {
+                this.logger.info(`Found ${directoryItems.length} directory items to run tests for`);
+                for (const dirItem of directoryItems) {
+                  const dirMetadata = this.testItemMetadata.get(dirItem);
+                  if (dirMetadata && dirMetadata.type === 'directory') {
+                    const dirPath = dirMetadata.directoryUri!.fsPath;
+                    const testerLgt = path.join(dirPath, 'tester.lgt');
+                    const testerLogtalk = path.join(dirPath, 'tester.logtalk');
+                    this.logger.info(`Running all tests in directory: ${dirPath}`);
+                    this.logger.debug(`Checking for tester files: ${testerLgt} or ${testerLogtalk}`);
+                    this.logger.debug(`tester.lgt exists: ${fs.existsSync(testerLgt)}`);
+                    this.logger.debug(`tester.logtalk exists: ${fs.existsSync(testerLogtalk)}`);
+
+                    await LogtalkTerminal.runAllTests(dirMetadata.directoryUri!, this.linter, this.testsReporter);
+
+                    // Parse results
+                    const dirResultsFilePath = path.join(dirPath, '.vscode_test_results');
+                    if (fs.existsSync(dirResultsFilePath)) {
+                      this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
+                      await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage);
+                    } else {
+                      this.logger.warn(`Results file not found: ${dirResultsFilePath}`);
+                    }
+                  }
+                }
+              }
+
+              // If workspace has file children directly, run tests for the workspace directory itself
+              if (hasDirectFileChildren) {
+                const workspacePath = metadata.workspaceUri!.fsPath;
+                const testerLgt = path.join(workspacePath, 'tester.lgt');
+                const testerLogtalk = path.join(workspacePath, 'tester.logtalk');
+                this.logger.info(`Running all tests in workspace directory: ${workspacePath}`);
+                this.logger.debug(`Checking for tester files: ${testerLgt} or ${testerLogtalk}`);
+                this.logger.debug(`tester.lgt exists: ${fs.existsSync(testerLgt)}`);
+                this.logger.debug(`tester.logtalk exists: ${fs.existsSync(testerLogtalk)}`);
+
+                await LogtalkTerminal.runAllTests(metadata.workspaceUri!, this.linter, this.testsReporter);
+
+                // Parse results
+                const workspaceResultsFilePath = path.join(workspacePath, '.vscode_test_results');
+                if (fs.existsSync(workspaceResultsFilePath)) {
+                  this.logger.debug(`Parsing results from: ${workspaceResultsFilePath}`);
+                  await this.parseTestResultFile(Uri.file(workspaceResultsFilePath), testRun, withCoverage);
+                } else {
+                  this.logger.warn(`Results file not found: ${workspaceResultsFilePath}`);
+                }
+              }
+              break;
+
+            case 'directory':
+              // Run all tests in the directory
+              this.logger.info(`Running all tests in directory: ${metadata.directoryUri!.fsPath}`);
+              await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter);
+
+              // Parse results
+              const dirResultsFilePath = path.join(metadata.directoryUri!.fsPath, '.vscode_test_results');
+              this.logger.debug(`Looking for results file: ${dirResultsFilePath}`);
+              if (fs.existsSync(dirResultsFilePath)) {
+                this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
+                await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage);
+              } else {
+                this.logger.warn(`Results file not found: ${dirResultsFilePath}`);
+              }
+              break;
+
             case 'file':
               // Run all tests in the file
               this.logger.info(`Running all tests in file: ${metadata.fileUri.fsPath}`);
@@ -512,6 +613,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       }
 
       // Create test items from the parsed data
+      this.logger.debug(`Parsed ${testResults.length} test results and ${summaryResults.length} summaries from ${uri.fsPath}`);
       this.createTestItems(testResults, summaryResults, uri);
 
       // Update the test run with results and coverage
@@ -535,7 +637,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   /**
    * Update a test run with test results, or create a new one if not provided
    * @param testResults - Array of test results to update
-   * @param testRun - Optional test run to update. If not provided, a new test run will be created.
+   * @param testRun - Optional test run to update. If not provided, a new test run will be created and ended.
    */
   private updateTestRunFromResults(testResults: TestResultData[], testRun?: TestRun): void {
     this.logger.debug('Updating test run from results');
@@ -559,9 +661,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     // Use provided test run or create a new one
     let actualTestRun: TestRun;
+    let shouldEndRun = false;
     if (testRun) {
       this.logger.debug('Using provided test run');
       actualTestRun = testRun;
+      shouldEndRun = false; // Don't end the run if it was provided - caller will end it
     } else {
       this.logger.debug(`Creating new test run with ${testItemsWithResults.length} test items (fallback)`);
       const request = new TestRunRequest(testItemsWithResults);
@@ -570,6 +674,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         'Logtalk Tests',
         true // persist = true for "Rerun Last Run" functionality
       );
+      shouldEndRun = true; // End the run if we created it
     }
 
     // Enqueue all test items that have results so they appear in the Test Results pane
@@ -604,8 +709,13 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       }
     }
 
-    actualTestRun.end();
-    this.logger.debug('Test run updated and ended');
+    // Only end the test run if we created it ourselves
+    if (shouldEndRun) {
+      actualTestRun.end();
+      this.logger.debug('Test run ended (created by updateTestRunFromResults)');
+    } else {
+      this.logger.debug('Test run updated (will be ended by caller)');
+    }
   }
 
   /**
@@ -615,9 +725,6 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    */
   private updateCoverageFromResults(coverageResults: CoverageData[], testRun: TestRun): void {
     this.logger.debug('Updating coverage from results');
-
-    // Clear previous coverage data
-    this.coverageData.clear();
 
     // Group coverage data by file
     const coverageByFile = new Map<string, CoverageData[]>();
@@ -903,13 +1010,86 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const fileId = fileUri.toString();
       expectedTestIds.add(fileId);
 
-      // Compute relative path from workspace folder for the label
+      // Get workspace folder for this file
       const workspaceFolder = workspace.getWorkspaceFolder(fileUri);
-      const fileLabel = workspaceFolder
-        ? workspace.asRelativePath(fileUri, false)
-        : path.basename(filePath);
+      if (!workspaceFolder) {
+        continue; // Skip files not in a workspace folder
+      }
+
+      const workspacePath = workspaceFolder.uri.fsPath;
+      const workspaceId = workspaceFolder.uri.toString();
+
+      // Get or create workspace root item
+      let workspaceRootItem = this.workspaceRootItems.get(workspaceId);
+      if (!workspaceRootItem) {
+        workspaceRootItem = this.controller.createTestItem(
+          workspaceId,
+          workspaceFolder.name,
+          workspaceFolder.uri
+        );
+        this.controller.items.add(workspaceRootItem);
+        this.workspaceRootItems.set(workspaceId, workspaceRootItem);
+        this.testItems.set(workspaceId, workspaceRootItem);
+        expectedTestIds.add(workspaceId);
+
+        // Store metadata for workspace root item
+        this.testItemMetadata.set(workspaceRootItem, {
+          type: 'workspace',
+          fileUri: workspaceFolder.uri,
+          workspaceUri: workspaceFolder.uri
+        });
+      } else {
+        expectedTestIds.add(workspaceId);
+      }
+
+      // Determine if file is in a subdirectory of the workspace
+      const dirName = path.dirname(filePath);
+      const isInSubdirectory = dirName !== workspacePath;
+
+      // Get or create parent item (either directory under workspace root, or workspace root itself)
+      let parentItem: TestItem = workspaceRootItem;
+
+      if (isInSubdirectory) {
+        // Create directory item as parent
+        const dirUri = Uri.file(dirName);
+        const dirId = dirUri.toString();
+        const dirRelativePath = workspace.asRelativePath(dirUri, false);
+
+        // Always add directory ID to expected IDs (whether it exists or not)
+        expectedTestIds.add(dirId);
+
+        let dirItem = this.testItems.get(dirId);
+        if (!dirItem) {
+          dirItem = this.controller.createTestItem(
+            dirId,
+            dirRelativePath,
+            dirUri
+          );
+          workspaceRootItem.children.add(dirItem);
+          this.testItems.set(dirId, dirItem);
+
+          // Store metadata for directory item
+          this.testItemMetadata.set(dirItem, {
+            type: 'directory',
+            fileUri: dirUri,
+            resultsFileUri: resultsFileUri,
+            directoryUri: dirUri
+          });
+        } else {
+          // Directory item already exists - update its metadata with the new results file
+          const existingMetadata = this.testItemMetadata.get(dirItem);
+          if (existingMetadata) {
+            this.testItemMetadata.set(dirItem, {
+              ...existingMetadata,
+              resultsFileUri: resultsFileUri
+            });
+          }
+        }
+        parentItem = dirItem;
+      }
 
       // Get or create file-level test item
+      const fileLabel = path.basename(filePath);
       let fileItem = this.testItems.get(fileId);
       if (!fileItem) {
         fileItem = this.controller.createTestItem(
@@ -917,14 +1097,38 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           fileLabel,
           fileUri
         );
-        this.controller.items.add(fileItem);
+
+        // Add to parent (workspace root or directory)
+        parentItem.children.add(fileItem);
         this.testItems.set(fileId, fileItem);
 
         // Store metadata for file-level item
         this.testItemMetadata.set(fileItem, {
           type: 'file',
-          fileUri: fileUri
+          fileUri: fileUri,
+          resultsFileUri: resultsFileUri
         });
+      } else {
+        // File item already exists - update its metadata with the new results file
+        const existingMetadata = this.testItemMetadata.get(fileItem);
+        if (existingMetadata) {
+          this.testItemMetadata.set(fileItem, {
+            ...existingMetadata,
+            resultsFileUri: resultsFileUri
+          });
+        }
+
+        // Ensure the file item is in the correct parent
+        if (fileItem.parent !== parentItem) {
+          // Remove from current parent
+          if (fileItem.parent) {
+            fileItem.parent.children.delete(fileItem.id);
+          } else {
+            this.controller.items.delete(fileItem.id);
+          }
+          // Add to new parent
+          parentItem.children.add(fileItem);
+        }
       }
 
       // Clear existing children and rebuild from scratch
@@ -989,6 +1193,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         this.testItemMetadata.set(objectItem, {
           type: 'object',
           fileUri: fileUri,
+          resultsFileUri: resultsFileUri,
           objectName: objectName
         });
 
@@ -1014,6 +1219,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           this.testItemMetadata.set(testItem, {
             type: 'test',
             fileUri: fileUri,
+            resultsFileUri: resultsFileUri,
             objectName: objectName,
             testName: test.test
           });
@@ -1021,14 +1227,48 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       }
     }
 
-    // Remove file items that are no longer in the results
-    this.controller.items.forEach(fileItem => {
-      if (!expectedTestIds.has(fileItem.id)) {
-        this.logger.debug(`Removing file item: ${fileItem.id}`);
-        this.controller.items.delete(fileItem.id);
-        this.testItems.delete(fileItem.id);
+    // Remove items that came from the same results file but are no longer in the results
+    // This handles the case where tests are removed from a file
+    // We need to check workspace -> directory -> file hierarchy
+    const itemsToRemove: TestItem[] = [];
+
+    this.controller.items.forEach(workspaceItem => {
+      const wsMetadata = this.testItemMetadata.get(workspaceItem);
+      if (wsMetadata && wsMetadata.type === 'workspace') {
+        // Check children of workspace (directories and files)
+        workspaceItem.children.forEach(child => {
+          const childMetadata = this.testItemMetadata.get(child);
+          if (childMetadata && childMetadata.resultsFileUri?.toString() === resultsFileUri.toString()) {
+            if (!expectedTestIds.has(child.id)) {
+              this.logger.debug(`Removing stale item from workspace ${workspaceItem.id}: ${child.id}`);
+              itemsToRemove.push(child);
+            } else if (childMetadata.type === 'directory') {
+              // Check children of directory items (files)
+              child.children.forEach(grandchild => {
+                const grandchildMetadata = this.testItemMetadata.get(grandchild);
+                if (grandchildMetadata && grandchildMetadata.resultsFileUri?.toString() === resultsFileUri.toString()) {
+                  if (!expectedTestIds.has(grandchild.id)) {
+                    this.logger.debug(`Removing stale file item from directory ${child.id}: ${grandchild.id}`);
+                    itemsToRemove.push(grandchild);
+                  }
+                }
+              });
+            }
+          }
+        });
       }
     });
+
+    // Remove the items
+    for (const item of itemsToRemove) {
+      const parent = item.parent;
+      if (parent) {
+        parent.children.delete(item.id);
+      } else {
+        this.controller.items.delete(item.id);
+      }
+      this.testItems.delete(item.id);
+    }
   }
 
   /**
