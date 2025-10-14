@@ -630,16 +630,16 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
         // Update test state based on status
         const status = result.status.toLowerCase();
-        if (status.includes('passed') || status.includes('success')) {
+        if (status.startsWith('passed')) {
           actualTestRun.passed(testItem);
-        } else if (status.includes('failed') || status.includes('error')) {
+        } else if (status.startsWith('failed')) {
           const message = new TestMessage(result.status);
           message.location = new Location(
             fileUri,
             new Position(result.line - 1, 0)
           );
           actualTestRun.failed(testItem, message);
-        } else if (status.includes('skipped')) {
+        } else if (status.startsWith('skipped')) {
           actualTestRun.skipped(testItem);
         }
       }
