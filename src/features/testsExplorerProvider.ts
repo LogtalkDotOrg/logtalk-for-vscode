@@ -255,9 +255,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         const topLevelItems: TestItem[] = [];
         this.controller.items.forEach(item => topLevelItems.push(item));
 
-        // If there are no top-level items yet, run tests for all workspace folders
+        // If there are no top-level items yet, run tests on workspace directories
         if (topLevelItems.length === 0) {
-          this.logger.info('No test items found - running tests for all workspace folders');
+          this.logger.info('No test items found - running tests on workspace directories');
           if (workspace.workspaceFolders) {
             for (const workspaceFolder of workspace.workspaceFolders) {
               const workspacePath = workspaceFolder.uri.fsPath;
@@ -1006,19 +1006,19 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         continue; // Skip files not in a workspace folder
       }
 
-      // Get the directory containing this file
-      const dirName = path.dirname(filePath);
+      // Get the directory containing the .vscode_test_results file (where tester.lgt is located)
+      const testerDir = path.dirname(resultsFileUri.fsPath);
       const workspacePath = workspaceFolder.uri.fsPath;
-      const isInSubdirectory = dirName !== workspacePath;
+      const isInSubdirectory = testerDir !== workspacePath;
 
       // Determine parent item for file
       let parentItem: TestItem | null = null;
 
       if (isInSubdirectory) {
-        // File is in a subdirectory - create/get directory item
-        const dirUri = Uri.file(dirName);
+        // Tester is in a subdirectory - create/get directory item
+        const dirUri = Uri.file(testerDir);
         const dirId = dirUri.toString();
-        const dirRelativePath = path.relative(workspacePath, dirName);
+        const dirRelativePath = path.relative(workspacePath, testerDir);
 
         // Always add directory ID to expected IDs
         expectedTestIds.add(dirId);
@@ -1041,22 +1041,16 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             resultsFileUri: resultsFileUri,
             directoryUri: dirUri
           });
-        } else {
-          // Directory item already exists - update its metadata with the new results file
-          const existingMetadata = this.testItemMetadata.get(dirItem);
-          if (existingMetadata) {
-            this.testItemMetadata.set(dirItem, {
-              ...existingMetadata,
-              resultsFileUri: resultsFileUri
-            });
-          }
         }
+        // Note: Don't update resultsFileUri for existing directory items
+        // Each directory keeps its own resultsFileUri to avoid cleanup conflicts
         parentItem = dirItem;
       }
-      // else: File is in workspace root - no parent item, will be added directly to controller
+      // else: Tester is in workspace root - no parent item, will be added directly to controller
 
       // Get or create file-level test item
-      const fileLabel = path.basename(filePath);
+      // Use relative path from tester directory to file for the label
+      const fileLabel = isInSubdirectory ? path.relative(testerDir, filePath) : path.basename(filePath);
       let fileItem = this.testItems.get(fileId);
       if (!fileItem) {
         fileItem = this.controller.createTestItem(
