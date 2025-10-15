@@ -1026,11 +1026,28 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         // Get or create directory item (added directly to controller)
         let dirItem = this.testItems.get(dirId);
         if (!dirItem) {
+          // Determine the URI for the directory item - prefer tester file if it exists
+          const testerLgt = path.join(testerDir, 'tester.lgt');
+          const testerLogtalk = path.join(testerDir, 'tester.logtalk');
+          let itemUri = dirUri;
+          if (fs.existsSync(testerLgt)) {
+            itemUri = Uri.file(testerLgt);
+          } else if (fs.existsSync(testerLogtalk)) {
+            itemUri = Uri.file(testerLogtalk);
+          }
+
           dirItem = this.controller.createTestItem(
             dirId,
             dirRelativePath,
-            dirUri
+            itemUri
           );
+
+          // Set range to enable "Go to Test" icon
+          dirItem.range = new Range(new Position(0, 0), new Position(0, 0));
+
+          // Set canResolveChildren to false to enable "Go to Test" and "Reveal in Explorer" icons
+          dirItem.canResolveChildren = false;
+
           this.controller.items.add(dirItem);
           this.testItems.set(dirId, dirItem);
 
@@ -1058,6 +1075,12 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           fileLabel,
           fileUri
         );
+
+        // Set range to the beginning of the file to enable "Go to Test" icon
+        fileItem.range = new Range(new Position(0, 0), new Position(0, 0));
+
+        // Set canResolveChildren to false to enable "Go to Test" and "Reveal in Explorer" icons
+        fileItem.canResolveChildren = false;
 
         // Add to parent (directory) or directly to controller (workspace root)
         if (parentItem) {
@@ -1155,6 +1178,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           );
         }
 
+        // Set canResolveChildren to false to enable "Go to Test" and "Reveal in Explorer" icons
+        objectItem.canResolveChildren = false;
+
         fileItem.children.add(objectItem);
         this.testItems.set(objectId, objectItem);
 
@@ -1181,6 +1207,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             new Position(test.line - 1, 0),
             new Position(test.line - 1, 0)
           );
+
+          // Set canResolveChildren to false to enable "Go to Test" and "Reveal in Explorer" icons
+          testItem.canResolveChildren = false;
 
           // Apply flaky decoration if the test status indicates flakiness
           this.updateTestItemDecoration(testItem, test.status);
