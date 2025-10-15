@@ -66,6 +66,7 @@ interface TestResultData {
   object: string;
   test: string;
   status: string;
+  reason?: string; // Optional reason for failure
 }
 
 interface TestSummaryData {
@@ -480,10 +481,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       // Parse individual test results
       // Format: File:<path>;Line:<line>;Object:<object>;Test:<test>;Status:<status>
       const testRegex = /File:(.+?);Line:(\d+);Object:(.+?);Test:(.+?);Status:(.+)/i;
+      const testRegexFailed = /File:(.+);Line:(\d+);Object:(.+);Test:(.+);Status:(.+);Reason:(.+)/i;
 
       // Parse test summary results
       // Format: File:<path>;Line:<line>;Object:<object>;Status:<status>
-      const summaryRegex = /File:(.+?);Line:(\d+);Object:(.+?);Status:(.+)/i;
+      const summaryRegex = /File:(.+);Line:(\d+);Object:(.+);Status:(.+)/i;
 
       // Parse coverage data
       // Format: File:<path>;Line:<line>;Status:Tests clause coverage: <covered>/<total> - (all) or [1,2,3]
@@ -495,7 +497,18 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       for (const line of lines) {
         const testMatch = line.match(testRegex);
-        if (testMatch) {
+        const testMatchFailed = line.match(testRegexFailed);
+        if (testMatchFailed) {
+          testResults.push({
+            file: testMatchFailed[1],
+            line: parseInt(testMatchFailed[2]),
+            object: testMatchFailed[3],
+            test: testMatchFailed[4],
+            status: testMatchFailed[5],
+            reason: testMatchFailed[6]
+          });
+          continue;
+        } else if (testMatch) {
           testResults.push({
             file: testMatch[1],
             line: parseInt(testMatch[2]),
@@ -674,7 +687,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         if (status.startsWith('passed')) {
           actualTestRun.passed(testItem);
         } else if (status.startsWith('failed')) {
-          const message = new TestMessage(result.status);
+          const message = new TestMessage(result.reason);
           message.location = new Location(
             fileUri,
             new Position(result.line - 1, 0)

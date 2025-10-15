@@ -105,7 +105,7 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
             new CodeLens(
               new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
               {
-                title: match[4] + outdated,
+                title: match[4].split(';Reason:')[0] + outdated,
                 tooltip: "Re-run test",
                 command: "logtalk.run.test",
                 arguments: [doc.uri, match[2], match[3]]
