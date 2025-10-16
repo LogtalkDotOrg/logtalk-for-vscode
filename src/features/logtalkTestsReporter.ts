@@ -171,7 +171,8 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
     
     let match = issue.match(this.msgRegex)
     if (match == null) { return; }
-    
+
+    // Add to hash to prevent duplicates
     this.diagnosticHash.push(issue);
 
     let severity: DiagnosticSeverity;

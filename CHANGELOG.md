@@ -15,6 +15,7 @@
 * Fix the delete action for the dead code scanner to correctly check for predicate arity
 * Fix predicate argument parsing bugs with commas and parentheses in quoted atoms
 * Fix bug when computing a predicate definition range that would include clauses from other predicates
+* Fix bugs handling diagnostic collections that could result in duplicated diagnostics after fixing and reloading files
 
 ## [0.63.0]
 

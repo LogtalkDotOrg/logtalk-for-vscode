@@ -956,12 +956,14 @@ export default class LogtalkTerminal {
     let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
+    if (section) {
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
     }
+    // Clear all existing diagnostics before starting documentation generation
+    documentationLinter.clearAll();
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
@@ -1062,6 +1064,8 @@ export default class LogtalkTerminal {
     } else { 
       throw new Error("configuration settings error: logtalk"); 
     }
+    // Clear all existing diagnostics before starting scanning for dead code
+    deadCodeScanner.clearAll();
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });

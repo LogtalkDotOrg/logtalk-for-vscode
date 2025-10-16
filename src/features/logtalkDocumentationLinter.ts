@@ -6,7 +6,6 @@ import {
   CodeActionProvider,
   CodeAction,
   CodeActionKind,
-  Command,
   Diagnostic,
   DiagnosticCollection,
   DiagnosticSeverity,
@@ -339,9 +338,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
   private parseIssue(issue: string) {
 
     if(this.diagnosticHash.includes(issue)) {
-      return true
-    } else {
-      this.diagnosticHash.push(issue)
+      return;  // Skip duplicate issues
     }
 
     let match = issue.match(this.msgRegex)
@@ -350,6 +347,9 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     } else {
       this.logger.debug("match!");
     }
+
+    // Add to hash to prevent duplicates
+    this.diagnosticHash.push(issue);
 
     let severity: DiagnosticSeverity;
     if(match[0][0] == '*') {
@@ -386,8 +386,9 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       if (!this.diagnostics[fileName]) {
         this.diagnostics[fileName] = [diag];
       } else {
-          this.diagnostics[fileName].push(diag);
+        this.diagnostics[fileName].push(diag);
       }
+      this.diagnostics[fileName] = this.removeDuplicateDiagnostics(this.diagnostics[fileName]);
     }
 
   }
@@ -412,16 +413,28 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
   public clear(line: string) {
     let match = line.match(this.compilingFileRegex)
     if (match) {
-      this.diagnosticCollection.delete(Uri.file(match[1]));
-      if (match[1] in this.diagnostics) {
-        this.diagnostics[match[1]] = [];
-        this.diagnosticHash = [];
+      const filePath = path.resolve(match[1]);
+      this.diagnosticCollection.delete(Uri.file(filePath));
+      if (filePath in this.diagnostics) {
+        this.diagnostics[filePath] = [];
       }
+      // Clear the diagnostic hash as we're starting a new compilation
+      this.diagnosticHash = [];
     }
+  }
+
+  public clearAll() {
+    this.diagnosticCollection.clear();
+    this.diagnostics = {};
+    this.diagnosticHash = [];
   }
 
   public updateDiagnostics(uri: Uri, diagnosticToRemove: Diagnostic) {
     DiagnosticsUtils.updateDiagnostics(this.diagnosticCollection, uri, diagnosticToRemove);
+  }
+
+  private removeDuplicateDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
+    return DiagnosticsUtils.removeDuplicateDiagnostics(diagnostics);
   }
 
   private loadConfiguration(): void {
@@ -456,15 +469,22 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       subscriptions
     );
 
-    this.loadConfiguration();
-
     workspace.onDidCloseTextDocument(
       textDocument => {
-        this.diagnosticCollection.delete(textDocument.uri);
+        // Only delete diagnostics if the document was modified but not saved
+        if (textDocument.isDirty) {
+          this.diagnosticCollection.delete(textDocument.uri);
+          const filePath = textDocument.uri.fsPath;
+          if (filePath in this.diagnostics) {
+            this.diagnostics[filePath] = [];
+          }
+        }
       },
       null,
       subscriptions
     );
+
+    this.loadConfiguration();
   }
 
   public dispose(): void {

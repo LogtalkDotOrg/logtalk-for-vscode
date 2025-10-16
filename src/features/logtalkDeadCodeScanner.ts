@@ -65,13 +65,14 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
   private parseIssue(issue: string) {
 
     if(this.diagnosticHash.includes(issue)) {
-      return true
-    } else {
-      this.diagnosticHash.push(issue)
+      return;  // Skip duplicate issues
     }
 
     let match = issue.match(this.msgRegex)
     if (match == null) { return null; }
+
+    // Add to hash to prevent duplicates
+    this.diagnosticHash.push(issue);
 
     let severity: DiagnosticSeverity;
     if(match[0][0] == '*') {
@@ -115,6 +116,7 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
       } else {
           this.diagnostics[fileName].push(diag);
       }
+      this.diagnostics[fileName] = this.removeDuplicateDiagnostics(this.diagnostics[fileName]);
     }
 
   }
@@ -147,8 +149,18 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
     }
   }
 
+  public clearAll() {
+    this.diagnosticCollection.clear();
+    this.diagnostics = {};
+    this.diagnosticHash = [];
+  }
+
   public updateDiagnostics(uri: Uri, diagnosticToRemove: Diagnostic) {
     DiagnosticsUtils.updateDiagnostics(this.diagnosticCollection, uri, diagnosticToRemove);
+  }
+
+  private removeDuplicateDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
+    return DiagnosticsUtils.removeDuplicateDiagnostics(diagnostics);
   }
 
   /**
@@ -225,7 +237,13 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       action.edit = edit;
+      // Associate this action with the specific diagnostic
       action.diagnostics = [diagnostic];
+      action.command = {
+        title: 'Logtalk Dead Code Scanner',
+        command: 'logtalk.update.diagnostics',
+        arguments: [document.uri, diagnostic]
+      };
 
       return action;
     } catch (error) {
@@ -324,15 +342,22 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
       subscriptions
     );
 
-    this.loadConfiguration();
-
     workspace.onDidCloseTextDocument(
       textDocument => {
-        this.diagnosticCollection.delete(textDocument.uri);
+        // Only delete diagnostics if the document was modified but not saved
+        if (textDocument.isDirty) {
+          this.diagnosticCollection.delete(textDocument.uri);
+          const filePath = textDocument.uri.fsPath;
+          if (filePath in this.diagnostics) {
+            this.diagnostics[filePath] = [];
+          }
+        }
       },
       null,
       subscriptions
     );
+
+    this.loadConfiguration();
   }
 
   public dispose(): void {

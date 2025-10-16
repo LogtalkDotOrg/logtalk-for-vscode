@@ -850,16 +850,19 @@ export default class LogtalkLinter implements CodeActionProvider {
     if(this.diagnosticHash.includes(issue)) {
       return;  // Skip duplicate issues
     }
-    
+
     let match = issue.match(this.msgRegex);
     if (match == null) { return; }
+
+    // Add to hash to prevent duplicates
+    this.diagnosticHash.push(issue);
 
     let severity: DiagnosticSeverity;
     if(match[0][0] == '*') {
       severity = DiagnosticSeverity.Warning
     } else {
       severity = DiagnosticSeverity.Error
-    } 
+    }
 
     let fileName = path.resolve(match[6]);
     let lineFrom = 0,
