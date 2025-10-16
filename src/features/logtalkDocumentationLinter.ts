@@ -70,6 +70,10 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Missing mode/2 directive for predicate:')) {
       return true;
+    } else if (diagnostic.message.includes('Invalid date in info/1 directive:')) {
+      return true;
+    } else if (diagnostic.message.includes('Date in info/1 directive is in the future:')) {
+      return true;
     }
     return false;
   }
@@ -252,6 +256,73 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       // Insert the mode/2 directive after the scope directive
       const insertPosition = new Position(directiveRange.end + 1, 0);
       edit.insert(document.uri, insertPosition, modeDirective);
+    } else if (diagnostic.message.includes('Invalid date in info/1 directive:') ||
+               diagnostic.message.includes('Date in info/1 directive is in the future:')) {
+      // Extract the invalid date from the diagnostic message
+      const dateMatch = diagnostic.message.match(/(?:Invalid date in info\/1 directive:|Date in info\/1 directive is in the future:)\s*(.+)/);
+      if (!dateMatch) {
+        return null;
+      }
+
+      const invalidDate = dateMatch[1].trim();
+
+      // Determine the action title based on the warning type
+      const actionTitle = diagnostic.message.includes('Invalid date')
+        ? `Replace invalid date in info/1 directive with current date`
+        : `Replace future date in info/1 directive with current date`;
+
+      action = new CodeAction(
+        actionTitle,
+        CodeActionKind.QuickFix
+      );
+
+      // Find the info/1 directive starting from the warning line
+      // Search forwards to find the directive opening
+      const warningLine = diagnostic.range.start.line;
+      let infoDirectiveLine = -1;
+      for (let i = warningLine; i < document.lineCount; i++) {
+        const lineText = document.lineAt(i).text.trim();
+        if (lineText.match(/^\:-\s*info\(\[/)) {
+          infoDirectiveLine = i;
+          break;
+        }
+      }
+
+      if (infoDirectiveLine === -1) {
+        return null;
+      }
+
+      // Get the full range of the info/1 directive
+      const directiveRange = PredicateUtils.getDirectiveRange(document, infoDirectiveLine);
+
+      // Get the directive text
+      let directiveText = '';
+      for (let i = infoDirectiveLine; i <= directiveRange.end; i++) {
+        directiveText += document.lineAt(i).text;
+        if (i < directiveRange.end) {
+          directiveText += '\n';
+        }
+      }
+
+      // Get current date in YYYY-MM-DD format
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const currentDate = `${year}-${month}-${day}`;
+
+      // Replace the invalid date with the current date
+      const updatedDirectiveText = directiveText.replace(
+        new RegExp(`date is ${invalidDate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
+        `date is ${currentDate}`
+      );
+
+      // Replace the entire directive with the updated version
+      const directiveStartPos = new Position(infoDirectiveLine, 0);
+      const directiveEndPos = new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length);
+      const directiveFullRange = new Range(directiveStartPos, directiveEndPos);
+
+      edit.replace(document.uri, directiveFullRange, updatedDirectiveText);
     }
 
     action.edit = edit;
