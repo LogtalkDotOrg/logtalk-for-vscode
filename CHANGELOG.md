@@ -14,6 +14,7 @@
 * Fix bug where closing a non-Logtalk terminal would mark the Logtalk terminal as closed
 * Fix the delete action for the dead code scanner to correctly check for predicate arity
 * Fix predicate argument parsing bugs with commas and parentheses in quoted atoms
+* Fix bug when computing a predicate definition range that would include clauses from other predicates
 
 ## [0.63.0]
 

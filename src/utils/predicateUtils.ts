@@ -776,19 +776,22 @@ export class PredicateUtils {
     expectedArity: number,
     isNonTerminal: boolean
   ): boolean {
-    // Match: name(...) or name
-    const match = text.match(new RegExp(`^\\s*${escapedPredicateName}\\s*(\\()?`));
+    // Match: name with word boundary to prevent matching dead_predicate when looking for dead_predicate_1
+    const match = text.match(new RegExp(`^\\s*${escapedPredicateName}\\b`));
     if (!match) {
       return false;
     }
 
-    const hasArgs = match[1] === '(';
+    // Check if there's an opening parenthesis after the predicate name
+    const afterName = text.substring(match[0].length).trimStart();
+    const hasArgs = afterName.startsWith('(');
+
     if (!hasArgs) {
       return expectedArity === 0;
     }
 
     // Count arguments
-    const openParenPos = match[0].length - 1;
+    const openParenPos = text.indexOf('(', match[0].length);
     const arity = this.countArityAtPosition(text, openParenPos);
     return arity === expectedArity;
   }
