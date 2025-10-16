@@ -502,7 +502,7 @@ export function activate(context: ExtensionContext) {
     languages.registerTypeHierarchyProvider(LOGTALK_MODE, new LogtalkTypeHierarchyProvider())
   );
   context.subscriptions.push(
-    languages.registerDocumentSymbolProvider(LOGTALK_MODE, new LogtalkDocumentSymbolProvider())
+    languages.registerDocumentSymbolProvider({ language: "logtalk" }, new LogtalkDocumentSymbolProvider())
   );
   context.subscriptions.push(
     languages.registerWorkspaceSymbolProvider(new LogtalkWorkspaceSymbolProvider())
@@ -532,12 +532,12 @@ export function activate(context: ExtensionContext) {
   );
   const documentFormattingProvider = new LogtalkDocumentFormattingEditProvider();
   context.subscriptions.push(
-    languages.registerDocumentFormattingEditProvider(LOGTALK_MODE, documentFormattingProvider)
+    languages.registerDocumentFormattingEditProvider({ language: "logtalk" }, documentFormattingProvider)
   );
 
   const documentRangeFormattingProvider = new LogtalkDocumentRangeFormattingEditProvider();
   context.subscriptions.push(
-    languages.registerDocumentRangeFormattingEditProvider(LOGTALK_MODE, documentRangeFormattingProvider)
+    languages.registerDocumentRangeFormattingEditProvider({ language: "logtalk" }, documentRangeFormattingProvider)
   );
 
   // Register chained formatting command (indentation conversion + Logtalk formatting)

@@ -37,6 +37,7 @@ For details, see [Configuration](#configuration). This extension includes a walk
 - [Testing support](#testing-support)
 - [Hover contents](#hover-contents)
 - [Chat Participant](#chat-participant)
+- [Virtual workspaces support](#virtual-workspaces-support)
 
 ### Syntax highlighting
 
@@ -367,6 +368,10 @@ The slash commands work best with keywords. For example, `/examples threaded eng
 - **Graceful Fallbacks**: Works even when the language model is unavailable by showing documentation search results
 
 The chat participant automatically detects your Logtalk version from `$LOGTALKHOME/VERSION.txt` and fetches the corresponding documentation from the Logtalk website. Documentation is cached locally and only refreshed when the version changes, ensuring fast responses while staying current.
+
+### Virtual workspaces support
+
+Virtual workspaces support is limited as the extension is fundamentally designed for local development with a local Logtalk installation. Only basic language features such as syntax highlighting, symbol navigation, and document formatting work in virtual workspaces. Assuming a local Logtalk installation is available, you can start a Logtalk process by running the "Open Logtalk" command. But this process will not be able to load files from the virtual workspace.
 
 ## Configuration
 

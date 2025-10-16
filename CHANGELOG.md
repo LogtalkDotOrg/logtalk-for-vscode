@@ -2,6 +2,7 @@
 
 ## [0.64.0]
 
+* Provide limited support for virtual workspaces
 * Changed test results summary displayed using CodeLens in the tests object to re-run only the object tests
 * Add experimental support for the VS Code Testing API
 * Add command "Logtalk: Run Tests with Coverage" to run all tests with coverage reporting

@@ -51,6 +51,12 @@
     "activationEvents": [
         "onDebug"
     ],
+    "capabilities": {
+        "virtualWorkspaces": {
+            "supported": "limited",
+            "description": "Only some language features such as symbol navigation and document formatting work in virtual workspaces."
+        }
+    },
     "contributes": {
         "languages": [
             {
@@ -236,89 +242,215 @@
         ],
         "keybindings": [],
         "menus": {
+            "commandPalette": [
+                {
+                    "command": "logtalk.load.directory",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.load.file",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.open.parentFile",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.load.project",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.create.project",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.scan.deadCode",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.compute.metrics",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.generate.documentation",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.generate.diagrams",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.run.tests",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.run.tests.coverage",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.run.doclet",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.toggle.codeLens",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.make.reload",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.make.debug",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.make.normal",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.make.optimal",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.make.check",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.make.circular",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.make.clean",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.make.caches",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.rscan.deadCode",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.rcompute.metrics",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.rgenerate.documentation",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.rgenerate.diagrams",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.run.testers",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.run.doclets",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.toggleDebugging",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.open.notebook",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.open.paired.notebook",
+                    "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.sync.notebook",
+                    "when": "!virtualWorkspace"
+                }
+            ],
             "editor/title": [
                 {
-                    "when": "editorLangId == logtalk",
                     "command": "logtalk.toggleDebugging",
+                    "when": "editorLangId == logtalk && !virtualWorkspace",
                     "group": "navigation"
                 }
             ],
             "editor/context": [
                 {
                     "command": "logtalk.load.directory",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_1@1"
                 },
                 {
                     "command": "logtalk.load.file",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_1@2"
                 },
                 {
                     "command": "logtalk.open.parentFile",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_1@3"
                 },
                 {
                     "submenu": "makesubmenu",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_1@4"
                 },
                 {
                     "command": "logtalk.scan.deadCode",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_2@1"
                 },
                 {
                     "command": "logtalk.compute.metrics",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_2@2"
                 },
                 {
                     "command": "logtalk.generate.documentation",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_3@1"
                 },
                 {
                     "command": "logtalk.generate.diagrams",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_3@2"
                 },
                 {
                     "command": "logtalk.run.tests",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_4@1"
                 },
                 {
                     "command": "logtalk.run.tests.coverage",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_4@2"
                 },
                 {
                     "command": "logtalk.run.doclet",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_4@3"
                 },
                 {
                     "submenu": "jupytersubmenu",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true && !virtualWorkspace",
                     "group": "directory_5@1"
                 },
                 {
                     "command": "logtalk.toggle.codeLens",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_6@1"
                 }
             ],
             "explorer/context": [
                 {
                     "command": "logtalk.create.project",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_1@1"
                 },
                 {
                     "command": "logtalk.load.project",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_1@2"
                 },
                 {
@@ -328,101 +460,101 @@
                 },
                 {
                     "submenu": "makesubmenu",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_1@4"
                 },
                 {
                     "command": "logtalk.rscan.deadCode",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_2@1"
                 },
                 {
                     "command": "logtalk.rcompute.metrics",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_2@2"
                 },
                 {
                     "command": "logtalk.rgenerate.diagrams",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_3@1"
                 },
                 {
                     "command": "logtalk.rgenerate.documentation",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_3@2"
                 },
                 {
                     "command": "logtalk.run.testers",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_4@1"
                 },
                 {
                     "command": "logtalk.run.doclets",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_4@2"
                 },
                 {
                     "submenu": "jupytersubmenu",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true && !virtualWorkspace",
                     "group": "project_5@1"
                 }
             ],
             "makesubmenu": [
                 {
                     "command": "logtalk.make.reload",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "make_1_Reload@1"
                 },
                 {
                     "command": "logtalk.make.debug",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "make_2_Mode@1"
                 },
                 {
                     "command": "logtalk.make.normal",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "make_2_Mode@2"
                 },
                 {
                     "command": "logtalk.make.optimal",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "make_2_Mode@3"
                 },
                 {
                     "command": "logtalk.make.check",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "make_3_Check@1"
                 },
                 {
                     "command": "logtalk.make.circular",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "make_3_Check@2"
                 },
                 {
                     "command": "logtalk.make.clean",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "make_4_Clean@1"
                 },
                 {
                     "command": "logtalk.make.caches",
-                    "when": "resourceLangId == logtalk",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "make_4_Clean@2"
                 }
             ],
             "jupytersubmenu": [
                 {
                     "command": "logtalk.open.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true && !virtualWorkspace",
                     "group": "jupyter_1@1"
                 },
                 {
                     "command": "logtalk.open.paired.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown) && logtalk.jupytext.available == true && !virtualWorkspace",
                     "group": "jupyter_2@1"
                 },
                 {
                     "command": "logtalk.sync.notebook",
-                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true",
+                    "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true && !virtualWorkspace",
                     "group": "jupyter_2@2"
                 }
             ]
