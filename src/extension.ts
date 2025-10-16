@@ -526,6 +526,9 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerCodeActionsProvider(LOGTALK_MODE, deadCodeScanner)
   );
+  context.subscriptions.push(
+    languages.registerCodeActionsProvider(LOGTALK_MODE, documentationLinter)
+  );
   refactorProvider = new LogtalkRefactorProvider();
   context.subscriptions.push(
     languages.registerCodeActionsProvider(LOGTALK_MODE, refactorProvider)

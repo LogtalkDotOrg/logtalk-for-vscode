@@ -23,6 +23,7 @@ import * as path from "path";
 import { DiagnosticsUtils } from "../utils/diagnostics";
 import { PredicateUtils } from "../utils/predicateUtils";
 import { ArgumentUtils } from "../utils/argumentUtils";
+import { Utils } from "../utils/utils";
 
 export default class LogtalkLinter implements CodeActionProvider {
 
@@ -487,7 +488,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       );
 
       // Find the entity opening directive from the warning location
-      const entityLine = this.findEntityOpeningDirective(document, diagnostic.range.start.line);
+      const entityLine = Utils.findEntityOpeningDirective(document, diagnostic.range.start.line);
       if (entityLine === null) {
         return null;
       }
@@ -509,37 +510,6 @@ export default class LogtalkLinter implements CodeActionProvider {
     };
 
     return action;
-  }
-
-  /**
-   * Find the entity opening directive by searching backwards from the given line
-   * @param document The text document
-   * @param startLine The line to start searching from (usually the warning location)
-   * @returns The line number of the entity opening directive, or null if not found
-   */
-  private findEntityOpeningDirective(document: TextDocument, startLine: number): number | null {
-    const { SymbolRegexes } = require('../utils/symbols');
-
-    // Search backwards from the warning location
-    for (let lineNum = startLine; lineNum >= 0; lineNum--) {
-      const lineText = document.lineAt(lineNum).text.trim();
-
-      // Check if this line contains an entity opening directive
-      if (SymbolRegexes.openingObject.test(lineText) ||
-          SymbolRegexes.openingProtocol.test(lineText) ||
-          SymbolRegexes.openingCategory.test(lineText)) {
-        return lineNum;
-      }
-
-      // Stop if we hit another entity's end directive
-      if (SymbolRegexes.endObject.test(lineText) ||
-          SymbolRegexes.endProtocol.test(lineText) ||
-          SymbolRegexes.endCategory.test(lineText)) {
-        break;
-      }
-    }
-
-    return null;
   }
 
   /**

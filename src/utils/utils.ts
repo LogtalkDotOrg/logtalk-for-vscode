@@ -693,4 +693,35 @@ export class Utils {
     return 'predicate_directive';
   }
 
+  /**
+   * Find the entity opening directive by searching backwards from the given line
+   * @param document The text document
+   * @param startLine The line to start searching from (usually the warning location)
+   * @returns The line number of the entity opening directive, or null if not found
+   */
+  public static findEntityOpeningDirective(document: TextDocument, startLine: number): number | null {
+    const { SymbolRegexes } = require('./symbols');
+
+    // Search backwards from the warning location
+    for (let lineNum = startLine; lineNum >= 0; lineNum--) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Check if this line contains an entity opening directive
+      if (SymbolRegexes.openingObject.test(lineText) ||
+          SymbolRegexes.openingProtocol.test(lineText) ||
+          SymbolRegexes.openingCategory.test(lineText)) {
+        return lineNum;
+      }
+
+      // Stop if we hit another entity's end directive
+      if (SymbolRegexes.endObject.test(lineText) ||
+          SymbolRegexes.endProtocol.test(lineText) ||
+          SymbolRegexes.endCategory.test(lineText)) {
+        break;
+      }
+    }
+
+    return null;
+  }
+
 }

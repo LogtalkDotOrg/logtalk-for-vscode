@@ -149,7 +149,7 @@ The "Create Project" command is usually called from the command palette. It asks
 
 The "Load Project" command looks for a `loader.lgt` or `loader.logtalk` file in the workspace root folder, printing a warning if no loader file is found.
 
-The "Scan Project Dead Code", "Compute Project Metrics", "Generate Project Documentation", and "Generate Project Diagrams" commands require that the project code is already loaded. Quick fixes are provided for some dead code warnings.
+The "Scan Project Dead Code", "Compute Project Metrics", "Generate Project Documentation", and "Generate Project Diagrams" commands require that the project code is already loaded. Quick fixes are provided for some of the documentation and dead code linter warnings.
 
 The output of the "Run Project Testers" and "Run Project Doclets" commands is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
 
@@ -178,7 +178,7 @@ The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file i
 
 The "Run Tests" and "Run Tests with Coverage" commands adds failed tests to the "PROBLEMS" pane. Quick fixes are provided for some test definition warnings.
 
-The "Scan Dead Code" command adds dead code warnings to the "PROBLEMS" pane. Quick fixes are provided for some dead code warnings.
+The "Generate Documentation" and "Scan Dead Code" commands add linter warnings to the "PROBLEMS" pane. Quick fixes are provided for some of the warnings.
 
 #### Jupyter commands
 
