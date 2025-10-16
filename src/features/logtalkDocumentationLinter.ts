@@ -24,6 +24,7 @@ import * as path from "path";
 import { getLogger } from "../utils/logger";
 import { DiagnosticsUtils } from "../utils/diagnostics";
 import { PredicateUtils } from "../utils/predicateUtils";
+import { ArgumentUtils } from "../utils/argumentUtils";
 import { Utils } from "../utils/utils";
 
 export default class LogtalkDocumentationLinter implements CodeActionProvider {
@@ -94,6 +95,38 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       // Get the full range of the entity opening directive
       const directiveRange = PredicateUtils.getDirectiveRange(document, entityLine);
 
+      // Get the entity opening directive text
+      let entityText = '';
+      for (let i = entityLine; i <= directiveRange.end; i++) {
+        entityText += document.lineAt(i).text;
+        if (i < directiveRange.end) {
+          entityText += '\n';
+        }
+      }
+
+      // Extract entity name and parameters
+      const entityMatch = entityText.match(/:-\s*(object|protocol|category)\(([^(),.]+(?:\([^)]*\))?)/);
+      let parnames: string[] = [];
+
+      if (entityMatch) {
+        const entityNamePart = entityMatch[2].trim();
+
+        // Check if entity name is a compound term (has parentheses)
+        const parenPos = entityNamePart.indexOf('(');
+        if (parenPos !== -1) {
+          // Extract arguments from the compound term
+          const args = ArgumentUtils.extractArgumentsFromCall(entityNamePart);
+
+          // Process each argument: trim underscores from prefix and suffix, wrap in quotes
+          parnames = args.map(arg => {
+            const trimmed = arg.trim();
+            // Remove leading and trailing underscores
+            const cleaned = trimmed.replace(/^_+/, '').replace(/_+$/, '');
+            return `'${cleaned}'`;
+          });
+        }
+      }
+
       // Get current date in YYYY-MM-DD format
       const now = new Date();
       const year = now.getFullYear();
@@ -106,12 +139,25 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       const indent = entityLineText.match(/^(\s*)/)[1] + '\t';
 
       // Create the info/1 directive with the specified keys
-      const infoDirective = `${indent}:- info([\n` +
-        `${indent}\tversion is 1:0:0,\n` +
-        `${indent}\tauthor is '',\n` +
-        `${indent}\tdate is ${currentDate},\n` +
-        `${indent}\tcomment is ''\n` +
-        `${indent}]).\n`;
+      let infoDirective: string;
+      if (parnames.length > 0) {
+        // Include parnames for parametric entities
+        infoDirective = `${indent}:- info([\n` +
+          `${indent}\tversion is 1:0:0,\n` +
+          `${indent}\tauthor is '',\n` +
+          `${indent}\tdate is ${currentDate},\n` +
+          `${indent}\tcomment is '',\n` +
+          `${indent}\tparnames is [${parnames.join(', ')}]\n` +
+          `${indent}]).\n`;
+      } else {
+        // No parnames for non-parametric entities
+        infoDirective = `${indent}:- info([\n` +
+          `${indent}\tversion is 1:0:0,\n` +
+          `${indent}\tauthor is '',\n` +
+          `${indent}\tdate is ${currentDate},\n` +
+          `${indent}\tcomment is ''\n` +
+          `${indent}]).\n`;
+      }
 
       // Insert the info/1 directive after the entity opening directive with an empty line
       const insertPosition = new Position(directiveRange.end + 1, 0);
