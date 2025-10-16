@@ -2,11 +2,12 @@
 
 ## [0.64.0]
 
-* Provide limited support for virtual workspaces
-* Changed test results summary displayed using CodeLens in the tests object to re-run only the object tests
-* Add experimental support for the VS Code Testing API
+* Add support for the VS Code Testing API
 * Add command "Logtalk: Run Tests with Coverage" to run all tests with coverage reporting
 * Delete any existing `.vscode_test_results` files at extension activation
+* Changed test results summary displayed using CodeLens in the tests object to re-run only the object tests
+* Add quick fix for the "Missing reference to the built-in protocol" linter warning
+* Provide limited support for virtual workspaces
 * Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests
 * Fix timing issue that could result in multiple Logtalk terminals being created at startup
 * Fix bug where closing a non-Logtalk terminal would mark the Logtalk terminal as closed

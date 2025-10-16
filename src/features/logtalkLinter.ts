@@ -116,6 +116,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Predicate called as a non-terminal:')) {
       return true;
+    } else if (diagnostic.message.includes('Missing reference to the built-in protocol: ')) {
+      return true;
     }
     return false;
   }
@@ -472,6 +474,29 @@ export default class LogtalkLinter implements CodeActionProvider {
       } else {
         return null;
       }
+    } else if (diagnostic.message.includes('Missing reference to the built-in protocol: ')) {
+      // Add implements(Protocol) to entity opening directive
+      const protocolMatch = diagnostic.message.match(/Missing reference to the built-in protocol: (.+)/);
+      if (!protocolMatch) {
+        return null;
+      }
+      const protocolName = protocolMatch[1];
+      action = new CodeAction(
+        `Add implements(${protocolName}) to entity opening directive`,
+        CodeActionKind.QuickFix
+      );
+
+      // Find the entity opening directive from the warning location
+      const entityLine = this.findEntityOpeningDirective(document, diagnostic.range.start.line);
+      if (entityLine === null) {
+        return null;
+      }
+
+      // Add implements(Protocol) to the entity opening directive
+      const success = this.addImplementsToEntityDirective(document, entityLine, protocolName, edit);
+      if (!success) {
+        return null;
+      }
     }
 
     action.edit = edit;
@@ -484,6 +509,371 @@ export default class LogtalkLinter implements CodeActionProvider {
     };
 
     return action;
+  }
+
+  /**
+   * Find the entity opening directive by searching backwards from the given line
+   * @param document The text document
+   * @param startLine The line to start searching from (usually the warning location)
+   * @returns The line number of the entity opening directive, or null if not found
+   */
+  private findEntityOpeningDirective(document: TextDocument, startLine: number): number | null {
+    const { SymbolRegexes } = require('../utils/symbols');
+
+    // Search backwards from the warning location
+    for (let lineNum = startLine; lineNum >= 0; lineNum--) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Check if this line contains an entity opening directive
+      if (SymbolRegexes.openingObject.test(lineText) ||
+          SymbolRegexes.openingProtocol.test(lineText) ||
+          SymbolRegexes.openingCategory.test(lineText)) {
+        return lineNum;
+      }
+
+      // Stop if we hit another entity's end directive
+      if (SymbolRegexes.endObject.test(lineText) ||
+          SymbolRegexes.endProtocol.test(lineText) ||
+          SymbolRegexes.endCategory.test(lineText)) {
+        break;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Add implements(Protocol) to an entity opening directive
+   * @param document The text document
+   * @param entityLine The line number of the entity opening directive
+   * @param protocolName The name of the protocol to implement
+   * @param edit The workspace edit to add changes to
+   * @returns true if successful, false otherwise
+   */
+  private addImplementsToEntityDirective(
+    document: TextDocument,
+    entityLine: number,
+    protocolName: string,
+    edit: WorkspaceEdit
+  ): boolean {
+    // Get the full range of the entity opening directive
+    const directiveRange = PredicateUtils.getDirectiveRange(document, entityLine);
+
+    // Get the full directive text
+    const directiveText = document.getText(new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    ));
+
+    // Parse the directive to extract arguments
+    const lines = directiveText.split('\n');
+
+    if (lines.length === 1) {
+      // Single-line directive
+      return this.addImplementsToSingleLineDirective(document, directiveRange, directiveText, protocolName, edit);
+    } else {
+      // Multi-line directive
+      return this.addImplementsToMultiLineDirective(document, directiveRange, lines, protocolName, edit);
+    }
+  }
+
+  /**
+   * Add implements(Protocol) to a single-line entity opening directive
+   */
+  private addImplementsToSingleLineDirective(
+    document: TextDocument,
+    directiveRange: { start: number; end: number },
+    directiveText: string,
+    protocolName: string,
+    edit: WorkspaceEdit
+  ): boolean {
+    // Find the opening parenthesis of the directive
+    const openParenPos = directiveText.indexOf('(');
+    if (openParenPos < 0) {
+      return false;
+    }
+
+    // Find the matching closing parenthesis
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(directiveText, openParenPos);
+    if (closeParenPos < 0) {
+      return false;
+    }
+
+    // Extract the content between parentheses
+    const directiveContent = directiveText.substring(openParenPos + 1, closeParenPos);
+    const args = ArgumentUtils.parseArguments(directiveContent);
+
+    if (args.length === 0) {
+      return false;
+    }
+
+    const entityIdentifier = args[0]; // First argument is the entity identifier
+
+    if (args.length === 1) {
+      // Only one argument (entity name) - add implements as second argument
+      const beforeEntity = directiveText.substring(0, openParenPos + 1);
+      const afterEntity = directiveText.substring(closeParenPos);
+      const newDirective = `${beforeEntity}${entityIdentifier},\n\timplements(${protocolName})${afterEntity}`;
+
+      const fullRange = new Range(
+        new Position(directiveRange.start, 0),
+        new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+      );
+      edit.replace(document.uri, fullRange, newDirective);
+    } else {
+      // Multiple arguments - check if implements/1 already exists
+      const hasImplements = args.slice(1).some(arg => arg.trim().startsWith('implements('));
+
+      if (hasImplements) {
+        // Find the implements argument and add protocol to it
+        return this.addProtocolToExistingImplements(document, directiveRange, directiveText, args, protocolName, edit);
+      } else {
+        // Insert implements between first and second argument
+        return this.insertImplementsBetweenArguments(document, directiveRange, directiveText, args, protocolName, edit);
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Add implements(Protocol) to a multi-line entity opening directive
+   */
+  private addImplementsToMultiLineDirective(
+    document: TextDocument,
+    directiveRange: { start: number; end: number },
+    lines: string[],
+    protocolName: string,
+    edit: WorkspaceEdit
+  ): boolean {
+    // Parse all arguments from the multi-line directive
+    const fullText = lines.join('\n');
+    const openParenPos = fullText.indexOf('(');
+    if (openParenPos < 0) {
+      return false;
+    }
+
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(fullText, openParenPos);
+    if (closeParenPos < 0) {
+      return false;
+    }
+
+    const directiveContent = fullText.substring(openParenPos + 1, closeParenPos);
+    const args = ArgumentUtils.parseArguments(directiveContent);
+
+    if (args.length === 0) {
+      return false;
+    }
+
+    if (args.length === 1) {
+      // Only entity name - add implements after the first line
+      const firstLine = lines[0];
+      const firstLineRange = new Range(
+        new Position(directiveRange.start, 0),
+        new Position(directiveRange.start, document.lineAt(directiveRange.start).text.length)
+      );
+
+      // Add comma to first line if needed
+      if (!firstLine.trim().endsWith(',')) {
+        const modifiedFirstLine = firstLine.replace(/\s*$/, ',');
+        edit.replace(document.uri, firstLineRange, modifiedFirstLine);
+      }
+
+      // Insert implements line
+      const insertPosition = new Position(directiveRange.start + 1, 0);
+      edit.insert(document.uri, insertPosition, `\timplements(${protocolName})\n`);
+    } else {
+      // Multiple arguments - check if implements/1 already exists
+      const hasImplements = args.slice(1).some(arg => arg.trim().startsWith('implements('));
+
+      if (hasImplements) {
+        // Find and modify the implements argument
+        return this.addProtocolToExistingImplementsMultiLine(document, directiveRange, lines, protocolName, edit);
+      } else {
+        // Insert implements after the first line
+        const firstLine = lines[0];
+        const firstLineRange = new Range(
+          new Position(directiveRange.start, 0),
+          new Position(directiveRange.start, document.lineAt(directiveRange.start).text.length)
+        );
+
+        // Add comma to first line if needed
+        if (!firstLine.trim().endsWith(',')) {
+          const modifiedFirstLine = firstLine.replace(/\s*$/, ',');
+          edit.replace(document.uri, firstLineRange, modifiedFirstLine);
+        }
+
+        // Insert implements line after first line
+        const insertPosition = new Position(directiveRange.start + 1, 0);
+        edit.insert(document.uri, insertPosition, `\timplements(${protocolName}),\n`);
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Add protocol to an existing implements/1 argument in a single-line directive
+   */
+  private addProtocolToExistingImplements(
+    document: TextDocument,
+    directiveRange: { start: number; end: number },
+    directiveText: string,
+    args: string[],
+    protocolName: string,
+    edit: WorkspaceEdit
+  ): boolean {
+    // Find which argument contains implements(...)
+    let implementsArgIndex = -1;
+    for (let i = 1; i < args.length; i++) {
+      if (args[i].trim().startsWith('implements(')) {
+        implementsArgIndex = i;
+        break;
+      }
+    }
+
+    if (implementsArgIndex === -1) {
+      return false;
+    }
+
+    const implementsArg = args[implementsArgIndex].trim();
+
+    // Extract the content inside implements(...)
+    const openParen = implementsArg.indexOf('(');
+    const closeParen = ArgumentUtils.findMatchingCloseParen(implementsArg, openParen);
+
+    if (openParen < 0 || closeParen < 0) {
+      return false;
+    }
+
+    const implementsContent = implementsArg.substring(openParen + 1, closeParen);
+
+    // Create new implements argument with protocol added as a conjunction
+    const newImplementsArg = `implements((${implementsContent}, ${protocolName}))`;
+
+    // Find the position of the implements argument in the directive text
+    const implementsPos = directiveText.indexOf(implementsArg);
+    if (implementsPos < 0) {
+      return false;
+    }
+
+    // Calculate the absolute position in the document
+    const beforeImplements = directiveText.substring(0, implementsPos);
+    const afterImplements = directiveText.substring(implementsPos + implementsArg.length);
+    const newDirective = beforeImplements + newImplementsArg + afterImplements;
+
+    const fullRange = new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    );
+    edit.replace(document.uri, fullRange, newDirective);
+
+    return true;
+  }
+
+  /**
+   * Insert implements(Protocol) between first and second argument in a single-line directive
+   */
+  private insertImplementsBetweenArguments(
+    document: TextDocument,
+    directiveRange: { start: number; end: number },
+    directiveText: string,
+    args: string[],
+    protocolName: string,
+    edit: WorkspaceEdit
+  ): boolean {
+    // Find the position after the first argument
+    const openParenPos = directiveText.indexOf('(');
+    if (openParenPos < 0) {
+      return false;
+    }
+
+    const firstArg = args[0];
+    const firstArgPos = directiveText.indexOf(firstArg, openParenPos);
+    if (firstArgPos < 0) {
+      return false;
+    }
+
+    const afterFirstArg = firstArgPos + firstArg.length;
+
+    // Find the comma after the first argument
+    let commaPos = afterFirstArg;
+    while (commaPos < directiveText.length && directiveText[commaPos] !== ',') {
+      commaPos++;
+    }
+
+    if (commaPos >= directiveText.length) {
+      return false;
+    }
+
+    // Insert implements after the comma
+    const beforeInsert = directiveText.substring(0, commaPos + 1);
+    const afterInsert = directiveText.substring(commaPos + 1);
+    const newDirective = `${beforeInsert}\n\timplements(${protocolName}),${afterInsert}`;
+
+    const fullRange = new Range(
+      new Position(directiveRange.start, 0),
+      new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+    );
+    edit.replace(document.uri, fullRange, newDirective);
+
+    return true;
+  }
+
+  /**
+   * Add protocol to an existing implements/1 argument in a multi-line directive
+   */
+  private addProtocolToExistingImplementsMultiLine(
+    document: TextDocument,
+    directiveRange: { start: number; end: number },
+    lines: string[],
+    protocolName: string,
+    edit: WorkspaceEdit
+  ): boolean {
+    // Find the line containing implements(...)
+    let implementsLineIndex = -1;
+    let implementsLine = '';
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('implements(')) {
+        implementsLineIndex = i;
+        implementsLine = lines[i];
+        break;
+      }
+    }
+
+    if (implementsLineIndex === -1) {
+      return false;
+    }
+
+    const trimmedLine = implementsLine.trim();
+
+    // Extract the content inside implements(...)
+    const openParen = trimmedLine.indexOf('(');
+    const closeParen = ArgumentUtils.findMatchingCloseParen(trimmedLine, openParen);
+
+    if (openParen < 0 || closeParen < 0) {
+      return false;
+    }
+
+    const implementsContent = trimmedLine.substring(openParen + 1, closeParen);
+
+    // Get the indentation from the original line
+    const indent = implementsLine.match(/^(\s*)/)[1];
+
+    // Create new implements line with protocol added as a conjunction
+    const afterCloseParen = trimmedLine.substring(closeParen + 1);
+    const newImplementsLine = `${indent}implements((${implementsContent}, ${protocolName}))${afterCloseParen}`;
+
+    // Replace the implements line
+    const lineRange = new Range(
+      new Position(directiveRange.start + implementsLineIndex, 0),
+      new Position(directiveRange.start + implementsLineIndex, document.lineAt(directiveRange.start + implementsLineIndex).text.length)
+    );
+    edit.replace(document.uri, lineRange, newImplementsLine);
+
+    return true;
   }
 
   private parseIssue(issue: string) {
