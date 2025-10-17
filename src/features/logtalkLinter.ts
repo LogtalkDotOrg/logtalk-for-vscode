@@ -69,9 +69,11 @@ export default class LogtalkLinter implements CodeActionProvider {
     } else if (diagnostic.message.includes('Permission error: modify predicate_declaration ')) {
       return true;
     // Warnings
-    } else if (diagnostic.message.includes('Singleton variable: ')) {
+    } else if (diagnostic.message.includes('Entity parameter name not in parameter variable syntax:')) {
       return true;
-    } else if (diagnostic.message.includes('Singleton variables: ')) {
+    } else if (diagnostic.message.includes('Singleton variable:')) {
+      return true;
+    } else if (diagnostic.message.includes('Singleton variables:')) {
       return true;
     } else if (diagnostic.message.includes('Redundant entity qualification in predicate directive argument:')) {
       return true;
@@ -158,7 +160,30 @@ export default class LogtalkLinter implements CodeActionProvider {
       );
       DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
     // Warnings
-    } else if (diagnostic.message.includes('Singleton variable: ')) {
+    } else if (diagnostic.message.includes('Entity parameter name not in parameter variable syntax:')) {
+      // Rename the parameter to use parameter variable syntax
+      action = new CodeAction(
+        'Rename parameter to use parameter variable syntax',
+        CodeActionKind.QuickFix
+      );
+      const message = diagnostic.message.match(/Entity parameter name not in parameter variable syntax: (.+)/);
+      const parameterName = message[1];
+      let newParameterName: string;
+      if (parameterName.startsWith('_')) {
+        newParameterName = parameterName + '_';
+      } else if (parameterName.endsWith('_')) {
+        newParameterName = '_' + parameterName;
+      } else {
+        newParameterName = '_' + parameterName + '_';
+      }
+      // Find the exact range of the parameter name within the diagnostic range
+      const parameterRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, parameterName);
+      if (parameterRange) {
+        edit.replace(document.uri, parameterRange, newParameterName);
+      } else {
+        return null;
+      }
+    } else if (diagnostic.message.includes('Singleton variable:')) {
       // Rename the singleton variable to named anonymous variable
       action = new CodeAction(
         'Rename singleton variable to named anonymous variable',
@@ -174,7 +199,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       } else {
         return null;
       }
-    } else if (diagnostic.message.includes('Singleton variables: ')) {
+    } else if (diagnostic.message.includes('Singleton variables:')) {
       // Rename the singleton variables to named anonymous variables
       action = new CodeAction(
         'Rename singleton variables to named anonymous variables',
