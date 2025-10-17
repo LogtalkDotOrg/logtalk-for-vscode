@@ -73,6 +73,8 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Date in info/1 directive is in the future:')) {
       return true;
+    } else if (diagnostic.message.includes('Missing punctuation at the end of text:')) {
+      return true;
     }
     return false;
   }
@@ -149,7 +151,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
           `${indent}\tversion is 1:0:0,\n` +
           `${indent}\tauthor is '',\n` +
           `${indent}\tdate is ${currentDate},\n` +
-          `${indent}\tcomment is '',\n` +
+          `${indent}\tcomment is '.',\n` +
           `${indent}\tparnames is [${parnames.join(', ')}]\n` +
           `${indent}]).\n`;
       } else {
@@ -158,7 +160,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
           `${indent}\tversion is 1:0:0,\n` +
           `${indent}\tauthor is '',\n` +
           `${indent}\tdate is ${currentDate},\n` +
-          `${indent}\tcomment is ''\n` +
+          `${indent}\tcomment is '.'\n` +
           `${indent}]).\n`;
       }
 
@@ -198,13 +200,13 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       if (parsed.arity === 0) {
         // No argnames for zero-arity predicates
         infoDirective = `${indent}:- info(${indicator}, [\n` +
-          `${indent}\tcomment is ''\n` +
+          `${indent}\tcomment is '.'\n` +
           `${indent}]).\n`;
       } else {
         // Create argnames list with empty strings based on arity
         const argnamesList = Array(parsed.arity).fill("''").join(', ');
         infoDirective = `${indent}:- info(${indicator}, [\n` +
-          `${indent}\tcomment is '',\n` +
+          `${indent}\tcomment is '.',\n` +
           `${indent}\targnames is [${argnamesList}]\n` +
           `${indent}]).\n`;
       }
@@ -314,6 +316,63 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
       const updatedDirectiveText = directiveText.replace(
         new RegExp(`date is ${invalidDate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`),
         `date is ${currentDate}`
+      );
+
+      // Replace the entire directive with the updated version
+      const directiveStartPos = new Position(infoDirectiveLine, 0);
+      const directiveEndPos = new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length);
+      const directiveFullRange = new Range(directiveStartPos, directiveEndPos);
+
+      edit.replace(document.uri, directiveFullRange, updatedDirectiveText);
+    } else if (diagnostic.message.includes('Missing punctuation at the end of text:')) {
+      // Extract the text missing punctuation from the diagnostic message
+      const textMatch = diagnostic.message.match(/Missing punctuation at the end of text:\s*'(.*)'/);
+      if (!textMatch) {
+        return null;
+      }
+
+      const textWithoutPunctuation = textMatch[1];
+
+      action = new CodeAction(
+        'Add missing punctuation',
+        CodeActionKind.QuickFix
+      );
+
+      // Find the info directive (info/1 or info/2) starting from the warning line
+      // Search forwards to find the directive opening
+      const warningLine = diagnostic.range.start.line;
+      let infoDirectiveLine = -1;
+      for (let i = warningLine; i < document.lineCount; i++) {
+        const lineText = document.lineAt(i).text.trim();
+        // Match both info/1 and info/2 directives
+        if (lineText.match(/^\:-\s*info\(/)) {
+          infoDirectiveLine = i;
+          break;
+        }
+      }
+
+      if (infoDirectiveLine === -1) {
+        return null;
+      }
+
+      // Get the full range of the info directive
+      const directiveRange = PredicateUtils.getDirectiveRange(document, infoDirectiveLine);
+
+      // Get the directive text
+      let directiveText = '';
+      for (let i = infoDirectiveLine; i <= directiveRange.end; i++) {
+        directiveText += document.lineAt(i).text;
+        if (i < directiveRange.end) {
+          directiveText += '\n';
+        }
+      }
+
+      // Replace the text without punctuation with the same text ending with a period
+      // Escape special regex characters in the text
+      const escapedText = textWithoutPunctuation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const updatedDirectiveText = directiveText.replace(
+        new RegExp(`'${escapedText}'`, 'g'),
+        `'${textWithoutPunctuation}.'`
       );
 
       // Replace the entire directive with the updated version
