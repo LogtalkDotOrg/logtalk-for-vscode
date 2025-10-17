@@ -247,6 +247,32 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
   }
 
   /**
+   * Format a use_module/2 directive with the given module name and list elements
+   * Calls LogtalkDocumentFormattingEditProvider.formatUseModule2DirectiveContent()
+   */
+  private formatUseModule2DirectiveWithElements(
+    document: TextDocument,
+    moduleName: string,
+    elements: string[]
+  ): string {
+    // Create a temporary directive text with the updated elements
+    const newListContent = elements.join(', ');
+    const tempDirectiveText = `:- use_module(${moduleName}, [${newListContent}]).`;
+
+    // Create a mock document that returns our temporary directive text
+    const mockDocument = {
+      uri: document.uri,
+      lineAt: (_line: number) => ({
+        text: tempDirectiveText
+      })
+    } as TextDocument;
+
+    // Call the formatter's public method
+    const directiveRange = { start: 0, end: 0 };
+    return this.formatter.formatUseModule2DirectiveContent(mockDocument, directiveRange);
+  }
+
+  /**
    * Create a code action to delete dead predicate or non-terminal
    */
   private async createDeleteAction(
@@ -255,9 +281,9 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
     _token: CancellationToken
   ): Promise<CodeAction | null> {
     try {
-      // Check if this is a "Likely unused predicate:" warning in a uses/2 directive
+      // Check if this is a "Likely unused predicate:" warning in a uses/2 or use_module/2 directive
       if (diagnostic.message.includes('Likely unused predicate:')) {
-        return this.createRemoveFromUsesAction(document, diagnostic);
+        return this.createRemoveFromUsesOrUseModuleAction(document, diagnostic);
       }
 
       // Extract the predicate/non-terminal indicator from the diagnostic message
@@ -317,9 +343,9 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
   }
 
   /**
-   * Create a code action to remove an unused predicate from a uses/2 directive
+   * Create a code action to remove an unused predicate from a uses/2 or use_module/2 directive
    */
-  private createRemoveFromUsesAction(
+  private createRemoveFromUsesOrUseModuleAction(
     document: TextDocument,
     diagnostic: Diagnostic
   ): CodeAction | null {
@@ -334,27 +360,47 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
       const qualifiedIndicator = indicatorMatch[1].trim();
       this.logger.debug(`Extracted qualified indicator: ${qualifiedIndicator} from likely unused predicate warning`);
 
-      // Parse the qualified indicator to extract object and predicate parts
-      // Format: object::predicate/arity or object::predicate//arity
-      const qualifiedMatch = qualifiedIndicator.match(/^(.+)::(.+)$/);
-      if (!qualifiedMatch) {
-        this.logger.debug(`Indicator ${qualifiedIndicator} is not qualified with object name`);
-        return null;
-      }
-
-      const expectedObjectName = qualifiedMatch[1].trim();
-      const unqualifiedIndicator = qualifiedMatch[2].trim();
-      this.logger.debug(`Parsed object: ${expectedObjectName}, unqualified indicator: ${unqualifiedIndicator}`);
-
-      // Confirm that the warning line is the first line of a uses/2 directive
+      // First, check the directive type on the warning line
       const warningLine = diagnostic.range.start.line;
       const lineText = document.lineAt(warningLine).text.trim();
-      if (!lineText.match(/^\:-\s*uses\(/)) {
-        this.logger.debug(`Warning line ${warningLine} is not a uses/2 directive`);
+
+      let directiveType: 'uses' | 'use_module';
+      if (lineText.match(/^\:-\s*uses\(/)) {
+        directiveType = 'uses';
+      } else if (lineText.match(/^\:-\s*use_module\(/)) {
+        directiveType = 'use_module';
+      } else {
+        this.logger.debug(`Warning line ${warningLine} is not a uses/2 or use_module/2 directive`);
         return null;
       }
 
-      // Get the full range of the uses/2 directive
+      // Now parse the qualified indicator based on the directive type
+      // Format for uses/2: object::predicate/arity or object::predicate//arity
+      // Format for use_module/2: module:predicate/arity or module:predicate//arity
+      let expectedObjectOrModuleName: string;
+      let unqualifiedIndicator: string;
+
+      if (directiveType === 'uses') {
+        const usesMatch = qualifiedIndicator.match(/^(.+)::(.+)$/);
+        if (!usesMatch) {
+          this.logger.debug(`Indicator ${qualifiedIndicator} is not qualified with :: for uses/2 directive`);
+          return null;
+        }
+        expectedObjectOrModuleName = usesMatch[1].trim();
+        unqualifiedIndicator = usesMatch[2].trim();
+        this.logger.debug(`Parsed uses/2: object=${expectedObjectOrModuleName}, indicator=${unqualifiedIndicator}`);
+      } else {
+        const useModuleMatch = qualifiedIndicator.match(/^([^:]+):([^:].+)$/);
+        if (!useModuleMatch) {
+          this.logger.debug(`Indicator ${qualifiedIndicator} is not qualified with : for use_module/2 directive`);
+          return null;
+        }
+        expectedObjectOrModuleName = useModuleMatch[1].trim();
+        unqualifiedIndicator = useModuleMatch[2].trim();
+        this.logger.debug(`Parsed use_module/2: module=${expectedObjectOrModuleName}, indicator=${unqualifiedIndicator}`);
+      }
+
+      // Get the full range of the directive
       const directiveRange = PredicateUtils.getDirectiveRange(document, warningLine);
 
       // Get the directive text (join all lines without newlines for easier parsing)
@@ -363,10 +409,14 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
         directiveText += document.lineAt(i).text.trim();
       }
 
-      // Parse the uses/2 directive: :- uses(Object, [list]).
-      const match = directiveText.match(/^:-\s*uses\(\s*(.*)\)\s*\.$/);
+      // Parse the directive: :- uses(Object, [list]). or :- use_module(Module, [list]).
+      const directiveRegex = directiveType === 'uses'
+        ? /^:-\s*uses\(\s*(.*)\)\s*\.$/
+        : /^:-\s*use_module\(\s*(.*)\)\s*\.$/;
+
+      const match = directiveText.match(directiveRegex);
       if (!match) {
-        this.logger.debug(`Could not parse uses/2 directive: ${directiveText}`);
+        this.logger.debug(`Could not parse ${directiveType}/2 directive: ${directiveText}`);
         return null;
       }
 
@@ -383,12 +433,12 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
         return null;
       }
 
-      const directiveObjectName = args[0].trim();
+      const directiveObjectOrModuleName = args[0].trim();
       const listText = args[1].trim();
 
-      // Verify that the object name from the warning matches the first argument of the uses/2 directive
-      if (directiveObjectName !== expectedObjectName) {
-        this.logger.debug(`Object name mismatch: expected ${expectedObjectName}, got ${directiveObjectName}`);
+      // Verify that the object/module name from the warning matches the first argument of the directive
+      if (directiveObjectOrModuleName !== expectedObjectOrModuleName) {
+        this.logger.debug(`Name mismatch: expected ${expectedObjectOrModuleName}, got ${directiveObjectOrModuleName}`);
         return null;
       }
 
@@ -466,11 +516,9 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
         DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, directiveFullRange);
       } else {
         // Format the directive with remaining elements
-        const formattedContent = this.formatUses2DirectiveWithElements(
-          document,
-          directiveObjectName,
-          elements
-        );
+        const formattedContent = directiveType === 'uses'
+          ? this.formatUses2DirectiveWithElements(document, directiveObjectOrModuleName, elements)
+          : this.formatUseModule2DirectiveWithElements(document, directiveObjectOrModuleName, elements);
 
         // Get indentation from the original directive
         const originalLineText = document.lineAt(warningLine).text;
@@ -493,7 +541,7 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
 
       // Create the code action
       const action = new CodeAction(
-        `Remove unused predicate ${qualifiedIndicator} from uses/2 directive`,
+        `Remove unused predicate ${qualifiedIndicator} from ${directiveType}/2 directive`,
         CodeActionKind.QuickFix
       );
       action.edit = edit;

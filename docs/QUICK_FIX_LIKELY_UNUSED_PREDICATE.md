@@ -2,11 +2,12 @@
 
 ## Overview
 
-This document describes the implementation of a quick fix for the Logtalk Dead Code Scanner warning "Likely unused predicate: <indicator>". The quick fix automatically removes the unused predicate indicator from the `uses/2` directive.
+This document describes the implementation of a quick fix for the Logtalk Dead Code Scanner warning "Likely unused predicate: <indicator>". The quick fix automatically removes the unused predicate indicator from `uses/2` or `use_module/2` directives.
 
 ## Implementation Location
 
 **File**: `src/features/logtalkDeadCodeScanner.ts`
+**Method**: `createRemoveFromUsesOrUseModuleAction()`
 
 ## Warning Format
 
@@ -20,11 +21,16 @@ For example:
 
 ```text
 Likely unused predicate: list::append/3
+Likely unused predicate: lists:member/2
 ```
 
-This warning is generated when a predicate is imported via a `uses/2` directive but is never actually used in the code.
+This warning is generated when a predicate is imported via a `uses/2` or `use_module/2` directive but is never actually used in the code.
 
-**Important**: The indicator in the warning is **qualified** with the object name (e.g., `list::append/3`), but in the `uses/2` directive's second argument, it appears **unqualified** (e.g., `append/3`).
+**Important Qualification Differences**:
+- **uses/2 directive**: Uses double colon `::` (e.g., `list::append/3`)
+- **use_module/2 directive**: Uses single colon `:` (e.g., `lists:member/2`)
+
+The indicator in the warning is **qualified** with the object/module name, but in the directive's second argument, it appears **unqualified** (e.g., `append/3` or `member/2`).
 
 ## Implementation Details
 
@@ -74,11 +80,11 @@ private async createDeleteAction(
 }
 ```
 
-### 3. New `createRemoveFromUsesAction` Method
+### 3. New `createRemoveFromUsesOrUseModuleAction` Method
 
-This method implements the quick fix logic:
+This method implements the quick fix logic for both `uses/2` and `use_module/2` directives:
 
-#### Step 1: Extract and Parse the Qualified Predicate Indicator
+#### Step 1: Extract the Qualified Predicate Indicator
 
 ```typescript
 const indicatorMatch = diagnostic.message.match(/Likely unused predicate:\s*(.+)/);
@@ -87,33 +93,56 @@ if (!indicatorMatch) {
 }
 
 const qualifiedIndicator = indicatorMatch[1].trim();
-
-// Parse the qualified indicator to extract object and predicate parts
-// Format: object::predicate/arity or object::predicate//arity
-const qualifiedMatch = qualifiedIndicator.match(/^(.+)::(.+)$/);
-if (!qualifiedMatch) {
-  return null;
-}
-
-const expectedObjectName = qualifiedMatch[1].trim();
-const unqualifiedIndicator = qualifiedMatch[2].trim();
 ```
 
-The warning contains a **qualified** indicator (e.g., `list::append/3`), which we parse to extract:
-- `expectedObjectName`: The object name (e.g., `list`)
-- `unqualifiedIndicator`: The predicate indicator without qualification (e.g., `append/3`)
+#### Step 2: Detect Directive Type from Warning Line
 
-#### Step 2: Confirm Warning Line is a uses/2 Directive
+**Important**: We check the directive type FIRST by examining the warning line, not by parsing the qualification format. This is more reliable.
 
 ```typescript
 const warningLine = diagnostic.range.start.line;
 const lineText = document.lineAt(warningLine).text.trim();
-if (!lineText.match(/^\:-\s*uses\(/)) {
+
+let directiveType: 'uses' | 'use_module';
+if (lineText.match(/^\:-\s*uses\(/)) {
+  directiveType = 'uses';
+} else if (lineText.match(/^\:-\s*use_module\(/)) {
+  directiveType = 'use_module';
+} else {
   return null;
 }
 ```
 
-#### Step 3: Get the Directive Range
+#### Step 3: Parse Qualified Indicator Based on Directive Type
+
+Now that we know the directive type, we parse the qualification using the appropriate pattern:
+
+```typescript
+let expectedObjectOrModuleName: string;
+let unqualifiedIndicator: string;
+
+if (directiveType === 'uses') {
+  // uses/2: object::predicate/arity (double colon)
+  const usesMatch = qualifiedIndicator.match(/^(.+)::(.+)$/);
+  if (!usesMatch) return null;
+
+  expectedObjectOrModuleName = usesMatch[1].trim();
+  unqualifiedIndicator = usesMatch[2].trim();
+} else {
+  // use_module/2: module:predicate/arity (single colon)
+  const useModuleMatch = qualifiedIndicator.match(/^([^:]+):([^:].+)$/);
+  if (!useModuleMatch) return null;
+
+  expectedObjectOrModuleName = useModuleMatch[1].trim();
+  unqualifiedIndicator = useModuleMatch[2].trim();
+}
+```
+
+**Qualification patterns:**
+- `uses/2`: `list::append/3` → object=`list`, indicator=`append/3`
+- `use_module/2`: `lists:member/2` → module=`lists`, indicator=`member/2`
+
+#### Step 4: Get the Directive Range
 
 Use `PredicateUtils.getDirectiveRange()` to handle multi-line directives:
 
@@ -121,7 +150,7 @@ Use `PredicateUtils.getDirectiveRange()` to handle multi-line directives:
 const directiveRange = PredicateUtils.getDirectiveRange(document, warningLine);
 ```
 
-#### Step 4: Parse the uses/2 Directive and Verify Object Name
+#### Step 5: Parse the Directive and Verify Object/Module Name
 
 Extract the directive text and parse it:
 
@@ -131,22 +160,27 @@ for (let i = warningLine; i <= directiveRange.end; i++) {
   directiveText += document.lineAt(i).text.trim();
 }
 
-const match = directiveText.match(/^:-\s*uses\(\s*(.*)\)\s*\.$/);
+// Parse based on directive type
+const directiveRegex = directiveType === 'uses'
+  ? /^:-\s*uses\(\s*(.*)\)\s*\.$/
+  : /^:-\s*use_module\(\s*(.*)\)\s*\.$/;
+
+const match = directiveText.match(directiveRegex);
 const argumentsText = match[1].trim();
 const args = ArgumentUtils.parseArguments(argumentsText);
 
-const directiveObjectName = args[0].trim();
+const directiveObjectOrModuleName = args[0].trim();
 const listText = args[1].trim();
 
-// Verify that the object name from the warning matches the first argument
-if (directiveObjectName !== expectedObjectName) {
+// Verify that the object/module name from the warning matches the first argument
+if (directiveObjectOrModuleName !== expectedObjectOrModuleName) {
   return null;
 }
 ```
 
-This ensures we only provide the quick fix when the object name in the warning (e.g., `list`) matches the first argument of the `uses/2` directive.
+This ensures we only provide the quick fix when the object/module name in the warning matches the first argument of the directive.
 
-#### Step 5: Extract List Elements
+#### Step 6: Extract List Elements
 
 ```typescript
 const objectName = args[0].trim();
@@ -159,7 +193,7 @@ const listContent = listText.substring(1, listText.length - 1).trim();
 const elements = ArgumentUtils.parseArguments(listContent);
 ```
 
-#### Step 6: Find and Validate the Element to Remove
+#### Step 7: Find and Validate the Element to Remove
 
 ```typescript
 let elementToRemove = -1;
@@ -223,7 +257,7 @@ Note: Mixed forms (indicator with callable or vice versa) never occur.
    - Warning: `Likely unused predicate: logtalk::dbg/1` → ✅ Can delete (callable `dbg(Message)` matches `dbg/1`)
    - Warning: `Likely unused predicate: logtalk::print_message/3` → ❌ Cannot delete
 
-#### Step 7: Remove the Element and Update the Directive
+#### Step 8: Remove the Element and Update the Directive
 
 ```typescript
 elements.splice(elementToRemove, 1);
@@ -262,7 +296,7 @@ if (elements.length === 0) {
 }
 ```
 
-**Note**: The `formatUses2DirectiveWithElements` helper method calls `LogtalkDocumentFormattingEditProvider.formatUses2DirectiveContent()` by creating a mock document that returns the temporary directive text with the modified elements list. This ensures we use the exact same formatting logic without code duplication, providing proper multi-line formatting based on ruler settings.
+**Note**: The helper methods (`formatUses2DirectiveWithElements` and `formatUseModule2DirectiveWithElements`) call the corresponding formatter methods (`LogtalkDocumentFormattingEditProvider.formatUses2DirectiveContent()` or `formatUseModule2DirectiveContent()`) by creating a mock document that returns the temporary directive text with the modified elements list. This ensures we use the exact same formatting logic without code duplication, providing proper multi-line formatting based on ruler settings.
 
 ## Examples
 
