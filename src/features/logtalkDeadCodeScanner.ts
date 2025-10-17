@@ -23,6 +23,8 @@ import * as path from "path";
 import { DiagnosticsUtils } from "../utils/diagnostics";
 import { getLogger } from "../utils/logger";
 import { PredicateUtils } from "../utils/predicateUtils";
+import { ArgumentUtils } from "../utils/argumentUtils";
+import { LogtalkDocumentFormattingEditProvider } from "./documentFormattingEditProvider";
 
 export default class LogtalkDeadCodeScanner implements CodeActionProvider {
 
@@ -35,6 +37,7 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
   private logger = getLogger();
+  private formatter = new LogtalkDocumentFormattingEditProvider();
 
   constructor(private context: ExtensionContext) {
     this.loadConfiguration();
@@ -182,9 +185,65 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
            message.includes('unused non-terminal') ||
            message.includes('unreachable predicate') ||
            message.includes('unreachable non-terminal') ||
+           message.includes('Likely unused predicate:') ||
            // Look for predicate/non-terminal indicators in the message
            /\b\w+\/\d+\b/.test(message) ||  // predicate indicator: name/arity
            /\b\w+\/\/\d+\b/.test(message);  // non-terminal indicator: name//arity
+  }
+
+
+
+  /**
+   * Check if a callable form matches an indicator
+   * E.g., "dbg(Message)" matches "dbg/1"
+   */
+  private matchesCallable(callable: string, indicator: string): boolean {
+    // Extract functor and arity from the indicator (e.g., "dbg/1" -> functor="dbg", arity=1)
+    const indicatorMatch = indicator.match(/^(.+)\/(\d+)$/);
+    if (!indicatorMatch) {
+      return false;
+    }
+    const expectedFunctor = indicatorMatch[1];
+    const expectedArity = parseInt(indicatorMatch[2], 10);
+
+    // Extract functor and count arguments from the callable (e.g., "dbg(Message)" -> functor="dbg", arity=1)
+    const callableMatch = callable.match(/^([^(]+)\((.*)\)$/);
+    if (!callableMatch) {
+      return false;
+    }
+    const callableFunctor = callableMatch[1].trim();
+    const argsText = callableMatch[2].trim();
+
+    // Count arguments (empty string = 0 args, otherwise parse with ArgumentUtils)
+    const callableArity = argsText === '' ? 0 : ArgumentUtils.parseArguments(argsText).length;
+
+    return callableFunctor === expectedFunctor && callableArity === expectedArity;
+  }
+
+  /**
+   * Format a uses/2 directive with the given object name and list elements
+   * Calls LogtalkDocumentFormattingEditProvider.formatUses2DirectiveContent()
+   */
+  private formatUses2DirectiveWithElements(
+    document: TextDocument,
+    objectName: string,
+    elements: string[]
+  ): string {
+    // Create a temporary directive text with the updated elements
+    const newListContent = elements.join(', ');
+    const tempDirectiveText = `:- uses(${objectName}, [${newListContent}]).`;
+
+    // Create a mock document that returns our temporary directive text
+    const mockDocument = {
+      uri: document.uri,
+      lineAt: (_line: number) => ({
+        text: tempDirectiveText
+      })
+    } as TextDocument;
+
+    // Call the formatter's public method
+    const directiveRange = { start: 0, end: 0 };
+    return this.formatter.formatUses2DirectiveContent(mockDocument, directiveRange);
   }
 
   /**
@@ -196,6 +255,11 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
     _token: CancellationToken
   ): Promise<CodeAction | null> {
     try {
+      // Check if this is a "Likely unused predicate:" warning in a uses/2 directive
+      if (diagnostic.message.includes('Likely unused predicate:')) {
+        return this.createRemoveFromUsesAction(document, diagnostic);
+      }
+
       // Extract the predicate/non-terminal indicator from the diagnostic message
       const indicator = this.extractIndicatorFromMessage(diagnostic.message);
       if (!indicator) {
@@ -248,6 +312,201 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
       return action;
     } catch (error) {
       this.logger.error(`Error creating delete action: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Create a code action to remove an unused predicate from a uses/2 directive
+   */
+  private createRemoveFromUsesAction(
+    document: TextDocument,
+    diagnostic: Diagnostic
+  ): CodeAction | null {
+    try {
+      // Extract the predicate indicator from the diagnostic message
+      const indicatorMatch = diagnostic.message.match(/Likely unused predicate:\s*(.+)/);
+      if (!indicatorMatch) {
+        this.logger.debug(`Could not extract indicator from message: ${diagnostic.message}`);
+        return null;
+      }
+
+      const qualifiedIndicator = indicatorMatch[1].trim();
+      this.logger.debug(`Extracted qualified indicator: ${qualifiedIndicator} from likely unused predicate warning`);
+
+      // Parse the qualified indicator to extract object and predicate parts
+      // Format: object::predicate/arity or object::predicate//arity
+      const qualifiedMatch = qualifiedIndicator.match(/^(.+)::(.+)$/);
+      if (!qualifiedMatch) {
+        this.logger.debug(`Indicator ${qualifiedIndicator} is not qualified with object name`);
+        return null;
+      }
+
+      const expectedObjectName = qualifiedMatch[1].trim();
+      const unqualifiedIndicator = qualifiedMatch[2].trim();
+      this.logger.debug(`Parsed object: ${expectedObjectName}, unqualified indicator: ${unqualifiedIndicator}`);
+
+      // Confirm that the warning line is the first line of a uses/2 directive
+      const warningLine = diagnostic.range.start.line;
+      const lineText = document.lineAt(warningLine).text.trim();
+      if (!lineText.match(/^\:-\s*uses\(/)) {
+        this.logger.debug(`Warning line ${warningLine} is not a uses/2 directive`);
+        return null;
+      }
+
+      // Get the full range of the uses/2 directive
+      const directiveRange = PredicateUtils.getDirectiveRange(document, warningLine);
+
+      // Get the directive text (join all lines without newlines for easier parsing)
+      let directiveText = '';
+      for (let i = warningLine; i <= directiveRange.end; i++) {
+        directiveText += document.lineAt(i).text.trim();
+      }
+
+      // Parse the uses/2 directive: :- uses(Object, [list]).
+      const match = directiveText.match(/^:-\s*uses\(\s*(.*)\)\s*\.$/);
+      if (!match) {
+        this.logger.debug(`Could not parse uses/2 directive: ${directiveText}`);
+        return null;
+      }
+
+      const argumentsText = match[1].trim();
+      if (!argumentsText) {
+        this.logger.debug(`Empty arguments in uses/2 directive`);
+        return null;
+      }
+
+      // Extract the two arguments (object name and list)
+      const args = ArgumentUtils.parseArguments(argumentsText);
+      if (args.length !== 2) {
+        this.logger.debug(`Expected 2 arguments in uses/2 directive, got ${args.length}`);
+        return null;
+      }
+
+      const directiveObjectName = args[0].trim();
+      const listText = args[1].trim();
+
+      // Verify that the object name from the warning matches the first argument of the uses/2 directive
+      if (directiveObjectName !== expectedObjectName) {
+        this.logger.debug(`Object name mismatch: expected ${expectedObjectName}, got ${directiveObjectName}`);
+        return null;
+      }
+
+      // Remove the outer brackets from the list
+      if (!listText.startsWith('[') || !listText.endsWith(']')) {
+        this.logger.debug(`Second argument is not a list: ${listText}`);
+        return null;
+      }
+
+      const listContent = listText.substring(1, listText.length - 1).trim();
+      if (!listContent) {
+        this.logger.debug(`Empty list in uses/2 directive`);
+        return null;
+      }
+
+      // Parse the list elements
+      const elements = ArgumentUtils.parseArguments(listContent);
+      this.logger.debug(`Parsed ${elements.length} elements from uses/2 list`);
+
+      // Find the element to remove
+      let elementToRemove = -1;
+      for (let i = 0; i < elements.length; i++) {
+        const element = elements[i].trim();
+
+        // Check if this element matches the unqualified indicator
+        // The indicator could be:
+        // 1. Just the predicate (e.g., "append/3") - can delete
+        // 2. The alias part after "as" (e.g., in "append/3 as my_append/3", indicator is "my_append/3") - can delete whole element
+        // 3. The original part before "as" (e.g., in "append/3 as my_append/3", indicator is "append/3") - CANNOT delete
+
+        if (element === unqualifiedIndicator) {
+          // Simple case: element is exactly the indicator (no "as" operator)
+          elementToRemove = i;
+          break;
+        } else if (element.includes(' as ')) {
+          // Element uses the "as" operator (e.g., "append/3 as my_append/3" or "print_message(...) as dbg(Message)")
+          const parts = element.split(' as ');
+          if (parts.length === 2) {
+            const original = parts[0].trim();
+            const alias = parts[1].trim();
+
+            // Check if alias matches the indicator (either exact match or callable form)
+            if (alias === unqualifiedIndicator || this.matchesCallable(alias, unqualifiedIndicator)) {
+              // The indicator is the alias (part after "as"), so we can delete the whole element
+              elementToRemove = i;
+              break;
+            } else if (original === unqualifiedIndicator || this.matchesCallable(original, unqualifiedIndicator)) {
+              // The indicator is the original (part before "as"), so we cannot provide a quick fix
+              // because the alias might still be used
+              this.logger.debug(`Indicator ${unqualifiedIndicator} appears before 'as' in element ${element}, cannot remove`);
+              return null;
+            }
+          }
+        }
+      }
+
+      if (elementToRemove === -1) {
+        this.logger.debug(`Could not find element ${unqualifiedIndicator} in uses/2 list`);
+        return null;
+      }
+
+      // Remove the element from the list
+      elements.splice(elementToRemove, 1);
+
+      // Create the workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Get the full range of the directive for deletion/replacement
+      const directiveStartPos = new Position(warningLine, 0);
+      const directiveEndPos = new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length);
+      const directiveFullRange = new Range(directiveStartPos, directiveEndPos);
+
+      if (elements.length === 0) {
+        // If the list is now empty, delete the entire directive
+        DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, directiveFullRange);
+      } else {
+        // Format the directive with remaining elements
+        const formattedContent = this.formatUses2DirectiveWithElements(
+          document,
+          directiveObjectName,
+          elements
+        );
+
+        // Get indentation from the original directive
+        const originalLineText = document.lineAt(warningLine).text;
+        const indent = originalLineText.match(/^(\s*)/)[1];
+
+        // Adjust indentation to match the original
+        const formattedLines = formattedContent.split('\n');
+        const adjustedLines = formattedLines.map((line: string) => {
+          // Replace leading tab with the original indent
+          if (line.startsWith('\t')) {
+            return indent + line.substring(1);
+          }
+          return line;
+        });
+        const adjustedFormattedContent = adjustedLines.join('\n');
+
+        // Replace the entire directive with the formatted version
+        edit.replace(document.uri, directiveFullRange, adjustedFormattedContent);
+      }
+
+      // Create the code action
+      const action = new CodeAction(
+        `Remove unused predicate ${qualifiedIndicator} from uses/2 directive`,
+        CodeActionKind.QuickFix
+      );
+      action.edit = edit;
+      action.diagnostics = [diagnostic];
+      action.command = {
+        title: 'Logtalk Dead Code Scanner',
+        command: 'logtalk.update.diagnostics',
+        arguments: [document.uri, diagnostic]
+      };
+
+      return action;
+    } catch (error) {
+      this.logger.error(`Error creating remove from uses action: ${error}`);
       return null;
     }
   }

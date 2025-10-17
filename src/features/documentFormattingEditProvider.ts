@@ -1650,8 +1650,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
   /**
    * Format the content of a uses/2 directive
+   * Public method to allow use by other features (e.g., quick fixes)
    */
-  private formatUses2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
+  public formatUses2DirectiveContent(document: TextDocument, directiveRange: { start: number; end: number }): string {
     let directiveText = '';
     for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
       directiveText += document.lineAt(lineNum).text.trim();
