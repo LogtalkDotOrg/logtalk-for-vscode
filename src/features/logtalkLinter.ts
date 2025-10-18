@@ -103,17 +103,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Deprecated date format:')) {
       return true;
-    } else if (diagnostic.message.includes('Deprecated predicate: assert/1 (compiled as a call to assertz/1)')) {
-      return true;
-    } else if (diagnostic.message.includes('Deprecated predicate: get0/1 (compiled as a call to get_code/1)')) {
-      return true;
-    } else if (diagnostic.message.includes('Deprecated predicate: get0/2 (compiled as a call to get_code/2)')) {
-      return true;
-    } else if (diagnostic.message.includes('Deprecated predicate: put/1 (compiled as a call to put_code/1)')) {
-      return true;
-    } else if (diagnostic.message.includes('Deprecated predicate: put/2 (compiled as a call to put_code/2)')) {
-      return true;
-    } else if (diagnostic.message.includes('Deprecated predicate: not/1 (compiled as a call to')) {
+    } else if (diagnostic.message.includes('Deprecated predicate:') && diagnostic.message.includes('compiled as a call to')) {
       return true;
     } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
       return true;
@@ -398,83 +388,50 @@ export default class LogtalkLinter implements CodeActionProvider {
           return null;
         }
       }
-    } else if (diagnostic.message.includes('Deprecated predicate: assert/1 (compiled as a call to assertz/1)')) {
-      // Replace deprecated assert/1 predicate with standard assertz/1 predicate
-      action = new CodeAction(
-        'Replace deprecated assert/1 predicate with standard assertz/1 predicate',
-        CodeActionKind.QuickFix
-      );
-      const callRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, 'assert(');
-      if (callRange) {
-        edit.replace(document.uri, callRange, 'assertz(');
-      } else {
+    } else if (diagnostic.message.includes('Deprecated predicate:') && diagnostic.message.includes('compiled as a call to')) {
+      // Replace deprecated predicate with the replacement predicate
+      // Message format: "Deprecated predicate: <name>/<arity> (compiled as a call to <replacement>/<arity>)"
+      const deprecatedMatch = diagnostic.message.match(/Deprecated predicate: ([^/]+)\/\d+ \(compiled as a call to ([^/]+)\/\d+\)/);
+      if (!deprecatedMatch) {
         return null;
       }
-    } else if (diagnostic.message.includes('Deprecated predicate: get0/1 (compiled as a call to get_code/1)')) {
-      // Replace deprecated get0/1 predicate with standard get_code/1 predicate
-      action = new CodeAction(
-        'Replace deprecated get0/1 predicate with standard get_code/1 predicate',
-        CodeActionKind.QuickFix
-      );
-      const callRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, 'get0(');
-      if (callRange) {
-        edit.replace(document.uri, callRange, 'get_code(');
-      } else {
-        return null;
+
+      const deprecatedName = deprecatedMatch[1];
+      let replacementName = deprecatedMatch[2];
+
+      // Remove parentheses from replacement name if present (e.g., "(\+)" -> "\+")
+      // This indicates it's an operator
+      const isOperator = replacementName.startsWith('(') && replacementName.endsWith(')');
+      if (isOperator) {
+        replacementName = replacementName.slice(1, -1);
       }
-    } else if (diagnostic.message.includes('Deprecated predicate: get0/2 (compiled as a call to get_code/2)')) {
-      // Replace deprecated get0/2 predicate with standard get_code/2 predicate
+
       action = new CodeAction(
-        'Replace deprecated get0/2 predicate with standard get_code/2 predicate',
+        `Replace deprecated ${deprecatedName} with ${isOperator ? replacementName : replacementName}`,
         CodeActionKind.QuickFix
       );
-      const callRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, 'get0(');
-      if (callRange) {
-        edit.replace(document.uri, callRange, 'get_code(');
+
+      if (isOperator) {
+        // For operators like (\+), we need to replace "name(" with "\+ " and remove the closing parenthesis
+        const parenthesesMatch = DiagnosticsUtils.findMatchingParentheses(document, diagnostic.range, `${deprecatedName}(`);
+        if (parenthesesMatch) {
+          // Replace 'deprecated(' with 'replacement ' and remove the closing parenthesis
+          edit.replace(document.uri, parenthesesMatch.openRange, `${replacementName} `);
+          edit.delete(document.uri, parenthesesMatch.closeRange);
+        } else {
+          // Fallback: just replace the opening part
+          const callRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, `${deprecatedName}(`);
+          if (callRange) {
+            edit.replace(document.uri, callRange, `${replacementName} (`);
+          } else {
+            return null;
+          }
+        }
       } else {
-        return null;
-      }
-    } else if (diagnostic.message.includes('Deprecated predicate: put/1 (compiled as a call to put_code/1)')) {
-      // Replace deprecated put/1 predicate with standard put_code/1 predicate
-      action = new CodeAction(
-        'Replace deprecated put/1 predicate with standard put_code/1 predicate',
-        CodeActionKind.QuickFix
-      );
-      const callRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, 'put(');
-      if (callRange) {
-        edit.replace(document.uri, callRange, 'put_code(');
-      } else {
-        return null;
-      }
-    } else if (diagnostic.message.includes('Deprecated predicate: put/2 (compiled as a call to put_code/2)')) {
-      // Replace deprecated put/2 predicate with standard put_code/2 predicate
-      action = new CodeAction(
-        'Replace deprecated put/2 predicate with standard get_code/2 predicate',
-        CodeActionKind.QuickFix
-      );
-      const callRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, 'put(');
-      if (callRange) {
-        edit.replace(document.uri, callRange, 'put_code(');
-      } else {
-        return null;
-      }
-    } else if (diagnostic.message.includes('Deprecated predicate: not/1 (compiled as a call to')) {
-      // Replace deprecated not/1 predicate with (\+)/1 control construct
-      action = new CodeAction(
-        'Replace deprecated not/1 predicate with (\\+/1) control construct',
-        CodeActionKind.QuickFix
-      );
-      // Find the matching parentheses for the not/1 goal within the diagnostic range
-      const parenthesesMatch = DiagnosticsUtils.findMatchingParentheses(document, diagnostic.range, 'not(');
-      if (parenthesesMatch) {
-        // Replace 'not(' with '\+ ' and remove the closing parenthesis
-        edit.replace(document.uri, parenthesesMatch.openRange, '\\+ ');
-        edit.delete(document.uri, parenthesesMatch.closeRange);
-      } else {
-        // Fallback to the original approach if parentheses matching fails
-        const notRange = DiagnosticsUtils.findSingleTextInRange(document, diagnostic.range, 'not(');
-        if (notRange) {
-          edit.replace(document.uri, notRange, '\\+ (');
+        // For regular predicates, just replace "deprecated(" with "replacement("
+        const callRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, `${deprecatedName}(`);
+        if (callRange) {
+          edit.replace(document.uri, callRange, `${replacementName}(`);
         } else {
           return null;
         }
