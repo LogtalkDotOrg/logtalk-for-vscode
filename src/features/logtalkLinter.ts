@@ -99,6 +99,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Missing meta_non_terminal/1 directive for non-terminal:')) {
       return true;
+    } else if (diagnostic.message.includes('Deprecated version format:')) {
+      return true;
     } else if (diagnostic.message.includes('Deprecated date format:')) {
       return true;
     } else if (diagnostic.message.includes('Deprecated predicate: assert/1 (compiled as a call to assertz/1)')) {
@@ -335,6 +337,46 @@ export default class LogtalkLinter implements CodeActionProvider {
       const stars = Array(nonTerminalIndicator[2]).fill('*').join(',');
       const indent = document.getText(diagnostic.range).match(/(\s*)/);
       edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- meta_non_terminal(' + nonTerminalIndicator[1] + '(' + stars + ')).\n');
+    } else if (diagnostic.message.includes('Deprecated version format:')) {
+      // Replace deprecated version format with Major:Minor:Patch format
+      action = new CodeAction(
+        'Replace deprecated version format with Major:Minor:Patch format',
+        CodeActionKind.QuickFix
+      );
+      const deprecatedMessage = diagnostic.message.match(/Deprecated version format: (.+) \(use instead a Major:Minor:Patch compound term\)/);
+      if (deprecatedMessage) {
+        const deprecatedVersion = deprecatedMessage[1];
+
+        // Compute newVersion as "Major:Minor:0"
+        // If deprecatedVersion is an integer, Major = integer, Minor = 0
+        // If deprecatedVersion is a float, Major = integer part, Minor = decimal part
+        let major: number;
+        let minor: number;
+
+        const versionNumber = parseFloat(deprecatedVersion);
+        if (Number.isInteger(versionNumber)) {
+          // Integer version (e.g., "1" -> "1:0:0")
+          major = versionNumber;
+          minor = 0;
+        } else {
+          // Float version (e.g., "1.5" -> "1:5:0")
+          major = Math.floor(versionNumber);
+          // Extract decimal part: "1.5" -> 5, "1.23" -> 23
+          const decimalPart = deprecatedVersion.split('.')[1];
+          minor = parseInt(decimalPart, 10);
+        }
+
+        const newVersion = `${major}:${minor}:0`;
+
+        // Find the exact range of the deprecated version within the diagnostic range
+        const deprecatedVersionRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, deprecatedVersion);
+        if (deprecatedVersionRange) {
+          // Replace only the deprecated version part with the new version
+          edit.replace(document.uri, deprecatedVersionRange, newVersion);
+        } else {
+          return null;
+        }
+      }
     } else if (diagnostic.message.includes('Deprecated date format:')) {
       // Replace deprecated date format with ISO 8601 format
       action = new CodeAction(
