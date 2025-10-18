@@ -105,6 +105,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Deprecated predicate:') && diagnostic.message.includes('compiled as a call to')) {
       return true;
+    } else if (diagnostic.message.includes('Deprecated function:') && diagnostic.message.includes('replaceable by')) {
+      return true;
     } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
       return true;
     } else if (diagnostic.message.includes('Non-terminal called as a predicate:')) {
@@ -391,13 +393,14 @@ export default class LogtalkLinter implements CodeActionProvider {
     } else if (diagnostic.message.includes('Deprecated predicate:') && diagnostic.message.includes('compiled as a call to')) {
       // Replace deprecated predicate with the replacement predicate
       // Message format: "Deprecated predicate: <name>/<arity> (compiled as a call to <replacement>/<arity>)"
-      const deprecatedMatch = diagnostic.message.match(/Deprecated predicate: ([^/]+)\/\d+ \(compiled as a call to ([^/]+)\/\d+\)/);
+      const deprecatedMatch = diagnostic.message.match(/Deprecated predicate: ([^/]+)\/(\d+) \(compiled as a call to ([^/]+)\/\d+\)/);
       if (!deprecatedMatch) {
         return null;
       }
 
       const deprecatedName = deprecatedMatch[1];
-      let replacementName = deprecatedMatch[2];
+      const arity = parseInt(deprecatedMatch[2], 10);
+      let replacementName = deprecatedMatch[3];
 
       // Remove parentheses from replacement name if present (e.g., "(\+)" -> "\+")
       // This indicates it's an operator
@@ -407,7 +410,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       }
 
       action = new CodeAction(
-        `Replace deprecated ${deprecatedName} with ${isOperator ? replacementName : replacementName}`,
+        `Replace deprecated ${deprecatedName}/${arity} predicate with ${isOperator ? "(" + replacementName + ")" : replacementName}/${arity}`,
         CodeActionKind.QuickFix
       );
 
@@ -435,6 +438,30 @@ export default class LogtalkLinter implements CodeActionProvider {
         } else {
           return null;
         }
+      }
+    } else if (diagnostic.message.includes('Deprecated function:') && diagnostic.message.includes('replaceable by')) {
+      // Replace deprecated function with the replacement function
+      // Message format: "Deprecated function: <name>/<arity> (replaceable by the standard <replacement>/<arity> function)"
+      const deprecatedMatch = diagnostic.message.match(/Deprecated function: ([^/]+)\/(\d+) \(replaceable by the (?:standard )?([^/]+)\/\d+ function\)/);
+      if (!deprecatedMatch) {
+        return null;
+      }
+
+      const deprecatedName = deprecatedMatch[1];
+      const arity = parseInt(deprecatedMatch[2], 10);
+      const replacementName = deprecatedMatch[3];
+
+      action = new CodeAction(
+        `Replace deprecated ${deprecatedName}/${arity} function with ${replacementName}/${arity}`,
+        CodeActionKind.QuickFix
+      );
+
+      // For functions, just replace "deprecated(" with "replacement("
+      const callRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, `${deprecatedName}(`);
+      if (callRange) {
+        edit.replace(document.uri, callRange, `${replacementName}(`);
+      } else {
+        return null;
       }
     } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
       // Replace unification with number equality operator
