@@ -68,6 +68,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Permission error: modify predicate_declaration ')) {
       return true;
+    } else if (diagnostic.message.includes('Permission error: define dynamic_predicate ')) {
+      return true;
     // Warnings
     } else if (diagnostic.message.includes('Entity parameter name not in parameter variable syntax:')) {
       return true;
@@ -155,6 +157,72 @@ export default class LogtalkLinter implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, diagnostic.range);
+    } else if (diagnostic.message.includes('Permission error: define dynamic_predicate ')) {
+      // Delete the dynamic/1 directive for the predicate
+      // Message format: "Permission error: define dynamic_predicate <indicator>"
+      const indicatorMatch = diagnostic.message.match(/Permission error: define dynamic_predicate (.+\/\d+)/);
+      if (!indicatorMatch) {
+        return null;
+      }
+
+      const predicateIndicator = indicatorMatch[1];
+
+      action = new CodeAction(
+        `Remove dynamic/1 directive for ${predicateIndicator}`,
+        CodeActionKind.QuickFix
+      );
+
+      // Search backwards from the diagnostic line to find the dynamic/1 directive
+      // Stop when reaching a category opening directive
+      // Only delete if the directive contains exactly this single predicate indicator
+      const diagnosticLine = diagnostic.range.start.line;
+      let dynamicDirectiveLine: number | null = null;
+
+      for (let lineNum = diagnosticLine - 1; lineNum >= 0; lineNum--) {
+        const lineText = document.lineAt(lineNum).text.trim();
+
+        // Stop if we hit a category opening directive
+        if (lineText.match(/^:-\s*category\(/)) {
+          break;
+        }
+
+        // Check if this is a dynamic/1 directive containing our predicate indicator
+        if (lineText.match(/^:-\s*dynamic\(/)) {
+          // Get the full directive range (handles multi-line directives)
+          const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+
+          // Get the complete directive text
+          let directiveText = '';
+          for (let i = directiveRange.start; i <= directiveRange.end; i++) {
+            directiveText += document.lineAt(i).text + '\n';
+          }
+
+          // Normalize the directive text (remove whitespace and newlines)
+          const normalizedDirective = directiveText.replace(/\s+/g, ' ').trim();
+
+          // Check if this directive contains EXACTLY the single predicate indicator
+          // Pattern: ":- dynamic(Name/Arity)."
+          const exactPattern = new RegExp(`^:-\\s*dynamic\\(\\s*${predicateIndicator.replace(/\//g, '\\/')}\\s*\\)\\.`);
+
+          if (exactPattern.test(normalizedDirective)) {
+            dynamicDirectiveLine = lineNum;
+            break;
+          }
+        }
+      }
+
+      if (dynamicDirectiveLine === null) {
+        return null;
+      }
+
+      // Get the full range of the dynamic/1 directive
+      const directiveRange = PredicateUtils.getDirectiveRange(document, dynamicDirectiveLine);
+      const directiveStartPos = new Position(directiveRange.start, 0);
+      const directiveEndPos = new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length);
+      const directiveFullRange = new Range(directiveStartPos, directiveEndPos);
+
+      // Delete the entire directive using smart delete
+      DiagnosticsUtils.addSmartDeleteOperation(edit, document, document.uri, directiveFullRange);
     // Warnings
     } else if (diagnostic.message.includes('Entity parameter name not in parameter variable syntax:')) {
       // Rename the parameter to use parameter variable syntax
