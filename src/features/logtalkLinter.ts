@@ -115,6 +115,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Missing reference to the built-in protocol: ')) {
       return true;
+    } else if (diagnostic.message.includes('Suspicious call: \\+') && diagnostic.message.includes('instead of \\+')) {
+      return true;
     }
     return false;
   }
@@ -460,6 +462,30 @@ export default class LogtalkLinter implements CodeActionProvider {
       const callRange = DiagnosticsUtils.findTextInRange(document, diagnostic.range, `${deprecatedName}(`);
       if (callRange) {
         edit.replace(document.uri, callRange, `${replacementName}(`);
+      } else {
+        return null;
+      }
+    } else if (diagnostic.message.includes('Suspicious call: \\+') && diagnostic.message.includes('instead of \\+')) {
+      // Replace \+call(Goal) or \+once(Goal) with \+Goal
+      // Message format: "Suspicious call: \+ call(Goal) instead of \+ Goal" or "Suspicious call: \+ once(Goal) instead of \+ Goal"
+      // Note: There may or may not be a space after \+
+
+      action = new CodeAction(
+        'Simplify (\\+)/1 goal',
+        CodeActionKind.QuickFix
+      );
+
+      // Try to find and match parentheses for call( or once(
+      let parenthesesMatch = DiagnosticsUtils.findMatchingParentheses(document, diagnostic.range, 'call(');
+      if (!parenthesesMatch) {
+        parenthesesMatch = DiagnosticsUtils.findMatchingParentheses(document, diagnostic.range, 'once(');
+      }
+
+      if (parenthesesMatch) {
+        // Remove 'call(' or 'once(' and the closing parenthesis
+        // This leaves just the Goal argument
+        edit.delete(document.uri, parenthesesMatch.openRange);
+        edit.delete(document.uri, parenthesesMatch.closeRange);
       } else {
         return null;
       }
