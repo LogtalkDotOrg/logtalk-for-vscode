@@ -119,6 +119,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Suspicious call: \\+') && diagnostic.message.includes('instead of \\+')) {
       return true;
+    } else if (diagnostic.message.includes('Suspicious call: repeat loop without a cut in clause for predicate ')) {
+      return true;
     }
     return false;
   }
@@ -557,6 +559,42 @@ export default class LogtalkLinter implements CodeActionProvider {
       } else {
         return null;
       }
+    } else if (diagnostic.message.includes('Suspicious call: repeat loop without a cut in clause for predicate ')) {
+      // Add a cut before the clause ending period
+      // Message format: "Suspicious call: repeat loop without a cut in clause for predicate <indicator>"
+      const indicatorMatch = diagnostic.message.match(/Suspicious call: repeat loop without a cut in clause for predicate (.+\/\d+)/);
+      if (!indicatorMatch) {
+        return null;
+      }
+
+      const predicateIndicator = indicatorMatch[1];
+
+      action = new CodeAction(
+        `Add cut to repeat loop in ${predicateIndicator} clause`,
+        CodeActionKind.QuickFix
+      );
+
+      // Get the clause range using the warning line
+      const warningLine = diagnostic.range.start.line;
+      const clauseRange = PredicateUtils.getClauseRange(document, warningLine);
+
+      // Get the last line of the clause
+      const lastLine = clauseRange.end;
+      const lastLineText = document.lineAt(lastLine).text;
+
+      // Find the position of the period on the last line
+      const periodIndex = lastLineText.lastIndexOf('.');
+      if (periodIndex === -1) {
+        return null;
+      }
+
+      // Get the indentation of the last line
+      const indentMatch = lastLineText.match(/^(\s*)/);
+      const indent = indentMatch ? indentMatch[1] : '';
+
+      // Insert ",\n<indent>!" before the period
+      const insertPosition = new Position(lastLine, periodIndex);
+      edit.insert(document.uri, insertPosition, `,\n${indent}!`);
     } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
       // Replace unification with number equality operator
       action = new CodeAction(
