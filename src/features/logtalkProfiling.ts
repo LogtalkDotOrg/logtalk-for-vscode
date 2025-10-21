@@ -175,12 +175,8 @@ export class LogtalkProfiling {
    * Get profiling data from Logtalk by writing to a file
    */
   private async getProfilingData(entity?: string, predicate?: string): Promise<string> {
-    const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "");
-    if (!logtalkUser) {
-      throw new Error("Logtalk user path not configured");
-    }
-
-    const profilingDataFile = path.join(logtalkUser, "scratch", ".vscode_profiling_data");
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const profilingDataFile = path.join(wdir, ".vscode_profiling_data");
 
     // Remove old file if it exists
     await fsp.rm(profilingDataFile, { force: true });
@@ -625,7 +621,8 @@ export class LogtalkProfiling {
 
       // Read the result from the marker file
       const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "logtalk");
-      const resultFile = path.join(logtalkUser, "scratch", ".vscode_entity_definition");
+      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      const resultFile = path.join(wdir, ".vscode_entity_definition");
 
       this.logger.info(`Looking for result file at: ${resultFile}`);
       this.logger.info(`File exists: ${fs.existsSync(resultFile)}`);
@@ -673,8 +670,8 @@ export class LogtalkProfiling {
       await LogtalkTerminal.getPredicateDefinition(entity, predicateIndicator);
 
       // Read the result from the marker file
-      const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "logtalk");
-      const resultFile = path.join(logtalkUser, "scratch", ".vscode_predicate_definition");
+      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      const resultFile = path.join(wdir, ".vscode_predicate_definition");
 
       this.logger.info(`Looking for result file at: ${resultFile}`);
       this.logger.info(`File exists: ${fs.existsSync(resultFile)}`);
@@ -750,8 +747,8 @@ export class LogtalkProfiling {
       await LogtalkTerminal.getPredicateDefinition(entity, predicateIndicator);
 
       // Read the result from the marker file
-      const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "logtalk");
-      const resultFile = path.join(logtalkUser, "scratch", ".vscode_predicate_definition");
+      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      const resultFile = path.join(wdir, ".vscode_predicate_definition");
 
       if (!fs.existsSync(resultFile)) {
         return [];
