@@ -35,6 +35,7 @@ For details, see [Configuration](#configuration). This extension includes a walk
 - [Refactoring support](#refactoring-support)
 - [Debugging support](#debugging-support)
 - [Testing support](#testing-support)
+- [Profiling support](#profiling-support)
 - [Hover contents](#hover-contents)
 - [Chat Participant](#chat-participant)
 - [Virtual workspaces support](#virtual-workspaces-support)
@@ -221,6 +222,8 @@ These commands are available from the "Profiling" sub-menu. They can be triggere
 |   Show Profiling Data | Show profiling data in a webview            |
 |  Reset Profiling Data | Reset profiling data and close the webview  |
 
+The profiling webview allows navigating to the source file location of entities, predicates, and clauses.
+
 #### Extension logging commands
 
 These commands are only available from the command palette. They are meant for helping with debugging and troubleshooting the extension.
@@ -338,6 +341,10 @@ Support for the VS Code Testing API is provided. This allows browsing and runnin
 In the "Testing" pane, a warning triangle emoji (⚠️) is shown after the test name when the test is declared as flaky. You can navigate to the test by clicking its name or using the "Go to Test" context menu item. For directory, file, and object items, the "Go to Test" context menu item allows you to navigate to, respectively, the tests driver file, the file, and the object in the test file.
 
 Note that collecting code coverage data depends solely on the tests being run. The option between running tests with or without coverage is only used to determine whether to display coverage data when available.
+
+### Profiling support
+
+Support for profiling is provided. This allows browsing and analyzing profiling data from the "Logtalk: Profiling" sub-menu in the explorer and editor context menus. After running the "Logtalk: Toggle Profiling" command, loaded code is recompiled in debug mode and profiling is enabled. The "Logtalk: Show Profiling Data" command can be used to show the profiling data in a webview. The webview allows navigating to the source file location of entities, predicates, and clauses. Collected profiling data can be reset using the "Logtalk: Reset Profiling Data" command. The profiling commands are also available from the command palette.
 
 ### Hover contents
 
