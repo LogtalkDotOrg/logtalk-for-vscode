@@ -450,6 +450,20 @@ export class LogtalkProfiling {
                 });
             }
 
+            function compareValues(aValue, bValue, ascending) {
+                // Try to parse as numbers
+                const aNum = parseInt(aValue);
+                const bNum = parseInt(bValue);
+
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return ascending ? aNum - bNum : bNum - aNum;
+                } else {
+                    return ascending ?
+                        aValue.localeCompare(bValue) :
+                        bValue.localeCompare(aValue);
+                }
+            }
+
             function sortTable(columnIndex) {
                 const tbody = table.querySelector('tbody');
                 const rows = Array.from(tbody.querySelectorAll('tr'));
@@ -466,18 +480,7 @@ export class LogtalkProfiling {
                 rows.sort((a, b) => {
                     const aValue = a.cells[columnIndex].textContent.trim();
                     const bValue = b.cells[columnIndex].textContent.trim();
-
-                    // Try to parse as numbers
-                    const aNum = parseInt(aValue);
-                    const bNum = parseInt(bValue);
-
-                    if (!isNaN(aNum) && !isNaN(bNum)) {
-                        return sortAscending ? aNum - bNum : bNum - aNum;
-                    } else {
-                        return sortAscending ?
-                            aValue.localeCompare(bValue) :
-                            bValue.localeCompare(aValue);
-                    }
+                    return compareValues(aValue, bValue, sortAscending);
                 });
 
                 // Clear and re-append rows
@@ -495,6 +498,59 @@ export class LogtalkProfiling {
                 indicator.className = 'sort-indicator';
                 indicator.textContent = sortAscending ? '▲' : '▼';
                 headers[columnIndex].appendChild(indicator);
+            }
+
+            function sortTableMultiColumn(primaryColumn, secondaryColumn) {
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+
+                // Sort rows by primary column, then secondary column
+                rows.sort((a, b) => {
+                    const aPrimary = a.cells[primaryColumn].textContent.trim();
+                    const bPrimary = b.cells[primaryColumn].textContent.trim();
+
+                    const primaryCompare = compareValues(aPrimary, bPrimary, true);
+                    if (primaryCompare !== 0) {
+                        return primaryCompare;
+                    }
+
+                    // If primary values are equal, sort by secondary column
+                    const aSecondary = a.cells[secondaryColumn].textContent.trim();
+                    const bSecondary = b.cells[secondaryColumn].textContent.trim();
+                    return compareValues(aSecondary, bSecondary, true);
+                });
+
+                // Clear and re-append rows
+                rows.forEach(row => tbody.appendChild(row));
+
+                // Update sort indicators for primary column
+                sortColumn = primaryColumn;
+                sortAscending = true;
+
+                headers.forEach((h, i) => {
+                    const indicator = h.querySelector('.sort-indicator');
+                    if (indicator) {
+                        indicator.remove();
+                    }
+                });
+
+                const indicator = document.createElement('span');
+                indicator.className = 'sort-indicator';
+                indicator.textContent = '▲';
+                headers[primaryColumn].appendChild(indicator);
+            }
+
+            // Perform initial sort based on view type
+            const headerTexts = Array.from(headers).map(h => h.textContent.trim());
+            const entityColIndex = headerTexts.indexOf('Entity');
+            const predicateColIndex = headerTexts.indexOf('Predicate');
+
+            if (entityColIndex !== -1 && predicateColIndex !== -1) {
+                // All data view: sort by Entity first, then Predicate
+                sortTableMultiColumn(entityColIndex, predicateColIndex);
+            } else if (predicateColIndex !== -1) {
+                // Entity view: sort by Predicate
+                sortTable(predicateColIndex);
             }
         })();
     </script>
