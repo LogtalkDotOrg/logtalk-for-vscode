@@ -41,8 +41,6 @@ export class LogtalkProfiling {
     if (this.profilingEnabled) {
       // Turn on profiling
       this.logger.info("Enabling Logtalk profiling");
-      //LogtalkTerminal.createLogtalkTerm();
-      
       // Load the ports_profiler tool and switch to debug mode
       LogtalkTerminal.sendString("logtalk_load(ports_profiler(loader)).\r", false);
       // Wait a bit for the tool to load
@@ -56,8 +54,6 @@ export class LogtalkProfiling {
     } else {
       // Turn off profiling
       this.logger.info("Disabling Logtalk profiling");
-      //LogtalkTerminal.createLogtalkTerm();
-      
       // Switch back to normal mode
       LogtalkTerminal.sendString("ports_profiler::stop, logtalk_make(normal).\r", true);
       
@@ -77,18 +73,18 @@ export class LogtalkProfiling {
   /**
    * Show profiling data in a webview
    */
-  public async showProfilingData(): Promise<void> {
+  public async showProfilingData(entity?: string, predicate?: string, previousEntity?: string): Promise<void> {
     if (!this.profilingEnabled) {
       vscode.window.showWarningMessage("Profiling is not enabled. Please toggle profiling on first.");
       return;
     }
 
-    this.logger.info("Showing profiling data");
+    this.logger.info("Showing profiling data", entity ? `for entity: ${entity}` : "", predicate ? `predicate: ${predicate}` : "");
 
     try {
       // Get profiling data from Logtalk
-      const profilingData = await this.getProfilingData();
-      
+      const profilingData = await this.getProfilingData(entity, predicate);
+
       if (!profilingData || profilingData.trim() === "") {
         vscode.window.showInformationMessage("No profiling data available. Run some queries first.");
         return;
@@ -112,10 +108,32 @@ export class LogtalkProfiling {
         this.webviewPanel.onDidDispose(() => {
           this.webviewPanel = undefined;
         });
+
+        // Handle messages from the webview
+        this.webviewPanel.webview.onDidReceiveMessage(
+          async (message) => {
+            switch (message.command) {
+              case 'focusEntity':
+                await this.showProfilingData(message.entity, undefined, undefined);
+                break;
+              case 'focusPredicate':
+                await this.showProfilingData(message.entity, message.predicate, message.previousEntity);
+                break;
+              case 'showAll':
+                await this.showProfilingData();
+                break;
+              case 'backToEntity':
+                await this.showProfilingData(message.entity);
+                break;
+            }
+          },
+          undefined,
+          this.context.subscriptions
+        );
       }
 
       // Update webview content
-      this.webviewPanel.webview.html = this.getWebviewContent(profilingData);
+      this.webviewPanel.webview.html = this.getWebviewContent(profilingData, entity, predicate, previousEntity);
     } catch (error) {
       this.logger.error("Error showing profiling data:", error);
       vscode.window.showErrorMessage(`Failed to show profiling data: ${error instanceof Error ? error.message : String(error)}`);
@@ -132,8 +150,6 @@ export class LogtalkProfiling {
     }
 
     this.logger.info("Resetting profiling data");
-    
-    //LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString("ports_profiler::reset.\r", true);
     
     vscode.window.showInformationMessage("Profiling data reset.");
@@ -148,43 +164,71 @@ export class LogtalkProfiling {
   /**
    * Get profiling data from Logtalk by writing to a file
    */
-  private async getProfilingData(): Promise<string> {
+  private async getProfilingData(entity?: string, predicate?: string): Promise<string> {
     const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "");
     if (!logtalkUser) {
       throw new Error("Logtalk user path not configured");
     }
 
     const profilingDataFile = path.join(logtalkUser, "scratch", ".vscode_profiling_data");
-    
+
     // Remove old file if it exists
     await fsp.rm(profilingDataFile, { force: true });
 
-    // Create the terminal and send the goal to write profiling data to file
-    //LogtalkTerminal.createLogtalkTerm();
-    
+    // Build the appropriate goal based on parameters
+    let goal: string;
+    if (entity && predicate) {
+      // Focus on specific predicate: ports_profiler::data(Entity, Indicator)
+      goal = `ports_profiler::data(${entity}, ${predicate})`;
+    } else if (entity) {
+      // Focus on specific entity: ports_profiler::data(Entity)
+      goal = `ports_profiler::data(${entity})`;
+    } else {
+      // Show all data: ports_profiler::data
+      goal = `ports_profiler::data`;
+    }
+
     // Redirect output to file
     const normalizedPath = path.resolve(profilingDataFile).split(path.sep).join("/");
-    LogtalkTerminal.sendString(`open('${normalizedPath}', write, Stream), set_output(Stream), ports_profiler::data, close(Stream).\r`, false);
-    
+    LogtalkTerminal.sendString(`open('${normalizedPath}', write, Stream), set_output(Stream), ${goal}, close(Stream).\r`, false);
+
     // Wait for the file to be created
     await this.waitForFile(profilingDataFile, 5000);
-    
+
     // Read the file
     const data = await fsp.readFile(profilingDataFile, 'utf-8');
-    
+
     // Clean up
     await fsp.rm(profilingDataFile, { force: true });
-    
+
     return data;
   }
 
   /**
    * Generate HTML content for the webview
    */
-  private getWebviewContent(profilingData: string): string {
+  private getWebviewContent(profilingData: string, entity?: string, predicate?: string, previousEntity?: string): string {
     // Parse the profiling data table
-    const tableData = this.parseProfilingData(profilingData);
-    
+    const tableData = this.parseProfilingData(profilingData, entity, predicate);
+
+    // Build title based on focus
+    let title = 'Logtalk Profiling Data';
+    if (entity && predicate) {
+      title += ` - ${entity}::${predicate}`;
+    } else if (entity) {
+      title += ` - ${entity}`;
+    }
+
+    // Show appropriate back button
+    let backButton = '';
+    if (entity && predicate && previousEntity) {
+      // We came from entity view, show back to entity button
+      backButton = `<button id="backToEntityButton" data-entity="${this.escapeHtml(previousEntity)}" style="margin-bottom: 10px; padding: 5px 10px; cursor: pointer;">← Back to ${this.escapeHtml(previousEntity)} Data</button>`;
+    } else if (entity || predicate) {
+      // Show back to all data button
+      backButton = '<button id="backButton" style="margin-bottom: 10px; padding: 5px 10px; cursor: pointer;">← Back to All Data</button>';
+    }
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -226,30 +270,113 @@ export class LogtalkProfiling {
         h1 {
             color: var(--vscode-foreground);
         }
+        .clickable {
+            color: var(--vscode-textLink-foreground);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .clickable:hover {
+            color: var(--vscode-textLink-activeForeground);
+        }
+        button {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            border-radius: 2px;
+        }
+        button:hover {
+            background-color: var(--vscode-button-hoverBackground);
+        }
     </style>
 </head>
 <body>
-    <h1>Logtalk Profiling Data</h1>
+    <h1>${title}</h1>
+    ${backButton}
     <table id="profilingTable">
         ${tableData}
     </table>
     <script>
         (function() {
+            const vscode = acquireVsCodeApi();
             const table = document.getElementById('profilingTable');
             const headers = table.querySelectorAll('th');
+            const backButton = document.getElementById('backButton');
+            const backToEntityButton = document.getElementById('backToEntityButton');
             let sortColumn = -1;
             let sortAscending = true;
 
+            // Handle back to all button
+            if (backButton) {
+                backButton.addEventListener('click', () => {
+                    vscode.postMessage({ command: 'showAll' });
+                });
+            }
+
+            // Handle back to entity button
+            if (backToEntityButton) {
+                backToEntityButton.addEventListener('click', () => {
+                    const entity = backToEntityButton.dataset.entity;
+                    vscode.postMessage({
+                        command: 'backToEntity',
+                        entity: entity
+                    });
+                });
+            }
+
+            // Handle header clicks for sorting
             headers.forEach((header, index) => {
                 header.addEventListener('click', () => {
                     sortTable(index);
                 });
             });
 
+            // Handle clicks on entity and predicate cells
+            const tbody = table.querySelector('tbody');
+            if (tbody) {
+                tbody.addEventListener('click', (e) => {
+                    const cell = e.target.closest('td');
+                    if (!cell) return;
+
+                    // Only handle clicks on clickable cells
+                    if (!cell.classList.contains('clickable')) return;
+
+                    const row = cell.parentElement;
+                    const cellIndex = Array.from(row.cells).indexOf(cell);
+                    const cellText = cell.textContent.trim();
+
+                    // Check if this cell has a data-entity attribute (entity view, predicate column)
+                    if (cell.dataset.entity) {
+                        // We're in entity view, clicking on predicate (column 0)
+                        const entity = cell.dataset.entity;
+                        vscode.postMessage({
+                            command: 'focusPredicate',
+                            entity: entity,
+                            predicate: cellText,
+                            previousEntity: entity
+                        });
+                    } else if (cellIndex === 0) {
+                        // All data view, clicking on entity (column 0)
+                        vscode.postMessage({
+                            command: 'focusEntity',
+                            entity: cellText
+                        });
+                    } else if (cellIndex === 1) {
+                        // All data view, clicking on predicate (column 1)
+                        const entity = row.cells[0].textContent.trim();
+                        vscode.postMessage({
+                            command: 'focusPredicate',
+                            entity: entity,
+                            predicate: cellText,
+                            previousEntity: undefined
+                        });
+                    }
+                });
+            }
+
             function sortTable(columnIndex) {
                 const tbody = table.querySelector('tbody');
                 const rows = Array.from(tbody.querySelectorAll('tr'));
-                
+
                 // Toggle sort direction if clicking the same column
                 if (sortColumn === columnIndex) {
                     sortAscending = !sortAscending;
@@ -262,16 +389,16 @@ export class LogtalkProfiling {
                 rows.sort((a, b) => {
                     const aValue = a.cells[columnIndex].textContent.trim();
                     const bValue = b.cells[columnIndex].textContent.trim();
-                    
+
                     // Try to parse as numbers
                     const aNum = parseInt(aValue);
                     const bNum = parseInt(bValue);
-                    
+
                     if (!isNaN(aNum) && !isNaN(bNum)) {
                         return sortAscending ? aNum - bNum : bNum - aNum;
                     } else {
-                        return sortAscending ? 
-                            aValue.localeCompare(bValue) : 
+                        return sortAscending ?
+                            aValue.localeCompare(bValue) :
                             bValue.localeCompare(aValue);
                     }
                 });
@@ -286,7 +413,7 @@ export class LogtalkProfiling {
                         indicator.remove();
                     }
                 });
-                
+
                 const indicator = document.createElement('span');
                 indicator.className = 'sort-indicator';
                 indicator.textContent = sortAscending ? '▲' : '▼';
@@ -301,7 +428,7 @@ export class LogtalkProfiling {
   /**
    * Parse profiling data from text format to HTML table
    */
-  private parseProfilingData(data: string): string {
+  private parseProfilingData(data: string, focusedEntity?: string, focusedPredicate?: string): string {
     const lines = data.split('\n').filter(line => line.length > 0);
 
     // Find the table boundaries (lines with dashes)
@@ -320,6 +447,11 @@ export class LogtalkProfiling {
     const headerLine = lines[headerIndex];
     const headers = headerLine.trim().split(/\s+/).filter(h => h.length > 0);
 
+    // Determine view mode
+    const isAllDataView = !focusedEntity && !focusedPredicate;
+    const isEntityView = focusedEntity && !focusedPredicate;
+    const isPredicateView = focusedEntity && focusedPredicate;
+
     // Parse data rows - data columns are separated by two or more spaces
     const dataRows = lines.slice(dataStartIndex, dataEndIndex).filter(line => line.trim().length > 0);
 
@@ -332,8 +464,31 @@ export class LogtalkProfiling {
     dataRows.forEach(row => {
       const cells = row.split(/\s{2,}/).filter(c => c.trim().length > 0);
       html += '<tr>';
-      cells.forEach(cell => {
-        html += `<td>${this.escapeHtml(cell)}</td>`;
+      cells.forEach((cell, index) => {
+        let cellHtml = '';
+
+        if (isAllDataView) {
+          // All data view: Entity in column 0, Predicate in column 1
+          if (index === 0) {
+            cellHtml = `<td class="clickable">${this.escapeHtml(cell)}</td>`;
+          } else if (index === 1) {
+            cellHtml = `<td class="clickable">${this.escapeHtml(cell)}</td>`;
+          } else {
+            cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
+          }
+        } else if (isEntityView) {
+          // Entity view: Predicate in column 0, store entity context
+          if (index === 0) {
+            cellHtml = `<td class="clickable" data-entity="${this.escapeHtml(focusedEntity)}">${this.escapeHtml(cell)}</td>`;
+          } else {
+            cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
+          }
+        } else {
+          // Predicate view: No clickable cells
+          cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
+        }
+
+        html += cellHtml;
       });
       html += '</tr>';
     });
