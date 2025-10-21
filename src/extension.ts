@@ -42,6 +42,7 @@ import { LogtalkChatParticipant } from "./features/logtalkChatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
+import { LogtalkProfiling } from "./features/logtalkProfiling";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
 
@@ -53,6 +54,7 @@ let testsReporter: LogtalkTestsReporter;
 let deadCodeScanner: LogtalkDeadCodeScanner;
 let documentationLinter: LogtalkDocumentationLinter;
 let chatParticipant: LogtalkChatParticipant;
+let profiling: LogtalkProfiling;
 let watcher: any;
 let testsCodeLensProvider: LogtalkTestsCodeLensProvider;
 let testsExplorerProvider: LogtalkTestsExplorerProvider;
@@ -135,6 +137,9 @@ export function activate(context: ExtensionContext) {
   // Initialize chat participant
   chatParticipant = new LogtalkChatParticipant(context);
 
+  // Initialize profiling
+  profiling = LogtalkProfiling.getInstance(context);
+
   // Add logging commands
   context.subscriptions.push(
     commands.registerCommand('logtalk.logging.show', () => {
@@ -216,6 +221,25 @@ export function activate(context: ExtensionContext) {
           `Error: ${error instanceof Error ? error.message : String(error)}`
         );
       }
+    })
+  );
+
+  // Add profiling commands
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.profiling.toggle', async () => {
+      await profiling.toggleProfiling();
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.profiling.showData', async () => {
+      await profiling.showProfilingData();
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.profiling.reset', async () => {
+      await profiling.resetProfilingData();
     })
   );
 
@@ -648,6 +672,14 @@ export function deactivate() {
     }
   } catch (error) {
     logger.error('Error disposing chat participant:', error);
+  }
+
+  try {
+    if (profiling) {
+      profiling.dispose();
+    }
+  } catch (error) {
+    logger.error('Error disposing profiling:', error);
   }
 
   try {

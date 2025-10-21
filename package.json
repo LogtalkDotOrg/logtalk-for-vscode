@@ -224,6 +224,18 @@
                 "title": "Logtalk: Compute Metrics"
             },
             {
+                "command": "logtalk.profiling.toggle",
+                "title": "Logtalk: Toggle Profiling"
+            },
+            {
+                "command": "logtalk.profiling.showData",
+                "title": "Logtalk: Show Profiling Data"
+            },
+            {
+                "command": "logtalk.profiling.reset",
+                "title": "Logtalk: Reset Profiling Data"
+            },
+            {
                 "command": "logtalk.test.documentation",
                 "title": "Logtalk: Test Documentation Cache"
             },
@@ -407,6 +419,11 @@
                     "group": "directory_2@2"
                 },
                 {
+                    "submenu": "profilingsubmenu",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
+                    "group": "directory_2@3"
+                },
+                {
                     "command": "logtalk.generate.documentation",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_3@1"
@@ -472,6 +489,11 @@
                     "command": "logtalk.rcompute.metrics",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_2@2"
+                },
+                {
+                    "submenu": "profilingsubmenu",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
+                    "group": "project_2@3"
                 },
                 {
                     "command": "logtalk.rgenerate.diagrams",
@@ -557,6 +579,23 @@
                     "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true && !virtualWorkspace",
                     "group": "jupyter_2@2"
                 }
+            ],
+            "profilingsubmenu": [
+                {
+                    "command": "logtalk.profiling.toggle",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
+                    "group": "profiling_1@1"
+                },
+                {
+                    "command": "logtalk.profiling.showData",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
+                    "group": "profiling_2@1"
+                },
+                {
+                    "command": "logtalk.profiling.reset",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
+                    "group": "profiling_2@2"
+                }
             ]
         },
         "submenus": [
@@ -567,6 +606,10 @@
             {
                 "label": "Logtalk: Jupyter",
                 "id": "jupytersubmenu"
+            },
+            {
+                "label": "Logtalk: Profiling",
+                "id": "profilingsubmenu"
             }
         ],
         "breakpoints": [

@@ -140,10 +140,12 @@ Project (workspace) commands can be triggered from the command palette by typing
 |                            Make | Sub-menu with available make targets                               |
 |          Scan Project Dead Code | Recursively scans the workspace root folder for dead code          |
 |         Compute Project Metrics | Recursively computes metrics for the workspace root folder         |
+|                       Profiling | Sub-menu with code profiling commands                              |
 |  Generate Project Documentation | Recursively generates documentation for the workspace root folder  |
 |       Generate Project Diagrams | Recursively generates diagrams for the workspace root folder       |
 |             Run Project Testers | Runs the `logtalk_tester` script from the workspace root folder    |
 |             Run Project Doclets | Runs the `logtalk_doclet` script from the workspace root folder    |
+|                         Jupyter | Sub-menu with Jupyter commands                                     |
 
 The "Create Project" command is usually called from the command palette. It asks for the folder where to copy the renamed sample files.
 
@@ -167,11 +169,13 @@ These commands can be triggered from the editor/context menu via right-click in 
 |                    Make | Sub-menu with available make targets                                             |
 |          Scan Dead Code | Scans the active source file directory for dead code                             |
 |         Compute Metrics | Computes metrics for all files in the active source file directory               |
+|               Profiling | Sub-menu with code profiling commands                                            |
 |  Generate Documentation | Generates documentation for the active source file directory                     |
 |       Generate Diagrams | Generates diagrams for the active source file directory                          |
 |               Run Tests | Loads the tester file under the active source file directory                     |
 | Run Tests with Coverage | Loads the tester file under the active source file directory and report coverage |
 |              Run Doclet | Loads the doclet file under the active source file directory                     |
+|                 Jupyter | Sub-menu with Jupyter commands                                                   |
 |        Toggle Code Lens | Toggles code lens of test results and cyclomatic complexity                      |
 
 The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Tests" command looks for a `tester.lgt` or `tester.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Doclet" command looks for a `doclet.lgt` or `doclet.logtalk` file in the directory of the selected file, printing a warning if not found.
@@ -182,7 +186,7 @@ The "Generate Documentation" and "Scan Dead Code" commands add linter warnings t
 
 #### Jupyter commands
 
-These commands allow opening Logtalk source files and Markdown files as Jupyter notebooks, plus pairing and syncing notebook representations.
+These commands are available from the "Jupyter" sub-menu and allow opening Logtalk source files and Markdown files as Jupyter notebooks, plus pairing and syncing notebook representations. They can be triggered from the explorer and editor context menus via right-click in the editor area or from the command palette.
 
 |                               Command | Description                                                           |
 | ------------------------------------: | :-------------------------------------------------------------------- |
@@ -192,9 +196,9 @@ These commands allow opening Logtalk source files and Markdown files as Jupyter 
 
 These commands are only available when Jupytext 1.16.7 or a later version is installed. See also the "logtalk.jupytext.path" setting below.
 
-#### Integrated terminal process commands
+#### Make commands
 
-These commands don't depend on the directory of a file selected by right-clicking in a workspace file or in an active editor window but only on the Logtalk process running in the integrated terminal. They can be triggered from the editor/context menu via right-click in the editor area or from the command palette.
+These commands are available from the "Make" sub-menu. They can be triggered from the explorer and editor context menus via right-click in the editor area or from the command palette.
 
 |          Command | Description                                                |
 | ---------------: | :--------------------------------------------------------- |
@@ -206,6 +210,16 @@ These commands don't depend on the directory of a file selected by right-clickin
 |  Make - Circular | Checks for code circular dependencies in the loaded files  |
 |     Make - Clean | Deletes all intermediate files generated by the compiler   |
 |    Make - Caches | Deletes the dynamic binding caches                         |
+
+#### Profiling commands
+
+These commands are available from the "Profiling" sub-menu. They can be triggered from the explorer and editor context menus via right-click in the editor area or from the command palette.
+
+|          Command | Description                                      |
+| --------------------: | :------------------------------------------ |
+|      Toggle Profiling | Toggles profiling on/off                    |
+|   Show Profiling Data | Show profiling data in a webview            |
+|  Reset Profiling Data | Reset profiling data and close the webview  |
 
 #### Extension logging commands
 

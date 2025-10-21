@@ -2,6 +2,7 @@
 
 ## [0.64.0]
 
+* Add support for displaying code profiling results in a webview
 * Add support for the VS Code Testing API
 * Add command "Logtalk: Run Tests with Coverage" to run all tests with coverage reporting
 * Delete any existing `.vscode_test_results` files at extension activation
