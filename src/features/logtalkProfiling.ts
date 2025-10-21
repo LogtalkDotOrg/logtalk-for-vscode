@@ -224,11 +224,11 @@ export class LogtalkProfiling {
     if (entity && predicate) {
       title += ` - ${entity}::${predicate}`;
       // Make the entity::predicate clickable to open the source file
-      titleHtml = `<h1>Logtalk Profiling Data - <a href="#" id="predicateLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}" data-predicate="${this.escapeHtml(predicate)}">${this.escapeHtml(entity)}::${this.escapeHtml(predicate)}</a></h1>`;
+      titleHtml = `<h1>Logtalk Profiling Data - <a href="#" id="predicateLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}" data-predicate="${this.escapeHtml(predicate)}"><code>${this.escapeHtml(entity)}::${this.escapeHtml(predicate)}</code></a></h1>`;
     } else if (entity) {
       title += ` - ${entity}`;
       // Make the entity name clickable to open the source file
-      titleHtml = `<h1>Logtalk Profiling Data - <a href="#" id="entityLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}">${this.escapeHtml(entity)}</a></h1>`;
+      titleHtml = `<h1>Logtalk Profiling Data - <a href="#" id="entityLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}"><code>${this.escapeHtml(entity)}</code></a></h1>`;
     }
 
     // Show appropriate back button
@@ -273,7 +273,7 @@ export class LogtalkProfiling {
             background-color: var(--vscode-list-hoverBackground);
         }
         tr:nth-child(even) {
-            background-color: var(--vscode-list-inactiveSelectionBackground);
+            background-color: rgba(128, 128, 128, 0.05);
         }
         .sort-indicator {
             margin-left: 5px;
@@ -284,10 +284,17 @@ export class LogtalkProfiling {
         }
         .clickable {
             color: var(--vscode-textLink-foreground);
+            text-decoration: none;
             cursor: pointer;
-            text-decoration: underline;
         }
         .clickable:hover {
+            color: var(--vscode-textLink-activeForeground);
+            text-decoration: underline;
+        }
+        .clickable code {
+            color: var(--vscode-textLink-foreground);
+        }
+        .clickable:hover code {
             color: var(--vscode-textLink-activeForeground);
         }
         .predicate-link {
@@ -297,6 +304,12 @@ export class LogtalkProfiling {
         .predicate-link:hover {
             color: var(--vscode-textLink-activeForeground);
             text-decoration: underline;
+        }
+        .predicate-link code {
+            color: var(--vscode-textLink-foreground);
+        }
+        .predicate-link:hover code {
+            color: var(--vscode-textLink-activeForeground);
         }
         button {
             background-color: var(--vscode-button-background);
@@ -519,44 +532,69 @@ export class LogtalkProfiling {
     // Parse data rows - data columns are separated by two or more spaces
     const dataRows = lines.slice(dataStartIndex, dataEndIndex).filter(line => line.trim().length > 0);
 
+    // First pass: parse all rows and find max values for numeric columns
+    const parsedRows = dataRows.map(row => row.split(/\s{2,}/).filter(c => c.trim().length > 0));
+    const maxValues: Map<number, number> = new Map();
+
+    // Identify numeric columns (excluding Entity and Predicate columns)
+    headers.forEach((header, colIndex) => {
+      if (header !== 'Entity' && header !== 'Predicate') {
+        let maxVal = -Infinity;
+        parsedRows.forEach(cells => {
+          if (cells[colIndex]) {
+            const numVal = parseInt(cells[colIndex], 10);
+            if (!isNaN(numVal) && numVal > maxVal) {
+              maxVal = numVal;
+            }
+          }
+        });
+        if (maxVal !== -Infinity) {
+          maxValues.set(colIndex, maxVal);
+        }
+      }
+    });
+
+    // Second pass: render the table
     let html = '<thead><tr>';
     headers.forEach(header => {
       html += `<th>${this.escapeHtml(header)}</th>`;
     });
     html += '</tr></thead><tbody>';
 
-    dataRows.forEach(row => {
-      const cells = row.split(/\s{2,}/).filter(c => c.trim().length > 0);
+    parsedRows.forEach(cells => {
       html += '<tr>';
       cells.forEach((cell, index) => {
         let cellHtml = '';
+        const numVal = parseInt(cell, 10);
+        const isBold = !isNaN(numVal) && maxValues.has(index) && numVal === maxValues.get(index);
+        const cellContent = isBold ? `<strong>${this.escapeHtml(cell)}</strong>` : this.escapeHtml(cell);
 
         if (isAllDataView) {
           // All data view: Entity in column 0, Predicate in column 1
           if (index === 0) {
-            cellHtml = `<td class="clickable">${this.escapeHtml(cell)}</td>`;
+            cellHtml = `<td class="clickable"><code>${this.escapeHtml(cell)}</code></td>`;
           } else if (index === 1) {
-            cellHtml = `<td class="clickable">${this.escapeHtml(cell)}</td>`;
+            cellHtml = `<td class="clickable"><code>${this.escapeHtml(cell)}</code></td>`;
           } else {
-            cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
+            cellHtml = `<td>${cellContent}</td>`;
           }
         } else if (isEntityView) {
           // Entity view: Predicate in column 0, store entity context
           if (index === 0) {
-            cellHtml = `<td class="clickable" data-entity="${this.escapeHtml(focusedEntity)}">${this.escapeHtml(cell)}</td>`;
+            cellHtml = `<td class="clickable" data-entity="${this.escapeHtml(focusedEntity)}"><code>${this.escapeHtml(cell)}</code></td>`;
           } else {
-            cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
+            cellHtml = `<td>${cellContent}</td>`;
           }
         } else if (isPredicateView) {
           // Predicate view: Clause numbers in column 0 are clickable
           if (index === 0 && headers[0] === 'Clause') {
-            cellHtml = `<td class="clickable clause-link" data-entity="${this.escapeHtml(focusedEntity)}" data-predicate="${this.escapeHtml(focusedPredicate)}" data-clause="${this.escapeHtml(cell)}">${this.escapeHtml(cell)}</td>`;
+            cellHtml = `<td class="clickable clause-link" data-entity="${this.escapeHtml(focusedEntity)}" data-predicate="${this.escapeHtml(focusedPredicate)}" data-clause="${this.escapeHtml(cell)}"><code>${this.escapeHtml(cell)}</code></td>`;
           } else {
-            cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
+            cellHtml = `<td>${cellContent}</td>`;
           }
         } else {
           // Other views: No clickable cells
-          cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
+          cellHtml = `<td>${cellContent}</td>`;
         }
 
         html += cellHtml;
@@ -620,7 +658,6 @@ export class LogtalkProfiling {
       await LogtalkTerminal.getEntityDefinition(entity);
 
       // Read the result from the marker file
-      const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "logtalk");
       const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
       const resultFile = path.join(wdir, ".vscode_entity_definition");
 
