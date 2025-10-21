@@ -235,7 +235,7 @@ export class LogtalkProfiling {
     let backButton = '';
     if (entity && predicate && previousEntity) {
       // We came from entity view, show back to entity button
-      backButton = `<button id="backToEntityButton" data-entity="${this.escapeHtml(previousEntity)}" style="margin-bottom: 10px; padding: 5px 10px; cursor: pointer;">← Back to ${this.escapeHtml(previousEntity)} Data</button>`;
+      backButton = `<button id="backToEntityButton" data-entity="${this.escapeHtml(previousEntity)}" style="margin-bottom: 10px; padding: 5px 10px; cursor: pointer;">← Back to <code>${this.escapeHtml(previousEntity)}</code> Data</button>`;
     } else if (entity || predicate) {
       // Show back to all data button
       backButton = '<button id="backButton" style="margin-bottom: 10px; padding: 5px 10px; cursor: pointer;">← Back to All Data</button>';
@@ -281,6 +281,10 @@ export class LogtalkProfiling {
         }
         h1 {
             color: var(--vscode-foreground);
+        }
+        code {
+            background-color: transparent;
+            font-family: var(--vscode-editor-font-family);
         }
         .clickable {
             color: var(--vscode-textLink-foreground);
