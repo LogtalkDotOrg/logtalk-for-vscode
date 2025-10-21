@@ -284,6 +284,7 @@ export class LogtalkProfiling {
         }
         code {
             background-color: transparent;
+            color: inherit;
             font-family: var(--vscode-editor-font-family);
         }
         .clickable {
