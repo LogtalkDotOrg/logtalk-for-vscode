@@ -1119,6 +1119,40 @@ export default class LogtalkTerminal {
     );
   }
 
+  public static async getEntityDefinition(entity: string) {
+    LogtalkTerminal.createLogtalkTerm();
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      let logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
+      const wdir = path.join(logtalkUser, "scratch");
+      let goals = `vscode::find_entity_definition('${wdir}', ${entity}).\r`;
+      LogtalkTerminal.sendString(goals);
+      const marker = path.join(logtalkUser, "scratch", ".vscode_entity_definition_done");
+      await LogtalkTerminal.waitForFile(marker);
+      await fsp.rm(marker, { force: true });
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+  }
+
+  public static async getPredicateDefinition(entity: string, predicate: string) {
+    LogtalkTerminal.createLogtalkTerm();
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) { 
+      let logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+      const wdir = path.join(logtalkUser, "scratch");
+      let goals = `vscode::find_predicate_definition('${wdir}', ${entity}, ${predicate}).\r`;
+      LogtalkTerminal.sendString(goals);
+      const marker = path.join(logtalkUser, "scratch", ".vscode_predicate_definition_done");
+      await LogtalkTerminal.waitForFile(marker);
+      await fsp.rm(marker, { force: true });
+    } else { 
+      throw new Error("configuration settings error: logtalk"); 
+    }
+  }
+
   public static async getDeclaration(doc: TextDocument, position: Position, call: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);

@@ -6,6 +6,7 @@ import * as fs from "fs";
 import * as fsp from "fs/promises";
 import LogtalkTerminal from "./logtalkTerminal";
 import { getLogger } from "../utils/logger";
+import { PredicateUtils } from "../utils/predicateUtils";
 
 /**
  * Logtalk Profiling Feature
@@ -47,7 +48,7 @@ export class LogtalkProfiling {
       await this.delay(500);
       LogtalkTerminal.sendString("logtalk_make(debug), ports_profiler::start.\r", true);
       
-      vscode.window.showInformationMessage("Logtalk profiling enabled. Code will be recompiled in debug mode.");
+      vscode.window.showInformationMessage("Logtalk profiling enabled. Code will be (re)compiled in debug mode.");
       
       // Update context for UI
       vscode.commands.executeCommand('setContext', 'logtalk.profilingEnabled', true);
@@ -55,9 +56,9 @@ export class LogtalkProfiling {
       // Turn off profiling
       this.logger.info("Disabling Logtalk profiling");
       // Switch back to normal mode
-      LogtalkTerminal.sendString("ports_profiler::stop, logtalk_make(normal).\r", true);
+      LogtalkTerminal.sendString("logtalk_load(ports_profiler(loader)), ports_profiler::stop, logtalk_make(normal).\r", true);
       
-      vscode.window.showInformationMessage("Logtalk profiling disabled. Code will be recompiled in normal mode.");
+      vscode.window.showInformationMessage("Logtalk profiling disabled. Code will be (re)compiled in normal mode.");
       
       // Update context for UI
       vscode.commands.executeCommand('setContext', 'logtalk.profilingEnabled', false);
@@ -124,6 +125,15 @@ export class LogtalkProfiling {
                 break;
               case 'backToEntity':
                 await this.showProfilingData(message.entity);
+                break;
+              case 'openEntityDefinition':
+                await this.openEntityDefinition(message.entity);
+                break;
+              case 'openPredicateDefinition':
+                await this.openPredicateDefinition(message.entity, message.predicate);
+                break;
+              case 'openClause':
+                await this.openClauseAtPosition(message.entity, message.predicate, message.clauseNumber);
                 break;
             }
           },
@@ -213,10 +223,16 @@ export class LogtalkProfiling {
 
     // Build title based on focus
     let title = 'Logtalk Profiling Data';
+    let titleHtml = '<h1>Logtalk Profiling Data</h1>';
+
     if (entity && predicate) {
       title += ` - ${entity}::${predicate}`;
+      // Make the entity::predicate clickable to open the source file
+      titleHtml = `<h1>Logtalk Profiling Data - <a href="#" id="predicateLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}" data-predicate="${this.escapeHtml(predicate)}">${this.escapeHtml(entity)}::${this.escapeHtml(predicate)}</a></h1>`;
     } else if (entity) {
       title += ` - ${entity}`;
+      // Make the entity name clickable to open the source file
+      titleHtml = `<h1>Logtalk Profiling Data - <a href="#" id="entityLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}">${this.escapeHtml(entity)}</a></h1>`;
     }
 
     // Show appropriate back button
@@ -278,6 +294,14 @@ export class LogtalkProfiling {
         .clickable:hover {
             color: var(--vscode-textLink-activeForeground);
         }
+        .predicate-link {
+            color: var(--vscode-textLink-foreground);
+            text-decoration: none;
+        }
+        .predicate-link:hover {
+            color: var(--vscode-textLink-activeForeground);
+            text-decoration: underline;
+        }
         button {
             background-color: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
@@ -290,7 +314,7 @@ export class LogtalkProfiling {
     </style>
 </head>
 <body>
-    <h1>${title}</h1>
+    ${titleHtml}
     ${backButton}
     <table id="profilingTable">
         ${tableData}
@@ -302,8 +326,36 @@ export class LogtalkProfiling {
             const headers = table.querySelectorAll('th');
             const backButton = document.getElementById('backButton');
             const backToEntityButton = document.getElementById('backToEntityButton');
+            const predicateLink = document.getElementById('predicateLink');
+            const entityLink = document.getElementById('entityLink');
             let sortColumn = -1;
             let sortAscending = true;
+
+            // Handle entity link click (open source file at entity opening directive)
+            if (entityLink) {
+                entityLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const entity = entityLink.dataset.entity;
+                    vscode.postMessage({
+                        command: 'openEntityDefinition',
+                        entity: entity
+                    });
+                });
+            }
+
+            // Handle predicate link click (open source file)
+            if (predicateLink) {
+                predicateLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const entity = predicateLink.dataset.entity;
+                    const predicate = predicateLink.dataset.predicate;
+                    vscode.postMessage({
+                        command: 'openPredicateDefinition',
+                        entity: entity,
+                        predicate: predicate
+                    });
+                });
+            }
 
             // Handle back to all button
             if (backButton) {
@@ -330,7 +382,7 @@ export class LogtalkProfiling {
                 });
             });
 
-            // Handle clicks on entity and predicate cells
+            // Handle clicks on entity, predicate, and clause cells
             const tbody = table.querySelector('tbody');
             if (tbody) {
                 tbody.addEventListener('click', (e) => {
@@ -344,8 +396,24 @@ export class LogtalkProfiling {
                     const cellIndex = Array.from(row.cells).indexOf(cell);
                     const cellText = cell.textContent.trim();
 
+                    // Check if this is a clause link (predicate view)
+                    if (cell.classList.contains('clause-link')) {
+                        const entity = cell.dataset.entity;
+                        const predicate = cell.dataset.predicate;
+                        const clauseNumber = parseInt(cell.dataset.clause);
+                        vscode.postMessage({
+                            command: 'openClause',
+                            entity: entity,
+                            predicate: predicate,
+                            clauseNumber: clauseNumber
+                        });
+                    }
                     // Check if this cell has a data-entity attribute (entity view, predicate column)
-                    if (cell.dataset.entity) {
+                    else if (cell.dataset.entity && cell.dataset.predicate) {
+                        // Predicate view - shouldn't happen as we handle clause-link above
+                        return;
+                    }
+                    else if (cell.dataset.entity) {
                         // We're in entity view, clicking on predicate (column 0)
                         const entity = cell.dataset.entity;
                         vscode.postMessage({
@@ -483,8 +551,15 @@ export class LogtalkProfiling {
           } else {
             cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
           }
+        } else if (isPredicateView) {
+          // Predicate view: Clause numbers in column 0 are clickable
+          if (index === 0 && headers[0] === 'Clause') {
+            cellHtml = `<td class="clickable clause-link" data-entity="${this.escapeHtml(focusedEntity)}" data-predicate="${this.escapeHtml(focusedPredicate)}" data-clause="${this.escapeHtml(cell)}">${this.escapeHtml(cell)}</td>`;
+          } else {
+            cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
+          }
         } else {
-          // Predicate view: No clickable cells
+          // Other views: No clickable cells
           cellHtml = `<td>${this.escapeHtml(cell)}</td>`;
         }
 
@@ -536,6 +611,183 @@ export class LogtalkProfiling {
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Open the source file at the entity opening directive
+   */
+  private async openEntityDefinition(entity: string): Promise<void> {
+    try {
+      this.logger.info(`Opening entity definition for ${entity}`);
+
+      // Use LogtalkTerminal to find the entity definition
+      await LogtalkTerminal.getEntityDefinition(entity);
+
+      // Read the result from the marker file
+      const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "logtalk");
+      const resultFile = path.join(logtalkUser, "scratch", ".vscode_entity_definition");
+
+      this.logger.info(`Looking for result file at: ${resultFile}`);
+      this.logger.info(`File exists: ${fs.existsSync(resultFile)}`);
+
+      if (fs.existsSync(resultFile)) {
+        const out = fs.readFileSync(resultFile).toString();
+        this.logger.info(`Result file content: ${out}`);
+        await fsp.rm(resultFile, { force: true });
+
+        const match = out.match(/File:(.+);Line:(\d+)/);
+        if (match) {
+          const fileName: string = match[1];
+          const lineNum: number = parseInt(match[2]);
+          this.logger.info(`Opening file: ${fileName} at line ${lineNum}`);
+          const location = new vscode.Location(vscode.Uri.file(fileName), new vscode.Position(lineNum - 1, 0));
+
+          const document = await vscode.workspace.openTextDocument(location.uri);
+          await vscode.window.showTextDocument(document, {
+            viewColumn: vscode.ViewColumn.One,
+            selection: new vscode.Range(location.range.start, location.range.start),
+            preserveFocus: false
+          });
+        } else {
+          this.logger.warn(`No match found in result file content: ${out}`);
+          vscode.window.showWarningMessage(`Could not find definition for entity ${entity}`);
+        }
+      } else {
+        this.logger.warn(`Result file not found at: ${resultFile}`);
+        vscode.window.showWarningMessage(`Could not find definition for entity ${entity}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error opening entity definition: ${error}`);
+      vscode.window.showErrorMessage(`Failed to open entity definition: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Open the source file at the predicate definition
+   */
+  private async openPredicateDefinition(entity: string, predicateIndicator: string): Promise<void> {
+    try {
+      this.logger.info(`Opening predicate definition for ${entity}::${predicateIndicator}`);
+
+      // Use LogtalkTerminal to find the predicate definition
+      await LogtalkTerminal.getPredicateDefinition(entity, predicateIndicator);
+
+      // Read the result from the marker file
+      const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "logtalk");
+      const resultFile = path.join(logtalkUser, "scratch", ".vscode_predicate_definition");
+
+      this.logger.info(`Looking for result file at: ${resultFile}`);
+      this.logger.info(`File exists: ${fs.existsSync(resultFile)}`);
+
+      if (fs.existsSync(resultFile)) {
+        const out = fs.readFileSync(resultFile).toString();
+        this.logger.info(`Result file content: ${out}`);
+        await fsp.rm(resultFile, { force: true });
+
+        const match = out.match(/File:(.+);Line:(\d+)/);
+        if (match) {
+          const fileName: string = match[1];
+          const lineNum: number = parseInt(match[2]);
+          this.logger.info(`Opening file: ${fileName} at line ${lineNum}`);
+          const location = new vscode.Location(vscode.Uri.file(fileName), new vscode.Position(lineNum - 1, 0));
+
+          const document = await vscode.workspace.openTextDocument(location.uri);
+          await vscode.window.showTextDocument(document, {
+            viewColumn: vscode.ViewColumn.One,
+            selection: new vscode.Range(location.range.start, location.range.start),
+            preserveFocus: false
+          });
+        } else {
+          this.logger.warn(`No match found in result file content: ${out}`);
+          vscode.window.showWarningMessage(`Could not find definition for ${entity}::${predicateIndicator}`);
+        }
+      } else {
+        this.logger.warn(`Result file not found at: ${resultFile}`);
+        vscode.window.showWarningMessage(`Could not find definition for ${entity}::${predicateIndicator}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error opening predicate definition: ${error}`);
+      vscode.window.showErrorMessage(`Failed to open predicate definition: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Open the source file at a specific clause position
+   */
+  private async openClauseAtPosition(entity: string, predicateIndicator: string, clauseNumber: number): Promise<void> {
+    try {
+      this.logger.info(`Opening clause ${clauseNumber} for ${entity}::${predicateIndicator}`);
+
+      // Find all clauses of the predicate
+      const clauses = await this.findPredicateClauses(entity, predicateIndicator);
+
+      if (clauses && clauseNumber > 0 && clauseNumber <= clauses.length) {
+        const clauseLocation = clauses[clauseNumber - 1]; // Convert 1-based to 0-based index
+        const document = await vscode.workspace.openTextDocument(clauseLocation.uri);
+        await vscode.window.showTextDocument(document, {
+          viewColumn: vscode.ViewColumn.One,
+          selection: new vscode.Range(clauseLocation.range.start, clauseLocation.range.start),
+          preserveFocus: false
+        });
+      } else {
+        vscode.window.showWarningMessage(`Could not find clause ${clauseNumber} for ${entity}::${predicateIndicator}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error opening clause: ${error}`);
+      vscode.window.showErrorMessage(`Failed to open clause: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+
+
+  /**
+   * Find all clause locations for a predicate in an entity
+   * First finds the first clause using LogtalkTerminal, then uses PredicateUtils to find consecutive clauses
+   */
+  private async findPredicateClauses(entity: string, predicateIndicator: string): Promise<vscode.Location[]> {
+    try {
+      // Use LogtalkTerminal to find the first clause
+      await LogtalkTerminal.getPredicateDefinition(entity, predicateIndicator);
+
+      // Read the result from the marker file
+      const logtalkUser = vscode.workspace.getConfiguration("logtalk").get<string>("user.path", "logtalk");
+      const resultFile = path.join(logtalkUser, "scratch", ".vscode_predicate_definition");
+
+      if (!fs.existsSync(resultFile)) {
+        return [];
+      }
+
+      const out = fs.readFileSync(resultFile).toString();
+      await fsp.rm(resultFile, { force: true });
+
+      const match = out.match(/File:(.+);Line:(\d+)/);
+      if (!match) {
+        return [];
+      }
+
+      const fileName: string = match[1];
+      const lineNum: number = parseInt(match[2]);
+      const fileUri = vscode.Uri.file(fileName);
+      const startLine = lineNum - 1; // Convert to 0-based
+
+      // Open the document
+      const document = await vscode.workspace.openTextDocument(fileUri);
+
+      // Use PredicateUtils to find all consecutive clause ranges
+      const clauseRanges = PredicateUtils.findConsecutivePredicateClauseRanges(
+        document,
+        predicateIndicator,
+        startLine
+      );
+
+      // Convert ranges to locations
+      const locations = clauseRanges.map(range => new vscode.Location(fileUri, range));
+
+      return locations;
+    } catch (error) {
+      this.logger.error(`Error finding predicate clauses: ${error}`);
+      return [];
+    }
   }
 
   /**
