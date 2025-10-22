@@ -370,13 +370,19 @@ export function activate(context: ExtensionContext) {
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#configure' };
 	}));
 
-	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openReadme', () => {
-    commands.executeCommand('extension.open', 'LogtalkDotOrg.logtalk-for-vscode');
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openReadme', async () => {
+    // Open extension details page which shows the README
+    await commands.executeCommand('extension.open', 'LogtalkDotOrg.logtalk-for-vscode');
+    // Re-open the walkthrough to the side so both can coexist
+    await commands.executeCommand('workbench.action.openWalkthrough', {
+      category: 'LogtalkDotOrg.logtalk-for-vscode#logtalk-walkthrough',
+      step: 'logtalk-for-vscode#logtalk-walkthrough#configure'
+    }, true); // true = open to side
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#configure' };
 	}));
 
 	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openExample', () => {
-    commands.executeCommand('workbench.action.files.openFolder');
+    commands.executeCommand('workbench.action.files.openFolder', { forceNewWindow: true });
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#open' };
 	}));
 
