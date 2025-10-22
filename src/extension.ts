@@ -281,6 +281,7 @@ export function activate(context: ExtensionContext) {
     commands.registerCommand('workbench.action.debug.start', () => {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', true);
       updateBreakpointStates(true);
+      LogtalkTerminal.createLogtalkTerm();
       LogtalkTerminal.sendString('vscode::debug.\r');
     })
   );
@@ -289,6 +290,7 @@ export function activate(context: ExtensionContext) {
     commands.registerCommand('workbench.action.debug.run', () => {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', false);
       updateBreakpointStates(false);
+      LogtalkTerminal.createLogtalkTerm();
       LogtalkTerminal.sendString('vscode::nodebug.\r');
     })
   );
@@ -300,6 +302,7 @@ export function activate(context: ExtensionContext) {
       updateBreakpointStates(logtalkDebuggingEnabled);
       
       // Send appropriate Logtalk command
+      LogtalkTerminal.createLogtalkTerm();
       LogtalkTerminal.sendString(logtalkDebuggingEnabled ? 'vscode::debug.\r' : 'vscode::nodebug.\r');
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', logtalkDebuggingEnabled);
     }},

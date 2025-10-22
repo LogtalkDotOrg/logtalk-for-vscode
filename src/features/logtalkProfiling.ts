@@ -39,30 +39,30 @@ export class LogtalkProfiling {
   public async toggleProfiling(): Promise<void> {
     this.profilingEnabled = !this.profilingEnabled;
 
+    // Create the Logtalk terminal if it doesn't exist
+    LogtalkTerminal.createLogtalkTerm();
+
     if (this.profilingEnabled) {
       // Turn on profiling
       this.logger.info("Enabling Logtalk profiling");
+
       // Load the ports_profiler tool and switch to debug mode
-      LogtalkTerminal.sendString("logtalk_load(ports_profiler(loader)).\r", false);
-      // Wait a bit for the tool to load
-      await this.delay(500);
-      LogtalkTerminal.sendString("logtalk_make(debug), ports_profiler::start.\r", true);
-      
+      LogtalkTerminal.sendString("logtalk_load(ports_profiler(loader)), logtalk_make(debug), ports_profiler::start.\r", false);      
       vscode.window.showInformationMessage("Logtalk profiling enabled. Code will be (re)compiled in debug mode.");
-      
+
       // Update context for UI
       vscode.commands.executeCommand('setContext', 'logtalk.profilingEnabled', true);
     } else {
       // Turn off profiling
       this.logger.info("Disabling Logtalk profiling");
+
       // Switch back to normal mode
       LogtalkTerminal.sendString("logtalk_load(ports_profiler(loader)), ports_profiler::stop, logtalk_make(normal).\r", true);
-      
       vscode.window.showInformationMessage("Logtalk profiling disabled. Code will be (re)compiled in normal mode.");
-      
+
       // Update context for UI
       vscode.commands.executeCommand('setContext', 'logtalk.profilingEnabled', false);
-      
+
       // Close the webview if it's open
       if (this.webviewPanel) {
         this.webviewPanel.dispose();
@@ -159,8 +159,11 @@ export class LogtalkProfiling {
       return;
     }
 
+    // Create the Logtalk terminal if it doesn't exist
+    LogtalkTerminal.createLogtalkTerm();
+
     this.logger.info("Resetting profiling data");
-    LogtalkTerminal.sendString("ports_profiler::reset.\r", true);
+    LogtalkTerminal.sendString("logtalk_load(ports_profiler(loader)), ports_profiler::reset.\r", true);
     
     vscode.window.showInformationMessage("Profiling data reset.");
     
@@ -194,9 +197,12 @@ export class LogtalkProfiling {
       goal = `ports_profiler::data`;
     }
 
+    // Create the Logtalk terminal if it doesn't exist
+    LogtalkTerminal.createLogtalkTerm();
+
     // Redirect output to file
     const normalizedPath = path.resolve(profilingDataFile).split(path.sep).join("/");
-    LogtalkTerminal.sendString(`open('${normalizedPath}', write, Stream), set_output(Stream), ${goal}, close(Stream).\r`, false);
+    LogtalkTerminal.sendString(`logtalk_load(ports_profiler(loader)), open('${normalizedPath}', write, Stream), set_output(Stream), ${goal}, close(Stream).\r`, false);
 
     // Wait for the file to be created
     await this.waitForFile(profilingDataFile, 5000);

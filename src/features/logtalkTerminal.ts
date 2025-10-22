@@ -135,7 +135,7 @@ export default class LogtalkTerminal {
     });
   }
 
-  private static createLogtalkTerm() {
+  public static createLogtalkTerm() {
     if (LogtalkTerminal._terminal) {
       return;
     }
