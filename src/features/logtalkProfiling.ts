@@ -567,7 +567,9 @@ export class LogtalkProfiling {
    * Parse profiling data from text format to HTML table
    */
   private parseProfilingData(data: string, focusedEntity?: string, focusedPredicate?: string): string {
-    const lines = data.split('\n').filter(line => line.length > 0);
+    // Normalize line endings to handle both Windows (CRLF) and Unix (LF) formats
+    const normalizedData = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalizedData.split('\n').filter(line => line.length > 0);
 
     // Find the table boundaries (lines with dashes)
     const dashLineIndices = lines.map((line, index) => line.match(/^-+$/) ? index : -1).filter(i => i !== -1);
