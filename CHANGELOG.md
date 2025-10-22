@@ -8,6 +8,7 @@
 * Add command "Logtalk: Run Tests with Coverage" to run all tests with coverage reporting
 * Delete any existing `.vscode_test_results` files at extension activation
 * Changed test results summary displayed using CodeLens in the tests object to re-run only the object tests
+* Add refactoring support for converting between object, protocol, and category entity types
 * Add quick fixes for documentation linter warnings
 * Additional quick fixes for compiler linter errors and warnings
 * Additional quick fixes for the dead code scanner warnings

@@ -485,6 +485,55 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  // Entity type conversion refactorings
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.convertObjectToProtocol', async (document, entityTypeInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.convertObjectToProtocol(document, entityTypeInfo);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.convertObjectToCategory', async (document, entityTypeInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.convertObjectToCategory(document, entityTypeInfo);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.convertProtocolToCategory', async (document, entityTypeInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.convertProtocolToCategory(document, entityTypeInfo);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.convertProtocolToObject', async (document, entityTypeInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.convertProtocolToObject(document, entityTypeInfo);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.convertCategoryToProtocol', async (document, entityTypeInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.convertCategoryToProtocol(document, entityTypeInfo);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.convertCategoryToObject', async (document, entityTypeInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.convertCategoryToObject(document, entityTypeInfo);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

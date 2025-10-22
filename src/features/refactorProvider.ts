@@ -197,6 +197,106 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     }
 
+    // Check for entity type conversion refactorings
+    const entityTypeInfo = this.detectEntityTypeKeywordSelection(document, range);
+    if (entityTypeInfo) {
+      // Object conversions
+      if (entityTypeInfo.type === 'object') {
+        // Convert to protocol (only if single argument)
+        if (entityTypeInfo.args.length === 1) {
+          const convertToProtocolAction = new CodeAction(
+            "Convert to protocol",
+            CodeActionKind.RefactorRewrite
+          );
+          convertToProtocolAction.command = {
+            command: "logtalk.refactor.convertObjectToProtocol",
+            title: "Convert to protocol",
+            arguments: [document, entityTypeInfo]
+          };
+          actions.push(convertToProtocolAction);
+        }
+
+        // Convert to category (only if no instantiates/specializes/extends)
+        const hasProhibitedRelations = entityTypeInfo.args.slice(1).some(arg => {
+          const argLower = arg.toLowerCase();
+          return argLower.startsWith('instantiates(') ||
+                 argLower.startsWith('specializes(') ||
+                 argLower.startsWith('extends(');
+        });
+
+        if (!hasProhibitedRelations) {
+          const convertToCategoryAction = new CodeAction(
+            "Convert to category",
+            CodeActionKind.RefactorRewrite
+          );
+          convertToCategoryAction.command = {
+            command: "logtalk.refactor.convertObjectToCategory",
+            title: "Convert to category",
+            arguments: [document, entityTypeInfo]
+          };
+          actions.push(convertToCategoryAction);
+        }
+      }
+
+      // Protocol conversions
+      if (entityTypeInfo.type === 'protocol') {
+        const convertToCategoryAction = new CodeAction(
+          "Convert to category",
+          CodeActionKind.RefactorRewrite
+        );
+        convertToCategoryAction.command = {
+          command: "logtalk.refactor.convertProtocolToCategory",
+          title: "Convert to category",
+          arguments: [document, entityTypeInfo]
+        };
+        actions.push(convertToCategoryAction);
+
+        const convertToObjectAction = new CodeAction(
+          "Convert to object",
+          CodeActionKind.RefactorRewrite
+        );
+        convertToObjectAction.command = {
+          command: "logtalk.refactor.convertProtocolToObject",
+          title: "Convert to object",
+          arguments: [document, entityTypeInfo]
+        };
+        actions.push(convertToObjectAction);
+      }
+
+      // Category conversions
+      if (entityTypeInfo.type === 'category') {
+        // Convert to protocol (only if no extends argument)
+        const hasExtends = entityTypeInfo.args.slice(1).some(arg => {
+          const argLower = arg.toLowerCase();
+          return argLower.startsWith('extends(');
+        });
+
+        if (!hasExtends) {
+          const convertToProtocolAction = new CodeAction(
+            "Convert to protocol",
+            CodeActionKind.RefactorRewrite
+          );
+          convertToProtocolAction.command = {
+            command: "logtalk.refactor.convertCategoryToProtocol",
+            title: "Convert to protocol",
+            arguments: [document, entityTypeInfo]
+          };
+          actions.push(convertToProtocolAction);
+        }
+
+        const convertToObjectAction = new CodeAction(
+          "Convert to object",
+          CodeActionKind.RefactorRewrite
+        );
+        convertToObjectAction.command = {
+          command: "logtalk.refactor.convertCategoryToObject",
+          title: "Convert to object",
+          arguments: [document, entityTypeInfo]
+        };
+        actions.push(convertToObjectAction);
+      }
+    }
+
     // Check if we're on a predicate reference for argument refactoring
     const position = range instanceof Selection ? range.active : range.start;
     const indicator = await this.isPredicateReference(document, position);
@@ -879,6 +979,59 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       name: entityIdentifier,
       nameWithoutParams: nameWithoutParams,
       line: directiveRange.start  // Use the directive start line, not the cursor line
+    };
+  }
+
+  /**
+   * Detect if the user has selected an entity type keyword in an opening directive
+   * @param document The text document
+   * @param range The selected range
+   * @returns Entity type information if detected, null otherwise
+   */
+  private detectEntityTypeKeywordSelection(document: TextDocument, range: Range | Selection): {
+    type: 'object' | 'protocol' | 'category';
+    line: number;
+    directiveRange: { start: number; end: number };
+    args: string[];
+  } | null {
+    const position = range instanceof Selection ? range.active : range.start;
+    const lineText = document.lineAt(position.line).text;
+
+    // Check if this line contains an entity opening directive
+    const entityMatch = SymbolUtils.matchFirst(lineText.trim(), PatternSets.entityOpening);
+    if (!entityMatch) {
+      return null;
+    }
+
+    // Get the complete multi-line directive content
+    const directiveRange = PredicateUtils.getDirectiveRange(document, position.line);
+    let fullDirectiveText = '';
+
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      if (lineNum < document.lineCount) {
+        const line = document.lineAt(lineNum).text;
+        fullDirectiveText += line + (lineNum < directiveRange.end ? ' ' : '');
+      }
+    }
+
+    // Parse the directive arguments
+    const keyword: 'object' | 'protocol' | 'category' = entityMatch.type.toLowerCase() as any;
+    const keywordStart = fullDirectiveText.indexOf(keyword);
+    const openParenPos = fullDirectiveText.indexOf('(', keywordStart);
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(fullDirectiveText, openParenPos);
+
+    if (openParenPos < 0 || closeParenPos < 0) {
+      return null;
+    }
+
+    const directiveContent = fullDirectiveText.substring(openParenPos + 1, closeParenPos);
+    const args = ArgumentUtils.parseArguments(directiveContent);
+
+    return {
+      type: keyword,
+      line: position.line,
+      directiveRange: directiveRange,
+      args: args
     };
   }
 
@@ -7819,6 +7972,205 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.error(`Error removing parameter: ${e}`);
       window.showErrorMessage(`Error removing parameter: ${e}`);
     }
+  }
+
+  /**
+   * Convert entity type and update opening and closing directives
+   */
+  private async convertEntityType(
+    document: TextDocument,
+    entityTypeInfo: {
+      type: 'object' | 'protocol' | 'category';
+      line: number;
+      directiveRange: { start: number; end: number };
+      args: string[];
+    },
+    targetType: 'object' | 'protocol' | 'category',
+    relationRenames?: { from: string; to: string }[]
+  ): Promise<void> {
+    try {
+      const edit = new WorkspaceEdit();
+
+      // Get the full directive text
+      let fullDirectiveText = '';
+      for (let lineNum = entityTypeInfo.directiveRange.start; lineNum <= entityTypeInfo.directiveRange.end; lineNum++) {
+        if (lineNum < document.lineCount) {
+          const line = document.lineAt(lineNum).text;
+          fullDirectiveText += line + (lineNum < entityTypeInfo.directiveRange.end ? '\n' : '');
+        }
+      }
+
+      // Replace the entity type keyword in the opening directive
+      const sourceKeyword = entityTypeInfo.type;
+      const targetKeyword = targetType;
+
+      // Apply relation renames if specified
+      let newDirectiveText = fullDirectiveText;
+      if (relationRenames) {
+        for (const rename of relationRenames) {
+          // Use regex to match the relation name followed by opening parenthesis
+          const regex = new RegExp(`\\b${rename.from}\\s*\\(`, 'gi');
+          newDirectiveText = newDirectiveText.replace(regex, `${rename.to}(`);
+        }
+      }
+
+      // Replace the entity type keyword
+      const keywordRegex = new RegExp(`(:-\\s*)${sourceKeyword}(\\s*\\()`, 'i');
+      newDirectiveText = newDirectiveText.replace(keywordRegex, `$1${targetKeyword}$2`);
+
+      // Replace the opening directive
+      const openingRange = new Range(
+        new Position(entityTypeInfo.directiveRange.start, 0),
+        new Position(entityTypeInfo.directiveRange.end, document.lineAt(entityTypeInfo.directiveRange.end).text.length)
+      );
+      edit.replace(document.uri, openingRange, newDirectiveText);
+
+      // Find and replace the closing directive
+      const closingLine = this.findEntityClosingDirective(document, entityTypeInfo.directiveRange.end, sourceKeyword);
+      if (closingLine !== null) {
+        const closingText = document.lineAt(closingLine).text;
+        const newClosingText = closingText.replace(
+          new RegExp(`end_${sourceKeyword}`, 'i'),
+          `end_${targetKeyword}`
+        );
+        const closingRange = new Range(
+          new Position(closingLine, 0),
+          new Position(closingLine, closingText.length)
+        );
+        edit.replace(document.uri, closingRange, newClosingText);
+      }
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        window.showInformationMessage(`Converted ${sourceKeyword} to ${targetKeyword}. Further edits may be required.`);
+      } else {
+        window.showErrorMessage(`Failed to convert ${sourceKeyword} to ${targetKeyword}.`);
+      }
+    } catch (error) {
+      this.logger.error(`Error converting entity type: ${error}`);
+      window.showErrorMessage(`Error converting entity type: ${error}`);
+    }
+  }
+
+  /**
+   * Find the closing directive for an entity
+   */
+  private findEntityClosingDirective(document: TextDocument, startLine: number, entityType: string): number | null {
+    const closingPattern = new RegExp(`^\\s*:-\\s*end_${entityType}\\s*\\.`, 'i');
+
+    for (let lineNum = startLine + 1; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      if (closingPattern.test(lineText)) {
+        return lineNum;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Convert object to protocol
+   */
+  public async convertObjectToProtocol(
+    document: TextDocument,
+    entityTypeInfo: {
+      type: 'object' | 'protocol' | 'category';
+      line: number;
+      directiveRange: { start: number; end: number };
+      args: string[];
+    }
+  ): Promise<void> {
+    await this.convertEntityType(document, entityTypeInfo, 'protocol');
+  }
+
+  /**
+   * Convert object to category
+   */
+  public async convertObjectToCategory(
+    document: TextDocument,
+    entityTypeInfo: {
+      type: 'object' | 'protocol' | 'category';
+      line: number;
+      directiveRange: { start: number; end: number };
+      args: string[];
+    }
+  ): Promise<void> {
+    // Rename imports to extends
+    await this.convertEntityType(document, entityTypeInfo, 'category', [
+      { from: 'imports', to: 'extends' }
+    ]);
+  }
+
+  /**
+   * Convert protocol to category
+   */
+  public async convertProtocolToCategory(
+    document: TextDocument,
+    entityTypeInfo: {
+      type: 'object' | 'protocol' | 'category';
+      line: number;
+      directiveRange: { start: number; end: number };
+      args: string[];
+    }
+  ): Promise<void> {
+    // Rename extends to implements
+    await this.convertEntityType(document, entityTypeInfo, 'category', [
+      { from: 'extends', to: 'implements' }
+    ]);
+  }
+
+  /**
+   * Convert protocol to object
+   */
+  public async convertProtocolToObject(
+    document: TextDocument,
+    entityTypeInfo: {
+      type: 'object' | 'protocol' | 'category';
+      line: number;
+      directiveRange: { start: number; end: number };
+      args: string[];
+    }
+  ): Promise<void> {
+    // Rename extends to implements
+    await this.convertEntityType(document, entityTypeInfo, 'object', [
+      { from: 'extends', to: 'implements' }
+    ]);
+  }
+
+  /**
+   * Convert category to protocol
+   */
+  public async convertCategoryToProtocol(
+    document: TextDocument,
+    entityTypeInfo: {
+      type: 'object' | 'protocol' | 'category';
+      line: number;
+      directiveRange: { start: number; end: number };
+      args: string[];
+    }
+  ): Promise<void> {
+    // Rename implements to extends
+    await this.convertEntityType(document, entityTypeInfo, 'protocol', [
+      { from: 'implements', to: 'extends' }
+    ]);
+  }
+
+  /**
+   * Convert category to object
+   */
+  public async convertCategoryToObject(
+    document: TextDocument,
+    entityTypeInfo: {
+      type: 'object' | 'protocol' | 'category';
+      line: number;
+      directiveRange: { start: number; end: number };
+      args: string[];
+    }
+  ): Promise<void> {
+    // Rename extends to imports
+    await this.convertEntityType(document, entityTypeInfo, 'object', [
+      { from: 'extends', to: 'imports' }
+    ]);
   }
 
 }
