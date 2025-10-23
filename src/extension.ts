@@ -366,7 +366,7 @@ export function activate(context: ExtensionContext) {
   });
 
 	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openSettings', () => {
-    commands.executeCommand('workbench.action.openSettings', 'logtalk');
+    commands.executeCommand('workbench.action.openSettings', 'Logtalk');
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#configure' };
 	}));
 
