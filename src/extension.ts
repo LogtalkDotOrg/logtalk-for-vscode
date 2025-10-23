@@ -648,6 +648,22 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  // Delete diagnostics when files are deleted from the workspace
+  context.subscriptions.push(
+    workspace.onDidDeleteFiles(event => {
+      event.files.forEach(uri => {
+        // Only process Logtalk and Prolog files
+        const fileName = uri.fsPath.toLowerCase();
+        if (fileName.endsWith('.lgt') || fileName.endsWith('.logtalk') || fileName.endsWith('.pl') || fileName.endsWith('.prolog')) {
+          linter.diagnosticCollection.delete(uri);
+          testsReporter.diagnosticCollection.delete(uri);
+          deadCodeScanner.diagnosticCollection.delete(uri);
+          documentationLinter.diagnosticCollection.delete(uri);
+        }
+      });
+    })
+  );
+
   // Add onDidSaveTextDocument event handler for auto-reload functionality
   // Use debouncing to handle "Save All" command - only call make once after all files are saved
   context.subscriptions.push(

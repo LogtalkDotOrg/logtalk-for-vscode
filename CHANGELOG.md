@@ -12,6 +12,7 @@
 * Add quick fixes for documentation linter warnings
 * Additional quick fixes for compiler linter errors and warnings
 * Additional quick fixes for the dead code scanner warnings
+* Clear diagnostics from all diagnostic collections when a file is deleted
 * Provide limited support for virtual workspaces
 * Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests
 * Fix timing issue that could result in multiple Logtalk terminals being created at startup
