@@ -18,6 +18,7 @@ export class SvgViewerProvider {
   private static historyIndex = new Map<string, number>();
   private static currentZoomLevel = new Map<string, number>();
   private static extensionContext: vscode.ExtensionContext | undefined;
+  private static tabChangeListener: vscode.Disposable | undefined;
 
   /**
    * Go back in navigation history (called from command)
@@ -79,7 +80,7 @@ export class SvgViewerProvider {
   /**
    * Open an SVG file in a webview
    */
-  public static openSvgFile(uri: vscode.Uri, context: vscode.ExtensionContext) {
+  public static async openSvgFile(uri: vscode.Uri, context: vscode.ExtensionContext) {
     this.extensionContext = context;
     const filePath = uri.fsPath;
     const fileName = path.basename(filePath);
@@ -87,12 +88,28 @@ export class SvgViewerProvider {
 
     // Check if we already have a panel for this file
     let panel = this.panels.get(panelKey);
-    
+
     if (panel) {
-      // If panel exists, reveal it in column Two and update content
-      panel.reveal(vscode.ViewColumn.Two);
+      // If panel exists, reveal it and update content
+      panel.reveal();
       this.updateWebviewContent(panel, filePath, context);
     } else {
+      // Ensure we have at least 2 editor groups (split layout)
+      // This guarantees the webview will be in a dedicated group on the right
+      const tabGroups = vscode.window.tabGroups.all;
+      const hasActiveEditor = vscode.window.activeTextEditor !== undefined;
+
+      if (tabGroups.length < 2) {
+        if (hasActiveEditor) {
+          // If there's an active editor, splitEditorRight would duplicate it
+          // Instead, create a new empty group by focusing and splitting
+          await vscode.commands.executeCommand('workbench.action.newGroupRight');
+        } else {
+          // No active editor, safe to use splitEditorRight
+          await vscode.commands.executeCommand('workbench.action.splitEditorRight');
+        }
+      }
+
       // Create a new panel
       // Use workspace folders as localResourceRoots to allow loading resources from any location
       const workspaceFolders = vscode.workspace.workspaceFolders || [];
@@ -103,8 +120,7 @@ export class SvgViewerProvider {
         vscode.Uri.joinPath(context.extensionUri, 'media')
       );
 
-      // Always open webview in Column Two (right side)
-      // This creates a persistent split where the webview stays on the right
+      // Open webview in the second editor group (right side)
       panel = vscode.window.createWebviewPanel(
         this.viewType,
         `SVG: ${fileName}`,
@@ -121,12 +137,23 @@ export class SvgViewerProvider {
       this.historyIndex.set(panelKey, 0);
       this.currentZoomLevel.set(panelKey, 1.0);
 
+      // Set up tab change listener if not already set up
+      if (!this.tabChangeListener) {
+        this.setupTabChangeListener();
+      }
+
       // Handle panel disposal
       panel.onDidDispose(() => {
         this.panels.delete(panelKey);
         this.history.delete(panelKey);
         this.historyIndex.delete(panelKey);
         this.currentZoomLevel.delete(panelKey);
+
+        // Clean up tab change listener if no more panels
+        if (this.panels.size === 0 && this.tabChangeListener) {
+          this.tabChangeListener.dispose();
+          this.tabChangeListener = undefined;
+        }
       }, null, context.subscriptions);
 
       // Handle messages from the webview
@@ -370,6 +397,38 @@ export class SvgViewerProvider {
         this.updateWebviewContent(panel, filePath, context);
       }
     }
+  }
+
+  /**
+   * Set up listener to prevent files from opening in the webview's editor group
+   */
+  private static setupTabChangeListener() {
+    this.tabChangeListener = vscode.window.tabGroups.onDidChangeTabs(async (event) => {
+      // Check if any tabs were opened in group 2 (where webviews are)
+      for (const tab of event.opened) {
+        // Check if this tab is in the second group (Column Two)
+        const tabGroup = vscode.window.tabGroups.all.find(g => g.tabs.includes(tab));
+        if (tabGroup && tabGroup.viewColumn === vscode.ViewColumn.Two) {
+          // Check if this is a webview tab - webviews have a different input type
+          const isWebview = tab.input instanceof vscode.TabInputWebview ||
+                           (tab.input && (tab.input as any).viewType === this.viewType);
+
+          // Only move non-webview tabs (regular text documents)
+          if (!isWebview && tab.input && (tab.input as any).uri) {
+            // Move this specific tab to Column One
+            // Close the tab in Column Two
+            await vscode.window.tabGroups.close(tab);
+            // Reopen it in Column One
+            const document = await vscode.workspace.openTextDocument((tab.input as any).uri);
+            await vscode.window.showTextDocument(document, {
+              viewColumn: vscode.ViewColumn.One,
+              preserveFocus: true,
+              preview: false
+            });
+          }
+        }
+      }
+    });
   }
 
   /**
