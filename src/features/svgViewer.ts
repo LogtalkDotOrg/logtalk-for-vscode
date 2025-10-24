@@ -89,8 +89,8 @@ export class SvgViewerProvider {
     let panel = this.panels.get(panelKey);
     
     if (panel) {
-      // If panel exists, reveal it and update content
-      panel.reveal(vscode.ViewColumn.One);
+      // If panel exists, reveal it in column Two and update content
+      panel.reveal(vscode.ViewColumn.Two);
       this.updateWebviewContent(panel, filePath, context);
     } else {
       // Create a new panel
@@ -103,10 +103,12 @@ export class SvgViewerProvider {
         vscode.Uri.joinPath(context.extensionUri, 'media')
       );
 
+      // Always open webview in Column Two (right side)
+      // This creates a persistent split where the webview stays on the right
       panel = vscode.window.createWebviewPanel(
         this.viewType,
         `SVG: ${fileName}`,
-        vscode.ViewColumn.Beside,
+        vscode.ViewColumn.Two,
         {
           enableScripts: true,
           retainContextWhenHidden: true,
@@ -200,10 +202,10 @@ export class SvgViewerProvider {
       const uri = vscode.Uri.file(expandedPath);
       const document = await vscode.workspace.openTextDocument(uri);
 
-      // Open in ViewColumn.One (left column) and preserve focus if already open
+      // Always open in Column One (left side) and preserve focus on the webview (Column Two)
       const editor = await vscode.window.showTextDocument(document, {
         viewColumn: vscode.ViewColumn.One,
-        preserveFocus: false,
+        preserveFocus: true,
         preview: false
       });
 
