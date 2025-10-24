@@ -233,6 +233,10 @@ These commands are only available from the command palette. They are meant for h
 |  Set Extension Logging Level | Interactive log level configuration    |
 |  Show Extension Log          | Display the extension's output channel |
 
+#### Explorer context menu
+
+Right-click on a Logtalk diagram SVG file in the Explorer and select the "Logtalk: Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer.
+
 ### Code Navigation
 
 Code navigation features **require** the code to be loaded, typically by using the "Load Project" command or by opening the project loader file and using the "Load File" command from the editor/context menu. Additionally, code must be compiled with the `source_data` flag set to `on` (default) and the `context_switching_calls` set to `allow` (default).

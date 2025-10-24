@@ -45,6 +45,7 @@ import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentR
 import { LogtalkProfiling } from "./features/logtalkProfiling";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
+import { SvgViewerProvider } from "./features/svgViewer";
 
 const DEBUG = 1;
 
@@ -344,6 +345,13 @@ export function activate(context: ExtensionContext) {
     { command: "logtalk.open.notebook",             callback: uri  => LogtalkJupyter.openAsNotebook(uri)},
     { command: "logtalk.open.paired.notebook",      callback: uri  => LogtalkJupyter.openAsPairedNotebook(uri)},
     { command: "logtalk.sync.notebook",             callback: uri  => LogtalkJupyter.syncNotebook(uri)},
+    // SVG Viewer commands
+    { command: "logtalk.open.svg",                  callback: uri  => SvgViewerProvider.openSvgFile(uri, context)},
+    { command: "logtalk.svgViewer.back",            callback: ()   => SvgViewerProvider.goBack()},
+    { command: "logtalk.svgViewer.reload",          callback: ()   => SvgViewerProvider.reload()},
+    { command: "logtalk.svgViewer.zoomIn",          callback: ()   => SvgViewerProvider.zoomIn()},
+    { command: "logtalk.svgViewer.zoomOut",         callback: ()   => SvgViewerProvider.zoomOut()},
+    { command: "logtalk.svgViewer.zoomReset",       callback: ()   => SvgViewerProvider.zoomReset()},
     // Diagnostic commands
     { command: "logtalk.update.diagnostics", callback: (uri, diagnostic) => {
       // Route to appropriate diagnostic collection based on the diagnostic source

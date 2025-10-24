@@ -2,6 +2,8 @@
 
 ## [0.64.0]
 
+* Add support for viewing SVG diagrams and HTML files in a webview with navigation and link handling
+* Add "Logtalk: Open SVG in Viewer" command to open SVG files in a webview
 * Add support for displaying code profiling results in a webview
 * Add "Logtalk: Profiling" sub-menu with profiling commands
 * Add support for the VS Code Testing API

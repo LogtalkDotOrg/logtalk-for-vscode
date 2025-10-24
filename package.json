@@ -250,6 +250,35 @@
             {
                 "command": "logtalk.refresh.documentation",
                 "title": "Logtalk: Refresh Documentation Cache"
+            },
+            {
+                "command": "logtalk.open.svg",
+                "title": "Logtalk: Open SVG in Viewer"
+            },
+            {
+                "command": "logtalk.svgViewer.back",
+                "title": "Back",
+                "icon": "$(arrow-left)"
+            },
+            {
+                "command": "logtalk.svgViewer.reload",
+                "title": "Reload",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "logtalk.svgViewer.zoomOut",
+                "title": "Zoom Out",
+                "icon": "$(zoom-out)"
+            },
+            {
+                "command": "logtalk.svgViewer.zoomIn",
+                "title": "Zoom In",
+                "icon": "$(zoom-in)"
+            },
+            {
+                "command": "logtalk.svgViewer.zoomReset",
+                "title": "Reset Zoom",
+                "icon": "$(search-stop)"
             }
         ],
         "keybindings": [],
@@ -378,13 +407,42 @@
                 {
                     "command": "logtalk.sync.notebook",
                     "when": "!virtualWorkspace"
+                },
+                {
+                    "command": "logtalk.open.svg",
+                    "when": "false"
                 }
             ],
             "editor/title": [
                 {
+                    "command": "logtalk.svgViewer.back",
+                    "when": "activeWebviewPanelId == 'logtalk.svgViewer'",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "logtalk.svgViewer.reload",
+                    "when": "activeWebviewPanelId == 'logtalk.svgViewer'",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "logtalk.svgViewer.zoomOut",
+                    "when": "activeWebviewPanelId == 'logtalk.svgViewer'",
+                    "group": "navigation@3"
+                },
+                {
+                    "command": "logtalk.svgViewer.zoomIn",
+                    "when": "activeWebviewPanelId == 'logtalk.svgViewer'",
+                    "group": "navigation@4"
+                },
+                {
+                    "command": "logtalk.svgViewer.zoomReset",
+                    "when": "activeWebviewPanelId == 'logtalk.svgViewer'",
+                    "group": "navigation@5"
+                },
+                {
                     "command": "logtalk.toggleDebugging",
                     "when": "editorLangId == logtalk && !virtualWorkspace",
-                    "group": "navigation"
+                    "group": "navigation@6"
                 }
             ],
             "editor/context": [
@@ -519,6 +577,11 @@
                     "submenu": "jupytersubmenu",
                     "when": "(resourceLangId == logtalk || resourceLangId == markdown || resourceExtname == .ipynb) && logtalk.jupytext.available == true && !virtualWorkspace",
                     "group": "project_5@1"
+                },
+                {
+                    "command": "logtalk.open.svg",
+                    "when": "resourceExtname == .svg && !virtualWorkspace",
+                    "group": "navigation"
                 }
             ],
             "makesubmenu": [
