@@ -127,7 +127,7 @@ Quick fixes are provided for some errors and warnings. When applying quick fixes
 
 ### Commands
 
-Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item.
+Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item. In the command palette and context menus, all commands have a "Logtalk:" prefix.
 
 #### Project commands
 
@@ -158,6 +158,8 @@ The output of the "Run Project Testers" and "Run Project Doclets" commands is di
 
 There are also "Test Documentation Cache" add "Refresh Documentation Cache" commands that can be used for testing and refreshing the documentation cache used by the Logtalk chat participant. These commands can only be called from the command palette.
 
+The output of the "Generate Project Documentation" and "Generate Project Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Project Doclets" command.
+
 #### Directory and source file commands
 
 These commands can be triggered from the editor/context menu via right-click in the editor area. These commands can also be triggered from the command palette assuming there's an active editor window.
@@ -184,6 +186,8 @@ The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file i
 The "Run Tests" and "Run Tests with Coverage" commands adds failed tests to the "PROBLEMS" pane. Quick fixes are provided for some test definition warnings.
 
 The "Generate Documentation" and "Scan Dead Code" commands add linter warnings to the "PROBLEMS" pane. Quick fixes are provided for some of the warnings.
+
+The output of the "Generate Documentation" and "Generate Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Logtalk: Open SVG in Viewer" command). To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Doclet" command.
 
 #### Jupyter commands
 
@@ -224,6 +228,10 @@ These commands are available from the "Profiling" sub-menu. They can be triggere
 
 The profiling webview allows navigating to the source file location of entities, predicates, and clauses.
 
+#### Diagram commands
+
+Right-click on a Logtalk diagram SVG file in the Explorer and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories.
+
 #### Extension logging commands
 
 These commands are only available from the command palette. They are meant for helping with debugging and troubleshooting the extension.
@@ -232,10 +240,6 @@ These commands are only available from the command palette. They are meant for h
 | ---------------------------: | :------------------------------------- |
 |  Set Extension Logging Level | Interactive log level configuration    |
 |  Show Extension Log          | Display the extension's output channel |
-
-#### Explorer context menu
-
-Right-click on a Logtalk diagram SVG file in the Explorer and select the "Logtalk: Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer.
 
 ### Code Navigation
 
