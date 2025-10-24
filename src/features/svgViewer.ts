@@ -8,6 +8,7 @@ import * as fs from 'fs';
 interface HistoryEntry {
   path: string;
   zoomLevel: number;
+  type: 'svg' | 'html';
 }
 
 export class SvgViewerProvider {
@@ -105,7 +106,7 @@ export class SvgViewerProvider {
       panel = vscode.window.createWebviewPanel(
         this.viewType,
         `SVG: ${fileName}`,
-        vscode.ViewColumn.Two,
+        vscode.ViewColumn.Beside,
         {
           enableScripts: true,
           retainContextWhenHidden: true,
@@ -114,7 +115,7 @@ export class SvgViewerProvider {
       );
 
       this.panels.set(panelKey, panel);
-      this.history.set(panelKey, [{ path: filePath, zoomLevel: 1.0 }]);
+      this.history.set(panelKey, [{ path: filePath, zoomLevel: 1.0, type: 'svg' }]);
       this.historyIndex.set(panelKey, 0);
       this.currentZoomLevel.set(panelKey, 1.0);
 
@@ -139,8 +140,11 @@ export class SvgViewerProvider {
             case 'openHtml':
               this.handleOpenHtml(message.path, panelKey, panel!, context);
               break;
-            case 'openExternal':
-              vscode.env.openExternal(vscode.Uri.parse(message.url));
+            case 'openUrl':
+              // Open HTTP/HTTPS URLs in external browser
+              if (message.url) {
+                vscode.env.openExternal(vscode.Uri.parse(message.url));
+              }
               break;
             case 'back':
               this.handleBack(panelKey, panel!, context);
@@ -249,7 +253,7 @@ export class SvgViewerProvider {
 
     // Add to history (remove any forward history)
     const newHistory = currentHistory.slice(0, currentIndex + 1);
-    newHistory.push({ path: fullPath, zoomLevel: 1.0 });
+    newHistory.push({ path: fullPath, zoomLevel: 1.0, type: 'svg' });
     this.history.set(panelKey, newHistory);
     this.historyIndex.set(panelKey, newHistory.length - 1);
     this.currentZoomLevel.set(panelKey, 1.0);
@@ -296,7 +300,7 @@ export class SvgViewerProvider {
 
     // Add to history (remove any forward history)
     const newHistory = currentHistory.slice(0, currentIndex + 1);
-    newHistory.push({ path: fullPath, zoomLevel: 1.0 });
+    newHistory.push({ path: fullPath, zoomLevel: 1.0, type: 'html' });
     this.history.set(panelKey, newHistory);
     this.historyIndex.set(panelKey, newHistory.length - 1);
     this.currentZoomLevel.set(panelKey, 1.0);
@@ -546,8 +550,15 @@ export class SvgViewerProvider {
     }, true);
 
     function handleLink(href) {
+      // Handle HTTP/HTTPS URLs first (before checking file extensions)
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        vscode.postMessage({
+          command: 'openUrl',
+          url: href
+        });
+      }
       // Handle vscode://file/ URLs
-      if (href.startsWith('vscode://file/')) {
+      else if (href.startsWith('vscode://file/')) {
         const pathPart = href.substring('vscode://file/'.length);
         const urlParts = pathPart.split(':');
 
@@ -588,13 +599,6 @@ export class SvgViewerProvider {
         vscode.postMessage({
           command: 'openHtml',
           path: href
-        });
-      }
-      // Handle other URLs (open externally)
-      else if (href.startsWith('http://') || href.startsWith('https://')) {
-        vscode.postMessage({
-          command: 'openExternal',
-          url: href
         });
       }
     }
@@ -735,7 +739,10 @@ export class SvgViewerProvider {
               e.preventDefault();
               e.stopPropagation();
 
-              if (href.startsWith('vscode://file/')) {
+              // Handle HTTP/HTTPS URLs first (before checking file extensions)
+              if (href.startsWith('http://') || href.startsWith('https://')) {
+                vscode.postMessage({ command: 'openUrl', url: href });
+              } else if (href.startsWith('vscode://file/')) {
                 const pathPart = href.substring('vscode://file/'.length);
                 const urlParts = pathPart.split(':');
 
@@ -767,8 +774,6 @@ export class SvgViewerProvider {
                 vscode.postMessage({ command: 'openSvg', path: href });
               } else if (href.includes('.html') || href.includes('.htm')) {
                 vscode.postMessage({ command: 'openHtml', path: href });
-              } else if (href.startsWith('http://') || href.startsWith('https://')) {
-                vscode.postMessage({ command: 'openExternal', url: href });
               }
             }
           }
