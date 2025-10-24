@@ -158,7 +158,7 @@ The output of the "Run Project Testers" and "Run Project Doclets" commands is di
 
 There are also "Test Documentation Cache" add "Refresh Documentation Cache" commands that can be used for testing and refreshing the documentation cache used by the Logtalk chat participant. These commands can only be called from the command palette.
 
-The output of the "Generate Project Documentation" and "Generate Project Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Project Doclets" command.
+The output of the "Generate Project Documentation" and "Generate Project Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Project Doclets" command.
 
 #### Directory and source file commands
 
@@ -187,7 +187,7 @@ The "Run Tests" and "Run Tests with Coverage" commands adds failed tests to the 
 
 The "Generate Documentation" and "Scan Dead Code" commands add linter warnings to the "PROBLEMS" pane. Quick fixes are provided for some of the warnings.
 
-The output of the "Generate Documentation" and "Generate Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Logtalk: Open SVG in Viewer" command). To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Doclet" command.
+The output of the "Generate Documentation" and "Generate Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Logtalk: Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Doclet" command.
 
 #### Jupyter commands
 
@@ -230,7 +230,7 @@ The profiling webview allows navigating to the source file location of entities,
 
 #### Diagram commands
 
-Right-click on a Logtalk diagram SVG file in the Explorer and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories.
+Right-click on a Logtalk diagram SVG file in the Explorer and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories (respectively, `dot_dias` and `xml_docs`).
 
 #### Extension logging commands
 
