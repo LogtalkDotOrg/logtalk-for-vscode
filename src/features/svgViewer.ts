@@ -238,7 +238,9 @@ export class SvgViewerProvider {
       absolutePath = filePathOnly;
     } else {
       // Resolve relative to current SVG file's directory
-      const currentDir = path.dirname(currentPath);
+      // Strip anchor from currentPath before getting directory
+      const currentPathWithoutAnchor = currentPath.split('#')[0];
+      const currentDir = path.dirname(currentPathWithoutAnchor);
       absolutePath = path.resolve(currentDir, filePathOnly);
     }
 
@@ -283,7 +285,9 @@ export class SvgViewerProvider {
       absolutePath = filePathOnly;
     } else {
       // Resolve relative to current file's directory
-      const currentDir = path.dirname(currentPath);
+      // Strip anchor from currentPath before getting directory
+      const currentPathWithoutAnchor = currentPath.split('#')[0];
+      const currentDir = path.dirname(currentPathWithoutAnchor);
       absolutePath = path.resolve(currentDir, filePathOnly);
     }
 
@@ -544,10 +548,27 @@ export class SvgViewerProvider {
     function handleLink(href) {
       // Handle vscode://file/ URLs
       if (href.startsWith('vscode://file/')) {
-        const urlParts = href.substring('vscode://file/'.length).split(':');
-        const filePath = urlParts[0];
-        const line = urlParts[1] ? parseInt(urlParts[1], 10) : undefined;
-        const column = urlParts[2] ? parseInt(urlParts[2], 10) : undefined;
+        const pathPart = href.substring('vscode://file/'.length);
+        const urlParts = pathPart.split(':');
+
+        // On Windows, paths start with drive letter (e.g., C:/path)
+        // So urlParts would be ['C', '/path/to/file', 'line', 'column']
+        // On Unix, paths start with / (e.g., /path/to/file)
+        // So urlParts would be ['', '/path/to/file', 'line', 'column'] or ['/path/to/file', 'line', 'column']
+        let filePath, line, column;
+
+        if (urlParts.length >= 2 && urlParts[0].length === 1 && urlParts[0].match(/[a-zA-Z]/)) {
+          // Windows path: C:/path/to/file:line:column
+          filePath = urlParts[0] + ':' + urlParts[1];
+          line = urlParts[2] ? parseInt(urlParts[2], 10) : undefined;
+          column = urlParts[3] ? parseInt(urlParts[3], 10) : undefined;
+        } else {
+          // Unix path: /path/to/file:line:column
+          filePath = urlParts[0];
+          line = urlParts[1] ? parseInt(urlParts[1], 10) : undefined;
+          column = urlParts[2] ? parseInt(urlParts[2], 10) : undefined;
+        }
+
         vscode.postMessage({
           command: 'openFile',
           filePath: filePath,
@@ -715,10 +736,27 @@ export class SvgViewerProvider {
               e.stopPropagation();
 
               if (href.startsWith('vscode://file/')) {
-                const urlParts = href.substring('vscode://file/'.length).split(':');
-                const filePath = urlParts[0];
-                const line = urlParts[1] ? parseInt(urlParts[1], 10) : undefined;
-                const column = urlParts[2] ? parseInt(urlParts[2], 10) : undefined;
+                const pathPart = href.substring('vscode://file/'.length);
+                const urlParts = pathPart.split(':');
+
+                // On Windows, paths start with drive letter (e.g., C:/path)
+                // So urlParts would be ['C', '/path/to/file', 'line', 'column']
+                // On Unix, paths start with / (e.g., /path/to/file)
+                // So urlParts would be ['', '/path/to/file', 'line', 'column'] or ['/path/to/file', 'line', 'column']
+                let filePath, line, column;
+
+                if (urlParts.length >= 2 && urlParts[0].length === 1 && urlParts[0].match(/[a-zA-Z]/)) {
+                  // Windows path: C:/path/to/file:line:column
+                  filePath = urlParts[0] + ':' + urlParts[1];
+                  line = urlParts[2] ? parseInt(urlParts[2], 10) : undefined;
+                  column = urlParts[3] ? parseInt(urlParts[3], 10) : undefined;
+                } else {
+                  // Unix path: /path/to/file:line:column
+                  filePath = urlParts[0];
+                  line = urlParts[1] ? parseInt(urlParts[1], 10) : undefined;
+                  column = urlParts[2] ? parseInt(urlParts[2], 10) : undefined;
+                }
+
                 vscode.postMessage({
                   command: 'openFile',
                   filePath: filePath,
