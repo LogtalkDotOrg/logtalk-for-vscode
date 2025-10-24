@@ -50,6 +50,26 @@ export default class LogtalkTerminal {
 
   }
 
+  /**
+   * Expands VS Code-style environment variables (${env:VAR}) to their actual values.
+   * @param value The string containing environment variables to expand
+   * @returns The string with environment variables expanded
+   */
+  private static expandEnvironmentVariables(value: string): string {
+    return value.replace(/\$\{env:([^}]+)\}/g, (match, varName) => {
+      return process.env[varName] || match;
+    });
+  }
+
+  /**
+   * Expands VS Code-style environment variables in an array of strings.
+   * @param args Array of strings that may contain environment variables
+   * @returns Array with environment variables expanded
+   */
+  private static expandEnvironmentVariablesInArray(args: string[]): string[] {
+    return args.map(arg => LogtalkTerminal.expandEnvironmentVariables(arg));
+  }
+
   public static init(context: ExtensionContext): Disposable {
 
     let section = workspace.getConfiguration("logtalk");
@@ -66,22 +86,22 @@ export default class LogtalkTerminal {
       vscode.window.showErrorMessage("Configuration error: missing required logtalk.backend setting!");
     }
 
-    LogtalkTerminal._testerExec    =   section.get<string>("tester.script");
+    LogtalkTerminal._testerExec    =   LogtalkTerminal.expandEnvironmentVariables(section.get<string>("tester.script"));
     LogtalkTerminal._outputChannel =   window.createOutputChannel("Logtalk Testers & Doclets");
-    LogtalkTerminal._testerArgs    =   section.get<string[]>("tester.arguments");
-    LogtalkTerminal._docletExec    =   section.get<string>("doclet.script");
-    LogtalkTerminal._docletArgs    =   section.get<string[]>("doclet.arguments");
+    LogtalkTerminal._testerArgs    =   LogtalkTerminal.expandEnvironmentVariablesInArray(section.get<string[]>("tester.arguments"));
+    LogtalkTerminal._docletExec    =   LogtalkTerminal.expandEnvironmentVariables(section.get<string>("doclet.script"));
+    LogtalkTerminal._docletArgs    =   LogtalkTerminal.expandEnvironmentVariablesInArray(section.get<string[]>("doclet.arguments"));
 
-    LogtalkTerminal._docExec       =   section.get<string>("documentation.script");
-    LogtalkTerminal._docArgs       =   section.get<string[]>("documentation.arguments");
-    LogtalkTerminal._diaExec       =   section.get<string>("diagrams.script");
-    LogtalkTerminal._diaArgs       =   section.get<string[]>("diagrams.arguments");
+    LogtalkTerminal._docExec       =   LogtalkTerminal.expandEnvironmentVariables(section.get<string>("documentation.script"));
+    LogtalkTerminal._docArgs       =   LogtalkTerminal.expandEnvironmentVariablesInArray(section.get<string[]>("documentation.arguments"));
+    LogtalkTerminal._diaExec       =   LogtalkTerminal.expandEnvironmentVariables(section.get<string>("diagrams.script"));
+    LogtalkTerminal._diaArgs       =   LogtalkTerminal.expandEnvironmentVariablesInArray(section.get<string[]>("diagrams.arguments"));
     LogtalkTerminal._timeout       =   section.get<number>("scripts.timeout", 480000);
 
     if (LogtalkTerminal._testerExec == "") {
       if (process.platform === 'win32') {
-        LogtalkTerminal._testerExec = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
-        LogtalkTerminal._testerArgs = ["-file", "${env:SystemRoot}/logtalk_tester.ps1", "-p", logtalkBackend, "-f", "xunit"];
+        LogtalkTerminal._testerExec = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
+        LogtalkTerminal._testerArgs = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/logtalk_tester.ps1"), "-p", logtalkBackend, "-f", "xunit"];
       } else {
         LogtalkTerminal._testerExec = path.join(path.join(logtalkHome, "scripts"), "logtalk_tester.sh");
         LogtalkTerminal._testerExec = path.resolve(LogtalkTerminal._testerExec).split(path.sep).join("/");
@@ -91,8 +111,8 @@ export default class LogtalkTerminal {
 
     if (LogtalkTerminal._docletExec == "") {
       if (process.platform === 'win32') {
-        LogtalkTerminal._docletExec = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
-        LogtalkTerminal._docletArgs = ["-file", "${env:SystemRoot}/logtalk_doclet.ps1", "-p", logtalkBackend];
+        LogtalkTerminal._docletExec = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
+        LogtalkTerminal._docletArgs = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/logtalk_doclet.ps1"), "-p", logtalkBackend];
       } else {
         LogtalkTerminal._docletExec = path.join(path.join(logtalkHome, "scripts"), "logtalk_doclet.sh");
         LogtalkTerminal._docletExec = path.resolve(LogtalkTerminal._docletExec).split(path.sep).join("/");
@@ -102,8 +122,8 @@ export default class LogtalkTerminal {
 
     if (LogtalkTerminal._docExec == "") {
       if (process.platform === 'win32') {
-        LogtalkTerminal._docExec = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
-        LogtalkTerminal._docArgs = ["-file", "${env:SystemRoot}/lgt2html.ps1", "-t", "APIs documentation"];
+        LogtalkTerminal._docExec = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
+        LogtalkTerminal._docArgs = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/lgt2html.ps1"), "-t", "APIs documentation"];
       } else {
         LogtalkTerminal._docExec = path.join(logtalkHome, "tools/lgtdoc/xml/lgt2html.sh");
         LogtalkTerminal._docExec = path.resolve(LogtalkTerminal._docExec).split(path.sep).join("/");
@@ -113,8 +133,8 @@ export default class LogtalkTerminal {
 
     if (LogtalkTerminal._diaExec == "") {
       if (process.platform === 'win32') {
-        LogtalkTerminal._diaExec = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
-        LogtalkTerminal._diaArgs = ["-file", "${env:SystemRoot}/lgt2svg.ps1"];
+        LogtalkTerminal._diaExec = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
+        LogtalkTerminal._diaArgs = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/lgt2svg.ps1")];
       } else {
         LogtalkTerminal._diaExec = path.join(logtalkHome, "tools/diagrams/lgt2svg.sh");
         LogtalkTerminal._diaExec = path.resolve(LogtalkTerminal._diaExec).split(path.sep).join("/");
@@ -199,8 +219,8 @@ export default class LogtalkTerminal {
             vscode.window.showErrorMessage("Configuration error: unknown logtalk.backend setting value!");
         }
         if (process.platform === 'win32') {
-          executable = "${env:ProgramFiles}/PowerShell/7/pwsh.exe";
-          args = ["-file", "${env:SystemRoot}/" + script + ".ps1"]
+          executable = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
+          args = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/" + script + ".ps1")]
         } else {
           executable = path.join(logtalkHome, path.join("integration", script + ".sh"));
           executable = path.resolve(executable).split(path.sep).join("/");

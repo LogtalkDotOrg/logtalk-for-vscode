@@ -16,6 +16,7 @@
 * Additional quick fixes for the dead code scanner warnings
 * Clear diagnostics from all diagnostic collections when a file is deleted
 * Provide limited support for virtual workspaces
+* Fix running the documentation, diagrams, testing, and doclets scripts on Windows using default settings
 * Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests
 * Fix timing issue that could result in multiple Logtalk terminals being created at startup
 * Fix bug where closing a non-Logtalk terminal would mark the Logtalk terminal as closed
