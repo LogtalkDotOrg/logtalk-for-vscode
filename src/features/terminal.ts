@@ -20,13 +20,13 @@ import * as path from "path";
 import * as jsesc from "jsesc";
 import * as fs from "fs";
 import { spawn } from "child_process";
-import LogtalkLinter from "./linter";
-import LogtalkTestsReporter from "./testsReporter";
-import LogtalkDeadCodeScanner from "./deadCodeScanner";
-import LogtalkDocumentationLinter from "./documentationLinter";
+import LogtalkLinter from "./linterCodeActionProvider";
+import LogtalkTestsReporter from "./testsCodeActionProvider";
+import LogtalkDeadCodeScanner from "./deadCodeScannerCodeActionProvider";
+import LogtalkDocumentationLinter from "./documentationLinterCodeActionProvider";
 import { LogtalkMetricsCodeLensProvider } from "./metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./testsCodeLensProvider"
-import { LogtalkTestsExplorerProvider } from "./testsExplorerProvider";
+import { LogtalkTestsExplorerProvider } from "./testsExplorer";
 import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
 import { getLogger } from "../utils/logger";

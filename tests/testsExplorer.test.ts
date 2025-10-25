@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { LogtalkTestsExplorerProvider } from '../src/features/testsExplorerProvider';
+import { LogtalkTestsExplorerProvider } from '../src/features/testsExplorer';
 
 suite('TestsExplorerProvider Tests', () => {
   let provider: LogtalkTestsExplorerProvider;
