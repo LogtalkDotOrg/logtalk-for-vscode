@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
-import LogtalkTerminal from "./logtalkTerminal";
+import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { PredicateUtils } from "../utils/predicateUtils";
 

@@ -9,7 +9,7 @@ import {
   Uri,
   window
 } from "vscode";
-import LogtalkTerminal from "./logtalkTerminal";
+import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";

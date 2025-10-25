@@ -28,7 +28,7 @@ import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
 import { SymbolUtils, PatternSets, SymbolRegexes } from "../utils/symbols";
-import LogtalkTerminal from "./logtalkTerminal";
+import LogtalkTerminal from "./terminal";
 import * as path from "path";
 import * as fs from "fs";
 

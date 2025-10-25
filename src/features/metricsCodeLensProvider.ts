@@ -15,7 +15,7 @@ import {
 import * as path from "path";
 import * as fs from "fs";
 import { getLogger } from "../utils/logger";
-import LogtalkTerminal from "./logtalkTerminal";
+import LogtalkTerminal from "./terminal";
 
 export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
   private logger = getLogger();

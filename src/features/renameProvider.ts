@@ -22,7 +22,7 @@ import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
 import { PatternSets, SymbolUtils } from "../utils/symbols";
-import LogtalkTerminal from "./logtalkTerminal";
+import LogtalkTerminal from "./terminal";
 import * as path from "path";
 
 export class LogtalkRenameProvider implements RenameProvider {

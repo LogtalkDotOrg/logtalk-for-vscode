@@ -56,7 +56,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
 import { getLogger } from "../utils/logger";
-import LogtalkTerminal from "./logtalkTerminal";
+import LogtalkTerminal from "./terminal";
 import { PredicateUtils } from "../utils/predicateUtils";
 import { ArgumentUtils } from "../utils/argumentUtils";
 
