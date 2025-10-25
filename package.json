@@ -952,12 +952,12 @@
                     {
                         "id": "create",
                         "title": "Create a project.",
-                        "description": "Create a project using the template files.\n[Create Project](command:logtalk.create.project)",
+                        "description": "Create a project using the template files.\n[Create Project](command:logtalk-for-vscode.createProject)",
                         "media": {
                             "markdown": "media/create.md"
                         },
                         "completionEvents": [
-                            "onCommand:logtalk.create.project"
+                            "onCommand:logtalk-for-vscode.createProject"
                         ]
                     }
                 ]

@@ -320,34 +320,34 @@ export default class LogtalkTerminal {
     let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
+    if (section) {
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
     }
-    // Create project
-    vscode.window.showOpenDialog({
+    // Create project - await the dialog result
+    const folders = await vscode.window.showOpenDialog({
       canSelectFolders: true,
       canSelectFiles: false
-    }).then(folders => {
-      if (folders != null && folders.length > 0) {
-        fs.copyFile(logtalkHome + "/coding/editorconfig/editorconfig", folders[0].fsPath + "/.editorconfig", (err) => {});
-        fs.copyFile(logtalkHome + "/coding/git/Logtalk.gitignore", folders[0].fsPath + "/.gitignore", (err) => {});
-        if (fs.existsSync(logtalkUser + "/samples")) {
-          fs.copyFile(logtalkUser + "/samples/loader-sample.lgt", folders[0].fsPath + "/loader.lgt", (err) => {});
-          fs.copyFile(logtalkUser + "/samples/settings-sample.lgt", folders[0].fsPath + "/settings.lgt", (err) => {});
-          fs.copyFile(logtalkUser + "/samples/tester-sample.lgt", folders[0].fsPath + "/tester.lgt", (err) => {});
-          fs.copyFile(logtalkUser + "/samples/tests-sample.lgt", folders[0].fsPath + "/tests.lgt", (err) => {});
-        } else {
-          fs.copyFile(logtalkUser + "/loader-sample.lgt", folders[0].fsPath + "/loader.lgt", (err) => {});
-          fs.copyFile(logtalkUser + "/settings-sample.lgt", folders[0].fsPath + "/settings.lgt", (err) => {});
-          fs.copyFile(logtalkUser + "/tester-sample.lgt", folders[0].fsPath + "/tester.lgt", (err) => {});
-          fs.copyFile(logtalkUser + "/tests-sample.lgt", folders[0].fsPath + "/tests.lgt", (err) => {});
-        }
-        commands.executeCommand("vscode.openFolder", folders[0]);
-      }
     });
+
+    if (folders != null && folders.length > 0) {
+      fs.copyFile(logtalkHome + "/coding/editorconfig/editorconfig", folders[0].fsPath + "/.editorconfig", (err) => {});
+      fs.copyFile(logtalkHome + "/coding/git/Logtalk.gitignore", folders[0].fsPath + "/.gitignore", (err) => {});
+      if (fs.existsSync(logtalkUser + "/samples")) {
+        fs.copyFile(logtalkUser + "/samples/loader-sample.lgt", folders[0].fsPath + "/loader.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/samples/settings-sample.lgt", folders[0].fsPath + "/settings.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/samples/tester-sample.lgt", folders[0].fsPath + "/tester.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/samples/tests-sample.lgt", folders[0].fsPath + "/tests.lgt", (err) => {});
+      } else {
+        fs.copyFile(logtalkUser + "/loader-sample.lgt", folders[0].fsPath + "/loader.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/settings-sample.lgt", folders[0].fsPath + "/settings.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/tester-sample.lgt", folders[0].fsPath + "/tester.lgt", (err) => {});
+        fs.copyFile(logtalkUser + "/tests-sample.lgt", folders[0].fsPath + "/tests.lgt", (err) => {});
+      }
+      commands.executeCommand("vscode.openFolder", folders[0]);
+    }
   }
 
   public static async loadProject(uri: Uri, linter: LogtalkLinter) {

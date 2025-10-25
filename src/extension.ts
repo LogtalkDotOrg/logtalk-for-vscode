@@ -389,8 +389,14 @@ export function activate(context: ExtensionContext) {
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#configure' };
 	}));
 
-	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openExample', () => {
-    commands.executeCommand('workbench.action.files.openFolder', { forceNewWindow: true });
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openExample', async () => {
+    // Open folder picker (will open in new window when user selects a folder)
+    await commands.executeCommand('workbench.action.files.openFolder', { forceNewWindow: true });
+    // Re-open the walkthrough to the side so both can coexist
+    await commands.executeCommand('workbench.action.openWalkthrough', {
+      category: 'LogtalkDotOrg.logtalk-for-vscode#logtalk-walkthrough',
+      step: 'logtalk-for-vscode#logtalk-walkthrough#open'
+    }, true); // true = open to side
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#open' };
 	}));
 
@@ -402,6 +408,17 @@ export function activate(context: ExtensionContext) {
 	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.testExample', () => {
     commands.executeCommand('logtalk.run.testers');
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#test' };
+	}));
+
+	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.createProject', async () => {
+    // Execute the create project command (shows folder picker dialog and waits for user selection)
+    await commands.executeCommand('logtalk.create.project');
+    // Re-open the walkthrough to the side so both can coexist
+    await commands.executeCommand('workbench.action.openWalkthrough', {
+      category: 'LogtalkDotOrg.logtalk-for-vscode#logtalk-walkthrough',
+      step: 'logtalk-for-vscode#logtalk-walkthrough#create'
+    }, true); // true = open to side
+    return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#create' };
 	}));
 
   // Register refactor commands
