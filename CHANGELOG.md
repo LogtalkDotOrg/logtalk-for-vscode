@@ -25,7 +25,7 @@
 * Fix bug when computing a predicate definition range that would include clauses from other predicates
 * Fix bugs handling diagnostic collections that could result in duplicated diagnostics after fixing and reloading files
 * Fix errors with the debugging commands when the Logtalk terminal unexpectedly doesn't exist
-* Fix walkthrough to prevent being closed when navigating to the extension details page or when opening an example
+* Fix walkthrough to prevent being closed when performing some of the steps
 
 ## [0.63.0]
 
