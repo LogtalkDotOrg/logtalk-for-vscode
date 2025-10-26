@@ -557,6 +557,21 @@ export class SvgViewerProvider {
       vscode.postMessage({ command: 'zoomChanged', zoomLevel: zoomLevel });
     }
 
+    // Add tooltips to all links in the SVG
+    function addTooltipsToLinks() {
+      const links = document.querySelectorAll('a');
+      links.forEach(link => {
+        const href = link.getAttribute('href') || link.getAttribute('xlink:href');
+        if (href && !link.hasAttribute('title')) {
+          // Add title attribute for tooltip
+          link.setAttribute('title', href);
+        }
+      });
+    }
+
+    // Add tooltips when the page loads
+    addTooltipsToLinks();
+
     // Listen for messages from the extension
     window.addEventListener('message', event => {
       const message = event.data;
