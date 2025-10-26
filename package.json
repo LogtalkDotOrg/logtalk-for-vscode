@@ -883,6 +883,17 @@
                         "description": "Automatically call the \"Logtalk: Make - Reload\" command when saving a Logtalk source file.",
                         "default": false,
                         "order": 18
+                    },
+                    "logtalk.diagrams.format": {
+                        "type": "string",
+                        "description": "Diagrams format.",
+                        "default": "dot",
+                        "enum": [
+                            "dot",
+                            "d2",
+                            "mermaid"
+                        ],
+                        "order": 19
                     }
                 }
             }

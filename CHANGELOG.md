@@ -2,6 +2,7 @@
 
 ## [0.64.0]
 
+* Add "logtalk.diagrams.format" setting for specifying the diagrams format (default is `dot`; Graphviz)
 * Add support for viewing SVG diagrams and HTML files in a webview with navigation and link handling
 * Add "Logtalk: Open SVG in Viewer" command to open SVG files in a webview
 * Add support for displaying code profiling results in a webview

@@ -569,6 +569,12 @@ Absolute path to the `jupytext` command if not available from the system path. A
 
 Automatically call the "Logtalk: Make - Reload" command when saving a Logtalk source file.
 
+#### diagrams format
+
+    "logtalk.diagrams.format": "dot"
+
+Format for diagrams generated using the "Generate Diagrams" and "Generate Project Diagrams" commands. Note that support for Mermaid is experimental due to limitations in the Mermaid library that currently don't provide all the required features for parity with Graphviz and D2.
+
 ## Known Issues
 
 Code issues detected when running the "Make - Check" or "Make - Circular" commands are displayed in the integrated terminal but not added to the "PROBLEMS" pane. But when an issue is reported in a source file, you can right-click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in the file path to navigate to the issue location.

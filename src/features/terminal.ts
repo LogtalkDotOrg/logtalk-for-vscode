@@ -1042,7 +1042,8 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const project = path.basename(dir);
-    LogtalkTerminal.sendString(`vscode::${predicate}('${project}','${dir}').\r`, true);
+    const format = workspace.getConfiguration("logtalk").get<string>("diagrams.format", "Graphviz");
+    LogtalkTerminal.sendString(`vscode::${predicate}('${project}','${dir}', '${format}').\r`, true);
     const marker = path.join(dir0, ".vscode_dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
