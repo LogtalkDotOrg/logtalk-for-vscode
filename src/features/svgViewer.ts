@@ -537,6 +537,10 @@ export class SvgViewerProvider {
       max-width: 100%;
       height: auto;
     }
+    /* Underline links on hover */
+    #svg-wrapper a:hover text {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>

@@ -230,7 +230,7 @@ The profiling webview allows navigating to the source file location of entities,
 
 #### Diagram commands
 
-Right-click on a Logtalk diagram SVG file in the Explorer and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories (respectively, `dot_dias` and `xml_docs`).
+Right-click on a Logtalk diagram SVG file in the Explorer and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories (respectively, `dot_dias` and `xml_docs`). The top diagrams are the directory diagrams.
 
 #### Extension logging commands
 
@@ -569,11 +569,11 @@ Absolute path to the `jupytext` command if not available from the system path. A
 
 Automatically call the "Logtalk: Make - Reload" command when saving a Logtalk source file.
 
-#### diagrams format
+#### Diagrams file format
 
     "logtalk.diagrams.format": "dot"
 
-Format for diagrams generated using the "Generate Diagrams" and "Generate Project Diagrams" commands. Note that support for Mermaid is experimental due to limitations in the Mermaid library that currently don't provide all the required features for parity with Graphviz and D2.
+Format for the diagram files generated using the "Generate Diagrams" and "Generate Project Diagrams" commands. Note that support for Mermaid is experimental due to limitations in the Mermaid library that currently doesn't provide all the required features for parity with Graphviz and D2.
 
 ## Known Issues
 
