@@ -161,7 +161,7 @@ export class SvgViewerProvider {
         message => {
           switch (message.command) {
             case 'openFile':
-              this.handleOpenFile(message.filePath, message.line, message.column, panelKey, panel!, context);
+              this.handleOpenFile(message.filePath, message.line, message.column, message.fragment, panelKey, panel!, context);
               break;
             case 'openSvg':
               this.handleOpenSvg(message.path, panelKey, panel!, context);
@@ -200,7 +200,7 @@ export class SvgViewerProvider {
   /**
    * Handle opening a file at a specific line
    */
-  private static async handleOpenFile(filePath: string, line?: number, column?: number, panelKey?: string, panel?: vscode.WebviewPanel, context?: vscode.ExtensionContext) {
+  private static async handleOpenFile(filePath: string, line?: number, column?: number, fragment?: string, panelKey?: string, panel?: vscode.WebviewPanel, context?: vscode.ExtensionContext) {
     try {
       // Expand ${workspaceFolder} variable
       let expandedPath = filePath;
@@ -232,7 +232,9 @@ export class SvgViewerProvider {
 
       // Check if this is an HTML file - if so, open in webview
       if ((expandedPath.endsWith('.html') || expandedPath.endsWith('.htm')) && panelKey && panel && context) {
-        this.handleOpenHtml(expandedPath, panelKey, panel, context);
+        // Add fragment back to path if present (e.g., file.html#anchor)
+        const htmlPath = fragment ? expandedPath + '#' + fragment : expandedPath;
+        this.handleOpenHtml(htmlPath, panelKey, panel, context);
         return;
       }
 
@@ -649,7 +651,17 @@ export class SvgViewerProvider {
       }
       // Handle vscode://file/ URLs
       else if (href.startsWith('vscode://file/')) {
-        const pathPart = href.substring('vscode://file/'.length);
+        let pathPart = href.substring('vscode://file/'.length);
+
+        // Separate fragment (anchor) from the path
+        // e.g., xml_docs/keymap_0.html#concept/2 -> path: xml_docs/keymap_0.html, fragment: concept/2
+        let fragment;
+        const hashIndex = pathPart.indexOf('#');
+        if (hashIndex !== -1) {
+          fragment = pathPart.substring(hashIndex + 1);
+          pathPart = pathPart.substring(0, hashIndex);
+        }
+
         const urlParts = pathPart.split(':');
 
         // On Windows, paths start with drive letter (e.g., C:/path)
@@ -674,7 +686,8 @@ export class SvgViewerProvider {
           command: 'openFile',
           filePath: filePath,
           line: line,
-          column: column
+          column: column,
+          fragment: fragment
         });
       }
       // Handle relative SVG file links (may include anchor #fragment)
