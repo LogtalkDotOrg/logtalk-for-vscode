@@ -219,14 +219,24 @@ export class SvgViewerProvider {
         }
       }
 
+      // Create URI from path
+      const uri = vscode.Uri.file(expandedPath);
+
+      // Check if the path is a directory
+      const stat = await vscode.workspace.fs.stat(uri);
+      if (stat.type === vscode.FileType.Directory) {
+        // Reveal the directory in the Explorer
+        await vscode.commands.executeCommand('revealInExplorer', uri);
+        return;
+      }
+
       // Check if this is an HTML file - if so, open in webview
       if ((expandedPath.endsWith('.html') || expandedPath.endsWith('.htm')) && panelKey && panel && context) {
         this.handleOpenHtml(expandedPath, panelKey, panel, context);
         return;
       }
 
-      // Create URI from file path
-      const uri = vscode.Uri.file(expandedPath);
+      // Open the file as a text document
       const document = await vscode.workspace.openTextDocument(uri);
 
       // Always open in Column One (left side) and preserve focus on the webview (Column Two)
