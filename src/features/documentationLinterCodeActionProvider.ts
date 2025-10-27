@@ -33,7 +33,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
   public  diagnosticHash = [];
   private sortedDiagIndex: { [docName: string]: number[] } = {};
   private compilingFileRegex = /%\s\[\scompiling\s(.+)\s\.\.\.\s\]/;
-  private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s(below line\s(\d+))/;
+  private msgRegex = /(((\*|\!)\s{5}.+\n[\*|\!]\s{7}.+\n)|((\*|\!)\s{5}.+\n))[\*|\!]\s{7}.+\n[\*|\!]\s{7}in file\s(.+)\s((?:below|at) line\s(\d+))/m;
   private documentListener: Disposable;
   private openDocumentListener: Disposable;
   private logger = getLogger();
@@ -404,7 +404,7 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     if (match == null) {
       return null;
     } else {
-      this.logger.debug("match!");
+      this.logger.debug("match!" + match[0]);
     }
 
     // Add to hash to prevent duplicates
