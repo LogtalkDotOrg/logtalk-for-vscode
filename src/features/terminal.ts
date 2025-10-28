@@ -70,7 +70,13 @@ export default class LogtalkTerminal {
     return args.map(arg => LogtalkTerminal.expandEnvironmentVariables(arg));
   }
 
-  public static init(context: ExtensionContext): Disposable {
+  public static init(
+    context: ExtensionContext,
+    linter?: LogtalkLinter,
+    testsReporter?: LogtalkTestsReporter,
+    deadCodeScanner?: LogtalkDeadCodeScanner,
+    documentationLinter?: LogtalkDocumentationLinter
+  ): Disposable {
 
     let section = workspace.getConfiguration("logtalk");
 
@@ -151,6 +157,28 @@ export default class LogtalkTerminal {
         LogtalkTerminal._loadedDirectories.clear();
         LogtalkTerminal._terminal = null;
         terminal.dispose();
+
+        // Clear all diagnostics when the terminal is closed
+        if (linter) {
+          linter.diagnosticCollection.clear();
+          linter.diagnostics = {};
+          linter.diagnosticHash = [];
+        }
+        if (testsReporter) {
+          testsReporter.diagnosticCollection.clear();
+          testsReporter.diagnostics = {};
+          testsReporter.diagnosticHash = [];
+        }
+        if (deadCodeScanner) {
+          deadCodeScanner.diagnosticCollection.clear();
+          deadCodeScanner.diagnostics = {};
+          deadCodeScanner.diagnosticHash = [];
+        }
+        if (documentationLinter) {
+          documentationLinter.diagnosticCollection.clear();
+          documentationLinter.diagnostics = {};
+          documentationLinter.diagnosticHash = [];
+        }
       }
     });
   }

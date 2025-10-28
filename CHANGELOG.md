@@ -15,7 +15,8 @@
 * Add quick fixes for documentation linter warnings
 * Additional quick fixes for compiler linter errors and warnings
 * Additional quick fixes for the dead code scanner warnings
-* Clear diagnostics from all diagnostic collections when a file is deleted
+* Clear diagnostics from all diagnostic collections when a file is deleted or moved
+* Clear diagnostics from all diagnostic collections when the Logtalk terminal is closed
 * Provide limited support for virtual workspaces
 * Fix running the documentation, diagrams, testing, and doclets scripts on Windows using default settings
 * Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests

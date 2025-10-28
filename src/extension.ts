@@ -680,10 +680,58 @@ export function activate(context: ExtensionContext) {
         // Only process Logtalk and Prolog files
         const fileName = uri.fsPath.toLowerCase();
         if (fileName.endsWith('.lgt') || fileName.endsWith('.logtalk') || fileName.endsWith('.pl') || fileName.endsWith('.prolog')) {
+          // Delete from diagnostic collections
           linter.diagnosticCollection.delete(uri);
           testsReporter.diagnosticCollection.delete(uri);
           deadCodeScanner.diagnosticCollection.delete(uri);
           documentationLinter.diagnosticCollection.delete(uri);
+
+          // Clean up internal diagnostics objects
+          const filePath = uri.fsPath;
+          if (filePath in linter.diagnostics) {
+            delete linter.diagnostics[filePath];
+          }
+          if (filePath in testsReporter.diagnostics) {
+            delete testsReporter.diagnostics[filePath];
+          }
+          if (filePath in deadCodeScanner.diagnostics) {
+            delete deadCodeScanner.diagnostics[filePath];
+          }
+          if (filePath in documentationLinter.diagnostics) {
+            delete documentationLinter.diagnostics[filePath];
+          }
+        }
+      });
+    })
+  );
+
+  // Delete diagnostics when files are renamed/moved in the workspace
+  context.subscriptions.push(
+    workspace.onDidRenameFiles(event => {
+      event.files.forEach(file => {
+        // Only process Logtalk and Prolog files
+        const oldFileName = file.oldUri.fsPath.toLowerCase();
+        if (oldFileName.endsWith('.lgt') || oldFileName.endsWith('.logtalk') || oldFileName.endsWith('.pl') || oldFileName.endsWith('.prolog')) {
+          // Delete diagnostics for the old file path
+          linter.diagnosticCollection.delete(file.oldUri);
+          testsReporter.diagnosticCollection.delete(file.oldUri);
+          deadCodeScanner.diagnosticCollection.delete(file.oldUri);
+          documentationLinter.diagnosticCollection.delete(file.oldUri);
+
+          // Clean up internal diagnostics objects for the old file path
+          const oldFilePath = file.oldUri.fsPath;
+          if (oldFilePath in linter.diagnostics) {
+            delete linter.diagnostics[oldFilePath];
+          }
+          if (oldFilePath in testsReporter.diagnostics) {
+            delete testsReporter.diagnostics[oldFilePath];
+          }
+          if (oldFilePath in deadCodeScanner.diagnostics) {
+            delete deadCodeScanner.diagnostics[oldFilePath];
+          }
+          if (oldFilePath in documentationLinter.diagnostics) {
+            delete documentationLinter.diagnostics[oldFilePath];
+          }
         }
       });
     })
@@ -724,7 +772,7 @@ export function activate(context: ExtensionContext) {
       }
     })
   );
-  context.subscriptions.push(LogtalkTerminal.init(context));
+  context.subscriptions.push(LogtalkTerminal.init(context, linter, testsReporter, deadCodeScanner, documentationLinter));
   updateBreakpointStates(logtalkDebuggingEnabled);
 }
 
