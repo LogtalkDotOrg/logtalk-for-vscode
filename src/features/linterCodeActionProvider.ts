@@ -19,7 +19,7 @@ import {
   languages,
   workspace
 } from "vscode";
-import * as path from "path";
+import * as fs from "fs";
 import { DiagnosticsUtils } from "../utils/diagnostics";
 import { PredicateUtils } from "../utils/predicateUtils";
 import { ArgumentUtils } from "../utils/argumentUtils";
@@ -1047,7 +1047,7 @@ export default class LogtalkLinter implements CodeActionProvider {
       severity = DiagnosticSeverity.Error
     }
 
-    let fileName = path.resolve(match[6]);
+    let fileName = fs.realpathSync.native(match[6]);
     let lineFrom = 0,
         lineTo   = 0;
 
@@ -1106,7 +1106,7 @@ export default class LogtalkLinter implements CodeActionProvider {
   public clear(line: string) {
     let match = line.match(this.compilingFileRegex)
     if (match) {
-      const filePath = path.resolve(match[1]);
+      const filePath = fs.realpathSync.native(match[1]);
       this.diagnosticCollection.delete(Uri.file(filePath));
       if (filePath in this.diagnostics) {
         this.diagnostics[filePath] = [];

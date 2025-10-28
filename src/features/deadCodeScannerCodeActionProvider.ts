@@ -19,7 +19,7 @@ import {
   workspace,
   WorkspaceEdit
 } from "vscode";
-import * as path from "path";
+import * as fs from "fs";
 import { DiagnosticsUtils } from "../utils/diagnostics";
 import { getLogger } from "../utils/logger";
 import { PredicateUtils } from "../utils/predicateUtils";
@@ -84,7 +84,7 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
       severity = DiagnosticSeverity.Error
     } 
 
-    let fileName = path.resolve(match[6]);
+    let fileName = fs.realpathSync.native(match[6]);
     this.logger.debug(fileName);
     let lineFrom = 0,
         lineTo   = 0;

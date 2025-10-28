@@ -19,6 +19,7 @@
 * Clear diagnostics from all diagnostic collections when the Logtalk terminal is closed
 * Provide limited support for virtual workspaces
 * Fix running the documentation, diagrams, testing, and doclets scripts on Windows using default settings
+* Fix diagnostics showing absolute paths instead of relative paths on Windows with some backends
 * Fix test results CodeLens showing multiple occurrences of the `(outdated)` text after running individual tests
 * Fix timing issue that could result in multiple Logtalk terminals being created at startup
 * Fix bug where closing a non-Logtalk terminal would mark the Logtalk terminal as closed
