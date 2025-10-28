@@ -581,8 +581,6 @@ Format for the diagram files generated using the "Generate Diagrams" and "Genera
 
 Code issues detected when running the "Make - Check" or "Make - Circular" commands are displayed in the integrated terminal but not added to the "PROBLEMS" pane. But when an issue is reported in a source file, you can right-click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in the file path to navigate to the issue location.
 
-On Windows systems, the file paths on the "PROBLEMS" pane may not be relative to the workspace directory depending on the Prolog backend. This is a consequence of some backends "normalizing" file paths in a way that breaks VSCode computing of the relative paths.
-
 On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues.
 
 If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated context menu items even after uninstalling it. If that happens, delete any extension leftovers in the `%USERPROFILE%\.vscode\extensions` (for Windows) or `~/.vscode/extensions` (for Linux and macOS) directory.
