@@ -50,6 +50,7 @@ import {
   CancellationToken,
   FileCoverage,
   StatementCoverage,
+  DeclarationCoverage,
   TextDocument
 } from "vscode";
 import * as path from "path";
@@ -734,29 +735,43 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       this.coverageData.set(filePath, coverages);
 
       // Calculate summary statistics
+      // Statement coverage: clauses (sum of all clauses across all predicates)
+      // Declaration coverage: predicates (number of predicates)
       let coveredStatements = 0;
-      let totalStatements = coverages.length;
+      let totalStatements = 0;
+      let coveredDeclarations = 0;
+      let totalDeclarations = coverages.length;
 
       for (const coverage of coverages) {
-        // If covered === total, the clause is fully covered
-        if (coverage.covered === coverage.total) {
-          coveredStatements++;
+        // Statement coverage: sum of clauses
+        totalStatements += coverage.total;
+        coveredStatements += coverage.covered;
+
+        // Declaration coverage: count predicates with at least one clause covered
+        if (coverage.covered > 0) {
+          coveredDeclarations++;
         }
 
         this.logger.debug(`Line ${coverage.line}: covered=${coverage.covered}, total=${coverage.total}`);
       }
 
-      // Create file coverage with summary only - details will be loaded via loadDetailedCoverage
+      // Create file coverage with both statement and declaration coverage
+      // Parameters: uri, statementCoverage, branchCoverage, declarationCoverage
       const fileCoverage = new FileCoverage(
         fileUri,
         {
           covered: coveredStatements,
           total: totalStatements
+        },
+        undefined, // branchCoverage - not applicable for Logtalk
+        {
+          covered: coveredDeclarations,
+          total: totalDeclarations
         }
       );
 
       testRun.addCoverage(fileCoverage);
-      this.logger.debug(`Added coverage for ${filePath}: ${coveredStatements}/${totalStatements} statements covered`);
+      this.logger.debug(`Added coverage for ${filePath}: ${coveredStatements}/${totalStatements} statements (clauses) covered, ${coveredDeclarations}/${totalDeclarations} declarations (predicates) covered`);
     }
 
     this.logger.debug('Coverage update completed');
@@ -765,7 +780,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   /**
    * Load detailed coverage for a file
    * @param fileCoverage - The file coverage to load details for
-   * @returns Array of statement coverage details
+   * @returns Array of statement coverage details (one per clause)
    */
   private async loadDetailedCoverage(fileCoverage: FileCoverage): Promise<StatementCoverage[]> {
     this.logger.debug(`Loading detailed coverage for ${fileCoverage.uri.fsPath}`);
@@ -792,8 +807,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       return [];
     }
 
-    // Create statement coverage array
-    const statementCoverage: StatementCoverage[] = [];
+    // Create coverage array for statements (clauses)
+    const coverageItems: StatementCoverage[] = [];
 
     for (const coverage of coverages) {
       const lineNumber = coverage.line - 1;
@@ -831,20 +846,21 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       this.logger.debug(`Found ${clauseRanges.length} consecutive clauses for ${predicateIndicator}`);
 
-      // Mark each clause as covered or not covered
+      // Mark each clause as covered or not covered (statement coverage)
       for (let i = 0; i < clauseRanges.length; i++) {
         const clauseIndex = i + 1; // 1-based index
         const isClauseCovered = coverage.coveredIndexes.includes(clauseIndex);
         const executionCount = isClauseCovered ? 1 : 0;
 
-        this.logger.debug(`Clause ${clauseIndex} at lines ${clauseRanges[i].start.line + 1}-${clauseRanges[i].end.line + 1}: ${isClauseCovered ? 'covered' : 'not covered'}`);
+        this.logger.debug(`Clause ${clauseIndex} at lines ${clauseRanges[i].start.line + 1}-${clauseRanges[i].end.line + 1}: ${isClauseCovered ? 'covered' : 'not covered'}, executionCount=${executionCount}`);
 
-        statementCoverage.push(new StatementCoverage(executionCount, clauseRanges[i]));
+        // Create one StatementCoverage per clause
+        coverageItems.push(new StatementCoverage(executionCount, clauseRanges[i]));
       }
     }
 
-    this.logger.debug(`Loaded ${statementCoverage.length} coverage items`);
-    return statementCoverage;
+    this.logger.debug(`Loaded ${coverageItems.length} coverage items`);
+    return coverageItems;
   }
 
   /**
