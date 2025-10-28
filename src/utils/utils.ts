@@ -110,7 +110,7 @@ export class Utils {
           Utils.script = "gplgt"
           break;
         case "ji":
-          Utils.script = "jilgt"
+          Utils.script = "jiplgt"
           break;
         case "sicstus":
           Utils.script = "sicstuslgt"

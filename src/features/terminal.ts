@@ -220,7 +220,7 @@ export default class LogtalkTerminal {
             script = "gplgt"
             break;
           case "ji":
-            script = "jilgt"
+            script = "jiplgt"
             break;
           case "sicstus":
             script = "sicstuslgt"
