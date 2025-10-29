@@ -6,7 +6,9 @@ import {
   Location,
   Position,
   TextDocument,
-  Uri
+  Uri,
+  workspace,
+  Disposable
 } from "vscode";
 import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
@@ -17,6 +19,28 @@ import * as fsp from "fs/promises";
 
 export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
   private logger = getLogger();
+  private disposables: Disposable[] = [];
+
+  constructor() {
+    // Delete any temporary files from previous sessions
+    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    const files = [
+      ".vscode_type_definition",
+      ".vscode_type_definition_done"
+    ];
+    // Fire-and-forget cleanup - errors are logged internally
+    Utils.cleanupTemporaryFiles(directory, files);
+
+    // Clean up any temporary files when folders are added to the workspace
+    const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
+      // For each added workspace folder, run the cleanup using the folder path
+      // Fire-and-forget cleanup - errors are logged internally
+      for (const wf of event.added) {
+        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+      }
+    });
+    this.disposables.push(workspaceFoldersListener);
+  }
 
   public async provideTypeDefinition(
     doc: TextDocument,
@@ -49,5 +73,16 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
     }
 
     return location;
+  }
+
+  public dispose(): void {
+    for (const d of this.disposables) {
+      try {
+        d.dispose();
+      } catch (err) {
+        this.logger.error('Error disposing resource:', err);
+      }
+    }
+    this.disposables = [];
   }
 }

@@ -120,12 +120,12 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 - Line comments are indented if they start at character zero but are not followed by indented content
 - Block comments content are indented when the comment delimiters are on separate lines; otherwise, the full block comment is indented
 
-You can verify the changes before saving them using the "File: Compare Active File with Saved" command, which also allow selectively undoing formatting changes.
+You can verify the changes before saving them using the "File: Compare Active File with Saved" command, which also allows selectively undoing formatting changes.
 
 ### Linter
 
 - Errors/warnings when compiling source files are added to the "PROBLEMS" pane.
-- Errors/warnings when compiling source files can also be navigated from the Logtalk terminal via Ctrl+click (Windows, Linux, ...) or Cmd+click (macOS).
+- Errors/warnings when compiling source files can also be navigated to from the Logtalk terminal via Ctrl+click (Windows, Linux, ...) or Cmd+click (macOS).
 
 Quick fixes are provided for some errors and warnings. When applying quick fixes, notably those that delete and insert code, the _positions_ of the warnings and errors later in the file may not be updated, thus preventing further quick fixes to be applied or applied correctly. In this case, save your changes and re-run the linter by using the "Make - Reload" command (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting).
 
@@ -205,7 +205,9 @@ These commands are available from the "Jupyter" sub-menu and allow opening Logta
 |             Open as a Paired Notebook | Opens the selected source file or Markdown file as a paired notebook  |
 |  Sync paired Notebook Representations | Sync the paired notebook and its text representation                  |
 
-These commands are only available when Jupytext 1.16.7 or a later version is installed. See also the "logtalk.jupytext.path" setting below.
+These commands are only available when [Jupytext](https://jupytext.readthedocs.io/en/latest/) 1.16.7 or a later version is installed. See also the "logtalk.jupytext.path" setting below. When selecting a Markdown file, the extension must be activated first by opening a Logtalk source file.
+
+Paired notebooks allow synchronizing changes between the notebook and its text representation. The text representation is version control and code review friendly. The notebook representation is best for interactive development and testing. See the Jupytext documentation for more details.
 
 #### Make commands
 
@@ -358,7 +360,7 @@ VSCode usability issues that affect debugging support:
 
 ![testing](images/testing.png)
 
-Support for the VS Code Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" or "Logtalk: Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run.
+Support for the VSCode Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" or "Logtalk: Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run.
 
 When available, code coverage information is also shown in the covered source files. Note that coverage data is per predicate and per predicate clause (or per non-terminal and per non-terminal rule), not per goal. Clauses used by the tests will be marked using a green color overlay in the editor gutter while clauses not used by the tests will be marked using a red color overlay. Use the editor window "Toggle Inline Coverage" button to toggle the coverage overlay. In the "Testing" pane, the "Test Coverage" sub-pane shows both statement (clauses) and function (predicates) coverage numbers and percentages (note that VSCode doesn't support renaming these terms). In the "Explorer" pane, the colored bar to the right of a file name indicates the combined percentage of covered clauses and predicates. Hovering over the bar shows the separate coverage details.
 
@@ -601,7 +603,7 @@ VSCode triggers the "Go to Definition" computations if the cursor happens to be 
 
 ## Development
 
-Developed and tested with **Logtalk 3.94.0** and **VSCode 1.103** on **macOS 14.7** and **Windows 10** with **Node 24.6**.
+Developed and tested with **Logtalk 3.95.0** and **VSCode 1.105** on **macOS 14.8** and **Windows 10** with **Node 24.10**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 

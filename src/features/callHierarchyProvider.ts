@@ -11,7 +11,9 @@ import {
   TextDocument,
   Uri,
   SymbolKind,
-  Range
+  Range,
+  workspace,
+  Disposable
 } from "vscode";
 import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
@@ -22,6 +24,30 @@ import * as fsp from "fs/promises";
 
 export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
   private logger = getLogger();
+  private disposables: Disposable[] = [];
+
+  constructor() {
+    // Delete any temporary files from previous sessions
+    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    const files = [
+      ".vscode_callers",
+      ".vscode_callers_done",
+      ".vscode_callees",
+      ".vscode_callees_done"
+    ];
+    // Fire-and-forget cleanup - errors are logged internally
+    Utils.cleanupTemporaryFiles(directory, files);
+
+    // Clean up any temporary files when folders are added to the workspace
+    const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
+      // For each added workspace folder, run the cleanup using the folder path
+      // Fire-and-forget cleanup - errors are logged internally
+      for (const wf of event.added) {
+        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+      }
+    });
+    this.disposables.push(workspaceFoldersListener);
+  }
 
   /**
    * Find the range of a predicate name in a line of text
@@ -263,4 +289,14 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     return callees;
   }
 
+  public dispose(): void {
+    for (const d of this.disposables) {
+      try {
+        d.dispose();
+      } catch (err) {
+        this.logger.error('Error disposing resource:', err);
+      }
+    }
+    this.disposables = [];
+  }
 }

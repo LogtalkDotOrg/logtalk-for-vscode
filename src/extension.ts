@@ -584,30 +584,53 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerHoverProvider(LOGTALK_MODE, new LogtalkHoverProvider())
   );
+
+  // Store provider instances to ensure their dispose() methods are called on deactivation
+  const declarationProvider = new LogtalkDeclarationProvider();
   context.subscriptions.push(
-    languages.registerDeclarationProvider(LOGTALK_MODE, new LogtalkDeclarationProvider())
+    languages.registerDeclarationProvider(LOGTALK_MODE, declarationProvider)
   );
+  context.subscriptions.push(declarationProvider);
+
+  const definitionProvider = new LogtalkDefinitionProvider();
   context.subscriptions.push(
-    languages.registerDefinitionProvider(LOGTALK_MODE, new LogtalkDefinitionProvider())
+    languages.registerDefinitionProvider(LOGTALK_MODE, definitionProvider)
   );
+  context.subscriptions.push(definitionProvider);
+
+  const typeDefinitionProvider = new LogtalkTypeDefinitionProvider();
   context.subscriptions.push(
-    languages.registerTypeDefinitionProvider(LOGTALK_MODE, new LogtalkTypeDefinitionProvider())
+    languages.registerTypeDefinitionProvider(LOGTALK_MODE, typeDefinitionProvider)
   );
+  context.subscriptions.push(typeDefinitionProvider);
+
+  const referenceProvider = new LogtalkReferenceProvider();
   context.subscriptions.push(
-    languages.registerReferenceProvider(LOGTALK_MODE, new LogtalkReferenceProvider())
+    languages.registerReferenceProvider(LOGTALK_MODE, referenceProvider)
   );
+  context.subscriptions.push(referenceProvider);
+
+  const implementationProvider = new LogtalkImplementationProvider();
   context.subscriptions.push(
-    languages.registerImplementationProvider(LOGTALK_MODE, new LogtalkImplementationProvider())
+    languages.registerImplementationProvider(LOGTALK_MODE, implementationProvider)
   );
+  context.subscriptions.push(implementationProvider);
+
   context.subscriptions.push(
     languages.registerRenameProvider(LOGTALK_MODE, new LogtalkRenameProvider())
   );
+
+  const callHierarchyProvider = new LogtalkCallHierarchyProvider();
   context.subscriptions.push(
-    languages.registerCallHierarchyProvider(LOGTALK_MODE, new LogtalkCallHierarchyProvider())
+    languages.registerCallHierarchyProvider(LOGTALK_MODE, callHierarchyProvider)
   );
+  context.subscriptions.push(callHierarchyProvider);
+
+  const typeHierarchyProvider = new LogtalkTypeHierarchyProvider();
   context.subscriptions.push(
-    languages.registerTypeHierarchyProvider(LOGTALK_MODE, new LogtalkTypeHierarchyProvider())
+    languages.registerTypeHierarchyProvider(LOGTALK_MODE, typeHierarchyProvider)
   );
+  context.subscriptions.push(typeHierarchyProvider);
   context.subscriptions.push(
     languages.registerDocumentSymbolProvider({ language: "logtalk" }, new LogtalkDocumentSymbolProvider())
   );

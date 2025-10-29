@@ -58,6 +58,7 @@ import * as fs from "fs";
 import * as fsp from "fs/promises";
 import { getLogger } from "../utils/logger";
 import LogtalkTerminal from "./terminal";
+import { Utils } from "../utils/utils";
 import { PredicateUtils } from "../utils/predicateUtils";
 import { ArgumentUtils } from "../utils/argumentUtils";
 
@@ -178,12 +179,20 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.disposables.push(this.coverageProfile);
 
-    // Clean up any old test result files from previous sessions
-    this.cleanupOldTestResultFiles();
+    // Delete any temporary files from previous sessions
+    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    const files = [
+      ".vscode_test_results"
+    ];
+    // Fire-and-forget cleanup - errors are logged internally
+    Utils.cleanupTemporaryFiles(directory, files);
 
-    // Clean up test result files when workspace folders change
-    const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders(() => {
-      this.cleanupOldTestResultFiles();
+    // Clean up any temporary files when folders are added to the workspace
+    const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
+      // Fire-and-forget cleanup - errors are logged internally
+      for (const wf of event.added) {
+        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+      }
     });
     this.disposables.push(workspaceFoldersListener);
 

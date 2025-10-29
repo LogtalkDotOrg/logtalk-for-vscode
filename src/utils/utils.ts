@@ -724,4 +724,30 @@ export class Utils {
     return null;
   }
 
+  /**
+   * Clean up temporary files from a given directory.
+   * Silently ignores errors if a file cannot be deleted.
+   * @param directory The root directory path
+   * @param fileNames Array of file names to delete
+   */
+  public static async cleanupTemporaryFiles(directory: string, fileNames: string[]): Promise<void> {
+    // Early exit if no workspace folders are open
+    if (!workspace.workspaceFolders || workspace.workspaceFolders.length === 0) {
+      return;
+    }
+
+    for (const fileName of fileNames) {
+      const pattern = new vscode.RelativePattern(directory, '**/' + fileName);
+      const files = await workspace.findFiles(pattern);
+      for (const file of files) {
+        try {
+          await fsp.rm(file.fsPath, { force: true });
+          this.logger.debug(`Deleted old temporary file: ${file.fsPath}`);
+        } catch (error) {
+          this.logger.error(`Error deleting old temporary file ${file.fsPath}:`, error);
+        }
+      }
+    }
+  }
+
 }

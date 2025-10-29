@@ -9,7 +9,7 @@
 * Add "Logtalk: Profiling" sub-menu with profiling commands
 * Add support for the VS Code Testing API
 * Add command "Logtalk: Run Tests with Coverage" to run all tests with coverage reporting
-* Delete any existing `.vscode_test_results` files at extension activation
+* Delete any existing `.vscode_*` temporary files at extension activation
 * Changed test results summary displayed using CodeLens in the tests object to re-run only the object tests
 * Add refactoring support for converting between object, protocol, and category entity types
 * Add quick fixes for documentation linter warnings
