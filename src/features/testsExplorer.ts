@@ -50,7 +50,6 @@ import {
   CancellationToken,
   FileCoverage,
   StatementCoverage,
-  DeclarationCoverage,
   TextDocument
 } from "vscode";
 import * as path from "path";

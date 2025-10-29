@@ -6,6 +6,7 @@ import * as path from "path";
 import * as https from "https";
 import * as http from "http";
 import { getLogger } from "./logger";
+import { Utils } from "./utils";
 const Fuse: any = require("fuse.js");
 
 // Type declarations for Fuse.js when using CommonJS require
@@ -112,13 +113,14 @@ export class DocumentationCache {
     } catch (error) {
       this.logger.error("Error reading Logtalk version:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const fallbackVersion = `${Utils.LOGTALK_MIN_VERSION_MAJOR}.${Utils.LOGTALK_MIN_VERSION_MINOR}.${Utils.LOGTALK_MIN_VERSION_PATCH}`;
       vscode.window.showWarningMessage(
         `Cannot detect Logtalk version: ${errorMessage}. ` +
-        `Using default version 3.92.0 for documentation. ` +
+        `Using minimum required version ${fallbackVersion} for documentation. ` +
         `Please ensure Logtalk is properly configured in VSCode settings.`
       );
-      // Fallback to a default version
-      return "3.92.0";
+      // Fallback to the minimum required version
+      return fallbackVersion;
     }
   }
 
