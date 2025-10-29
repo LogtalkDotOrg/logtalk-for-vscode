@@ -135,6 +135,9 @@ export class LogtalkProfiling {
               case 'openClause':
                 await this.openClauseAtPosition(message.entity, message.predicate, message.clauseNumber);
                 break;
+              case 'openWorkspaceInExplorer':
+                await this.openWorkspaceInExplorer();
+                break;
             }
           },
           undefined,
@@ -223,18 +226,22 @@ export class LogtalkProfiling {
     // Parse the profiling data table
     const tableData = this.parseProfilingData(profilingData, entity, predicate);
 
+    // Get workspace folder name
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspaceName = workspaceFolder?.name || 'Logtalk Profiling Data';
+
     // Build title based on focus
-    let title = 'Logtalk Profiling Data';
-    let titleHtml = '<h1>Logtalk Profiling Data</h1>';
+    let title = workspaceName;
+    let titleHtml = `<h2><a href="#" id="workspaceLink" class="predicate-link">${this.escapeHtml(workspaceName)}</a></h2>`;
 
     if (entity && predicate) {
-      title += ` - ${entity}::${predicate}`;
+      title = `${entity}::${predicate}`;
       // Make the entity::predicate clickable to open the source file
-      titleHtml = `<h1>Logtalk Profiling Data - <a href="#" id="predicateLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}" data-predicate="${this.escapeHtml(predicate)}"><code>${this.escapeHtml(entity)}::${this.escapeHtml(predicate)}</code></a></h1>`;
+      titleHtml = `<h2><a href="#" id="predicateLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}" data-predicate="${this.escapeHtml(predicate)}"><code>${this.escapeHtml(entity)}::${this.escapeHtml(predicate)}</code></a></h2>`;
     } else if (entity) {
-      title += ` - ${entity}`;
+      title = `${entity}`;
       // Make the entity name clickable to open the source file
-      titleHtml = `<h1>Logtalk Profiling Data - <a href="#" id="entityLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}"><code>${this.escapeHtml(entity)}</code></a></h1>`;
+      titleHtml = `<h2><a href="#" id="entityLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}"><code>${this.escapeHtml(entity)}</code></a></h2>`;
     }
 
     // Show appropriate back button
@@ -252,7 +259,6 @@ export class LogtalkProfiling {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logtalk Profiling Data</title>
     <style>
         body {
             font-family: var(--vscode-font-family);
@@ -285,7 +291,7 @@ export class LogtalkProfiling {
             margin-left: 5px;
             font-size: 0.8em;
         }
-        h1 {
+        h2 {
             color: var(--vscode-foreground);
         }
         code {
@@ -348,8 +354,19 @@ export class LogtalkProfiling {
             const backToEntityButton = document.getElementById('backToEntityButton');
             const predicateLink = document.getElementById('predicateLink');
             const entityLink = document.getElementById('entityLink');
+            const workspaceLink = document.getElementById('workspaceLink');
             let sortColumn = -1;
             let sortAscending = true;
+
+            // Handle workspace link click (open workspace in Explorer)
+            if (workspaceLink) {
+                workspaceLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    vscode.postMessage({
+                        command: 'openWorkspaceInExplorer'
+                    });
+                });
+            }
 
             // Handle entity link click (open source file at entity opening directive)
             if (entityLink) {
@@ -714,6 +731,21 @@ export class LogtalkProfiling {
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Open the workspace folder in the Explorer pane
+   */
+  private async openWorkspaceInExplorer(): Promise<void> {
+    try {
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (workspaceFolder) {
+        // Reveal the workspace folder in the Explorer
+        await vscode.commands.executeCommand('revealInExplorer', workspaceFolder.uri);
+      }
+    } catch (error) {
+      this.logger.error("Error opening workspace in Explorer:", error);
+    }
   }
 
   /**
