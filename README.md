@@ -2,7 +2,7 @@
 
 A VSCode extension that provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Requires Logtalk 3.94.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
+Requires Logtalk 3.95.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
@@ -26,6 +26,8 @@ For details, see [Configuration](#configuration). This extension includes a walk
 
 ## Features
 
+This extension provides a comprehensive set of features for Logtalk development:
+
 - [Syntax highlighting](#syntax-highlighting)
 - [Snippets](#indentation-snippets-and-auto-completion)
 - [Formatting support](#formatting-support)
@@ -39,6 +41,8 @@ For details, see [Configuration](#configuration). This extension includes a walk
 - [Hover contents](#hover-contents)
 - [Chat Participant](#chat-participant)
 - [Virtual workspaces support](#virtual-workspaces-support)
+
+Most of the features rely on a Logtalk session running in the integrated terminal with VSCode support loaded. This session is automatically created when the extension is activated (by opening a Logtalk source file). This Logtalk session is functionally equivalent to a **portable** Language Server Protocol (LSP) server. You can also use this section for your own Logtalk queries. Alternatively, you can create a new terminal running a shell and call the backend integration script that you want to use.
 
 ### Syntax highlighting
 
@@ -159,6 +163,8 @@ The output of the "Run Project Testers" and "Run Project Doclets" commands is di
 There are also "Test Documentation Cache" add "Refresh Documentation Cache" commands that can be used for testing and refreshing the documentation cache used by the Logtalk chat participant. These commands can only be called from the command palette.
 
 The output of the "Generate Project Documentation" and "Generate Project Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Project Doclets" command.
+
+The "Open Logtalk" command starts a Logtalk session in the integrated terminal and loads the VSCode support. This command is meant to be used when the Logtalk session created when the extension is activated (by opening a Logtalk source file) is accidentally closed (e.g., by a crash of the backend Prolog process). If you need a separate Logtalk session, create a new terminal running a shell and call the backend integration script that you want to use.
 
 #### Directory and source file commands
 
