@@ -236,7 +236,9 @@ The profiling webview allows navigating to the source file location of entities,
 
 #### Diagram commands
 
-Right-click on a Logtalk diagram SVG file in the Explorer and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories (respectively, `dot_dias` and `xml_docs`). The top diagrams are the directory diagrams (that are linked to file diagrams, which are linked to entity diagrams, which are linked to predicate and non-terminal cross-referencing diagrams).
+![diagrams](./images/diagrams.png)
+
+Right-click on a Logtalk diagram SVG file in the Explorer pane and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories (respectively, `dot_dias` and `xml_docs`). The top diagrams are the directory diagrams (that are linked to file diagrams, which are linked to entity diagrams, which are linked to predicate and non-terminal cross-referencing diagrams).
 
 #### Extension logging commands
 
@@ -354,6 +356,8 @@ VSCode usability issues that affect debugging support:
 
 ### Testing support
 
+![testing](./images/testing.png)
+
 Support for the VS Code Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" or "Logtalk: Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run.
 
 When available, code coverage information is also shown in the covered source files. Note that coverage data is per predicate and per predicate clause (or per non-terminal and per non-terminal rule), not per goal. Clauses used by the tests will be marked using a green color overlay in the editor gutter while clauses not used by the tests will be marked using a red color overlay. Use the editor window "Toggle Inline Coverage" button to toggle the coverage overlay. In the "Testing" pane, the "Test Coverage" sub-pane shows both statement (clauses) and function (predicates) coverage numbers and percentages (note that VSCode doesn't support renaming these terms). In the "Explorer" pane, the colored bar to the right of a file name indicates the combined percentage of covered clauses and predicates. Hovering over the bar shows the separate coverage details.
@@ -363,6 +367,8 @@ In the "Testing" pane, a warning triangle emoji (⚠️) is shown after the test
 Note that collecting code coverage data depends solely on the tests driver file. The option between running tests with or without coverage is only used to decide if any collected coverage data should be displayed.
 
 ### Profiling support
+
+![profiling](./images/profiling.png)
 
 Support for profiling is provided. This allows browsing and analyzing profiling data from the "Logtalk: Profiling" sub-menu in the explorer and editor context menus. After running the "Logtalk: Toggle Profiling" command, loaded code is recompiled in debug mode and profiling is enabled. The "Logtalk: Show Profiling Data" command can be used to show the profiling data in a webview. The webview allows navigating to the source file location of entities, predicates, and clauses. Collected profiling data can be reset using the "Logtalk: Reset Profiling Data" command. The profiling commands are also available from the command palette. See the documentation of the `ports_profiler` tool for details and hints on how to interpret profiling data.
 
