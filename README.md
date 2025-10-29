@@ -372,7 +372,7 @@ Note that collecting code coverage data depends solely on the tests driver file.
 
 ![profiling](images/profiling.png)
 
-Support for profiling is provided. This allows browsing and analyzing profiling data from the "Logtalk: Profiling" sub-menu in the explorer and editor context menus. After running the "Logtalk: Toggle Profiling" command, loaded code is recompiled in debug mode and profiling is enabled. The "Logtalk: Show Profiling Data" command can be used to show the profiling data in a webview. The webview allows navigating to the source file location of entities, predicates, and clauses. Collected profiling data can be reset using the "Logtalk: Reset Profiling Data" command. The profiling commands are also available from the command palette. See the documentation of the `ports_profiler` tool for details and hints on how to interpret profiling data.
+Support for profiling is provided. This allows browsing and analyzing profiling data from the "Logtalk: Profiling" sub-menu in the explorer and editor context menus. After running the "Logtalk: Toggle Profiling" command, loaded code is recompiled in debug mode and profiling is enabled. The "Logtalk: Show Profiling Data" command can be used to show the profiling data in a webview. The webview allows navigating to the source file location of entities, predicates, and clauses. It also allows saving the profiling data as a CSV file. Collected profiling data can be reset using the "Logtalk: Reset Profiling Data" command. The profiling commands are also available from the command palette. See the documentation of the `ports_profiler` tool for details and hints on how to interpret profiling data.
 
 ### Hover contents
 

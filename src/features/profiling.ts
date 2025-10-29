@@ -138,6 +138,9 @@ export class LogtalkProfiling {
               case 'openWorkspaceInExplorer':
                 await this.openWorkspaceInExplorer();
                 break;
+              case 'exportCsv':
+                await this.exportTableAsCsv(message.csvData, message.title);
+                break;
             }
           },
           undefined,
@@ -244,15 +247,20 @@ export class LogtalkProfiling {
       titleHtml = `<h2><a href="#" id="entityLink" class="predicate-link" data-entity="${this.escapeHtml(entity)}"><code>${this.escapeHtml(entity)}</code></a></h2>`;
     }
 
-    // Show appropriate back button
-    let backButton = '';
+    // Show appropriate back button and toolbar
+    let toolbar = '<div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">';
+
     if (entity && predicate && previousEntity) {
       // We came from entity view, show back to entity button
-      backButton = `<button id="backToEntityButton" data-entity="${this.escapeHtml(previousEntity)}" style="margin-bottom: 10px; padding: 5px 10px; cursor: pointer;">← Back to <code>${this.escapeHtml(previousEntity)}</code> Data</button>`;
+      toolbar += `<button id="backToEntityButton" data-entity="${this.escapeHtml(previousEntity)}" style="padding: 5px 10px; cursor: pointer;">← Back to <code>${this.escapeHtml(previousEntity)}</code> Data</button>`;
     } else if (entity || predicate) {
       // Show back to all data button
-      backButton = '<button id="backButton" style="margin-bottom: 10px; padding: 5px 10px; cursor: pointer;">← Back to All Data</button>';
+      toolbar += '<button id="backButton" style="padding: 5px 10px; cursor: pointer;">← Back to All Data</button>';
     }
+
+    // Add export CSV button
+    toolbar += '<button id="exportCsvButton" style="padding: 5px 10px; cursor: pointer;">Export as CSV</button>';
+    toolbar += '</div>';
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -341,7 +349,7 @@ export class LogtalkProfiling {
 </head>
 <body>
     ${titleHtml}
-    ${backButton}
+    ${toolbar}
     <table id="profilingTable">
         ${tableData}
     </table>
@@ -352,6 +360,7 @@ export class LogtalkProfiling {
             const headers = table.querySelectorAll('th');
             const backButton = document.getElementById('backButton');
             const backToEntityButton = document.getElementById('backToEntityButton');
+            const exportCsvButton = document.getElementById('exportCsvButton');
             const predicateLink = document.getElementById('predicateLink');
             const entityLink = document.getElementById('entityLink');
             const workspaceLink = document.getElementById('workspaceLink');
@@ -410,6 +419,48 @@ export class LogtalkProfiling {
                         entity: entity
                     });
                 });
+            }
+
+            // Handle export CSV button
+            if (exportCsvButton) {
+                exportCsvButton.addEventListener('click', () => {
+                    const csvData = generateCsvData();
+                    const title = document.querySelector('h2')?.textContent?.trim() || 'profiling_data';
+                    vscode.postMessage({
+                        command: 'exportCsv',
+                        csvData: csvData,
+                        title: title
+                    });
+                });
+            }
+
+            // Generate CSV data from the table
+            function generateCsvData() {
+                const rows = [];
+
+                // Get headers
+                const headerCells = Array.from(table.querySelectorAll('thead th'));
+                const headers = headerCells.map(cell => cell.textContent.trim().replace(/[▲▼]/g, '').trim());
+                rows.push(headers);
+
+                // Get data rows
+                const dataRows = table.querySelectorAll('tbody tr');
+                dataRows.forEach(row => {
+                    const cells = Array.from(row.querySelectorAll('td'));
+                    const rowData = cells.map(cell => {
+                        // Get text content, removing any HTML tags
+                        let text = cell.textContent.trim();
+                        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+                        if (text.includes(',') || text.includes('"') || text.includes('\\n')) {
+                            text = '"' + text.replace(/"/g, '""') + '"';
+                        }
+                        return text;
+                    });
+                    rows.push(rowData);
+                });
+
+                // Convert to CSV string
+                return rows.map(row => row.join(',')).join('\\n');
             }
 
             // Handle header clicks for sorting
@@ -745,6 +796,51 @@ export class LogtalkProfiling {
       }
     } catch (error) {
       this.logger.error("Error opening workspace in Explorer:", error);
+    }
+  }
+
+  /**
+   * Export profiling table data as CSV
+   */
+  private async exportTableAsCsv(csvData: string, title: string): Promise<void> {
+    try {
+      this.logger.info("Exporting profiling data as CSV");
+
+      // Clean up the title to create a valid filename
+      const cleanTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+      const defaultFileName = `${cleanTitle}.csv`;
+
+      // Get the default directory (workspace folder or home directory)
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      const defaultDirectory = workspaceFolder?.uri || vscode.Uri.file(process.env.HOME || process.env.USERPROFILE || '');
+
+      // Create default URI with the filename
+      const defaultPath = path.join(defaultDirectory.fsPath, defaultFileName);
+      const defaultUri = vscode.Uri.file(defaultPath);
+
+      const options: vscode.SaveDialogOptions = {
+        defaultUri: defaultUri,
+        filters: {
+          'CSV Files': ['csv'],
+          'All Files': ['*']
+        },
+        saveLabel: "Save",
+        title: "Export Profiling Data as CSV"
+      };
+
+      const result = await vscode.window.showSaveDialog(options);
+
+      if (result) {
+        // Write the CSV data to the selected file
+        await fsp.writeFile(result.fsPath, csvData, 'utf-8');
+        vscode.window.showInformationMessage(`Profiling data exported to ${path.basename(result.fsPath)}`);
+        this.logger.info(`CSV exported to: ${result.fsPath}`);
+      } else {
+        this.logger.info("CSV export cancelled by user");
+      }
+    } catch (error) {
+      this.logger.error("Error exporting CSV:", error);
+      vscode.window.showErrorMessage(`Failed to export CSV: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
