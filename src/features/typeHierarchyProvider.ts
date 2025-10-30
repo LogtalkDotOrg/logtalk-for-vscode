@@ -46,12 +46,91 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     this.disposables.push(workspaceFoldersListener);
   }
 
+  /**
+   * Find the range of an entity name in a line of text
+   * @param lineText The text of the line
+   * @param entityName The entity name to find
+   * @param lineNumber The line number (0-based)
+   * @returns Range of the entity name, or null if not found
+   */
+  private findEntityRangeInLine(lineText: string, entityName: string, lineNumber: number): Range | null {
+    // Parse entity opening directive to extract entity name and its position
+    const trimmedLine = lineText.trim();
+
+    // Try to match entity opening directives
+    const objectMatch = trimmedLine.match(/^(?:\:- object\()([^(),.]+(\(.*\))?)/);
+    const protocolMatch = trimmedLine.match(/^(?:\:- protocol\()([^(),.]+(\(.*\))?)/);
+    const categoryMatch = trimmedLine.match(/^(?:\:- category\()([^(),.]+(\(.*\))?)/);
+
+    const match = objectMatch || protocolMatch || categoryMatch;
+    if (match && match[1]) {
+      const extractedName = match[1].trim();
+      // Find where the entity name starts in the original line
+      const directiveStart = lineText.indexOf(':-');
+      if (directiveStart === -1) {
+        return null;
+      }
+      const nameStart = lineText.indexOf(extractedName, directiveStart);
+      if (nameStart === -1) {
+        return null;
+      }
+
+      // Create range for the entity name (including parameters if parametric)
+      const startPos = new Position(lineNumber, nameStart);
+      const endPos = new Position(lineNumber, nameStart + extractedName.length);
+      return new Range(startPos, endPos);
+    }
+
+    return null;
+  }
+
+  /**
+   * Create ranges for a TypeHierarchyItem based on file content
+   * @param filePath Path to the file
+   * @param lineNumber Line number (1-based from Logtalk output)
+   * @param entityName Entity name
+   * @returns Object with range and selectionRange
+   */
+  private async createRangesForItem(filePath: string, lineNumber: number, entityName: string): Promise<{range: Range, selectionRange: Range}> {
+    const zeroBasedLine = lineNumber - 1;
+
+    try {
+      // Read the file to get the actual line content
+      const fileContent = await fsp.readFile(filePath, 'utf8');
+      const lines = fileContent.split(/\r?\n/);
+
+      if (zeroBasedLine >= 0 && zeroBasedLine < lines.length) {
+        const lineText = lines[zeroBasedLine];
+        const entityRange = this.findEntityRangeInLine(lineText, entityName, zeroBasedLine);
+
+        if (entityRange) {
+          // selectionRange is the entity name itself
+          const selectionRange = entityRange;
+          // range is the entire line (or could be more sophisticated)
+          const range = new Range(
+            new Position(zeroBasedLine, 0),
+            new Position(zeroBasedLine, lineText.length)
+          );
+          return { range, selectionRange };
+        }
+      }
+    } catch (error) {
+      this.logger.error(`Error reading file ${filePath}:`, error);
+    }
+
+    // Fallback to zero-width ranges at line start
+    const fallbackPos = new Position(zeroBasedLine, 0);
+    const fallbackRange = new Range(fallbackPos, fallbackPos);
+    return { range: fallbackRange, selectionRange: fallbackRange };
+  }
+
   public async prepareTypeHierarchy(
     doc: TextDocument,
     position: Position,
     token: CancellationToken
   ): Promise<TypeHierarchyItem> {
     let entity = Utils.getEntityNameUnderCursor(doc, position);
+    this.logger.debug(`Entity: ${entity}`);
     if (!entity) {
       return null;
     } else {
@@ -73,7 +152,6 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     token: CancellationToken
   ): Promise<TypeHierarchyItem[]> {
     let ancestors: TypeHierarchyItem[] = [];
-    let fromRanges: Range[] = [];
     let file = item.uri.fsPath;
     let entity = item.name;
 
@@ -89,15 +167,24 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
       var match = null;
       var symbol = null;
       for (match of matches) {
-        symbol = match[1] == "object" ? SymbolKind.Class : match[1] == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
+        const ancestorType = match[1];
+        const ancestorName = match[2];
+        const ancestorFile = match[3];
+        const ancestorLine = parseInt(match[4]);
+
+        symbol = ancestorType == "object" ? SymbolKind.Class : ancestorType == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
+
+        // Create proper ranges for the ancestor
+        const ranges = await this.createRangesForItem(ancestorFile, ancestorLine, ancestorName);
+
         ancestors.push(
           new TypeHierarchyItem(
             symbol,
-            match[2],
+            ancestorName,
             "",
-            Uri.file(match[3]),
-            new Range(new Position(parseInt(match[4]) - 1, 0), new Position(parseInt(match[4]) - 1, 0)),
-            new Range(new Position(parseInt(match[4]) - 1, 0), new Position(parseInt(match[4]) - 1, 0))
+            Uri.file(ancestorFile),
+            ranges.range,
+            ranges.selectionRange
           )
         );
       }
@@ -113,7 +200,6 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     token: CancellationToken
   ): Promise<TypeHierarchyItem[]> {
     let descendants: TypeHierarchyItem[] = [];
-    let fromRanges: Range[] = [];
     let file = item.uri.fsPath;
     let entity = item.name;
 
@@ -129,15 +215,25 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
       var match = null;
       var symbol = null;
       for (match of matches) {
-        symbol = match[1] == "object" ? SymbolKind.Class : match[1] == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
+        const descendantType = match[1];
+        const descendantName = match[2];
+        this.logger.debug(`Descendant: ${descendantName}`);
+        const descendantFile = match[3];
+        const descendantLine = parseInt(match[4]);
+
+        symbol = descendantType == "object" ? SymbolKind.Class : descendantType == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
+
+        // Create proper ranges for the descendant
+        const ranges = await this.createRangesForItem(descendantFile, descendantLine, descendantName);
+
         descendants.push(
           new TypeHierarchyItem(
             symbol,
-            match[2],
+            descendantName,
             "",
-            Uri.file(match[3]),
-            new Range(new Position(parseInt(match[4]) - 1, 0), new Position(parseInt(match[4]) - 1, 0)),
-            new Range(new Position(parseInt(match[4]) - 1, 0), new Position(parseInt(match[4]) - 1, 0))
+            Uri.file(descendantFile),
+            ranges.range,
+            ranges.selectionRange
           )
         );
       }

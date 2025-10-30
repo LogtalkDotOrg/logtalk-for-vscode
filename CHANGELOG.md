@@ -29,6 +29,7 @@
 * Fix bugs handling diagnostic collections that could result in duplicated diagnostics after fixing and reloading files
 * Fix errors with the debugging commands when the Logtalk terminal unexpectedly doesn't exist
 * Fix walkthrough to prevent being closed when performing some of the steps
+* Fix type hierarchy "Show Subtypes" and "Show Supertypes" context menu items
 
 ## [0.63.0]
 

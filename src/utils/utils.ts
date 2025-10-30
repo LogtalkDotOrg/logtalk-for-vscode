@@ -418,6 +418,7 @@ export class Utils {
       position,
       /\w+/
     );
+
     if (!wordRange) {
       return null;
     }
