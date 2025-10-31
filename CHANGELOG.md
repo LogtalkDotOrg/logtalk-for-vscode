@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.65.0]
+
+* Update the readme file list of known issues
+
 ## [0.64.0]
 
 * Add "logtalk.diagrams.format" setting for specifying the diagrams format (default is `dot`; Graphviz)
