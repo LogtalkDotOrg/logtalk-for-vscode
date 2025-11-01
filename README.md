@@ -8,7 +8,7 @@ Requires Logtalk 3.95.0 or later and a supported [Prolog backend](https://logtal
 
 ---
 
-[Installation](#installation) | [Features](#features) | [Configuration](#configuration) | [Known Issues](#known-issues) | [Development](#development) | [Acknowledgements](#acknowledgements) | [Licence](#license)
+[Installation](#installation) | [Features](#features) | [Configuration](#configuration) | [Known issues](#known-issues) | [Development](#development) | [Acknowledgements](#acknowledgements) | [Licence](#license)
 
 ---
 
@@ -331,7 +331,7 @@ To add a new argument to a predicate (or non-terminal), right-click on the predi
 
 Right-click on an entity name in its opening directive and select the "Convert to object", "Convert to protocol", or "Convert to category" context menu items. The applicability of these operations depends on the entity type and its opening directive arguments. Note that the entity name is not changed and further edits may be required to the entity code after the conversion to make it valid (for example, removing predicate definitions that are not allowed in a protocol).
 
-#### Known issues
+#### Known refactoring issues
 
 - Some refactoring operations may not be complete, notably due to the use of dynamic binding or meta-predicate features.
 - In some cases, refactoring operations may be made available when the user selection doesn't qualify for the operation.
@@ -441,7 +441,7 @@ No defaults (VSCode doesn't support using environment variables to define settin
 
     "logtalk.backend": ""
 
-No default. Possible values are `b`, `ciao`, `cx`, `eclipse`, `gnu`, `ji`, `sicstus`, `swi`, `tau`, `trealla`, `xsb`, `xvm`, and `yap`. Ensure that the backend you want to use is installed.
+No default. Possible values are `b`, `ciao`, `cx`, `eclipse`, `gnu`, `sicstus`, `swi`, `tau`, `trealla`, `xsb`, `xvm`, and `yap`. Ensure that the backend you want to use is installed. See also the [Known issues](#known-issues) section for limitations when using some of these backends.
 
 ### Optional settings
 
@@ -591,7 +591,7 @@ Automatically call the "Logtalk: Make - Reload" command when saving a Logtalk so
 
 Format for the diagram files generated using the "Generate Diagrams" and "Generate Project Diagrams" commands. Note that support for Mermaid is experimental due to limitations in the Mermaid library that currently doesn't provide all the required features for parity with Graphviz and D2.
 
-## Known Issues
+## Known issues
 
 Code issues detected when running the "Make - Check" or "Make - Circular" commands are displayed in the integrated terminal but not added to the "PROBLEMS" pane. But when an issue is reported in a source file, you can right-click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in the file path to navigate to the issue location.
 
