@@ -893,6 +893,12 @@ export function deactivate() {
   }
 
   try {
+    LogtalkTerminal.dispose();
+  } catch (error) {
+    logger.error('Error disposing Logtalk terminal:', error);
+  }
+
+  try {
     if (makeOnSaveTimer) {
       clearTimeout(makeOnSaveTimer);
       makeOnSaveTimer = undefined;

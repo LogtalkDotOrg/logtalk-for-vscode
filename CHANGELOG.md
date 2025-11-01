@@ -3,6 +3,7 @@
 ## [0.65.0]
 
 * Update the readme file list of known issues
+* Delete any existing `.vscode_*_done` temporary files created by the `LogtalkTerminal` class at initialization time
 
 ## [0.64.0]
 

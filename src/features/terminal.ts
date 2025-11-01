@@ -45,10 +45,7 @@ export default class LogtalkTerminal {
   private static _timeout:        number;
   private static _outputChannel:  OutputChannel;
   private static _loadedDirectories: Set<string> = new Set();
-
-  constructor() {
-
-  }
+  private static disposables: Disposable[] = [];
 
   /**
    * Expands VS Code-style environment variables (${env:VAR}) to their actual values.
@@ -77,6 +74,42 @@ export default class LogtalkTerminal {
     deadCodeScanner?: LogtalkDeadCodeScanner,
     documentationLinter?: LogtalkDocumentationLinter
   ): Disposable {
+
+    // Delete any temporary files from previous sessions
+    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    const files = [
+      ".vscode_loading_done",
+      ".vscode_make_done",
+      ".vscode_tests_done",
+      ".vscode_metrics_done",
+      ".vscode_xml_files_done",
+      ".vscode_dot_files_done",
+      ".vscode_dead_code_scanning_done",
+      ".vscode_entity_definition_done",
+      ".vscode_predicate_definition_done",
+      ".vscode_declaration_done",
+      ".vscode_definition_done",
+      ".vscode_type_definition_done",
+      ".vscode_references_done",
+      ".vscode_implementations_done",
+      ".vscode_callers_done",
+      ".vscode_callees_done",
+      ".vscode_ancestors_done",
+      ".vscode_descendants_done",
+      ".vscode_type_done",
+      ".vscode_find_parent_done"
+    ];
+    // Fire-and-forget cleanup - errors are logged internally
+    Utils.cleanupTemporaryFiles(directory, files);
+
+    // Clean up any temporary files when folders are added to the workspace
+    const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
+      // Fire-and-forget cleanup - errors are logged internally
+      for (const wf of event.added) {
+        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+      }
+    });
+    LogtalkTerminal.disposables.push(workspaceFoldersListener);
 
     let section = workspace.getConfiguration("logtalk");
 
@@ -181,6 +214,16 @@ export default class LogtalkTerminal {
         }
       }
     });
+  }
+
+  /**
+   * Dispose of all resources
+   */
+  public static dispose(): void {
+    for (const disposable of LogtalkTerminal.disposables) {
+      disposable.dispose();
+    }
+    LogtalkTerminal.disposables = [];
   }
 
   public static createLogtalkTerm() {
