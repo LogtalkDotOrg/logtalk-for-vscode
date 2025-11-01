@@ -148,36 +148,114 @@ export class Utils {
   }
 
   /**
-   * Checks if the installed Logtalk version meets the minimum required version.
-   * @returns true if the installed version is >= minimum required version, false otherwise
+   * Reads the Logtalk version from VERSION.txt file.
+   * @returns The version string (e.g., "3.95.0"), or null if unable to read
    */
-  public static async checkLogtalkVersion(): Promise<boolean> {
+  public static getLogtalkVersionFromFile(): string | null {
     try {
-      const query = `(current_logtalk_flag(version_data, logtalk(CurrentMajor,CurrentMinor,CurrentPatch,_)), logtalk(CurrentMajor,CurrentMinor,CurrentPatch) @>= logtalk(${Utils.LOGTALK_MIN_VERSION_MAJOR},${Utils.LOGTALK_MIN_VERSION_MINOR},${Utils.LOGTALK_MIN_VERSION_PATCH}) -> halt(0); halt(1)).`;
+      const logtalkHome = Utils.logtalkHome || workspace.getConfiguration("logtalk").get<string>("home.path");
 
-      let env;
-      if (process.platform === 'win32') {
-        env = workspace.getConfiguration("terminal.integrated.env.windows");
-      } else if (process.platform === 'darwin') {
-        env = workspace.getConfiguration("terminal.integrated.env.osx");
-      } else {
-        env = workspace.getConfiguration("terminal.integrated.env.linux");
+      if (!logtalkHome) {
+        Utils.logger.error("LOGTALKHOME not configured");
+        return null;
       }
 
-      const result = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
-        env: Object.assign({}, process.env, env),
-        encoding: "utf8",
-        input: query,
-        timeout: 5000 // 5 second timeout
-      });
+      const versionFile = path.join(logtalkHome, "VERSION.txt");
+      if (!fs.existsSync(versionFile)) {
+        Utils.logger.error(`VERSION.txt not found at ${versionFile}`);
+        return null;
+      }
 
-      // Exit code 0 means version is sufficient, 1 means it's too old
-      return result.status === 0;
+      const versionContent = fs.readFileSync(versionFile, "utf8").trim();
+      // Remove version suffixes (e.g., "-stable", "-beta", "-alpha", "-rc1")
+      // Keep only the numeric version part (e.g., "3.92.0-stable" -> "3.92.0")
+      const cleanVersion = versionContent.replace(/-[a-zA-Z0-9]+$/, '');
+
+      if (versionContent !== cleanVersion) {
+        Utils.logger.debug(`Logtalk version cleaned: "${versionContent}" -> "${cleanVersion}"`);
+      }
+
+      return cleanVersion;
     } catch (error) {
-      Utils.logger.error(`Error checking Logtalk version: ${error}`);
-      // If we can't check the version, assume it's okay to avoid blocking the extension
-      return true;
+      Utils.logger.error("Error reading Logtalk version:", error);
+      return null;
     }
+  }
+
+  /**
+   * Parses a version string into major, minor, and patch numbers.
+   * @param version Version string (e.g., "3.95.0")
+   * @returns Object with major, minor, patch numbers, or null if invalid
+   */
+  private static parseVersion(version: string): { major: number; minor: number; patch: number } | null {
+    const parts = version.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const major = parseInt(parts[0], 10);
+    const minor = parseInt(parts[1], 10);
+    const patch = parseInt(parts[2], 10);
+
+    if (isNaN(major) || isNaN(minor) || isNaN(patch)) {
+      return null;
+    }
+
+    return { major, minor, patch };
+  }
+
+  /**
+   * Compares two versions.
+   * @returns true if version1 >= version2, false otherwise
+   */
+  private static compareVersions(
+    v1: { major: number; minor: number; patch: number },
+    v2: { major: number; minor: number; patch: number }
+  ): boolean {
+    if (v1.major !== v2.major) {
+      return v1.major > v2.major;
+    }
+    if (v1.minor !== v2.minor) {
+      return v1.minor > v2.minor;
+    }
+    return v1.patch >= v2.patch;
+  }
+
+  /**
+   * Checks if the installed Logtalk version meets the minimum required version.
+   * @returns true if the installed version is >= minimum required version, false otherwise
+   * @throws Error if the version cannot be determined
+   */
+  public static async checkLogtalkVersion(): Promise<boolean> {
+    const versionString = Utils.getLogtalkVersionFromFile();
+
+    if (!versionString) {
+      throw new Error("Unable to read Logtalk version from VERSION.txt file");
+    }
+
+    const installedVersion = Utils.parseVersion(versionString);
+    if (!installedVersion) {
+      throw new Error(`Invalid version format in VERSION.txt: ${versionString}`);
+    }
+
+    const minVersion = {
+      major: Utils.LOGTALK_MIN_VERSION_MAJOR,
+      minor: Utils.LOGTALK_MIN_VERSION_MINOR,
+      patch: Utils.LOGTALK_MIN_VERSION_PATCH
+    };
+
+    const isVersionSufficient = Utils.compareVersions(installedVersion, minVersion);
+
+    if (!isVersionSufficient) {
+      Utils.logger.warn(
+        `Logtalk version ${versionString} is older than minimum required ` +
+        `${minVersion.major}.${minVersion.minor}.${minVersion.patch}`
+      );
+    } else {
+      Utils.logger.debug(`Logtalk version ${versionString} meets minimum requirements`);
+    }
+
+    return isVersionSufficient;
   }
 
   private static loadSnippets(context: ExtensionContext) {

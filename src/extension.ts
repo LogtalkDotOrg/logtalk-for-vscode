@@ -133,6 +133,9 @@ export function activate(context: ExtensionContext) {
     }
   }).catch(error => {
     logger.error('Failed to check Logtalk version:', error);
+    window.showWarningMessage(
+      `Cannot determine Logtalk version: ${error.message}. Please ensure Logtalk is properly installed and configured.`
+    );
   });
 
   // Initialize chat participant

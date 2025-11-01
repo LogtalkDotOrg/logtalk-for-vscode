@@ -87,41 +87,25 @@ export class DocumentationCache {
   }
 
   private async getLogtalkVersion(): Promise<string> {
-    try {
-      const section = vscode.workspace.getConfiguration("logtalk");
-      const logtalkHome = section.get<string>("home.path");
+    const version = Utils.getLogtalkVersionFromFile();
 
-      if (!logtalkHome) {
-        throw new Error("LOGTALKHOME not configured in VSCode settings");
-      }
-
-      const versionFile = path.join(logtalkHome, "VERSION.txt");
-      if (!fs.existsSync(versionFile)) {
-        throw new Error("VERSION.txt not found in LOGTALKHOME directory");
-      }
-
-      const versionContent = fs.readFileSync(versionFile, "utf8").trim();
-      // Remove version suffixes (e.g., "-stable", "-beta", "-alpha", "-rc1") for correct URL formation
-      // Keep only the numeric version part (e.g., "3.92.0-stable" -> "3.92.0")
-      const cleanVersion = versionContent.replace(/-[a-zA-Z0-9]+$/, '');
-
-      if (versionContent !== cleanVersion) {
-        this.logger.debug(`Logtalk version cleaned: "${versionContent}" -> "${cleanVersion}"`);
-      }
-
-      return cleanVersion;
-    } catch (error) {
-      this.logger.error("Error reading Logtalk version:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const fallbackVersion = `${Utils.LOGTALK_MIN_VERSION_MAJOR}.${Utils.LOGTALK_MIN_VERSION_MINOR}.${Utils.LOGTALK_MIN_VERSION_PATCH}`;
-      vscode.window.showWarningMessage(
-        `Cannot detect Logtalk version: ${errorMessage}. ` +
-        `Using minimum required version ${fallbackVersion} for documentation. ` +
-        `Please ensure Logtalk is properly configured in VSCode settings.`
-      );
-      // Fallback to the minimum required version
-      return fallbackVersion;
+    if (version) {
+      return version;
     }
+
+    // Fallback to the minimum required version if unable to read
+    const fallbackVersion = `${Utils.LOGTALK_MIN_VERSION_MAJOR}.${Utils.LOGTALK_MIN_VERSION_MINOR}.${Utils.LOGTALK_MIN_VERSION_PATCH}`;
+    this.logger.warn(
+      `Cannot detect Logtalk version. ` +
+      `Using minimum required version ${fallbackVersion} for documentation. ` +
+      `Please ensure Logtalk is properly configured in VSCode settings.`
+    );
+    vscode.window.showWarningMessage(
+      `Cannot detect Logtalk version. ` +
+      `Using minimum required version ${fallbackVersion} for documentation. ` +
+      `Please ensure Logtalk is properly configured in VSCode settings.`
+    );
+    return fallbackVersion;
   }
 
   private async fetchDocumentation(url: string): Promise<string> {
