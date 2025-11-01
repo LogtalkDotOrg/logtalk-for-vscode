@@ -389,7 +389,7 @@ export class Utils {
         encoding: "utf8",
         input: `functor(${wholePred}, N, A), write((name=N;arity=A)), nl.`
       });
-      
+
       if (pp.status === 0) {
         let out = pp.stdout.toString();
         let match = out.match(/name=[(]?(\w+)[)]?;arity=(\d+)/);
@@ -406,6 +406,135 @@ export class Utils {
       }
     }
     return name + "/" + arity;
+  }
+
+  /**
+   * Get the indicator of a term starting at the given position.
+   * This method handles multi-line terms by reading the complete term text.
+   * @param doc The text document
+   * @param position The position where the term starts
+   * @returns The indicator (name/arity) or null if not found
+   */
+  public static getIndicatorFromTermAtPosition(
+    doc: TextDocument,
+    position: Position
+  ): string | null {
+    const { PredicateUtils } = require('./predicateUtils');
+    const { ArgumentUtils } = require('./argumentUtils');
+
+    // Get the word at the cursor position
+    const wordRange = doc.getWordRangeAtPosition(position);
+    if (!wordRange) {
+      return null;
+    }
+
+    const word = doc.getText(wordRange);
+
+    // Check if the word starts with a lowercase letter (valid atom)
+    if (word[0].match(/[_A-Z0-9]/)) {
+      return null;
+    }
+
+    const lineText = doc.lineAt(position.line).text;
+
+    // Check if this is a directive (starts with :-)
+    const isDirective = lineText.trim().startsWith(':-');
+
+    if (isDirective) {
+      // Get the complete multi-line directive content
+      const directiveRange = PredicateUtils.getDirectiveRange(doc, position.line);
+      let fullDirectiveText = '';
+
+      for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+        if (lineNum < doc.lineCount) {
+          const line = doc.lineAt(lineNum).text;
+          fullDirectiveText += line + (lineNum < directiveRange.end ? ' ' : '');
+        }
+      }
+
+      // Normalize whitespace
+      const normalizedText = fullDirectiveText.replace(/\s+/g, ' ').trim();
+
+      // Find the word in the normalized text
+      const wordPattern = new RegExp('\\b' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\(');
+      const match = wordPattern.exec(normalizedText);
+
+      if (!match) {
+        // Word not followed by parenthesis, might be a zero-arity directive
+        return word + '/0';
+      }
+
+      // Find the opening parenthesis position
+      const openParenPos = match.index + word.length;
+      const actualOpenParen = normalizedText.indexOf('(', openParenPos);
+
+      if (actualOpenParen < 0) {
+        return word + '/0';
+      }
+
+      // Find the matching closing parenthesis
+      const closeParenPos = ArgumentUtils.findMatchingCloseParen(normalizedText, actualOpenParen);
+
+      if (closeParenPos < 0) {
+        return null;
+      }
+
+      // Extract the content between parentheses
+      const content = normalizedText.substring(actualOpenParen + 1, closeParenPos);
+
+      // Parse the arguments to count them
+      const args = ArgumentUtils.parseArguments(content);
+
+      return word + '/' + args.length;
+    }
+
+    // Not a directive, try to handle as a regular term
+    // Get text from current line onwards
+    const doctext = doc.getText();
+    const text = doctext
+      .split(/\r?\n/)
+      .slice(position.line)
+      .join('')
+      .slice(wordRange.start.character)
+      .replace(/\s+/g, ' ');
+
+    // Check if word is followed by parenthesis
+    const re = new RegExp('^' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\(');
+    if (!re.test(text)) {
+      // No parenthesis, zero arity
+      return word + '/0';
+    }
+
+    // Find the opening parenthesis
+    const openParenPos = text.indexOf('(');
+    if (openParenPos < 0) {
+      return word + '/0';
+    }
+
+    // Find the matching closing parenthesis
+    let parenDepth = 1;
+    let i = openParenPos + 1;
+    while (parenDepth > 0 && i < text.length) {
+      if (text.charAt(i) === '(') {
+        parenDepth++;
+      } else if (text.charAt(i) === ')') {
+        parenDepth--;
+      }
+      i++;
+    }
+
+    if (parenDepth > 0) {
+      // Unmatched parentheses
+      return null;
+    }
+
+    // Extract the content between parentheses
+    const content = text.substring(openParenPos + 1, i - 1);
+
+    // Parse the arguments to count them
+    const args = ArgumentUtils.parseArguments(content);
+
+    return word + '/' + args.length;
   }
 
   public static getCallUnderCursor(
