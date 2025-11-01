@@ -6,6 +6,7 @@
 * Update the readme file list of known issues
 * Delete any existing `.vscode_*_done` temporary files created by the `LogtalkTerminal` class at initialization time
 * Faster check for minimum required Logtalk version at extension activation
+* Add snippet for the `mode_non_terminal/2` directive
 * Fix hover provider to also handle multi-line terms
 
 ## [0.64.0]

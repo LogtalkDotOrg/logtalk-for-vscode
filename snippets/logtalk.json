@@ -267,10 +267,19 @@
   "directives:mode/2": {
     "body":":- mode(${1:Mode}, ${2|zero,zero_or_one,zero_or_more,one,one_or_more,zero_or_error,one_or_error,zero_or_one_or_error,zero_or_more_or_error,one_or_more_or_error,error|}).\n",
     "description": [
-        "Most predicates can be used with several instantiations modes. This directive enables the specification of each instantiation mode and the corresponding number of proofs (not necessarily distinct solutions). You may also use this directive for documenting non-terminals.\n",
+        "Most predicates can be used with several instantiations modes. This directive enables the specification of each instantiation mode and the corresponding number of proofs (not necessarily distinct solutions).\n",
         "Template and modes",
-        "mode(+predicate_mode_term, +number_of_proofs)",
-        "mode(+non_terminal_mode_term, +number_of_proofs)"
+        "mode(+predicate_mode_term, +number_of_proofs)"
+    ],
+    "prefix":":- mode",
+    "scope":"source.logtalk"
+  },
+  "directives:mode_non_terminal/2": {
+    "body":":- mode_non_terminal(${1:Mode}, ${2|zero,zero_or_one,zero_or_more,one,one_or_more,zero_or_error,one_or_error,zero_or_one_or_error,zero_or_more_or_error,one_or_more_or_error,error|}).\n",
+    "description": [
+        "Most non-terminals can be used with several instantiations modes. This directive enables the specification of each instantiation mode and the corresponding number of proofs (not necessarily distinct solutions).\n",
+        "Template and modes",
+        "mode_non_terminal(+non_terminal_mode_term, +number_of_proofs)"
     ],
     "prefix":":- mode",
     "scope":"source.logtalk"
