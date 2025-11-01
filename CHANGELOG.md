@@ -2,6 +2,7 @@
 
 ## [0.65.0]
 
+* Remove JIProlog from the list of supported backends as its console is not compatible with the Terminal API
 * Update the readme file list of known issues
 * Delete any existing `.vscode_*_done` temporary files created by the `LogtalkTerminal` class at initialization time
 * Faster check for minimum required Logtalk version at extension activation
