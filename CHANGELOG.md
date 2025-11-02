@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.66.0]
+
+* Improve profiling and chat participant commands documentation in the readme file
+
 ## [0.65.0]
 
 * Remove JIProlog from the list of supported backends as its console is not compatible with the Terminal API

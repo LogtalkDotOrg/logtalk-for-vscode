@@ -160,8 +160,6 @@ The "Scan Project Dead Code", "Compute Project Metrics", "Generate Project Docum
 
 The output of the "Run Project Testers" and "Run Project Doclets" commands is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
 
-There are also "Test Documentation Cache" add "Refresh Documentation Cache" commands that can be used for testing and refreshing the documentation cache used by the Logtalk chat participant. These commands can only be called from the command palette.
-
 The output of the "Generate Project Documentation" and "Generate Project Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Project Doclets" command.
 
 The "Open Logtalk" command starts a Logtalk session in the integrated terminal and loads the VSCode support. This command is meant to be used when the Logtalk session created when the extension is activated (by opening a Logtalk source file) is accidentally closed (e.g., by a crash of the backend Prolog process). If you need a separate Logtalk session, create a new terminal running a shell and call the backend integration script that you want to use.
@@ -240,7 +238,20 @@ The profiling webview allows navigating to the source file location of entities,
 
 ![diagrams](images/diagrams.png)
 
+|              Command | Description                              |
+| -------------------: | :--------------------------------------- |
+|  Open SVG in Viewer  | Open the selected SVG file in a webview  |
+
 Right-click on a Logtalk diagram SVG file in the Explorer pane and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories (respectively, `dot_dias` and `xml_docs`). The top diagrams are the directory diagrams (that are linked to file diagrams, which are linked to entity diagrams, which are linked to predicate and non-terminal cross-referencing diagrams).
+
+#### Chat participant commands
+
+These commands are only available from the command palette. They testing and refreshing the documentation cache used by the chat participant.
+
+|                      Command | Description                            |
+| ---------------------------: | :------------------------------------- |
+|  Test Documentation Cache    | Test the documentation caching system  |
+|  Refresh Documentation Cache | Refresh the documentation cache        |
 
 #### Extension logging commands
 
