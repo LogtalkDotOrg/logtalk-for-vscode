@@ -75,6 +75,30 @@ function getLogLevelDescription(level: string): string {
   }
 }
 
+function createDebugFileWatcher(): void {
+  // Only create watcher if it doesn't already exist
+  // The watcher monitors the Logtalk user directory (from configuration), not the workspace
+  if (!watcher) {
+    let section = workspace.getConfiguration("logtalk");
+    let logtalkUser: string = '';
+    if (section) {
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
+    }
+
+    watcher = workspace.createFileSystemWatcher(new RelativePattern(logtalkUser, "scratch/.debug_info"), false, false, true);
+
+    watcher.onDidCreate((uri) => {
+      Utils.openFileAt(uri);
+    });
+    // Windows requires the onDidChange event
+    watcher.onDidChange((uri) => {
+      Utils.openFileAt(uri);
+    });
+  }
+}
+
 export function activate(context: ExtensionContext) {
 
   let subscriptions = context.subscriptions;
@@ -97,23 +121,8 @@ export function activate(context: ExtensionContext) {
   documentationLinter = new LogtalkDocumentationLinter(context);
   documentationLinter.activate(subscriptions);
 
-  let section = workspace.getConfiguration("logtalk");
-  let logtalkUser: string = '';
-  if (section) {
-    logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-  } else {
-    throw new Error("configuration settings error: logtalk"); 
-  }
-
-  watcher = workspace.createFileSystemWatcher(new RelativePattern(logtalkUser, "scratch/.debug_info"), false, false, true);
-
-  watcher.onDidCreate((uri) => {
-    Utils.openFileAt(uri);
-  });
-  // Windows requires the onDidChange event
-  watcher.onDidChange((uri) => {
-    Utils.openFileAt(uri);
-  });
+  // Create debug file watcher
+  createDebugFileWatcher();
 
   DEBUG ? logger.debug('Linters loaded') : null;
 

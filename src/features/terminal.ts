@@ -1214,6 +1214,9 @@ export default class LogtalkTerminal {
   public static async getEntityDefinition(entity: string) {
     LogtalkTerminal.createLogtalkTerm();
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_entity_definition('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_entity_definition_done");
@@ -1224,6 +1227,9 @@ export default class LogtalkTerminal {
   public static async getPredicateDefinition(entity: string, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_predicate_definition('${wdir}', ${entity}, ${predicate}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_predicate_definition_done");
@@ -1238,6 +1244,9 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_declaration('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_declaration_done");
@@ -1252,6 +1261,9 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_definition('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_definition_done");
@@ -1266,6 +1278,9 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_type_definition('${wdir}', ${entity}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_type_definition_done");
@@ -1280,6 +1295,9 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_references('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_references_done");
@@ -1294,6 +1312,9 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = path.resolve(doc.fileName).split(path.sep).join("/");
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_implementations('${wdir}', ${predicate}, '${file}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_implementations_done");
@@ -1307,6 +1328,9 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const fileSlash = path.resolve(file).split(path.sep).join("/");
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_callers('${wdir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_callers_done");
@@ -1320,6 +1344,9 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const fileSlash = path.resolve(file).split(path.sep).join("/");
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_callees('${wdir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_callees_done");
@@ -1332,6 +1359,9 @@ export default class LogtalkTerminal {
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_ancestors('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_ancestors_done");
@@ -1344,6 +1374,9 @@ export default class LogtalkTerminal {
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_descendants('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_descendants_done");
@@ -1356,6 +1389,9 @@ export default class LogtalkTerminal {
     const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_entity_type('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_type_done");
@@ -1377,6 +1413,9 @@ export default class LogtalkTerminal {
     const dir = path.resolve(dir0).split(path.sep).join("/");
     const file: string = path.resolve(uri.fsPath).split(path.sep).join("/");
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     let goals = `vscode::find_parent_file('${wdir}', '${file}').\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_find_parent_done");
@@ -1581,8 +1620,11 @@ export default class LogtalkTerminal {
     }
   };
 
-  public static getFirstWorkspaceFolder(): string {
-    return path.resolve(vscode.workspace.workspaceFolders?.[0].uri.fsPath).split(path.sep).join("/");
+  public static getFirstWorkspaceFolder(): string | undefined {
+    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+      return undefined;
+    }
+    return path.resolve(vscode.workspace.workspaceFolders[0].uri.fsPath).split(path.sep).join("/");
   }
 
   private static getWorkspaceFolder(uri: Uri): string {

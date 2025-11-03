@@ -935,12 +935,12 @@ export class Utils {
   /**
    * Clean up temporary files from a given directory.
    * Silently ignores errors if a file cannot be deleted.
-   * @param directory The root directory path
+   * @param directory The root directory path (can be undefined if no workspace is open)
    * @param fileNames Array of file names to delete
    */
-  public static async cleanupTemporaryFiles(directory: string, fileNames: string[]): Promise<void> {
-    // Early exit if no workspace folders are open
-    if (!workspace.workspaceFolders || workspace.workspaceFolders.length === 0) {
+  public static async cleanupTemporaryFiles(directory: string | undefined, fileNames: string[]): Promise<void> {
+    // Early exit if no workspace folders are open or directory is undefined
+    if (!workspace.workspaceFolders || workspace.workspaceFolders.length === 0 || !directory) {
       return;
     }
 

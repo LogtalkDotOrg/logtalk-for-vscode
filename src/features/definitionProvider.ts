@@ -70,6 +70,10 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
 
     let location: Location = null;
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return location;
+    }
     const def = path.join(dir, ".vscode_definition");
 
     if (fs.existsSync(def)) {

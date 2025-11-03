@@ -158,6 +158,10 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     await LogtalkTerminal.getAncestors(file, entity);
 
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return [];
+    }
     const refs = path.join(dir, ".vscode_ancestors");
 
     if (fs.existsSync(refs)) {
@@ -206,6 +210,10 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     await LogtalkTerminal.getDescendants(file, entity);
 
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return [];
+    }
     const refs = path.join(dir, ".vscode_descendants");
 
     if (fs.existsSync(refs)) {

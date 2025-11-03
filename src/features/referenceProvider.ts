@@ -71,6 +71,10 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
 
     let locations: Location[] = [];
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return locations;
+    }
     const refs = path.join(dir, ".vscode_references");
 
     if (fs.existsSync(refs)) {

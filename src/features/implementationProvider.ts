@@ -71,6 +71,10 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
 
     let locations: Location[] = [];
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return locations;
+    }
     const imps = path.join(dir, ".vscode_implementations");
 
     if (fs.existsSync(imps)) {

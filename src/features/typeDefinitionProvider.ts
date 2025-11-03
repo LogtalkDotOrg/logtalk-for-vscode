@@ -57,6 +57,10 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
     await LogtalkTerminal.getTypeDefinition(doc, position, entity);
 
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return null;
+    }
     const tdef = path.join(dir, ".vscode_type_definition");
 
     if (fs.existsSync(tdef)) {

@@ -199,6 +199,10 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     await LogtalkTerminal.getCallers(file, position, predicate);
 
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return [];
+    }
     const refs = path.join(dir, ".vscode_callers");
 
     if (fs.existsSync(refs)) {
@@ -250,6 +254,10 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     await LogtalkTerminal.getCallees(file, position, predicate);
 
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return [];
+    }
     const refs = path.join(dir, ".vscode_callees");
 
     if (fs.existsSync(refs)) {

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.67.0]
+
+* Fix extension activation errors when only a file but no workspace folder is open
+
 ## [0.66.0]
 
 * Improve performance of the tests explorer and CodeLens providers by only invalidating results when files are saved with unsaved changes

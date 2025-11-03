@@ -65,6 +65,10 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
 
     let location: Location = null;
     const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      this.logger.error('No workspace folder open');
+      return location;
+    }
     const dcl = path.join(dir, ".vscode_declaration");
 
     if (fs.existsSync(dcl)) {
