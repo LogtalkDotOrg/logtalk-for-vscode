@@ -2,6 +2,7 @@
 
 ## [0.66.0]
 
+* Simplify Context7 MCP server tools name handling in the chat participant
 * Improve profiling and chat participant commands documentation in the readme file
 
 ## [0.65.0]

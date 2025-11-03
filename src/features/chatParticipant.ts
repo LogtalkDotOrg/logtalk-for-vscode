@@ -80,10 +80,10 @@ export class LogtalkChatParticipant {
       stream.markdown(`❌ **Error:** ${error instanceof Error ? error.message : String(error)}`);
       
       // Provide helpful fallback information
-      stream.markdown(`\n\n**Helpful Resources:**\n`);
-      stream.markdown(`- [Logtalk Website](https://logtalk.org/)\n`);
-      stream.markdown(`- [Logtalk Documentation](https://logtalk.org/documentation.html)\n`);
-      stream.markdown(`- [Logtalk GitHub](https://github.com/LogtalkDotOrg/logtalk3)\n`);
+      stream.markdown(`\n\n**Helpful resources:**\n`);
+      stream.markdown(`- [Logtalk website](https://logtalk.org/)\n`);
+      stream.markdown(`- [Logtalk documentation](https://logtalk.org/documentation.html)\n`);
+      stream.markdown(`- [Logtalk repo](https://github.com/LogtalkDotOrg/logtalk3)\n`);
     }
 
     return result;
@@ -153,7 +153,7 @@ export class LogtalkChatParticipant {
     token: vscode.CancellationToken
   ): Promise<void> {
     const query = request.prompt.trim();
-    
+
     // Use the language model to provide examples and explanations
     await this.useLanguageModelForExamples(request, stream, token, query);
   }
@@ -247,7 +247,6 @@ export class LogtalkChatParticipant {
 
       // Try to get examples from multiple sources
       let examplesContext = "";
-      let context7Available = false;
       let handbookResults: string[] = [];
       let apisResults: string[] = [];
 
@@ -266,168 +265,34 @@ export class LogtalkChatParticipant {
       }
 
       // Try to get examples from Context7 MCP server
-
       try {
         this.logger.debug("Attempting to use Context7 MCP server for examples...");
 
-        // Debug: List available tools
-        try {
-          const availableTools = vscode.lm.tools;
-          this.logger.debug("Available Language Model tools:", availableTools.map(tool => tool.name));
-        } catch (toolsError) {
-          this.logger.debug("Could not list available tools:", toolsError);
-        }
+        // Get library documentation focused on examples
+        // Use the Logtalk library ID directly
+        const docsResult = await vscode.lm.invokeTool(
+          "mcp_context7_get-library-docs",
+          {
+            input: {
+              context7CompatibleLibraryID: "/logtalkdotorg/logtalk3",
+              topic: `examples ${query}`,
+              tokens: 5000
+            },
+            toolInvocationToken: undefined
+          },
+          token
+        );
 
-        // Try different possible tool names for Context7
-        const possibleResolveToolNames = [
-          "bb7_resolve-library-id",         // Actual Context7 tool name
-          "resolve-library-id_Context7",    // Original expected name
-          "resolve-library-id",             // Without suffix
-          "Context7_resolve-library-id",    // Different separator
-          "context7-resolve-library-id"     // Lowercase with hyphen
-        ];
+        if (docsResult?.content?.length) {
+          // Extract text from the tool result content parts
+          const docsContent = docsResult.content
+            .map((part: any) => (typeof part === 'string' ? part : part.value || ''))
+            .join('\n\n');
 
-        let resolveResult = null;
-
-        for (const toolName of possibleResolveToolNames) {
-          try {
-            this.logger.debug(`Trying tool name: ${toolName}`);
-
-            // Different parameter structures for different tool names
-            let toolParams: any;
-            if (toolName.startsWith("bb7_")) {
-              // Context7 MCP server expects parameters in a specific structure
-              toolParams = {
-                input: {
-                  libraryName: "logtalk"
-                }
-              };
-            } else {
-              // Other tools might expect direct parameters
-              toolParams = {
-                libraryName: "logtalk"
-              };
-            }
-
-            this.logger.debug(`Using parameters:`, toolParams);
-            resolveResult = await vscode.lm.invokeTool(toolName, toolParams as any, token);
-            this.logger.debug(`Success with tool name: ${toolName}`);
-            break;
-          } catch (toolError) {
-            this.logger.debug(`Failed with tool name ${toolName}:`, toolError instanceof Error ? toolError.message : String(toolError));
-          }
-        }
-
-        if (!resolveResult) {
-          throw new Error("None of the expected Context7 resolve tool names worked");
-        }
-
-        this.logger.debug("Resolve result:", resolveResult);
-        this.logger.debug("Resolve result type:", typeof resolveResult);
-        this.logger.debug("Resolve result keys:", resolveResult ? Object.keys(resolveResult) : "null");
-
-        if (resolveResult && resolveResult.content) {
-          const libraryInfo = Array.isArray(resolveResult.content) ? resolveResult.content.join('') : resolveResult.content;
-          this.logger.debug("Library info:", libraryInfo);
-          this.logger.debug("Library info type:", typeof libraryInfo);
-          this.logger.debug("Library info length:", libraryInfo ? libraryInfo.length : "null");
-
-          // Try multiple patterns to extract library ID from the response
-          let libraryId = null;
-
-          // Pattern 1: "Library ID: /path/to/library"
-          let libraryIdMatch = libraryInfo.match(/Library ID:\s*([^\s\n]+)/);
-          if (libraryIdMatch) {
-            libraryId = libraryIdMatch[1];
-            this.logger.debug("Extracted library ID with pattern 1:", libraryId);
-          } else {
-            // Pattern 2: Look for any path-like string starting with /
-            libraryIdMatch = libraryInfo.match(/\/[a-zA-Z0-9_\-\/]+/);
-            if (libraryIdMatch) {
-              libraryId = libraryIdMatch[0];
-              this.logger.debug("Extracted library ID with pattern 2:", libraryId);
-            } else {
-              // Pattern 3: Try to find any identifier that looks like a library ID
-              libraryIdMatch = libraryInfo.match(/([a-zA-Z0-9_\-\/]+)/);
-              if (libraryIdMatch) {
-                libraryId = libraryIdMatch[1];
-                this.logger.debug("Extracted library ID with pattern 3:", libraryId);
-              } else {
-                this.logger.debug("No library ID pattern matched. Full response content:", JSON.stringify(libraryInfo, null, 2));
-              }
-            }
-          }
-
-          if (libraryId) {
-
-            // Get library documentation focused on examples
-            this.logger.debug("Calling get-library-docs tool with libraryId:", libraryId);
-
-            const possibleDocsToolNames = [
-              "bb7_get-library-docs",           // Actual Context7 tool name
-              "get-library-docs_Context7",      // Original expected name
-              "get-library-docs",               // Without suffix
-              "Context7_get-library-docs",      // Different separator
-              "context7-get-library-docs"       // Lowercase with hyphen
-            ];
-
-            let docsResult = null;
-
-            for (const toolName of possibleDocsToolNames) {
-              try {
-                this.logger.debug(`Trying docs tool name: ${toolName}`);
-
-                // Different parameter structures for different tool names
-                let toolParams: any;
-                if (toolName.startsWith("bb7_")) {
-                  // Context7 MCP server expects parameters in a specific structure
-                  toolParams = {
-                    input: {
-                      context7CompatibleLibraryID: libraryId,
-                      topic: `examples ${query}`,
-                      tokens: 5000
-                    }
-                  };
-                } else {
-                  // Other tools might expect direct parameters
-                  toolParams = {
-                    context7CompatibleLibraryID: libraryId,
-                    topic: `examples ${query}`,
-                    tokens: 5000
-                  };
-                }
-
-                this.logger.debug(`Using docs parameters:`, toolParams);
-                docsResult = await vscode.lm.invokeTool(toolName, toolParams, token);
-                this.logger.debug(`Success with docs tool name: ${toolName}`);
-                break;
-              } catch (toolError) {
-                this.logger.debug(`Failed with docs tool name ${toolName}:`, toolError instanceof Error ? toolError.message : String(toolError));
-              }
-            }
-
-            if (!docsResult) {
-              this.logger.debug("None of the expected Context7 docs tool names worked");
-              return; // Skip this iteration but don't throw error
-            }
-
-            this.logger.debug("Docs result:", docsResult);
-
-            if (docsResult && docsResult.content) {
-              const docsContent = Array.isArray(docsResult.content) ? docsResult.content.join('\n\n') : docsResult.content;
-              examplesContext = `\n\nRelevant Logtalk examples and documentation:\n${docsContent}`;
-              context7Available = true;
-              this.logger.debug("Successfully retrieved Context7 documentation");
-            } else {
-              this.logger.debug("No content in docs result");
-            }
-          } else {
-            this.logger.debug("Could not extract library ID from response, trying 'logtalk' as fallback");
-            // Fallback: try using "logtalk" directly as library ID
-            libraryId = "logtalk";
-          }
+          examplesContext = `\n\nRelevant Logtalk examples and documentation:\n${docsContent}`;
+          this.logger.debug("Successfully retrieved Context7 documentation");
         } else {
-          this.logger.debug("No content in resolve result");
+          this.logger.debug("No content in docs result");
         }
       } catch (mcpError) {
         this.logger.debug("Context7 MCP server error details:", mcpError);
