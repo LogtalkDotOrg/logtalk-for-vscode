@@ -2,8 +2,9 @@
 
 ## [0.66.0]
 
-* Simplify Context7 MCP server tools name handling in the chat participant
+* Improve performance of the tests explorer and CodeLens providers by only invalidating results when files are saved with unsaved changes
 * Improve profiling and chat participant commands documentation in the readme file
+* Simplify Context7 MCP server tools name handling in the chat participant
 * Fix chat participant follow-up prompts to include the correct slash command and the previous query
 
 ## [0.65.0]

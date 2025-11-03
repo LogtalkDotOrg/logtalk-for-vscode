@@ -30,7 +30,12 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
       this._onDidChangeCodeLenses.fire();
     });
 
-    this.textDocumentListener = workspace.onDidChangeTextDocument((e) => {
+    this.textDocumentListener = workspace.onWillSaveTextDocument((e) => {
+      // Only process Logtalk files that have unsaved changes
+      if (e.document.languageId !== 'logtalk' || !e.document.isDirty) {
+        return;
+      }
+
       // Remove test results only for the edited file
       const editedFile = path.resolve(e.document.uri.fsPath).split(path.sep).join("/");
       const dir = path.dirname(e.document.uri.fsPath);

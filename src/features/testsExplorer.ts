@@ -195,14 +195,15 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     });
     this.disposables.push(workspaceFoldersListener);
 
-    // Watch for source file changes to invalidate test results
-    const textDocumentListener = workspace.onDidChangeTextDocument(event => {
-      // Only process Logtalk files
-      if (event.document.languageId === 'logtalk') {
+    // Watch for source file saves to invalidate test results
+    // Use onWillSaveTextDocument to check if document is dirty before save
+    const saveDocumentListener = workspace.onWillSaveTextDocument(event => {
+      // Only process Logtalk files that have unsaved changes
+      if (event.document.languageId === 'logtalk' && event.document.isDirty) {
         this.invalidateTestResultsForFile(event.document.uri);
       }
     });
-    this.disposables.push(textDocumentListener);
+    this.disposables.push(saveDocumentListener);
   }
 
   /**
