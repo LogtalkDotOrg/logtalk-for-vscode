@@ -8,6 +8,7 @@ interface LogtalkChatResult {
   metadata: {
     command?: string;
     source?: string;
+    query?: string;
   };
 }
 
@@ -51,10 +52,11 @@ export class LogtalkChatParticipant {
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken
   ): Promise<LogtalkChatResult> {
-    
+
     const result: LogtalkChatResult = {
       metadata: {
-        command: request.command
+        command: request.command,
+        query: request.prompt.trim()
       }
     };
 
@@ -599,33 +601,41 @@ Answer:`)
     _token: vscode.CancellationToken
   ): vscode.ChatFollowup[] {
     const followups: vscode.ChatFollowup[] = [];
+    const query = result.metadata.query || "";
 
-    if (result.metadata.command === "handbook") {
+    // Provide command-specific followups based on what was just searched
+    // Use the same query to search in a different documentation source
+    if (result.metadata.command === "handbook" && query) {
       followups.push({
-        prompt: "Search the APIs documentation for related information",
-        label: "Search APIs"
+        prompt: query,
+        label: "Search APIs",
+        command: "apis"
       });
-    } else if (result.metadata.command === "apis") {
+    } else if (result.metadata.command === "apis" && query) {
       followups.push({
-        prompt: "Search the handbook for more details",
-        label: "Search Handbook"
+        prompt: query,
+        label: "Search Handbook",
+        command: "handbook"
       });
-    } else if (result.metadata.command === "examples") {
+    } else if (result.metadata.command === "examples" && query) {
       followups.push({
-        prompt: "Show me more advanced examples",
-        label: "Advanced Examples"
+        prompt: query,
+        label: "Search Handbook",
+        command: "handbook"
       });
     }
 
     // Always provide these general followups
     followups.push(
       {
-        prompt: "How do I get started with Logtalk?",
-        label: "Getting Started"
+        prompt: "getting started",
+        label: "Getting Started",
+        command: "handbook"
       },
       {
-        prompt: "Show me Logtalk object-oriented programming examples",
-        label: "OOP Examples"
+        prompt: "object-oriented programming",
+        label: "OOP Examples",
+        command: "examples"
       }
     );
 

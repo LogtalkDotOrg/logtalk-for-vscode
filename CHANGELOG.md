@@ -4,6 +4,7 @@
 
 * Simplify Context7 MCP server tools name handling in the chat participant
 * Improve profiling and chat participant commands documentation in the readme file
+* Fix chat participant follow-up prompts to include the correct slash command and the previous query
 
 ## [0.65.0]
 
