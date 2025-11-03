@@ -3,6 +3,7 @@
 ## [0.67.0]
 
 * Fix extension activation errors when only a file but no workspace folder is open
+* Fix chat participant resolving of concrete language models to use for requests
 
 ## [0.66.0]
 

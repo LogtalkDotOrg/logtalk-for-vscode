@@ -17,6 +17,55 @@ export class LogtalkChatParticipant {
   private documentationCache: DocumentationCache;
   private logger = getLogger();
 
+  /**
+   * Resolve a concrete language model to use for requests.
+   * Some UI-selected models (for example an "auto" placeholder) are not valid
+   * to call sendRequest on. In that case ask the language-model subsystem to
+   * pick concrete candidates using a selector derived from the selected model.
+   */
+  private async resolveConcreteModel(
+    model: vscode.LanguageModelChat | undefined,
+    token: vscode.CancellationToken
+  ): Promise<vscode.LanguageModelChat | undefined> {
+    if (!model) {
+      return undefined;
+    }
+
+    // If the model id looks like a placeholder (e.g. 'auto') prefer to select
+    // a concrete model from the lm subsystem. If it's already concrete, return it.
+    const id = model.id?.toLowerCase?.() ?? "";
+    if (id && !id.includes("auto") && !id.includes("default")) {
+      return model;
+    }
+
+    // Build a selector preferring family, then vendor, then id as a fallback.
+    const selector: vscode.LanguageModelChatSelector = {};
+    try {
+      // @ts-ignore - family and vendor may be present on the runtime model
+      if ((model as any).family) {
+        // prefer a concrete family selection
+        // @ts-ignore
+        selector.family = (model as any).family;
+      } else if ((model as any).vendor) {
+        // @ts-ignore
+        selector.vendor = (model as any).vendor;
+      } else if (model.id) {
+        selector.id = model.id;
+      }
+
+      const candidates = await vscode.lm.selectChatModels(selector);
+      if (candidates && candidates.length > 0) {
+        return candidates[0];
+      }
+    } catch (err) {
+      this.logger.debug("Failed to select concrete language model, falling back to request.model:", err instanceof Error ? err.message : String(err));
+    }
+
+    // If selection failed, return the original model (best-effort) so caller can
+    // decide to fallback to documentation-only behavior.
+    return model;
+  }
+
   constructor(context: vscode.ExtensionContext) {
     this.documentationCache = DocumentationCache.getInstance(context);
     
@@ -239,8 +288,8 @@ export class LogtalkChatParticipant {
     query: string
   ): Promise<void> {
     try {
-      // Use the model from the request context (user's selected model)
-      const model = request.model;
+  // Resolve a concrete model to avoid placeholder ids like "auto"
+  const model = await this.resolveConcreteModel(request.model, token);
 
       if (!model) {
         stream.markdown("❌ No language model available. Please ensure GitHub Copilot is installed and authenticated.");
@@ -380,8 +429,8 @@ Format your response in Markdown with proper code blocks using \`\`\`logtalk for
     documentationResults: string[]
   ): Promise<void> {
     try {
-      // Use the model from the request context (user's selected model)
-      const model = request.model;
+  // Resolve a concrete model to avoid placeholder ids like "auto"
+  const model = await this.resolveConcreteModel(request.model, token);
 
       if (!model) {
         // Fallback to showing documentation results only
@@ -451,8 +500,8 @@ Answer:`)
     handbookResults: string[]
   ): Promise<void> {
     try {
-      // Use the model from the request context (user's selected model)
-      const model = request.model;
+  // Resolve a concrete model to avoid placeholder ids like "auto"
+  const model = await this.resolveConcreteModel(request.model, token);
 
       if (!model) {
         // Fallback to showing handbook results only
@@ -523,8 +572,8 @@ Answer:`)
     apisResults: string[]
   ): Promise<void> {
     try {
-      // Use the model from the request context (user's selected model)
-      const model = request.model;
+  // Resolve a concrete model to avoid placeholder ids like "auto"
+  const model = await this.resolveConcreteModel(request.model, token);
 
       if (!model) {
         // Fallback to showing APIs results only
