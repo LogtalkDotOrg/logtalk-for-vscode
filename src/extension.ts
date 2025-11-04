@@ -809,6 +809,12 @@ export function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(LogtalkTerminal.init(context, linter, testsReporter, deadCodeScanner, documentationLinter));
   updateBreakpointStates(logtalkDebuggingEnabled);
+
+  // Load project on activation if setting is enabled
+  const loadProjectOnActivation = workspace.getConfiguration("logtalk").get<boolean>("loadProject.onActivation", false);
+  if (loadProjectOnActivation) {
+    commands.executeCommand('logtalk.load.project');
+  }
 }
 
 export function deactivate() {

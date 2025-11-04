@@ -2,6 +2,7 @@
 
 ## [0.67.0]
 
+* Add "logtalk.loadProject.onActivation" setting for loading the project on extension activation
 * Fix extension activation errors when only a file but no workspace folder is open
 * Fix chat participant resolving of concrete language models to use for requests
 
