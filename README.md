@@ -404,13 +404,16 @@ Hover contents is provided for built-in directives, built-in predicates, and bui
 
 Type `@logtalk` in the Chat view followed by your question. The chat participant supports several slash commands for specific types of queries:
 
-|           Command | Description                                                    |
-| ----------------: | :------------------------------------------------------------- |
-|        `/handbook` | Search the Logtalk Handbook documentation                     |
-|            `/apis` | Search the Logtalk APIs documentation                         |
-|        `/examples` | Get help with Logtalk code examples and patterns              |
+|       Command | Description                                       |
+| ------------: | :------------------------------------------------ |
+|   `/handbook` | Search the Logtalk Handbook documentation         |
+|       `/apis` | Search the Logtalk APIs documentation             |
+|   `/examples` | Get help with Logtalk code examples and patterns  |
+|  `/workspace` | Search project-specific documentation             |
 
 The slash commands work best with keywords. For example, `/examples threaded engines` is better than `/examples How to use multi-threading with engines`.
+
+For the `/workspace` slash command, the documentation assumes a `xml_docs` folder at the root of the workspace containing HTML or Markdown files (which can be generated using the "Generate Project Documentation" or ""Generate Documentation" commands). This slash command works best with entities and predicates names or with keywords found in their descriptions.
 
 **Examples:**
 
@@ -418,6 +421,7 @@ The slash commands work best with keywords. For example, `/examples threaded eng
 - `@logtalk /handbook object relations`
 - `@logtalk /apis length/2`
 - `@logtalk /examples recursive predicates`
+- `@logtalk /workspace print state`
 
 **Features:**
 

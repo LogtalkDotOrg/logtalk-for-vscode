@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.68.0]
+
+* Add chat participant `/workspace` slash command for searching workspace-specific documentation
+
 ## [0.67.0]
 
 * Add "logtalk.loadProject.onActivation" setting for loading the project on extension activation

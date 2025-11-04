@@ -1,8 +1,11 @@
 "use strict";
 
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 import { DocumentationCache } from "../utils/documentationCache";
 import { getLogger } from "../utils/logger";
+const Fuse: any = require("fuse.js");
 
 interface LogtalkChatResult {
   metadata: {
@@ -10,6 +13,37 @@ interface LogtalkChatResult {
     source?: string;
     query?: string;
   };
+}
+
+interface WorkspaceDocSection {
+  header: string;
+  content: string;
+  source: string;
+  filePath: string;
+}
+
+interface FuseOptions {
+  keys?: Array<{
+    name: string;
+    weight?: number;
+  } | string>;
+  threshold?: number;
+  distance?: number;
+  minMatchCharLength?: number;
+  includeScore?: boolean;
+  includeMatches?: boolean;
+  ignoreLocation?: boolean;
+  findAllMatches?: boolean;
+}
+
+interface FuseResult<T> {
+  item: T;
+  score?: number;
+  matches?: Array<{
+    indices: Array<[number, number]>;
+    key?: string;
+    value?: string;
+  }>;
 }
 
 export class LogtalkChatParticipant {
@@ -110,19 +144,25 @@ export class LogtalkChatParticipant {
     };
 
     try {
-      // Show progress
-      stream.progress("Searching Logtalk documentation...");
-
+      // Handle different commands
       if (request.command === "handbook") {
+        stream.progress("Searching the Logtalk Handbook...");
         await this.handleHandbookCommand(request, stream, token);
         result.metadata.source = "handbook";
       } else if (request.command === "apis") {
+        stream.progress("Searching the Logtalk APIs...");
         await this.handleApisCommand(request, stream, token);
         result.metadata.source = "apis";
       } else if (request.command === "examples") {
+        stream.progress("Searching for relevant examples...");
         await this.handleExamplesCommand(request, stream, token);
         result.metadata.source = "examples";
+      } else if (request.command === "workspace") {
+        stream.progress("Searching the workspace documentation...");
+        await this.handleWorkspaceCommand(request, stream, token);
+        result.metadata.source = "workspace";
       } else {
+        stream.progress("Searching for answers...");
         await this.handleGeneralQuery(request, stream, token);
         result.metadata.source = "general";
       }
@@ -209,6 +249,34 @@ export class LogtalkChatParticipant {
     await this.useLanguageModelForExamples(request, stream, token, query);
   }
 
+  private async handleWorkspaceCommand(
+    request: vscode.ChatRequest,
+    stream: vscode.ChatResponseStream,
+    token: vscode.CancellationToken
+  ): Promise<void> {
+    const query = request.prompt.trim();
+
+    if (!query) {
+      stream.markdown("Please provide a search term for workspace documentation.");
+      stream.markdown("\n\n**Note:** This command searches documentation in the `xml_docs` folder of your workspace.");
+      return;
+    }
+
+    const results = await this.getWorkspaceContext(query, 8);
+
+    if (results.length === 0) {
+      stream.markdown(`No results found in workspace documentation for "${query}".`);
+      stream.markdown("\n\n**Possible reasons:**");
+      stream.markdown("\n- The `Generate Project Documentation` or `Generate Documentation` commands have not yet been run");
+      stream.markdown("\n- No documentation sections matched your search query");
+      return;
+    }
+
+    // Use RAG with workspace documentation
+    await this.useLanguageModelWithContext(request, stream, token, query, results);
+
+  }
+
   private async handleGeneralQuery(
     request: vscode.ChatRequest,
     stream: vscode.ChatResponseStream,
@@ -216,7 +284,7 @@ export class LogtalkChatParticipant {
   ): Promise<void> {
     const query = request.prompt.trim();
 
-    // Search both Handbook and APIs documentation separately for comprehensive coverage
+    // Search Handbook, APIs, and workspace documentation separately for comprehensive coverage
     let handbookResults: string[] = [];
     let apisResults: string[] = [];
 
@@ -279,6 +347,245 @@ export class LogtalkChatParticipant {
 
     // Use the language model with combined search results context
     await this.useLanguageModelWithContext(request, stream, token, query, combinedResults);
+  }
+
+  /**
+   * Search workspace documentation in xml_docs folder for relevant content.
+   * Supports both HTML and Markdown files.
+   * @param query The search query
+   * @param maxResults Maximum number of results to return (default: 8)
+   * @returns Array of formatted search results
+   */
+  private async getWorkspaceContext(query: string, maxResults: number = 8): Promise<string[]> {
+    // Get the first workspace folder
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      this.logger.debug("No workspace folder found for workspace documentation search");
+      return [];
+    }
+
+    const workspaceRoot = workspaceFolders[0].uri.fsPath;
+    const xmlDocsPath = path.join(workspaceRoot, "xml_docs");
+
+    // Check if xml_docs folder exists
+    if (!fs.existsSync(xmlDocsPath)) {
+      this.logger.debug(`xml_docs folder not found at: ${xmlDocsPath}`);
+      return [];
+    }
+
+    this.logger.debug(`Searching workspace documentation in: ${xmlDocsPath}`);
+
+    // Find all HTML and Markdown files in xml_docs folder
+    const docFiles: string[] = [];
+    const findDocFiles = (dir: string) => {
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            findDocFiles(fullPath);
+          } else if (entry.isFile()) {
+            const ext = path.extname(entry.name).toLowerCase();
+            if (ext === '.html' || ext === '.md' || ext === '.markdown') {
+              docFiles.push(fullPath);
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`Error reading directory ${dir}:`, error);
+      }
+    };
+
+    findDocFiles(xmlDocsPath);
+
+    if (docFiles.length === 0) {
+      this.logger.debug("No HTML or Markdown files found in xml_docs folder");
+      return [];
+    }
+
+    this.logger.debug(`Found ${docFiles.length} documentation files in workspace`);
+
+    // Extract sections from all documentation files
+    const allSections: WorkspaceDocSection[] = [];
+
+    for (const filePath of docFiles) {
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const fileName = path.basename(filePath);
+        const ext = path.extname(filePath).toLowerCase();
+
+        if (ext === '.html') {
+          // Extract sections from HTML
+          const sections = this.extractHtmlSections(content, fileName, filePath);
+          allSections.push(...sections);
+        } else {
+          // Extract sections from Markdown
+          const sections = this.extractMarkdownSections(content, fileName, filePath);
+          allSections.push(...sections);
+        }
+      } catch (error) {
+        this.logger.warn(`Error reading file ${filePath}:`, error);
+      }
+    }
+
+    if (allSections.length === 0) {
+      this.logger.debug("No sections extracted from workspace documentation");
+      return [];
+    }
+
+    this.logger.debug(`Extracted ${allSections.length} sections from workspace documentation`);
+
+    // Configure Fuse.js for fuzzy search
+    const fuseOptions: FuseOptions = {
+      keys: [
+        {
+          name: 'header',
+          weight: 0.7  // Give more weight to header matches
+        },
+        {
+          name: 'content',
+          weight: 0.3  // Less weight to content matches
+        }
+      ],
+      threshold: 0.4,
+      distance: 100,
+      minMatchCharLength: 2,
+      includeScore: true,
+      includeMatches: true,
+      ignoreLocation: true,
+      findAllMatches: true
+    };
+
+    const fuse = new Fuse(allSections, fuseOptions);
+    const fuseResults: FuseResult<WorkspaceDocSection>[] = fuse.search(query);
+
+    this.logger.debug(`Fuse.js search completed for workspace docs, found ${fuseResults.length} matches`);
+
+    // Process and format results
+    const processedResults = fuseResults.map((result) => {
+      const section = result.item;
+      const score = 1 - (result.score || 0);
+
+      this.logger.debug(`  Match: "${section.header}" from ${section.source} (score: ${score.toFixed(3)})`);
+
+      return {
+        score,
+        content: `**From Workspace Documentation - ${section.source} - ${section.header}:**\n\n${section.content}\n`
+      };
+    });
+
+    // Sort by score and limit results
+    const sortedResults = processedResults
+      .sort((a, b) => b.score - a.score)
+      .slice(0, maxResults);
+
+    this.logger.debug(`Returning top ${sortedResults.length} workspace documentation results`);
+
+    return sortedResults.map(result => result.content);
+  }
+
+  /**
+   * Extract sections from HTML content
+   */
+  private extractHtmlSections(html: string, fileName: string, filePath: string): WorkspaceDocSection[] {
+    const sections: WorkspaceDocSection[] = [];
+
+    // Simple HTML parsing - look for heading tags and their content
+    // Match h1-h6 tags and capture content until next heading or end
+    const headingRegex = /<h([1-6])[^>]*>(.*?)<\/h\1>/gi;
+    const matches = [...html.matchAll(headingRegex)];
+
+    for (let i = 0; i < matches.length; i++) {
+      const match = matches[i];
+      const headerHtml = match[2];
+      // Strip HTML tags from header
+      const header = headerHtml.replace(/<[^>]*>/g, '').trim();
+
+      // Find content between this heading and the next
+      const startPos = match.index! + match[0].length;
+      const endPos = i < matches.length - 1 ? matches[i + 1].index! : html.length;
+      const contentHtml = html.substring(startPos, endPos);
+
+      // Strip HTML tags from content but keep some structure
+      const content = contentHtml
+        .replace(/<script[^>]*>.*?<\/script>/gi, '')
+        .replace(/<style[^>]*>.*?<\/style>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (header && content) {
+        sections.push({
+          header,
+          content: content.substring(0, 1000), // Limit content length
+          source: fileName,
+          filePath
+        });
+      }
+    }
+
+    return sections;
+  }
+
+  /**
+   * Extract sections from Markdown content
+   */
+  private extractMarkdownSections(markdown: string, fileName: string, filePath: string): WorkspaceDocSection[] {
+    const sections: WorkspaceDocSection[] = [];
+    const lines = markdown.split('\n');
+    let currentSection: { header: string; content: string } | null = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Check for markdown headers (### or more)
+      const headerMatch = line.match(/^(#{3,})\s+(.+)$/);
+
+      if (headerMatch) {
+        // Save previous section if exists
+        if (currentSection) {
+          sections.push({
+            header: currentSection.header,
+            content: currentSection.content.trim(),
+            source: fileName,
+            filePath
+          });
+        }
+
+        // Start new section
+        currentSection = {
+          header: headerMatch[2].trim(),
+          content: ''
+        };
+      } else if (currentSection) {
+        // Check if we hit a higher-level header (end of current section)
+        const higherHeaderMatch = line.match(/^(#{1,2})\s+(.+)$/);
+        if (higherHeaderMatch) {
+          sections.push({
+            header: currentSection.header,
+            content: currentSection.content.trim(),
+            source: fileName,
+            filePath
+          });
+          currentSection = null;
+        } else {
+          // Add line to current section
+          currentSection.content += line + '\n';
+        }
+      }
+    }
+
+    // Add the last section if exists
+    if (currentSection) {
+      sections.push({
+        header: currentSection.header,
+        content: currentSection.content.trim(),
+        source: fileName,
+        filePath
+      });
+    }
+
+    return sections;
   }
 
   private async useLanguageModelForExamples(
