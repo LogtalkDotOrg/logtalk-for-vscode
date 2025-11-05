@@ -220,10 +220,26 @@ export default class LogtalkTerminal {
    * Dispose of all resources
    */
   public static dispose(): void {
+    // Explicitly dispose of the terminal to prevent restoration
+    if (LogtalkTerminal._terminal) {
+      try {
+        // Hide the terminal before disposing to reduce chance of restoration
+        LogtalkTerminal._terminal.hide();
+        LogtalkTerminal._terminal.dispose();
+      } catch (error) {
+        // Ignore errors during disposal
+      }
+      LogtalkTerminal._terminal = null;
+    }
+
+    // Dispose of all other resources
     for (const disposable of LogtalkTerminal.disposables) {
       disposable.dispose();
     }
     LogtalkTerminal.disposables = [];
+
+    // Clear loaded directories
+    LogtalkTerminal._loadedDirectories.clear();
   }
 
   public static createLogtalkTerm() {

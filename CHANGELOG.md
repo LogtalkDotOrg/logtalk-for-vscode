@@ -4,6 +4,7 @@
 
 * Add chat participant `/workspace` slash command for searching workspace-specific documentation
 * Update the chat participant to also include recent chat history in requests to the language model
+* Explicitly dispose of the Logtalk terminal to prevent restoration when the extension is deactivated
 
 ## [0.67.0]
 

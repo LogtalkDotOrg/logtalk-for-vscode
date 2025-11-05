@@ -630,6 +630,8 @@ If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated
 
 VSCode triggers the "Go to Definition" computations if the cursor happens to be in the middle of some text when pressing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow disabling this "feature". This extension implements mitigation measures to avoid most accidental "Go to Definition" computations.
 
+In rare cases, the Logtalk terminal may be restored when reloading the VSCode window or restarting VSCode, despite being marked as transient, due to VSCode limitations. But the restored terminal will not load the required Logtalk VSCode support files. The solution is to manually close the restored terminal. If this is recurrent issue, you can disable terminal persistence in VSCode by setting `terminal.integrated.enablePersistentSessions` to `false` in your VSCode settings (note that this will disable terminal persistence for all extensions).
+
 ## Development
 
 Developed and tested with **Logtalk 3.95.0** and **VSCode 1.105** on **macOS 14.8** and **Windows 10** with **Node 24.10**.
