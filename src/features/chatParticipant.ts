@@ -52,6 +52,79 @@ export class LogtalkChatParticipant {
   private logger = getLogger();
 
   /**
+   * Extract the last N conversation pairs from chat history and convert them to language model messages.
+   * Each pair consists of a user prompt followed by an assistant reply.
+   * @param context The chat context containing the history
+   * @param pairCount Number of recent conversation pairs to extract (default: 5)
+   * @returns Array of language model chat messages (user + assistant pairs)
+   */
+  private getChatHistory(context: vscode.ChatContext, pairCount: number = 5): vscode.LanguageModelChatMessage[] {
+    const history: vscode.LanguageModelChatMessage[] = [];
+
+    // We need to extract complete pairs (user request + assistant response)
+    // Work backwards through the history to find complete pairs
+    const pairs: Array<{ request: vscode.ChatRequestTurn; response: vscode.ChatResponseTurn }> = [];
+
+    for (let i = context.history.length - 1; i >= 0 && pairs.length < pairCount; i--) {
+      const item = context.history[i];
+
+      // Look for response turns and find their corresponding request
+      if (item instanceof vscode.ChatResponseTurn) {
+        // Find the preceding request turn
+        for (let j = i - 1; j >= 0; j--) {
+          const prevItem = context.history[j];
+          if (prevItem instanceof vscode.ChatRequestTurn) {
+            pairs.unshift({ request: prevItem, response: item });
+            i = j; // Skip to the request position
+            break;
+          }
+        }
+      }
+    }
+
+    // Convert pairs to language model messages
+    for (const pair of pairs) {
+      // Add user message
+      history.push(vscode.LanguageModelChatMessage.User(pair.request.prompt));
+
+      // Add assistant message - combine all response parts
+      const responseText = pair.response.response
+        .map(part => {
+          if (part instanceof vscode.ChatResponseMarkdownPart) {
+            return part.value.value;
+          }
+          return '';
+        })
+        .filter(text => text.length > 0)
+        .join('\n');
+
+      if (responseText) {
+        history.push(vscode.LanguageModelChatMessage.Assistant(responseText));
+      }
+    }
+
+    return history;
+  }
+
+  /**
+   * Add chat history to the messages array for context.
+   * @param messages The messages array to append history to
+   * @param context The chat context containing the history
+   * @param pairCount Number of recent conversation pairs (user + assistant) to include (default: 5)
+   */
+  private addChatHistoryToMessages(
+    messages: vscode.LanguageModelChatMessage[],
+    context: vscode.ChatContext,
+    pairCount: number = 5
+  ): void {
+    const history = this.getChatHistory(context, pairCount);
+    if (history.length > 0) {
+      messages.push(vscode.LanguageModelChatMessage.User("\n\nPrevious conversation context for reference:\n\n"));
+      messages.push(...history);
+    }
+  }
+
+  /**
    * Resolve a concrete language model to use for requests.
    * Some UI-selected models (for example an "auto" placeholder) are not valid
    * to call sendRequest on. In that case ask the language-model subsystem to
@@ -147,23 +220,23 @@ export class LogtalkChatParticipant {
       // Handle different commands
       if (request.command === "handbook") {
         stream.progress("Searching the Logtalk Handbook...");
-        await this.handleHandbookCommand(request, stream, token);
+        await this.handleHandbookCommand(request, context, stream, token);
         result.metadata.source = "handbook";
       } else if (request.command === "apis") {
         stream.progress("Searching the Logtalk APIs...");
-        await this.handleApisCommand(request, stream, token);
+        await this.handleApisCommand(request, context, stream, token);
         result.metadata.source = "apis";
       } else if (request.command === "examples") {
         stream.progress("Searching for relevant examples...");
-        await this.handleExamplesCommand(request, stream, token);
+        await this.handleExamplesCommand(request, context, stream, token);
         result.metadata.source = "examples";
       } else if (request.command === "workspace") {
         stream.progress("Searching the workspace documentation...");
-        await this.handleWorkspaceCommand(request, stream, token);
+        await this.handleWorkspaceCommand(request, context, stream, token);
         result.metadata.source = "workspace";
       } else {
         stream.progress("Searching for answers...");
-        await this.handleGeneralQuery(request, stream, token);
+        await this.handleGeneralQuery(request, context, stream, token);
         result.metadata.source = "general";
       }
 
@@ -182,6 +255,7 @@ export class LogtalkChatParticipant {
 
   private async handleHandbookCommand(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken
   ): Promise<void> {
@@ -201,7 +275,7 @@ export class LogtalkChatParticipant {
       }
 
       // Use RAG with the handbook documentation
-      await this.useLanguageModelWithHandbookContext(request, stream, token, query, results);
+      await this.useLanguageModelWithHandbookContext(request, context, stream, token, query, results);
 
     } catch (error) {
       this.logger.warn("Failed to search Logtalk Handbook for handbook command:", error);
@@ -211,6 +285,7 @@ export class LogtalkChatParticipant {
 
   private async handleApisCommand(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken
   ): Promise<void> {
@@ -230,7 +305,7 @@ export class LogtalkChatParticipant {
       }
 
       // Use RAG with the APIs documentation
-      await this.useLanguageModelWithApisContext(request, stream, token, query, results);
+      await this.useLanguageModelWithApisContext(request, context, stream, token, query, results);
 
     } catch (error) {
       this.logger.warn("Failed to search Logtalk APIs for apis command:", error);
@@ -240,17 +315,19 @@ export class LogtalkChatParticipant {
 
   private async handleExamplesCommand(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken
   ): Promise<void> {
     const query = request.prompt.trim();
 
     // Use the language model to provide examples and explanations
-    await this.useLanguageModelForExamples(request, stream, token, query);
+    await this.useLanguageModelForExamples(request, context, stream, token, query);
   }
 
   private async handleWorkspaceCommand(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken
   ): Promise<void> {
@@ -273,12 +350,13 @@ export class LogtalkChatParticipant {
     }
 
     // Use RAG with workspace documentation
-    await this.useLanguageModelWithContext(request, stream, token, query, results);
+    await this.useLanguageModelWithContext(request, context, stream, token, query, results);
 
   }
 
   private async handleGeneralQuery(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken
   ): Promise<void> {
@@ -346,7 +424,7 @@ export class LogtalkChatParticipant {
     this.logger.debug(`Combined ${combinedResults.length} total results for general query (target: ${targetTotal})`);
 
     // Use the language model with combined search results context
-    await this.useLanguageModelWithContext(request, stream, token, query, combinedResults);
+    await this.useLanguageModelWithContext(request, context, stream, token, query, combinedResults);
   }
 
   /**
@@ -590,6 +668,7 @@ export class LogtalkChatParticipant {
 
   private async useLanguageModelForExamples(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken,
     query: string
@@ -706,6 +785,8 @@ ${combinedContext ? `Use the provided documentation context from ${documentation
 Format your response in Markdown with proper code blocks using \`\`\`logtalk for Logtalk code.`)
       ];
 
+      this.addChatHistoryToMessages(messages, context, 5);
+
       const chatResponse = await model.sendRequest(messages, {}, token);
 
       stream.markdown(`## Logtalk Examples: ${query}\n\n`);
@@ -730,6 +811,7 @@ Format your response in Markdown with proper code blocks using \`\`\`logtalk for
 
   private async useLanguageModelWithContext(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken,
     query: string,
@@ -753,14 +835,14 @@ Format your response in Markdown with proper code blocks using \`\`\`logtalk for
       }
 
       // Prepare context from documentation
-      const context = documentationResults.length > 0
+      const docContext = documentationResults.length > 0
         ? `\n\nRelevant documentation context:\n${documentationResults.join('\n\n')}`
         : "";
 
       const messages = [
         vscode.LanguageModelChatMessage.User(`You are a Logtalk programming expert assistant. Answer questions about the Logtalk programming language using the provided documentation context as the source of truth when available.
 
-User question: ${query}${context}
+User question: ${query}${docContext}
 
 Please provide a helpful and accurate answer that:
 1. If you reference specific Logtalk features, libraries, predicates, or concepts, try to include practical examples when appropriate
@@ -775,6 +857,8 @@ Please provide a helpful and accurate answer that:
 
 Answer:`)
       ];
+
+      this.addChatHistoryToMessages(messages, context, 5);
 
       const chatResponse = await model.sendRequest(messages, {}, token);
       
@@ -801,6 +885,7 @@ Answer:`)
 
   private async useLanguageModelWithHandbookContext(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken,
     query: string,
@@ -822,13 +907,13 @@ Answer:`)
       }
 
       // Create context from handbook documentation
-      const context = handbookResults.slice(0, 8).join('\n\n'); // Limit to top 8 results
+      const handbookContext = handbookResults.slice(0, 8).join('\n\n'); // Limit to top 8 results
 
       const messages = [
         vscode.LanguageModelChatMessage.User(`You are a Logtalk programming expert assistant. Answer the user's question about "${query}" using the provided Logtalk Handbook documentation context as the source of truth.
 
 Context from Logtalk Handbook:
-${context}
+${handbookContext}
 
 User Question: ${query}
 
@@ -847,6 +932,8 @@ Please provide a comprehensive answer that:
 
 Answer:`)
       ];
+
+      this.addChatHistoryToMessages(messages, context, 5);
 
       const chatResponse = await model.sendRequest(messages, {}, token);
 
@@ -873,6 +960,7 @@ Answer:`)
 
   private async useLanguageModelWithApisContext(
     request: vscode.ChatRequest,
+    context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
     token: vscode.CancellationToken,
     query: string,
@@ -894,13 +982,13 @@ Answer:`)
       }
 
       // Create context from APIs documentation
-      const context = apisResults.slice(0, 8).join('\n\n'); // Limit to top 8 results
+      const apisContext = apisResults.slice(0, 8).join('\n\n'); // Limit to top 8 results
 
       const messages = [
         vscode.LanguageModelChatMessage.User(`You are a Logtalk programming expert assistant. Answer the user's question about "${query}" using the provided Logtalk APIs documentation context as the source of truth.
 
 Context from Logtalk APIs:
-${context}
+${apisContext}
 
 User Question: ${query}
 
@@ -920,6 +1008,8 @@ Please provide a comprehensive answer that:
 
 Answer:`)
       ];
+
+      this.addChatHistoryToMessages(messages, context, 5);
 
       const chatResponse = await model.sendRequest(messages, {}, token);
 

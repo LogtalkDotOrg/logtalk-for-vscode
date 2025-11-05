@@ -3,6 +3,7 @@
 ## [0.68.0]
 
 * Add chat participant `/workspace` slash command for searching workspace-specific documentation
+* Update the chat participant to also include recent chat history in requests to the language model
 
 ## [0.67.0]
 
