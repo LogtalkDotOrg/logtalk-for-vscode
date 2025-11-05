@@ -308,6 +308,56 @@ export class DocumentationCache {
     }
   }
 
+  /**
+   * Get a specific section from the documentation by header name.
+   * Searches for an exact or partial match of the section header.
+   * @param sectionName The name of the section to retrieve (e.g., "lgtunit")
+   * @param source Optional source to search in ('handbook' or 'apis')
+   * @returns The full content of the matching section, or null if not found
+   */
+  public async getSection(sectionName: string, source?: 'handbook' | 'apis'): Promise<string | null> {
+    const docs = await this.getDocumentation();
+    const allSections: DocumentationSection[] = [];
+
+    const searchInText = (text: string, sourceName: string) => {
+      const lines = text.split('\n');
+      // Use level 4 headings for APIs, level 3+ for Handbook
+      const isApisSource = sourceName.includes('APIs');
+      const sections = this.extractSubSections(lines, isApisSource);
+
+      // Add sections to the search pool with source information
+      sections.forEach(section => {
+        allSections.push({
+          header: section.header,
+          content: section.content,
+          source: sourceName
+        });
+      });
+    };
+
+    if (!source || source === 'handbook') {
+      searchInText(docs.handbook, 'Logtalk Handbook');
+    }
+
+    if (!source || source === 'apis') {
+      searchInText(docs.apis, 'Logtalk APIs');
+    }
+
+    // Search for exact or partial match (case-insensitive)
+    const normalizedSectionName = sectionName.toLowerCase();
+    const matchingSection = allSections.find(section =>
+      section.header.toLowerCase().includes(normalizedSectionName)
+    );
+
+    if (matchingSection) {
+      this.logger.debug(`Found section "${matchingSection.header}" from ${matchingSection.source}`);
+      return `**From ${matchingSection.source} - ${matchingSection.header}:**\n\n${matchingSection.content}\n`;
+    }
+
+    this.logger.debug(`Section "${sectionName}" not found in documentation`);
+    return null;
+  }
+
   public async searchDocumentation(query: string, source?: 'handbook' | 'apis'): Promise<string[]> {
     const docs = await this.getDocumentation();
     const allSections: DocumentationSection[] = [];

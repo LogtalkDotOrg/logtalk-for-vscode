@@ -712,6 +712,10 @@
                     {
                         "name": "workspace",
                         "description": "Search project-specific documentation on entities and predicates"
+                    },
+                    {
+                        "name": "tests",
+                        "description": "Get help with writing and running tests"
                     }
                 ]
             }

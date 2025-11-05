@@ -410,10 +410,13 @@ Type `@logtalk` in the Chat view followed by your question. The chat participant
 |       `/apis` | Search the Logtalk APIs documentation             |
 |   `/examples` | Get help with Logtalk code examples and patterns  |
 |  `/workspace` | Search project-specific documentation             |
+|      `/tests` | Add tests to workspace                            |
 
 The slash commands work best with keywords. For example, `/examples threaded engines` is better than `/examples How to use multi-threading with engines`.
 
 For the `/workspace` slash command, the documentation assumes a `xml_docs` folder at the root of the workspace containing HTML or Markdown files (which can be generated using the "Generate Project Documentation" or ""Generate Documentation" commands). This slash command works best with entities and predicates names or with keywords found in their descriptions.
+
+The `/tests` slash command uses the `lgtunit` testing tool documentation from the Logtalk Handbook as context to answer questions about writing and running tests.
 
 **Examples:**
 
@@ -422,6 +425,9 @@ For the `/workspace` slash command, the documentation assumes a `xml_docs` folde
 - `@logtalk /apis length/2`
 - `@logtalk /examples recursive predicates`
 - `@logtalk /workspace print state`
+- `@logtalk /tests How do I write a simple unit test?`
+- `@logtalk /tests What assertions are available in lgtunit?`
+- `@logtalk /tests How do I run tests for my project?`
 
 **Features:**
 

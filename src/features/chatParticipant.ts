@@ -234,6 +234,10 @@ export class LogtalkChatParticipant {
         stream.progress("Searching the workspace documentation...");
         await this.handleWorkspaceCommand(request, context, stream, token);
         result.metadata.source = "workspace";
+      } else if (request.command === "tests") {
+        stream.progress("Loading lgtunit documentation...");
+        await this.handleTestsCommand(request, context, stream, token);
+        result.metadata.source = "tests";
       } else {
         stream.progress("Searching for answers...");
         await this.handleGeneralQuery(request, context, stream, token);
@@ -352,6 +356,33 @@ export class LogtalkChatParticipant {
     // Use RAG with workspace documentation
     await this.useLanguageModelWithContext(request, context, stream, token, query, results);
 
+  }
+
+  private async handleTestsCommand(
+    request: vscode.ChatRequest,
+    context: vscode.ChatContext,
+    stream: vscode.ChatResponseStream,
+    token: vscode.CancellationToken
+  ): Promise<void> {
+    const query = request.prompt.trim();
+
+    try {
+      // Get the full lgtunit section from the handbook
+      const lgtunitSection = await this.documentationCache.getSection("lgtunit", "handbook");
+
+      if (!lgtunitSection) {
+        stream.markdown("❌ **Error:** Could not find the lgtunit section in the Logtalk Handbook.");
+        stream.markdown("\n\nPlease ensure the documentation is cached. You can try using the `/handbook` command to search for 'lgtunit' instead.");
+        return;
+      }
+
+      // Use RAG with the lgtunit documentation
+      await this.useLanguageModelWithLgtunitContext(request, context, stream, token, query, lgtunitSection);
+
+    } catch (error) {
+      this.logger.warn("Failed to load lgtunit documentation for tests command:", error);
+      stream.markdown("❌ **Error:** Failed to load lgtunit documentation.");
+    }
   }
 
   private async handleGeneralQuery(
@@ -1031,6 +1062,72 @@ Answer:`)
       for (const result of apisResults) {
         stream.markdown(result + "\n---\n\n");
       }
+    }
+  }
+
+  private async useLanguageModelWithLgtunitContext(
+    request: vscode.ChatRequest,
+    context: vscode.ChatContext,
+    stream: vscode.ChatResponseStream,
+    token: vscode.CancellationToken,
+    query: string,
+    lgtunitSection: string
+  ): Promise<void> {
+    try {
+      // Resolve a concrete model to avoid placeholder ids like "auto"
+      const model = await this.resolveConcreteModel(request.model, token);
+
+      if (!model) {
+        // Fallback to showing lgtunit documentation only
+        stream.markdown(`## lgtunit Testing Framework Documentation\n\n`);
+        stream.markdown(lgtunitSection);
+        return;
+      }
+
+      const messages = [
+        vscode.LanguageModelChatMessage.User(`You are a Logtalk programming expert assistant specializing in testing with the lgtunit framework. Answer the user's question about "${query}" using the provided lgtunit documentation as the source of truth.
+
+Context from Logtalk Handbook - lgtunit section:
+${lgtunitSection}
+
+User Question: ${query}
+
+Please provide a comprehensive answer that:
+1. Directly addresses the user's question about testing in Logtalk
+2. References the relevant lgtunit documentation sections
+3. Includes practical test examples when appropriate
+4. Explains testing concepts clearly for both beginners and experienced users
+5. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate; do not use Prolog terms like "module"
+6. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
+7. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
+8. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
+9. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
+10. When explaining how to load the lgtunit library, use a REPL query to load the library using the \`logtalk_load(lgtunit(loader))\` predicate
+11. Show how to structure test files and test objects properly
+12. Show how to write a \`tester.lgt\` file to load and run tests
+13. Explain how to run tests using the appropriate commands
+
+Answer:`)
+      ];
+
+      this.addChatHistoryToMessages(messages, context, 5);
+
+      const chatResponse = await model.sendRequest(messages, {}, token);
+
+      stream.markdown(`## Logtalk Testing with lgtunit\n\n`);
+
+      for await (const fragment of chatResponse.text) {
+        stream.markdown(fragment);
+      }
+
+      // Add reference to source documentation
+      stream.markdown(`\n\n---\n\n**📚 Source**: Logtalk Handbook - lgtunit section`);
+
+    } catch (error) {
+      this.logger.error("Error using language model with lgtunit context:", error);
+      // Fallback to showing documentation only
+      stream.markdown(`## lgtunit Testing Framework Documentation\n\n`);
+      stream.markdown(lgtunitSection);
     }
   }
 
