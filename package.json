@@ -716,6 +716,10 @@
                     {
                         "name": "tests",
                         "description": "Get help with writing and running tests"
+                    },
+                    {
+                        "name": "docs",
+                        "description": "Get help with documenting code"
                     }
                 ]
             }

@@ -409,14 +409,17 @@ Type `@logtalk` in the Chat view followed by your question. The chat participant
 |   `/handbook` | Search the Logtalk Handbook documentation         |
 |       `/apis` | Search the Logtalk APIs documentation             |
 |   `/examples` | Get help with Logtalk code examples and patterns  |
+|       `/docs` | Get help with documenting code                    |
+|      `/tests` | Get help with writing and running tests           |
 |  `/workspace` | Search project-specific documentation             |
-|      `/tests` | Add tests to workspace                            |
 
-The slash commands work best with keywords. For example, `/examples threaded engines` is better than `/examples How to use multi-threading with engines`.
+The `/handbook`, `/apis`, and `/examples` slash commands work best with keywords. For example, `/examples threaded engines` is better than `/examples How to use multi-threading with engines`.
+
+The `/docs` slash command uses the "Documenting" section from the Logtalk Handbook and the `lgtdocp` protocol documentation from the APIs as context to answer questions about documenting Logtalk code.
+
+The `/tests` slash command uses the `lgtunit` testing tool documentation from the Logtalk Handbook and APIs as context to answer questions about writing and running tests.
 
 For the `/workspace` slash command, the documentation assumes a `xml_docs` folder at the root of the workspace containing HTML or Markdown files (which can be generated using the "Generate Project Documentation" or ""Generate Documentation" commands). This slash command works best with entities and predicates names or with keywords found in their descriptions.
-
-The `/tests` slash command uses the `lgtunit` testing tool documentation from the Logtalk Handbook as context to answer questions about writing and running tests.
 
 **Examples:**
 
@@ -428,6 +431,9 @@ The `/tests` slash command uses the `lgtunit` testing tool documentation from th
 - `@logtalk /tests How do I write a simple unit test?`
 - `@logtalk /tests What assertions are available in lgtunit?`
 - `@logtalk /tests How do I run tests for my project?`
+- `@logtalk /docs How do I document a predicate?`
+- `@logtalk /docs What info/2 keys are available?`
+- `@logtalk /docs How do I generate HTML documentation?`
 
 **Features:**
 

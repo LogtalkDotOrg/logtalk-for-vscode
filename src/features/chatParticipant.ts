@@ -238,6 +238,10 @@ export class LogtalkChatParticipant {
         stream.progress("Loading lgtunit documentation...");
         await this.handleTestsCommand(request, context, stream, token);
         result.metadata.source = "tests";
+      } else if (request.command === "docs") {
+        stream.progress("Loading documentation guidelines...");
+        await this.handleDocsCommand(request, context, stream, token);
+        result.metadata.source = "docs";
       } else {
         stream.progress("Searching for answers...");
         await this.handleGeneralQuery(request, context, stream, token);
@@ -370,8 +374,6 @@ export class LogtalkChatParticipant {
       // Get the full lgtunit section from both the handbook and APIs
       const lgtunitHandbookSection = await this.documentationCache.getSection("lgtunit", "handbook");
       const lgtunitApisSection = await this.documentationCache.getSection("lgtunit", "apis");
-      this.logger.debug(`lgtunitHandbookSection: ${lgtunitHandbookSection}`);
-      this.logger.debug(`lgtunitApisSection: ${lgtunitApisSection}`);
 
       if (!lgtunitHandbookSection && !lgtunitApisSection) {
         stream.markdown("❌ **Error:** Could not find the lgtunit documentation in the Logtalk Handbook or APIs.");
@@ -389,11 +391,48 @@ export class LogtalkChatParticipant {
       }
 
       // Use RAG with the lgtunit documentation
-      await this.useLanguageModelWithLgtunitContext(request, context, stream, token, query, combinedDocumentation);
+      await this.useLanguageModelWithTestingContext(request, context, stream, token, query, combinedDocumentation);
 
     } catch (error) {
       this.logger.warn("Failed to load lgtunit documentation for tests command:", error);
       stream.markdown("❌ **Error:** Failed to load lgtunit documentation.");
+    }
+  }
+
+  private async handleDocsCommand(
+    request: vscode.ChatRequest,
+    context: vscode.ChatContext,
+    stream: vscode.ChatResponseStream,
+    token: vscode.CancellationToken
+  ): Promise<void> {
+    const query = request.prompt.trim();
+
+    try {
+      // Get the Documenting section from the handbook and lgtdocp section from APIs
+      const documentingHandbookSection = await this.documentationCache.getSection("Documenting", "handbook");
+      const lgtdocpApisSection = await this.documentationCache.getSection("lgtdocp", "apis");
+
+      if (!documentingHandbookSection && !lgtdocpApisSection) {
+        stream.markdown("❌ **Error:** Could not find the documentation guidelines in the Logtalk Handbook or APIs.");
+        stream.markdown("\n\nPlease ensure the documentation is cached. You can try using the `/handbook` command to search for 'Documenting' instead.");
+        return;
+      }
+
+      // Combine both sections (if both exist)
+      let combinedDocumentation = "";
+      if (documentingHandbookSection) {
+        combinedDocumentation += documentingHandbookSection + "\n\n";
+      }
+      if (lgtdocpApisSection) {
+        combinedDocumentation += lgtdocpApisSection;
+      }
+
+      // Use RAG with the documentation guidelines
+      await this.useLanguageModelWithDocumentingContext(request, context, stream, token, query, combinedDocumentation);
+
+    } catch (error) {
+      this.logger.warn("Failed to load documentation guidelines for docs command:", error);
+      stream.markdown("❌ **Error:** Failed to load documentation guidelines.");
     }
   }
 
@@ -1080,7 +1119,7 @@ Answer:`)
     }
   }
 
-  private async useLanguageModelWithLgtunitContext(
+  private async useLanguageModelWithTestingContext(
     request: vscode.ChatRequest,
     context: vscode.ChatContext,
     stream: vscode.ChatResponseStream,
@@ -1102,7 +1141,7 @@ Answer:`)
       const messages = [
         vscode.LanguageModelChatMessage.User(`You are a Logtalk programming expert assistant specializing in testing with the lgtunit tool. Answer the user's question about "${query}" using the provided lgtunit documentation as the source of truth.
 
-Context from Logtalk documentation - lgtunit tool:
+Context from Logtalk documentation - \`lgtunit\` tool:
 ${lgtunitSection}
 
 User Question: ${query}
@@ -1138,13 +1177,78 @@ Answer:`)
       }
 
       // Add reference to source documentation
-      stream.markdown(`\n\n---\n\n**📚 Source**: Logtalk Handbook and APIs - lgtunit tool`);
+      stream.markdown(`\n\n---\n\n**📚 Source**: Logtalk Handbook and APIs - \`lgtunit\` tool`);
 
     } catch (error) {
       this.logger.error("Error using language model with lgtunit context:", error);
       // Fallback to showing documentation only
       stream.markdown(`## lgtunit Testing Tool Documentation\n\n`);
       stream.markdown(lgtunitSection);
+    }
+  }
+
+  private async useLanguageModelWithDocumentingContext(
+    request: vscode.ChatRequest,
+    context: vscode.ChatContext,
+    stream: vscode.ChatResponseStream,
+    token: vscode.CancellationToken,
+    query: string,
+    documentingSection: string
+  ): Promise<void> {
+    try {
+      // Resolve a concrete model to avoid placeholder ids like "auto"
+      const model = await this.resolveConcreteModel(request.model, token);
+
+      if (!model) {
+        // Fallback to showing documentation only
+        stream.markdown(`## Logtalk Documentation Guidelines\n\n`);
+        stream.markdown(documentingSection);
+        return;
+      }
+
+      const messages = [
+        vscode.LanguageModelChatMessage.User(`You are a Logtalk programming expert assistant specializing in code documentation. Answer the user's question about "${query}" using the provided documentation guidelines as the source of truth.
+
+Context from Logtalk documentation - \`lgtdocp\` tool:
+${documentingSection}
+
+User Question: ${query}
+
+Please provide a comprehensive answer that:
+1. Directly addresses the user's question about documenting Logtalk code
+2. References the relevant documentation sections from both the Handbook and APIs
+3. Includes practical documentation examples when appropriate
+4. Explains documentation concepts clearly for both beginners and experienced users
+5. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate
+6. Never use Prolog terms like "module" or module/1 or module/2 directives
+7. When providing examples, show proper info/1 and info/2 directive syntax
+8. Explain the structure of entity and predicate documentation directives
+9. Show how to use the lgtdoc tool to generate documentation
+10. Explain the different documentation formats available (HTML, Markdown, XML, etc.)
+11. Demonstrate best practices for writing clear and comprehensive documentation
+12. When showing REPL examples for generating documentation, use the appropriate lgtdoc predicates
+
+Answer:`)
+      ];
+
+      this.addChatHistoryToMessages(messages, context, 5);
+
+      const chatResponse = await model.sendRequest(messages, {}, token);
+
+      stream.markdown(`## Logtalk Code Documentation\n\n`);
+
+      for await (const fragment of chatResponse.text) {
+        stream.markdown(fragment);
+      }
+
+      // Add reference to source documentation
+      stream.markdown(`\n\n---\n\n**📚 Source**: Logtalk Handbook and APIs - \`lgtdoc\` tool`);
+
+    } catch (error) {
+      this.logger.error("Error using language model with documenting context:", error);
+      // Fallback to showing documentation only
+      stream.markdown(`## Logtalk Documentation Guidelines\n\n`);
+      stream.markdown(documentingSection);
     }
   }
 
