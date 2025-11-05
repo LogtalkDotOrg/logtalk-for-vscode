@@ -367,17 +367,29 @@ export class LogtalkChatParticipant {
     const query = request.prompt.trim();
 
     try {
-      // Get the full lgtunit section from the handbook
-      const lgtunitSection = await this.documentationCache.getSection("lgtunit", "handbook");
+      // Get the full lgtunit section from both the handbook and APIs
+      const lgtunitHandbookSection = await this.documentationCache.getSection("lgtunit", "handbook");
+      const lgtunitApisSection = await this.documentationCache.getSection("lgtunit", "apis");
+      this.logger.debug(`lgtunitHandbookSection: ${lgtunitHandbookSection}`);
+      this.logger.debug(`lgtunitApisSection: ${lgtunitApisSection}`);
 
-      if (!lgtunitSection) {
-        stream.markdown("❌ **Error:** Could not find the lgtunit section in the Logtalk Handbook.");
+      if (!lgtunitHandbookSection && !lgtunitApisSection) {
+        stream.markdown("❌ **Error:** Could not find the lgtunit documentation in the Logtalk Handbook or APIs.");
         stream.markdown("\n\nPlease ensure the documentation is cached. You can try using the `/handbook` command to search for 'lgtunit' instead.");
         return;
       }
 
+      // Combine both sections (if both exist)
+      let combinedDocumentation = "";
+      if (lgtunitHandbookSection) {
+        combinedDocumentation += lgtunitHandbookSection + "\n\n";
+      }
+      if (lgtunitApisSection) {
+        combinedDocumentation += lgtunitApisSection;
+      }
+
       // Use RAG with the lgtunit documentation
-      await this.useLanguageModelWithLgtunitContext(request, context, stream, token, query, lgtunitSection);
+      await this.useLanguageModelWithLgtunitContext(request, context, stream, token, query, combinedDocumentation);
 
     } catch (error) {
       this.logger.warn("Failed to load lgtunit documentation for tests command:", error);
@@ -878,13 +890,14 @@ User question: ${query}${docContext}
 Please provide a helpful and accurate answer that:
 1. If you reference specific Logtalk features, libraries, predicates, or concepts, try to include practical examples when appropriate
 2. Format code examples using \`\`\`logtalk code blocks
-5. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate; do not use Prolog terms like "module"
-6. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
-7. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
-8. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
-9. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
-10. When explaining how to load a library, use a REPL query to load the library using the \`logtalk_load/1\` predicate
-11. Lookup the \`logtalk_load/1\` call to load a library in the APIs documentation
+5. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate
+6. Never use Prolog terms like "module" or module/1 or module/2 directives
+7. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
+8. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
+9. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
+10. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
+11. When explaining how to load a library, use a REPL query to load the library using the \`logtalk_load/1\` predicate
+12. Lookup the \`logtalk_load/1\` call to load a library in the APIs documentation
 
 Answer:`)
       ];
@@ -953,13 +966,14 @@ Please provide a comprehensive answer that:
 2. References the relevant handbook sections
 3. Includes practical examples when appropriate
 4. Explains concepts clearly for both beginners and experienced users
-5. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate; do not use Prolog terms like "module"
-6. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
-7. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
-8. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
-9. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
-10. When explaining how to load a library, use a REPL query to load the library using the \`logtalk_load/1\` predicate
-11. Lookup the \`logtalk_load/1\` call to load a library in the APIs documentation
+5. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate
+6. Never use Prolog terms like "module" or module/1 or module/2 directives
+7. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
+8. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
+9. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
+10. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
+11. When explaining how to load a library, use a REPL query to load the library using the \`logtalk_load/1\` predicate
+12. Lookup the \`logtalk_load/1\` call to load a library in the APIs documentation
 
 Answer:`)
       ];
@@ -1029,13 +1043,14 @@ Please provide a comprehensive answer that:
 3. Provides practical usage examples
 4. Mentions any important notes about behavior or requirements
 5. Suggests related APIs when relevant
-6. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate; do not use Prolog terms like "module"
-7. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
-8. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
-9. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
-10. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
-11. When explaining how to load a library, use a REPL query to load the library using the \`logtalk_load/1\` predicate
-12. Lookup the \`logtalk_load/1\` call to load a library in the APIs documentation
+6. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate
+7. Never use Prolog terms like "module" or module/1 or module/2 directives
+8. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
+9. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
+10. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
+11. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
+12. When explaining how to load a library, use a REPL query to load the library using the \`logtalk_load/1\` predicate
+13. Lookup the \`logtalk_load/1\` call to load a library in the APIs documentation
 
 Answer:`)
       ];
@@ -1085,27 +1100,29 @@ Answer:`)
       }
 
       const messages = [
-        vscode.LanguageModelChatMessage.User(`You are a Logtalk programming expert assistant specializing in testing with the lgtunit framework. Answer the user's question about "${query}" using the provided lgtunit documentation as the source of truth.
+        vscode.LanguageModelChatMessage.User(`You are a Logtalk programming expert assistant specializing in testing with the lgtunit tool. Answer the user's question about "${query}" using the provided lgtunit documentation as the source of truth.
 
-Context from Logtalk Handbook - lgtunit section:
+Context from Logtalk documentation - lgtunit tool:
 ${lgtunitSection}
 
 User Question: ${query}
 
 Please provide a comprehensive answer that:
 1. Directly addresses the user's question about testing in Logtalk
-2. References the relevant lgtunit documentation sections
+2. References the relevant lgtunit documentation sections from both the Handbook and APIs
 3. Includes practical test examples when appropriate
 4. Explains testing concepts clearly for both beginners and experienced users
-5. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate; do not use Prolog terms like "module"
-6. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
-7. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
-8. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
-9. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
-10. When explaining how to load the lgtunit library, use a REPL query to load the library using the \`logtalk_load(lgtunit(loader))\` predicate
-11. Show how to structure test files and test objects properly
-12. Show how to write a \`tester.lgt\` file to load and run tests
-13. Explain how to run tests using the appropriate commands
+5. Always uses Logtalk nomenclature such as "library", "protocol", "objects", "categories" as appropriate
+6. Never use Prolog terms like "module" or module/1 or module/2 directives
+7. When calling lgtunit predicates from tests, use super calls with the ^^/1 operator
+8. When providing examples, use **either** explicit message-sending calls with the ::/2 operator **or** implicit message-sending calls with a uses/2 directive
+9. The syntax for uses/2 directives is \`:- uses(Object, ListOfPredicates).\`
+10. The syntax for explicit message-sending calls is \`Object::Predicate(...).\`
+11. When providing REPL example queries for library predicates, always use explicit message-sending calls with the ::/2 operator
+12. When explaining how to load the lgtunit library, use a REPL query to load the library using the \`logtalk_load(lgtunit(loader))\` predicate
+13. Show how to structure test files and test objects properly
+14. Show how to write a \`tester.lgt\` file to load and run tests
+15. Explain how to run tests using the appropriate commands
 
 Answer:`)
       ];
@@ -1121,12 +1138,12 @@ Answer:`)
       }
 
       // Add reference to source documentation
-      stream.markdown(`\n\n---\n\n**📚 Source**: Logtalk Handbook - lgtunit section`);
+      stream.markdown(`\n\n---\n\n**📚 Source**: Logtalk Handbook and APIs - lgtunit tool`);
 
     } catch (error) {
       this.logger.error("Error using language model with lgtunit context:", error);
       // Fallback to showing documentation only
-      stream.markdown(`## lgtunit Testing Framework Documentation\n\n`);
+      stream.markdown(`## lgtunit Testing Tool Documentation\n\n`);
       stream.markdown(lgtunitSection);
     }
   }

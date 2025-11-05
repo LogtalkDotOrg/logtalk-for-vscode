@@ -311,47 +311,91 @@ export class DocumentationCache {
   /**
    * Get a specific section from the documentation by header name.
    * Searches for an exact or partial match of the section header.
+   * Returns the complete section including all subsections.
    * @param sectionName The name of the section to retrieve (e.g., "lgtunit")
    * @param source Optional source to search in ('handbook' or 'apis')
    * @returns The full content of the matching section, or null if not found
    */
   public async getSection(sectionName: string, source?: 'handbook' | 'apis'): Promise<string | null> {
     const docs = await this.getDocumentation();
-    const allSections: DocumentationSection[] = [];
+    const normalizedSectionName = sectionName.toLowerCase();
 
-    const searchInText = (text: string, sourceName: string) => {
+    const findCompleteSection = (text: string, sourceName: string, isApis: boolean): { header: string; content: string } | null => {
       const lines = text.split('\n');
-      // Use level 4 headings for APIs, level 3+ for Handbook
-      const isApisSource = sourceName.includes('APIs');
-      const sections = this.extractSubSections(lines, isApisSource);
+      let sectionStartIndex = -1;
+      let sectionHeader = '';
+      let sectionLevel = 0;
 
-      // Add sections to the search pool with source information
-      sections.forEach(section => {
-        allSections.push({
-          header: section.header,
-          content: section.content,
-          source: sourceName
-        });
-      });
+      // Find the section header
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        let headerMatch: RegExpMatchArray | null = null;
+
+        if (isApis) {
+          // For APIs: look for level 4 headers
+          headerMatch = line.match(/^(#{4})\s+(.+)$/);
+        } else {
+          // For Handbook: look for level 3 headers
+          headerMatch = line.match(/^(#{3})\s+(.+)$/);
+        }
+
+        if (headerMatch) {
+          const headerTitle = headerMatch[2].trim();
+          if (headerTitle.toLowerCase().includes(normalizedSectionName)) {
+            sectionStartIndex = i;
+            sectionHeader = headerTitle;
+            sectionLevel = headerMatch[1].length;
+            this.logger.debug(`Found section header "${sectionHeader}" at line ${i + 1} (level ${sectionLevel}) in ${sourceName}`);
+            break;
+          }
+        }
+      }
+
+      if (sectionStartIndex === -1) {
+        return null;
+      }
+
+      // Extract content until we hit a header of the same or higher level
+      let content = lines[sectionStartIndex] + '\n';
+      for (let i = sectionStartIndex + 1; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Check if we hit a header of same or higher level (fewer or equal # symbols)
+        const headerMatch = line.match(/^(#{1,})\s+(.+)$/);
+        if (headerMatch) {
+          const currentLevel = headerMatch[1].length;
+          if (currentLevel <= sectionLevel) {
+            // We've reached the end of this section
+            this.logger.debug(`Section ends at line ${i} (found level ${currentLevel} header) - total ${i - sectionStartIndex} lines`);
+            break;
+          }
+        }
+
+        content += line + '\n';
+      }
+
+      return {
+        header: sectionHeader,
+        content: content
+      };
     };
 
+    // Search in Handbook
     if (!source || source === 'handbook') {
-      searchInText(docs.handbook, 'Logtalk Handbook');
+      const handbookSection = findCompleteSection(docs.handbook, 'Logtalk Handbook', false);
+      if (handbookSection) {
+        this.logger.debug(`Found complete section "${handbookSection.header}" from Logtalk Handbook (${handbookSection.content.split('\n').length} lines)`);
+        return `**From Logtalk Handbook - ${handbookSection.header}:**\n\n${handbookSection.content}\n`;
+      }
     }
 
+    // Search in APIs
     if (!source || source === 'apis') {
-      searchInText(docs.apis, 'Logtalk APIs');
-    }
-
-    // Search for exact or partial match (case-insensitive)
-    const normalizedSectionName = sectionName.toLowerCase();
-    const matchingSection = allSections.find(section =>
-      section.header.toLowerCase().includes(normalizedSectionName)
-    );
-
-    if (matchingSection) {
-      this.logger.debug(`Found section "${matchingSection.header}" from ${matchingSection.source}`);
-      return `**From ${matchingSection.source} - ${matchingSection.header}:**\n\n${matchingSection.content}\n`;
+      const apisSection = findCompleteSection(docs.apis, 'Logtalk APIs', true);
+      if (apisSection) {
+        this.logger.debug(`Found complete section "${apisSection.header}" from Logtalk APIs (${apisSection.content.split('\n').length} lines)`);
+        return `**From Logtalk APIs - ${apisSection.header}:**\n\n${apisSection.content}\n`;
+      }
     }
 
     this.logger.debug(`Section "${sectionName}" not found in documentation`);
