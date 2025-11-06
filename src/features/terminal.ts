@@ -493,6 +493,8 @@ export default class LogtalkTerminal {
         }
       }
     }
+    // Record the main project directory as loaded
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir0);
     window.showInformationMessage("Project loading completed.");
   }
 
@@ -552,6 +554,8 @@ export default class LogtalkTerminal {
         }
       }
     }
+    // Record the main directory as loaded
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir0);
     window.showInformationMessage("Directory loading completed.");
   }
 
@@ -607,6 +611,8 @@ export default class LogtalkTerminal {
         }
       }
     }
+    // Record the file's directory as loaded
+    LogtalkTerminal.recordCodeLoadedFromDirectory(dir0);
     window.showInformationMessage("File loading completed.");
   }
 

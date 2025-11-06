@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.69.0]
+
+* Fix regression where the "No code loaded from selected directory as required by command." warning would be printed despite the code being loaded
+
 ## [0.68.0]
 
 * Add chat participant `/docs` slash command for getting help with documenting code
