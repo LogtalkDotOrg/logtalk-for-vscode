@@ -1206,6 +1206,8 @@ export default class LogtalkTerminal {
 
   public static runTesters(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal._outputChannel.clear();
+
     LogtalkTerminal.spawnScriptWorkspace(
       uri,
       ["logtalk_tester", "logtalk.run.tester", LogtalkTerminal._testerExec],
@@ -1217,6 +1219,8 @@ export default class LogtalkTerminal {
 
   public static runDoclets(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal._outputChannel.clear();
+
     LogtalkTerminal.spawnScriptWorkspace(
       uri,
       ["logtalk_doclet", "logtalk.run.doclets", LogtalkTerminal._docletExec],
