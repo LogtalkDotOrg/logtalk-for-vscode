@@ -67,13 +67,13 @@ export default class LogtalkTerminal {
     return args.map(arg => LogtalkTerminal.expandEnvironmentVariables(arg));
   }
 
-  public static init(
+  public static async init(
     context: ExtensionContext,
     linter?: LogtalkLinter,
     testsReporter?: LogtalkTestsReporter,
     deadCodeScanner?: LogtalkDeadCodeScanner,
     documentationLinter?: LogtalkDocumentationLinter
-  ): Disposable {
+  ): Promise<Disposable> {
 
     // Delete any temporary files from previous sessions
     const directory = LogtalkTerminal.getFirstWorkspaceFolder();
@@ -99,14 +99,13 @@ export default class LogtalkTerminal {
       ".vscode_type_done",
       ".vscode_find_parent_done"
     ];
-    // Fire-and-forget cleanup - errors are logged internally
-    Utils.cleanupTemporaryFiles(directory, files);
+    // Wait for cleanup to complete
+    await Utils.cleanupTemporaryFiles(directory, files);
 
     // Clean up any temporary files when folders are added to the workspace
-    const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
-      // Fire-and-forget cleanup - errors are logged internally
+    const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders(async (event) => {
       for (const wf of event.added) {
-        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+        await Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
       }
     });
     LogtalkTerminal.disposables.push(workspaceFoldersListener);
@@ -493,8 +492,6 @@ export default class LogtalkTerminal {
         }
       }
     }
-    // Record the main project directory as loaded
-    LogtalkTerminal.recordCodeLoadedFromDirectory(dir0);
     window.showInformationMessage("Project loading completed.");
   }
 
@@ -554,8 +551,6 @@ export default class LogtalkTerminal {
         }
       }
     }
-    // Record the main directory as loaded
-    LogtalkTerminal.recordCodeLoadedFromDirectory(dir0);
     window.showInformationMessage("Directory loading completed.");
   }
 
@@ -611,8 +606,6 @@ export default class LogtalkTerminal {
         }
       }
     }
-    // Record the file's directory as loaded
-    LogtalkTerminal.recordCodeLoadedFromDirectory(dir0);
     window.showInformationMessage("File loading completed.");
   }
 

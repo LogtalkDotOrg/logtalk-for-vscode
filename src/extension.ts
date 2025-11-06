@@ -99,7 +99,7 @@ function createDebugFileWatcher(): void {
   }
 }
 
-export function activate(context: ExtensionContext) {
+export async function activate(context: ExtensionContext) {
 
   let subscriptions = context.subscriptions;
 
@@ -807,7 +807,7 @@ export function activate(context: ExtensionContext) {
       }
     })
   );
-  context.subscriptions.push(LogtalkTerminal.init(context, linter, testsReporter, deadCodeScanner, documentationLinter));
+  context.subscriptions.push(await LogtalkTerminal.init(context, linter, testsReporter, deadCodeScanner, documentationLinter));
   updateBreakpointStates(logtalkDebuggingEnabled);
 
   // Load project on activation if setting is enabled

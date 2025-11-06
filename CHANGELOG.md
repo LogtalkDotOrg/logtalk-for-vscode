@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.70.0]
+
+* Await for the deletion of any existing `.vscode_*_done` temporary files at extension activation
+
 ## [0.69.0]
 
 * Fix regression where the "No code loaded from selected directory as required by command." warning would be printed despite the code being loaded
