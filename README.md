@@ -316,8 +316,9 @@ An "Extract protocol" refactoring operation is available when the user right-cli
 
 A "Replace magic number with predicate call" refactoring operation is available when the user selects a number in a rule body and uses the "Refactor" context menu item or the "Refactor" command palette item. The user is asked to enter the name of the predicate to be created and its scope. The predicate is created with the number as its single argument and added to the entity. The selected number is replaced with a variable derived from the predicate name and the rule body is updated with a call to the new predicate inserted after the clause head.
 
-Three other code extraction refactoring operations are supported when the user selects one or more lines and uses the "Refactor" context menu item or the "Refactor" command palette item:
+Four other code extraction refactoring operations are supported when the user selects one or more lines and uses the "Refactor" context menu item or the "Refactor" command palette item:
 
+- "Extract to Logtalk entity" (the user is asked to select the target entity)
 - "Extract to new Logtalk entity" (the user is asked to select the entity type, entity name, file name, and file location)
 - "Extract to new Logtalk file" (the user is asked to select the file name and file location)
 - "Replace with include/1 directive" (the user is asked to select the file name and file location)

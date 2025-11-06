@@ -80,26 +80,37 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
                   selection.end.character > document.lineAt(selection.end.line).text.length)) {
         // Selection spans multiple lines OR includes at least one complete line - provide extract actions
         const extractToEntityAction = new CodeAction(
-          "Extract to new Logtalk entity",
+          "Extract to Logtalk entity",
           CodeActionKind.RefactorExtract
         );
         extractToEntityAction.command = {
           command: "logtalk.refactor.extractToEntity",
-          title: "Extract to new Logtalk entity",
+          title: "Extract to Logtalk entity",
           arguments: [document, range]
         };
         actions.push(extractToEntityAction);
 
-        const extractToFileAction = new CodeAction(
+        const extractToNewEntityAction = new CodeAction(
+          "Extract to new Logtalk entity",
+          CodeActionKind.RefactorExtract
+        );
+        extractToNewEntityAction.command = {
+          command: "logtalk.refactor.extractToNewEntity",
+          title: "Extract to new Logtalk entity",
+          arguments: [document, range]
+        };
+        actions.push(extractToNewEntityAction);
+
+        const extractToNewFileAction = new CodeAction(
           "Extract to new Logtalk file",
           CodeActionKind.RefactorExtract
         );
-        extractToFileAction.command = {
-          command: "logtalk.refactor.extractToFile",
+        extractToNewFileAction.command = {
+          command: "logtalk.refactor.extractToNewFile",
           title: "Extract to new Logtalk file",
           arguments: [document, range]
         };
-        actions.push(extractToFileAction);
+        actions.push(extractToNewFileAction);
 
         const replaceWithIncludeAction = new CodeAction(
           "Replace with include/1 directive",
@@ -351,7 +362,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   /**
    * Extract selected code to a new Logtalk file (verbatim copy)
    */
-  public async extractToFile(document: TextDocument, selection: Selection): Promise<void> {
+  public async extractToNewFile(document: TextDocument, selection: Selection): Promise<void> {
     try {
       const selectedText = document.getText(selection);
       if (!selectedText.trim()) {
@@ -400,9 +411,151 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Extract selected code to a new Logtalk entity in a new file
+   * Extract selected code to an existing Logtalk entity
    */
   public async extractToEntity(document: TextDocument, selection: Selection): Promise<void> {
+    try {
+      const selectedText = document.getText(selection);
+      if (!selectedText.trim()) {
+        window.showErrorMessage("No code selected for extraction.");
+        return;
+      }
+
+      // Ask user for entity name
+      const entityName = await window.showInputBox({
+        prompt: "Enter the name of the target entity",
+        placeHolder: "entity_name",
+        validateInput: (value: string) => {
+          if (!value.trim()) {
+            return "Entity name cannot be empty";
+          }
+          return null;
+        }
+      });
+
+      if (!entityName) {
+        return; // User cancelled
+      }
+
+      // Find the entity definition using LogtalkTerminal
+      await LogtalkTerminal.getEntityDefinition(entityName);
+
+      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      if (!wdir) {
+        window.showErrorMessage('No workspace folder open');
+        return;
+      }
+
+      const tdef = path.join(wdir, ".vscode_entity_definition");
+      if (!fs.existsSync(tdef)) {
+        window.showErrorMessage(`Could not find definition for entity ${entityName}`);
+        return;
+      }
+
+      const out = fs.readFileSync(tdef).toString();
+      await fs.promises.rm(tdef, { force: true });
+
+      const match = out.match(/File:(.+);Line:(\d+)/);
+      if (!match) {
+        window.showErrorMessage(`Could not find definition for entity ${entityName}`);
+        return;
+      }
+
+      const fileName: string = match[1];
+      const lineNum: number = parseInt(match[2]);
+
+      // Open the target entity file
+      const targetUri = Uri.file(fileName);
+      const targetDocument = await workspace.openTextDocument(targetUri);
+
+      // Determine entity type from the opening directive
+      const openingLineText = targetDocument.lineAt(lineNum - 1).text.trim();
+      let entityType: string | null = null;
+      if (openingLineText.match(/^:-\s*object\(/)) {
+        entityType = 'object';
+      } else if (openingLineText.match(/^:-\s*protocol\(/)) {
+        entityType = 'protocol';
+      } else if (openingLineText.match(/^:-\s*category\(/)) {
+        entityType = 'category';
+      }
+
+      if (!entityType) {
+        window.showErrorMessage(`Could not determine entity type for ${entityName}`);
+        return;
+      }
+
+      // Find the closing directive
+      const closingLine = this.findEntityClosingDirective(targetDocument, lineNum - 1, entityType);
+      if (closingLine === null) {
+        window.showErrorMessage(`Could not find closing directive for entity ${entityName}`);
+        return;
+      }
+
+      // Process the selected code (trim empty lines and preserve indentation)
+      const processedCode = this.processSelectedCode(selectedText);
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // We want to ensure:
+      // 1. One empty line before the moved code (to separate from existing content)
+      // 2. One empty line after the moved code (before the closing directive)
+      const lineBeforeClosing = closingLine - 1;
+      let insertPosition: Position;
+      let codeToInsert: string;
+
+      if (lineBeforeClosing >= 0) {
+        const lineBeforeText = targetDocument.lineAt(lineBeforeClosing).text;
+
+        if (lineBeforeText.trim() === '') {
+          // There's already an empty line before the closing directive
+          // Insert at the empty line position with format: \n + code + \n
+          // The existing empty line becomes the separator before the code
+          // The \n before code ends the previous content line
+          // The \n after code ends the code, and the existing empty line serves as the separator before closing
+          insertPosition = new Position(lineBeforeClosing, 0);
+          codeToInsert = `\n${processedCode}\n`;
+        } else {
+          // There's content before the closing directive
+          // Insert at closing directive with proper spacing
+          // Format: \n\n (newline to end previous content + empty line before code) + code + \n\n (newline to end code + empty line before closing)
+          insertPosition = new Position(closingLine, 0);
+          codeToInsert = `\n\n${processedCode}\n\n`;
+        }
+      } else {
+        // Closing directive is at the first line (unusual case)
+        insertPosition = new Position(closingLine, 0);
+        codeToInsert = `${processedCode}\n\n`;
+      }
+
+      edit.insert(targetUri, insertPosition, codeToInsert);
+
+      // Remove the selected code from the original document
+      edit.delete(document.uri, selection);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        // Open the target file and show the inserted code
+        await window.showTextDocument(targetDocument, {
+          selection: new Range(insertPosition, insertPosition),
+          preserveFocus: false
+        });
+
+        this.logger.info(`Successfully extracted code to entity ${entityName} in ${fileName}`);
+        window.showInformationMessage(`Code extracted to entity ${entityName}. Original code removed from source file.`);
+      } else {
+        window.showErrorMessage("Failed to extract code to entity.");
+      }
+    } catch (error) {
+      this.logger.error(`Error extracting to entity: ${error}`);
+      window.showErrorMessage(`Error extracting to entity: ${error}`);
+    }
+  }
+
+  /**
+   * Extract selected code to a new Logtalk entity in a new file
+   */
+  public async extractToNewEntity(document: TextDocument, selection: Selection): Promise<void> {
     try {
       const selectedText = document.getText(selection);
       if (!selectedText.trim()) {

@@ -443,9 +443,17 @@ export async function activate(context: ExtensionContext) {
   );
 
   context.subscriptions.push(
-    commands.registerCommand('logtalk.refactor.extractToFile', async (document, selection) => {
+    commands.registerCommand('logtalk.refactor.extractToNewEntity', async (document, selection) => {
       if (refactorProvider) {
-        await refactorProvider.extractToFile(document, selection);
+        await refactorProvider.extractToNewEntity(document, selection);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.extractToNewFile', async (document, selection) => {
+      if (refactorProvider) {
+        await refactorProvider.extractToNewFile(document, selection);
       }
     })
   );

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.71.0]
+
+* Add "Extract to Logtalk entity" refactoring support
+
 ## [0.70.0]
 
 * Await for the deletion of any existing `.vscode_*_done` temporary files at extension activation

@@ -173,16 +173,16 @@ suite('LogtalkRefactorProvider Test Suite', () => {
     });
   });
 
-  test('extractToEntity - should remove code from original file', () => {
+  test('extractToNewEntity - should remove code from original file', () => {
     // This test would require mocking WorkspaceEdit and related VS Code APIs
     // For now, we just verify the method exists and has the right signature
-    assert.ok(typeof refactorProvider.extractToEntity === 'function');
+    assert.ok(typeof refactorProvider.extractToNewEntity === 'function');
   });
 
-  test('extractToFile - should remove code from original file', () => {
+  test('extractToNewFile - should remove code from original file', () => {
     // This test would require mocking WorkspaceEdit and related VS Code APIs
     // For now, we just verify the method exists and has the right signature
-    assert.ok(typeof refactorProvider.extractToFile === 'function');
+    assert.ok(typeof refactorProvider.extractToNewFile === 'function');
   });
 
   test('provideCodeActions - with multi-line selection', async () => {
