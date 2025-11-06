@@ -339,6 +339,10 @@ To add a new parameter to an object (or category), right-click on the object (or
 
 To add a new argument to a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Add argument to predicate/non-terminal" context menu item and enter the new argument name and position. To reorder the arguments of a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Reorder predicate/non-terminal arguments" context menu item and enter the new argument order. To remove an argument from a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Remove argument from predicate/non-terminal" context menu item and enter the argument position.
 
+#### Directive refactoring
+
+The "Split in individual directives" refactoring operation is available when the user selects a region of code that contains a predicate directive with a list argument and uses the "Refactor" context menu item or the "Refactor" command palette item. The directive is split into individual directives, one for each element in the list.
+
 #### Converting between object, protocol, and category entity types
 
 Right-click on an entity name in its opening directive and select the "Convert to object", "Convert to protocol", or "Convert to category" context menu items. The applicability of these operations depends on the entity type and its opening directive arguments. Note that the entity name is not changed and further edits may be required to the entity code after the conversion to make it valid (for example, removing predicate definitions that are not allowed in a protocol).

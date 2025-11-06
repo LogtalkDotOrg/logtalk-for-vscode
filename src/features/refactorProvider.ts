@@ -78,7 +78,24 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       } else if (selection.start.line !== selection.end.line ||
                  (selection.start.character === 0 &&
                   selection.end.character > document.lineAt(selection.end.line).text.length)) {
-        // Selection spans multiple lines OR includes at least one complete line - provide extract actions
+        // Selection spans multiple lines OR includes at least one complete line
+
+        // Check if selection contains a list directive that can be split
+        const listDirectiveInfo = this.containsListDirective(document, selection);
+        if (listDirectiveInfo) {
+          const splitDirectivesAction = new CodeAction(
+            "Split in individual directives",
+            CodeActionKind.RefactorRewrite
+          );
+          splitDirectivesAction.command = {
+            command: "logtalk.refactor.splitInIndividualDirectives",
+            title: "Split in individual directives",
+            arguments: [document, listDirectiveInfo]
+          };
+          actions.push(splitDirectivesAction);
+        }
+
+        // Provide extract actions
         const extractToEntityAction = new CodeAction(
           "Extract to Logtalk entity",
           CodeActionKind.RefactorExtract
@@ -549,6 +566,69 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error extracting to entity: ${error}`);
       window.showErrorMessage(`Error extracting to entity: ${error}`);
+    }
+  }
+
+  /**
+   * Split a list directive into individual directives
+   *
+   * Takes a directive like:
+   *   :- public([pred1/1, pred2/2, pred3/3]).
+   *
+   * And splits it into:
+   *   :- public(pred1/1).
+   *
+   *   :- public(pred2/2).
+   *
+   *   :- public(pred3/3).
+   *
+   * @param document The text document
+   * @param listDirectiveInfo Information about the list directive to split
+   */
+  async splitInIndividualDirectives(
+    document: TextDocument,
+    listDirectiveInfo: { directiveName: string; range: { start: number; end: number }; indicators: string[] }
+  ): Promise<void> {
+    try {
+      this.logger.info(`Splitting ${listDirectiveInfo.directiveName} directive with ${listDirectiveInfo.indicators.length} indicators`);
+
+      // Get the indentation from the original directive
+      const firstLineText = document.lineAt(listDirectiveInfo.range.start).text;
+      const indentMatch = firstLineText.match(/^(\s*)/);
+      const indent = indentMatch ? indentMatch[1] : '';
+
+      // Build the individual directives separated by empty lines
+      const individualDirectives: string[] = [];
+      for (const indicator of listDirectiveInfo.indicators) {
+        individualDirectives.push(`${indent}:- ${listDirectiveInfo.directiveName}(${indicator}).`);
+      }
+
+      // Join with empty lines between directives
+      const replacementText = individualDirectives.join('\n\n');
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Replace the entire directive range
+      const replaceRange = new Range(
+        new Position(listDirectiveInfo.range.start, 0),
+        new Position(listDirectiveInfo.range.end, document.lineAt(listDirectiveInfo.range.end).text.length)
+      );
+
+      edit.replace(document.uri, replaceRange, replacementText);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        this.logger.info(`Successfully split ${listDirectiveInfo.directiveName} directive into ${listDirectiveInfo.indicators.length} individual directives`);
+        window.showInformationMessage(
+          `Split ${listDirectiveInfo.directiveName} directive into ${listDirectiveInfo.indicators.length} individual directives.`
+        );
+      } else {
+        window.showErrorMessage("Failed to split directive.");
+      }
+    } catch (error) {
+      this.logger.error(`Error splitting directive: ${error}`);
+      window.showErrorMessage(`Error splitting directive: ${error}`);
     }
   }
 
@@ -2274,6 +2354,103 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // 1. Exactly one include directive was found
     // 2. No other non-comment code was found
     return (includePosition !== null && !hasNonCommentNonIncludeCode) ? includePosition : null;
+  }
+
+  /**
+   * Check if the selection contains a list directive that can be split
+   *
+   * Checks for directives: public/1, protected/1, private/1, dynamic/1, multifile/1,
+   * discontiguous/1, synchronized/1 with list arguments containing multiple indicators
+   *
+   * @param document The text document
+   * @param selection The selected range
+   * @returns Directive info if found, null otherwise
+   */
+  private containsListDirective(document: TextDocument, selection: Selection): {
+    directiveName: string;
+    range: { start: number; end: number };
+    indicators: string[];
+  } | null {
+    // Skip empty lines and line comments at the start of the selection
+    let startLine = selection.start.line;
+    const endLine = selection.end.line;
+
+    while (startLine <= endLine) {
+      const lineText = document.lineAt(startLine).text.trim();
+
+      // Skip empty lines and line comments
+      if (lineText === '' || lineText.startsWith('%')) {
+        startLine++;
+        continue;
+      }
+
+      break;
+    }
+
+    // No non-comment, non-empty line found
+    if (startLine > endLine) {
+      return null;
+    }
+
+    const lineText = document.lineAt(startLine).text.trim();
+
+    // Check if this line starts a directive with a list argument
+    const directiveMatch = lineText.match(/^:-\s*(\w+)\(\[/);
+    if (!directiveMatch) {
+      return null;
+    }
+
+    const directiveName = directiveMatch[1];
+
+    // Directive types that can have list arguments
+    const listDirectiveTypes = [
+      'public', 'protected', 'private',
+      'dynamic', 'multifile', 'discontiguous', 'synchronized'
+    ];
+
+    // Check if it's one of the supported list directive types
+    if (!listDirectiveTypes.includes(directiveName)) {
+      return null;
+    }
+
+    // Get the complete directive range
+    const directiveRange = PredicateUtils.getDirectiveRange(document, startLine);
+
+    // Get the complete directive text
+    let directiveText = '';
+    for (let i = directiveRange.start; i <= directiveRange.end; i++) {
+      directiveText += document.lineAt(i).text;
+    }
+
+    // Normalize the directive text (remove extra whitespace)
+    const normalizedDirective = directiveText.replace(/\s+/g, ' ').trim();
+
+    // Extract the argument (should be a list)
+    const argMatch = normalizedDirective.match(new RegExp(`^:-\\s*${directiveName}\\(\\s*\\[(.*)\\]\\s*\\)\\.`));
+    if (!argMatch) {
+      // Not a list argument or malformed
+      return null;
+    }
+
+    const listContent = argMatch[1].trim();
+    if (!listContent) {
+      // Empty list
+      return null;
+    }
+
+    // Parse the list elements using ArgumentUtils
+    const indicators = ArgumentUtils.parseArguments(listContent);
+
+    // Only offer split if there are multiple indicators
+    if (indicators.length > 1) {
+      return {
+        directiveName: directiveName,
+        range: directiveRange,
+        indicators: indicators.map(ind => ind.trim())
+      };
+    }
+
+    return null;
   }
 
   /**

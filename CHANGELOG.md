@@ -2,6 +2,7 @@
 
 ## [0.71.0]
 
+* Add "Split in individual directives" refactoring support
 * Add "Extract to Logtalk entity" refactoring support
 
 ## [0.70.0]

@@ -435,6 +435,14 @@ export async function activate(context: ExtensionContext) {
 
   // Register refactor commands
   context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.splitInIndividualDirectives', async (document, listDirectiveInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.splitInIndividualDirectives(document, listDirectiveInfo);
+      }
+    })
+  );
+
+  context.subscriptions.push(
     commands.registerCommand('logtalk.refactor.extractToEntity', async (document, selection) => {
       if (refactorProvider) {
         await refactorProvider.extractToEntity(document, selection);
