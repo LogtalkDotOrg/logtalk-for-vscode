@@ -97,7 +97,9 @@ export default class LogtalkTerminal {
       ".vscode_ancestors_done",
       ".vscode_descendants_done",
       ".vscode_type_done",
-      ".vscode_find_parent_done"
+      ".vscode_find_parent_done",
+      ".vscode_tester_output",
+      ".vscode_doclet_output"
     ];
     // Wait for cleanup to complete
     await Utils.cleanupTemporaryFiles(directory, files);
@@ -139,11 +141,11 @@ export default class LogtalkTerminal {
     if (LogtalkTerminal._testerExec == "") {
       if (process.platform === 'win32') {
         LogtalkTerminal._testerExec = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
-        LogtalkTerminal._testerArgs = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/logtalk_tester.ps1"), "-p", logtalkBackend, "-f", "xunit"];
+        LogtalkTerminal._testerArgs = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/logtalk_tester.ps1"), "-p", logtalkBackend, "-f", "xunit", "-s", "''"];
       } else {
         LogtalkTerminal._testerExec = path.join(path.join(logtalkHome, "scripts"), "logtalk_tester.sh");
         LogtalkTerminal._testerExec = path.resolve(LogtalkTerminal._testerExec).split(path.sep).join("/");
-        LogtalkTerminal._testerArgs = ["-p", logtalkBackend, "-f", "xunit"];
+        LogtalkTerminal._testerArgs = ["-p", logtalkBackend, "-f", "xunit", "-s", "''"];
       }
     }
 
@@ -1204,29 +1206,122 @@ export default class LogtalkTerminal {
     window.showInformationMessage("Dead code scanning completed.");
   }
 
-  public static runTesters(uri: Uri) {
+  /**
+   * Parse tester output file and create diagnostics
+   */
+  private static async parseTesterOutput(outputFile: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter): Promise<void> {
+    try {
+      if (!fs.existsSync(outputFile)) {
+        return;
+      }
+
+      const content = await fsp.readFile(outputFile, 'utf8');
+      const lines = content.split(/\r?\n/);
+      let message = '';
+      let test = false;
+
+      for (let line of lines) {
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+          testsReporter.clear(line);
+        } else if (test || line.includes('cpu/wall seconds')) {
+          test = true;
+          message = message + line + '\n';
+          if (line == '*     ' || line == '!     ') {
+            // This is a test-related message
+            testsReporter.lint(null as any, message);
+            message = '';
+            test = false;
+          }
+        } else {
+          message = message + line + '\n';
+          if (line == '*     ' || line == '!     ') {
+            // This is a compiler error/warning
+            linter.lint(message);
+            message = '';
+          }
+        }
+      }
+
+      // Clean up the output file
+      await fsp.rm(outputFile, { force: true });
+    } catch (err) {
+      LogtalkTerminal._outputChannel.appendLine(`Error parsing tester output: ${err}`);
+    }
+  }
+
+  public static runTesters(uri: Uri, linter?: LogtalkLinter, testsReporter?: LogtalkTestsReporter) {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._outputChannel.clear();
+
+    const dir = LogtalkTerminal.getWorkspaceFolder(uri);
+    const outputFile = linter && testsReporter ? path.join(dir, '.vscode_tester_output') : undefined;
 
     LogtalkTerminal.spawnScriptWorkspace(
       uri,
       ["logtalk_tester", "logtalk.run.tester", LogtalkTerminal._testerExec],
       LogtalkTerminal._testerExec,
       LogtalkTerminal._testerArgs,
-      "Testers completed."
+      "Testers completed.",
+      outputFile,
+      linter && testsReporter ? async (file) => {
+        await LogtalkTerminal.parseTesterOutput(file, linter, testsReporter);
+      } : undefined
     );
   }
 
-  public static runDoclets(uri: Uri) {
+  /**
+   * Parse doclet output file and create diagnostics
+   */
+  private static async parseDocletOutput(outputFile: string, linter: LogtalkLinter, documentationLinter: LogtalkDocumentationLinter): Promise<void> {
+    try {
+      if (!fs.existsSync(outputFile)) {
+        return;
+      }
+
+      const content = await fsp.readFile(outputFile, 'utf8');
+      const lines = content.split(/\r?\n/);
+      let message = '';
+
+      for (let line of lines) {
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+          documentationLinter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if (line == '*     ' || line == '!     ') {
+            // Parse both linter and documentation linter messages
+            linter.lint(message);
+            documentationLinter.lint(message);
+            message = '';
+          }
+        }
+      }
+
+      // Clean up the output file
+      await fsp.rm(outputFile, { force: true });
+    } catch (err) {
+      LogtalkTerminal._outputChannel.appendLine(`Error parsing doclet output: ${err}`);
+    }
+  }
+
+  public static runDoclets(uri: Uri, linter?: LogtalkLinter, documentationLinter?: LogtalkDocumentationLinter) {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._outputChannel.clear();
+
+    const dir = LogtalkTerminal.getWorkspaceFolder(uri);
+    const outputFile = linter && documentationLinter ? path.join(dir, '.vscode_doclet_output') : undefined;
 
     LogtalkTerminal.spawnScriptWorkspace(
       uri,
       ["logtalk_doclet", "logtalk.run.doclets", LogtalkTerminal._docletExec],
       LogtalkTerminal._docletExec,
       LogtalkTerminal._docletArgs,
-      "Doclets completed."
+      "Doclets completed.",
+      outputFile,
+      linter && documentationLinter ? async (file) => {
+        await LogtalkTerminal.parseDocletOutput(file, linter, documentationLinter);
+      } : undefined
     );
   }
 
@@ -1557,16 +1652,40 @@ export default class LogtalkTerminal {
     });  
   }
 
-  private static spawnScript(dir: string, type: string[], path: string, args: string[], message: string) {
+  private static spawnScript(
+    dir: string,
+    type: string[],
+    path: string,
+    args: string[],
+    message: string,
+    outputFile?: string,
+    onComplete?: (outputFile: string) => Promise<void>
+  ) {
     let pp = spawn(path, args, { cwd: dir });
+    let outputBuffer = '';
+
     pp.stdout.on('data', (data) => {
-      LogtalkTerminal._outputChannel.append(data.toString());
+      const dataStr = data.toString();
+      LogtalkTerminal._outputChannel.append(dataStr);
       LogtalkTerminal._outputChannel.show(true);
+
+      // Accumulate output if we need to write to file
+      if (outputFile) {
+        outputBuffer += dataStr;
+      }
     });
+
     pp.stderr.on('data', (data) => {
-      LogtalkTerminal._outputChannel.append(data.toString());
+      const dataStr = data.toString();
+      LogtalkTerminal._outputChannel.append(dataStr);
       LogtalkTerminal._outputChannel.show(true);
+
+      // Accumulate stderr output as well
+      if (outputFile) {
+        outputBuffer += dataStr;
+      }
     });
+
     pp.on('error', (err) => {
       let message: string = null;
       if ((<any>err).code === "ENOENT") {
@@ -1579,15 +1698,38 @@ export default class LogtalkTerminal {
       this._outputChannel.append(message);
       this._outputChannel.show(true);
     });
-    pp.on('close', (code) => {
+
+    pp.on('close', async (code) => {
+      // Write output to file if specified
+      if (outputFile && outputBuffer) {
+        try {
+          await fsp.writeFile(outputFile, outputBuffer, 'utf8');
+
+          // Call the completion callback if provided
+          if (onComplete) {
+            await onComplete(outputFile);
+          }
+        } catch (err) {
+          this._outputChannel.appendLine(`Error writing output to file ${outputFile}: ${err}`);
+        }
+      }
+
       window.showInformationMessage(message);
     })
   }
 
-  private static spawnScriptWorkspace(uri: Uri, type: string[], path: string, args: string[], message: string) {
+  private static spawnScriptWorkspace(
+    uri: Uri,
+    type: string[],
+    path: string,
+    args: string[],
+    message: string,
+    outputFile?: string,
+    onComplete?: (outputFile: string) => Promise<void>
+  ) {
     let dir: string;
     dir = LogtalkTerminal.getWorkspaceFolder(uri);
-    LogtalkTerminal.spawnScript(dir, type, path, args, message);
+    LogtalkTerminal.spawnScript(dir, type, path, args, message, outputFile, onComplete);
   }
 
   private static async ensureFile(uri: Uri): Promise<string> {

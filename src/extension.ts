@@ -327,8 +327,8 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.rcompute.metrics",          callback: uri  => LogtalkTerminal.rcomputeMetrics(uri)},
     { command: "logtalk.rgenerate.documentation",   callback: uri  => LogtalkTerminal.rgenDocumentation(uri, documentationLinter)},
     { command: "logtalk.rgenerate.diagrams",        callback: uri  => LogtalkTerminal.rgenDiagrams(uri)},
-    { command: "logtalk.run.testers",               callback: uri  => LogtalkTerminal.runTesters(uri)},
-    { command: "logtalk.run.doclets",               callback: uri  => LogtalkTerminal.runDoclets(uri)},
+    { command: "logtalk.run.testers",               callback: uri  => LogtalkTerminal.runTesters(uri, linter, testsReporter)},
+    { command: "logtalk.run.doclets",               callback: uri  => LogtalkTerminal.runDoclets(uri, linter, documentationLinter)},
     // Directory and file commands
     { command: "logtalk.load.directory",            callback: uri  => LogtalkTerminal.loadDirectory(uri, linter)},
     { command: "logtalk.load.file",                 callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
