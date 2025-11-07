@@ -29,7 +29,9 @@ For details, see [Configuration](#configuration). This extension includes a walk
 This extension provides a comprehensive set of features for Logtalk development:
 
 - [Syntax highlighting](#syntax-highlighting)
-- [Snippets](#indentation-snippets-and-auto-completion)
+- [Completions and Snippets](#automatic-indentation)
+- [Completions](#completions)
+- [Snippets](#snippets)
 - [Selection ranges](#selection-ranges)
 - [Formatting support](#formatting-support)
 - [Linter](#linter)
@@ -50,14 +52,23 @@ Most of the features rely on a Logtalk session running in the integrated termina
 - Full syntax highlight for all Logtalk built-in control constructs, directives, methods, and predicates
 - Full syntax highlight for all ISO Prolog standard built-in control constructs, directives, and predicates
 
-### Indentation, snippets, and auto-completion
+### Automatic indentation
 
-- Indentation after new line
+- Entity opening directives: increases indentation for multiline entity declarations (`:- object(...)`, `:- protocol(...)`, `:- category(...)`)
+- Predicate rules: increases indentation after rule heads ending with `:-` and DCG rule heads ending with `-->`
+- Term completion: automatically outdents and removes trailing whitespace after a period (`.`) that ends a term
+- Control constructs: increases indentation after disjunction (`;`), if-then-else (`->`), and soft-cut (`*->`) operators when they appear at the start of a line; maintains current indentation after `->` and `*->` when they appear mid-line
+- Brackets: automatically indents and outdents for opening brackets (`[`, `{`, `(`)
+- Block comments: smart formatting for JavaDoc-style block comments (`/** ... */`) with automatic continuation of comment lines with `* ` prefix and proper indentation handling
+
+### Completions
+
 - Built-in directive, method, and predicate template auto-completion
+- List tail variables after typing the `|` character based on the head variable name
 
-Note: Relations between entities use choice snippets: `orel` triggers object relation choices and `crel` for category. There is only one relation between protocols, 'extends', so `ext` will trigger the snippet.
+### Snippets
 
-The snippets for entity opening directives and predicate scope directives are all triggered by natural prefix, i.e. `:- public` triggers `:- public()` directive. You don't need to type all characters to show up the suggestion list.
+The snippets for entity opening directives and predicate scope directives are all triggered by natural prefix, i.e. `:- public` triggers `:- public()` directive. You don't need to type all characters to show up the suggestion list. Relations between entities use choice snippets: `orel` triggers object relation choices and `crel` for category. There is only one relation between protocols, 'extends', so `ext` will trigger the snippet.
 
 Refer to the table below for other snippets:
 
@@ -100,7 +111,7 @@ Refer to the table below for other snippets:
 
 ### Selection ranges
 
-- The "Expand Selection" command can be used to expand the selection to next level using the hierarchy: word, line, comment or directive or clause or grammar rule, predicate or non-terminal definition, entity, file. The "Shrink Selection" command can be used to shrink the selection to the previous level.
+The "Expand Selection" command can be used to expand the selection to the next level using the hierarchy: word, line, comment or directive or clause or grammar rule, predicate or non-terminal definition, entity, file. The "Shrink Selection" command can be used to shrink the selection to the previous level.
 
 ### Formatting support
 

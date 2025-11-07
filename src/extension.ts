@@ -42,6 +42,7 @@ import { LogtalkChatParticipant } from "./features/chatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
+import { LogtalkListCompletionProvider } from "./features/completionItemProvider";
 import { LogtalkSelectionRangeProvider } from "./features/selectionRangeProvider";
 import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
@@ -712,6 +713,11 @@ export async function activate(context: ExtensionContext) {
   const documentRangeFormattingProvider = new LogtalkDocumentRangeFormattingEditProvider();
   context.subscriptions.push(
     languages.registerDocumentRangeFormattingEditProvider({ language: "logtalk" }, documentRangeFormattingProvider)
+  );
+
+  const listCompletionProvider = new LogtalkListCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, listCompletionProvider, '|')
   );
 
   // Register chained formatting command (indentation conversion + Logtalk formatting)

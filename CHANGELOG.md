@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.73.0]
+
+* Provide completions for list tail variables after typing the `|` character based on the head variable name
+* Add detailed `README.md` file section on automatic indentation
+
 ## [0.72.0]
 
 * Add support for the "Expand selection" and "Shrink selection" commands
