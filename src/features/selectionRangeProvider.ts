@@ -12,15 +12,20 @@ import { PredicateUtils } from "../utils/predicateUtils";
 import { SymbolRegexes } from "../utils/symbols";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
+import LogtalkTerminal from "./terminal";
+import * as path from "path";
+import * as fs from "fs";
+import * as fsp from "fs/promises";
 
 /**
  * Provides smart selection ranges for Logtalk code.
- * 
+ *
  * The hierarchy of selection ranges (when expanding a selection):
  * 1. Line (current line)
- * 2. Block comment, directive, or clause
- * 3. Entity (object/protocol/category)
- * 4. File (entire document)
+ * 2. Block comment, directive, predicate clause, or grammar rule
+ * 3. Predicate or non-terminal definition (all consecutive clauses or rules)
+ * 4. Entity (object/protocol/category)
+ * 5. File (entire document)
  */
 export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
   private logger = getLogger();
@@ -32,11 +37,11 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
    * @param token A cancellation token
    * @returns An array of selection ranges or a thenable that resolves to such
    */
-  public provideSelectionRanges(
+  public async provideSelectionRanges(
     document: TextDocument,
     positions: Position[],
     token: CancellationToken
-  ): SelectionRange[] | Thenable<SelectionRange[]> {
+  ): Promise<SelectionRange[]> {
     const selectionRanges: SelectionRange[] = [];
 
     for (const position of positions) {
@@ -44,7 +49,7 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
         break;
       }
 
-      const selectionRange = this.buildSelectionRangeHierarchy(document, position);
+      const selectionRange = await this.buildSelectionRangeHierarchy(document, position);
       if (selectionRange) {
         selectionRanges.push(selectionRange);
       }
@@ -59,27 +64,31 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
    * @param position The position in the document
    * @returns The selection range hierarchy
    */
-  private buildSelectionRangeHierarchy(
+  private async buildSelectionRangeHierarchy(
     document: TextDocument,
     position: Position
-  ): SelectionRange | null {
+  ): Promise<SelectionRange | null> {
     try {
       // Level 1: Current line
       const lineRange = this.getLineRange(document, position);
 
-      // Level 2: Block comment, directive, or clause
+      // Level 2: Block comment, directive, clause, or grammar rule
       const blockRange = this.getBlockRange(document, position);
 
-      // Level 3: Entity
+      // Level 3: Predicate or non-terminal definition (all consecutive clauses or rules)
+      const predicateDefRange = await this.getPredicateDefinitionRange(document, position, blockRange);
+
+      // Level 4: Entity
       const entityRange = this.getEntityRange(document, position);
 
-      // Level 4: File (entire document)
+      // Level 5: File (entire document)
       const fileRange = this.getFileRange(document);
 
       // Debug logging
       this.logger.debug(`Selection ranges at position ${position.line}:${position.character}:`);
       this.logger.debug(`  Line: ${lineRange.start.line}-${lineRange.end.line}`);
       this.logger.debug(`  Block: ${blockRange ? `${blockRange.start.line}-${blockRange.end.line}` : 'null'}`);
+      this.logger.debug(`  Predicate def: ${predicateDefRange ? `${predicateDefRange.start.line}-${predicateDefRange.end.line}` : 'null'}`);
       this.logger.debug(`  Entity: ${entityRange ? `${entityRange.start.line}-${entityRange.end.line}` : 'null'}`);
       this.logger.debug(`  File: ${fileRange.start.line}-${fileRange.end.line}`);
 
@@ -94,6 +103,11 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
       // Add entity range if it exists and is strictly smaller than file
       if (entityRange && !entityRange.isEqual(fileRange)) {
         currentRange = new SelectionRange(entityRange, currentRange);
+      }
+
+      // Add predicate definition range if it exists and is strictly smaller than the current parent
+      if (predicateDefRange && !predicateDefRange.isEqual(currentRange.range)) {
+        currentRange = new SelectionRange(predicateDefRange, currentRange);
       }
 
       // Add block range if it exists and is strictly smaller than the current parent
@@ -315,6 +329,102 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
       new Position(clauseRange.start, 0),
       new Position(clauseRange.end, document.lineAt(clauseRange.end).text.length)
     );
+  }
+
+  /**
+   * Get the range of the predicate or non-terminal definition (all consecutive clauses or rules) containing the position.
+   * @param document The text document
+   * @param position The position in the document
+   * @param blockRange The block range (clause or rule) at the position, if any
+   * @returns The range of the predicate or non-terminal definition, or null if not in a clause/rule
+   */
+  private async getPredicateDefinitionRange(
+    document: TextDocument,
+    position: Position,
+    blockRange: Range | null
+  ): Promise<Range | null> {
+    // Only applicable if we're in a clause or rule (not a directive or comment)
+    if (!blockRange) {
+      return null;
+    }
+
+    // Check if the block is a clause/rule (not a directive or comment)
+    // Directives start with :-, block comments start with /*
+    const blockStartLine = document.lineAt(blockRange.start.line).text.trim();
+    if (blockStartLine.startsWith(':-') || blockStartLine.startsWith('/*')) {
+      return null;
+    }
+
+    // Get the predicate/non-terminal indicator under cursor (name/arity or name//arity)
+    const call = Utils.getCallUnderCursor(document, position);
+    if (!call) {
+      return null;
+    }
+
+    // Determine if it's a non-terminal by checking if blockRange contains '-->'
+    let isNonTerminal = false;
+    for (let lineNum = blockRange.start.line; lineNum <= blockRange.end.line; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      if (lineText.includes('-->')) {
+        isNonTerminal = true;
+        break;
+      }
+    }
+
+    // Build the indicator in the correct format
+    const indicator = call.includes('//') ? call : (isNonTerminal ? call.replace('/', '//') : call);
+
+    // Use LogtalkTerminal.getDefinition to find the definition location
+    await LogtalkTerminal.getDefinition(document, position, call);
+
+    // Read the definition location from the .vscode_definition file
+    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!dir) {
+      return null;
+    }
+
+    const defFile = path.join(dir, ".vscode_definition");
+    if (!fs.existsSync(defFile)) {
+      return null;
+    }
+
+    const out = fs.readFileSync(defFile).toString();
+    await fsp.rm(defFile, { force: true });
+
+    const match = out.match(/File:(.+);Line:(\d+)/);
+    if (!match) {
+      return null;
+    }
+
+    const fileName: string = match[1];
+    const definitionLine: number = parseInt(match[2]) - 1; // Convert to 0-based
+
+    // Check if the definition is in the same file
+    if (path.resolve(fileName) !== path.resolve(document.fileName)) {
+      return null;
+    }
+
+    // Find all consecutive clauses/rules for this predicate/non-terminal starting from the definition line
+    const ranges = PredicateUtils.findConsecutivePredicateClauseRanges(
+      document,
+      indicator,
+      definitionLine
+    );
+
+    if (ranges.length === 0) {
+      return null;
+    }
+
+    // If there's only one clause/rule, return null (no need for predicate definition level)
+    if (ranges.length === 1) {
+      return null;
+    }
+
+    // Compute the overall range from first to last clause/rule
+    const firstRange = ranges[0];
+    const lastRange = ranges[ranges.length - 1];
+
+    return new Range(firstRange.start, lastRange.end);
   }
 
   /**

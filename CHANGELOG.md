@@ -2,7 +2,7 @@
 
 ## [0.72.0]
 
-* Add support for the "Expand selection" command
+* Add support for the "Expand selection" and "Shrink selection" commands
 * Add "Add predicate/non-terminal declaration" refactoring support
 * Improve documentation of optional settings
 * Fix missing configuration update listener in the `Utils` class

@@ -100,7 +100,7 @@ Refer to the table below for other snippets:
 
 ### Selection ranges
 
-- The "Expand Selection" command can be used to expand the selection to next level using the hierarchy: word, line, block comment or directive or clause, entity, file.
+- The "Expand Selection" command can be used to expand the selection to next level using the hierarchy: word, line, comment or directive or clause or grammar rule, predicate or non-terminal definition, entity, file. The "Shrink Selection" command can be used to shrink the selection to the previous level.
 
 ### Formatting support
 
