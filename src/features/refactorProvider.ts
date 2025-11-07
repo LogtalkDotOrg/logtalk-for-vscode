@@ -9,6 +9,7 @@ import {
   Selection,
   TextDocument,
   CancellationToken,
+  CancellationTokenSource,
   WorkspaceEdit,
   Uri,
   window,
@@ -329,6 +330,22 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const position = range instanceof Selection ? range.active : range.start;
     const indicator = await this.isPredicateReference(document, position);
     if (indicator) {
+
+      // Check if we're on a clause head or grammar rule head
+      const isInHead = await this.isPositionInClauseHead(document, position);
+      if (isInHead) {
+        const addDeclarationAction = new CodeAction(
+          "Add predicate/non-terminal declaration",
+          CodeActionKind.RefactorRewrite
+        );
+        addDeclarationAction.command = {
+          command: "logtalk.refactor.addPredicateDeclaration",
+          title: "Add predicate/non-terminal declaration",
+          arguments: [document, position, indicator]
+        };
+        actions.push(addDeclarationAction);
+      }
+
       const addArgumentAction = new CodeAction(
         "Add argument to predicate/non-terminal",
         CodeActionKind.RefactorRewrite
@@ -702,6 +719,126 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error extracting to entity: ${error}`);
       window.showErrorMessage(`Error extracting to entity: ${error}`);
+    }
+  }
+
+  /**
+   * Add predicate/non-terminal declaration
+   *
+   * Adds scope, mode/2 (or mode//2), and info/2 directives before the predicate definition
+   *
+   * @param document The text document
+   * @param position The position in the clause head
+   * @param indicator The predicate/non-terminal indicator
+   */
+  async addPredicateDeclaration(
+    document: TextDocument,
+    position: Position,
+    indicator: string
+  ): Promise<void> {
+    try {
+      this.logger.info(`Adding declaration for ${indicator}`);
+
+      // Parse the indicator
+      const parsed = PredicateUtils.parseIndicator(indicator);
+      if (!parsed) {
+        window.showErrorMessage(`Invalid indicator: ${indicator}`);
+        return;
+      }
+
+      const isNonTerminal = parsed.isNonTerminal;
+      const predicateName = parsed.name;
+      const arity = parsed.arity;
+
+      this.logger.debug(`Adding declaration for ${indicator}: isNonTerminal=${isNonTerminal}, name=${predicateName}, arity=${arity}`);
+
+      // Ask user for scope
+      const scope = await window.showQuickPick(['public', 'protected', 'private'], {
+        placeHolder: 'Select declaration scope',
+        title: 'Add Predicate/Non-terminal Declaration'
+      });
+
+      if (!scope) {
+        return; // User cancelled
+      }
+
+      // Find the definition location using the definition provider
+      const tokenSource = new CancellationTokenSource();
+      const definitionLocation = await this.definitionProvider.provideDefinition(document, position, tokenSource.token);
+      tokenSource.dispose();
+      if (!definitionLocation || !this.isValidLocation(definitionLocation)) {
+        window.showErrorMessage(`Could not find definition for ${indicator}`);
+        return;
+      }
+
+      // Open the document containing the definition
+      const defDocument = await workspace.openTextDocument(definitionLocation.uri);
+      const defLine = definitionLocation.range.start.line;
+
+      // Get the indentation from the definition line
+      const defLineText = defDocument.lineAt(defLine).text;
+      const indentMatch = defLineText.match(/^(\s*)/);
+      const indent = indentMatch ? indentMatch[1] : '';
+
+      // Build the directives
+      const directives: string[] = [];
+
+      // 1. Scope directive
+      directives.push(`${indent}:- ${scope}(${indicator}).`);
+
+      // 2. Mode directive
+      // For non-terminals use mode_non_terminal/2, for predicates use mode/2
+      const modeArgs = Array(arity).fill('?').join(', ');
+
+      if (isNonTerminal) {
+        // Non-terminal: use mode_non_terminal/2
+        if (arity === 0) {
+          directives.push(`${indent}:- mode_non_terminal(${predicateName}, zero_or_more).`);
+        } else {
+          directives.push(`${indent}:- mode_non_terminal(${predicateName}(${modeArgs}), zero_or_more).`);
+        }
+      } else {
+        // Predicate: use mode/2
+        if (arity === 0) {
+          directives.push(`${indent}:- mode(${predicateName}, zero_or_more).`);
+        } else {
+          directives.push(`${indent}:- mode(${predicateName}(${modeArgs}), zero_or_more).`);
+        }
+      }
+
+      // 3. Info directive
+      const argNames = Array(arity).fill("''").join(', ');
+      directives.push(`${indent}:- info(${indicator}, [`);
+      if (arity > 0) {
+        directives.push(`${indent}\tcomment is '',`);
+        directives.push(`${indent}\targnames is [${argNames}]`);
+      } else {
+        directives.push(`${indent}\tcomment is ''`);
+      }
+      directives.push(`${indent}]).`);
+
+      // Join directives with newlines and add empty line after
+      // Format: directives + \n\n
+      // - Directives are inserted at the definition line (preserving any existing empty space before)
+      // - First \n ends the last directive
+      // - Second \n creates an empty line before the definition
+      const declarationText = directives.join('\n') + '\n\n';
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+      const insertPosition = new Position(defLine, 0);
+      edit.insert(definitionLocation.uri, insertPosition, declarationText);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        this.logger.info(`Successfully added ${scope} declaration for ${indicator}`);
+        window.showInformationMessage(`Added ${scope} declaration for ${indicator}.`);
+      } else {
+        window.showErrorMessage("Failed to add declaration.");
+      }
+    } catch (error) {
+      this.logger.error(`Error adding declaration: ${error}`);
+      window.showErrorMessage(`Error adding declaration: ${error}`);
     }
   }
 
@@ -2259,6 +2396,25 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Check if position is in the clause head (before :- or --> operator)
+   * Only returns true if position is at the term start (i.e., on the clause head line)
+   */
+  private async isPositionInClauseHead(document: TextDocument, position: Position): Promise<boolean> {
+    // Find the start of the term (clause/rule)
+    const termStart = Utils.findTermStart(document, position.line);
+    if (termStart === null) {
+      return false;
+    }
+
+    // Position must be at the term start
+    if (termStart !== position.line) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
    * Check if the current position is on a predicate reference and return the indicator
    * @returns The predicate/non-terminal indicator if valid for refactoring, null otherwise
    */
@@ -2282,11 +2438,25 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     // Check if we can find a predicate indicator or call at this position
-    const indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
-                      Utils.getPredicateIndicatorUnderCursor(document, position) ||
-                      Utils.getCallUnderCursor(document, position);
+    let indicator = Utils.getNonTerminalIndicatorUnderCursor(document, position) ||
+                    Utils.getPredicateIndicatorUnderCursor(document, position) ||
+                    Utils.getCallUnderCursor(document, position);
 
-    return indicator || null;
+    if (!indicator) {
+      return null;
+    }
+
+    // If we're on a grammar rule (non_terminal_rule), ensure we have a non-terminal indicator
+    try {
+      const termType = await Utils.termType(document.uri, position);
+      if (termType === 'non_terminal_rule' && indicator.includes('/') && !indicator.includes('//')) {
+        indicator = PredicateUtils.convertIndicatorType(indicator, true);
+      }
+    } catch (error) {
+      this.logger.error(`Error checking term type for indicator conversion: ${error}`);
+    }
+
+    return indicator;
   }
 
   /**

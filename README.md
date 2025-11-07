@@ -344,6 +344,10 @@ To add a new parameter to an object (or category), right-click on the object (or
 
 To add a new argument to a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Add argument to predicate/non-terminal" context menu item and enter the new argument name and position. To reorder the arguments of a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Reorder predicate/non-terminal arguments" context menu item and enter the new argument order. To remove an argument from a predicate (or non-terminal), right-click on the predicate name in a directive, goal, or clause head and select the "Remove argument from predicate/non-terminal" context menu item and enter the argument position.
 
+#### Add predicate/non-terminal declaration
+
+To add a declaration for a local predicate (or non-terminal), right-click on the predicate name in a clause head and select the "Add predicate/non-terminal declaration" context menu item. The declaration, consisting of scope, `mode/2`, and `info/2` directives, is added before the predicate definition.
+
 #### Directive refactoring
 
 The "Split in individual directives" refactoring operation is available when the user selects a region of code that contains a predicate directive with a list argument and uses the "Refactor" context menu item or the "Refactor" command palette item. The directive is split into individual directives, one for each element in the list.
