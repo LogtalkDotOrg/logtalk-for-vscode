@@ -746,7 +746,7 @@ export class Utils {
   /**
    * Find the start of a multi-line term by searching backwards
    */
-  private static findTermStart(doc: TextDocument, currentLine: number): number | null {
+  public static findTermStart(doc: TextDocument, currentLine: number): number | null {
     let lineNum = currentLine;
 
     // Search backwards to find the start of the term
@@ -760,19 +760,80 @@ export class Utils {
         continue;
       }
 
-      // Check if this line could be the start of a term
+      // Check if this line could be the start of a term (directive, rule, or non-terminal)
       if (Utils.isTermStart(lineText)) {
         return lineNum;
       }
 
-      // Check if this line ends with a period (end of previous term)
-      // But only if we're not on the current line (to avoid treating the current term's end as a previous term's end)
-      if (lineNum < currentLine && trimmed.endsWith('.')) {
-        // The term starts on the next line
-        return lineNum + 1 <= currentLine ? lineNum + 1 : null;
-      }
+      // If this line ends with a period, we need to determine if it's:
+      // 1. A single-line fact (current line) - return current line
+      // 2. End of a multi-line clause (current line) - continue searching backwards
+      // 3. End of a previous term (previous line) - return next line
+      if (trimmed.endsWith('.')) {
+        if (lineNum === currentLine) {
+          // Special case: if the current line is just ")." or ")" followed by ".",
+          // it's definitely a continuation line (end of a multi-line clause body)
+          if (/^\s*\)\.?\s*$/.test(lineText)) {
+            lineNum--;
+            continue;
+          }
 
-      lineNum--;
+          // We're on a line ending with period - could be a fact or end of multi-line clause
+          // Check if there's a previous non-empty, non-comment line
+          let prevLineNum = lineNum - 1;
+          while (prevLineNum >= 0) {
+            const prevLineText = doc.lineAt(prevLineNum).text;
+            const prevTrimmed = prevLineText.trim();
+
+            // Skip empty lines and comments
+            if (prevTrimmed === '' || prevTrimmed.startsWith('%')) {
+              prevLineNum--;
+              continue;
+            }
+
+            // If previous line ends with comma, we're in a multi-line clause/directive
+            // Continue searching backwards from the previous line
+            if (prevTrimmed.endsWith(',')) {
+              lineNum = prevLineNum;
+              break;
+            }
+
+            // If previous line ends with period, current line is a single-line fact
+            if (prevTrimmed.endsWith('.')) {
+              return currentLine;
+            }
+
+            // If previous line contains :- or -->, it's the clause/rule head
+            // Check if it's a term start (it should be)
+            if (prevTrimmed.includes(':-') || prevTrimmed.includes('-->')) {
+              // The previous line is the term start
+              return prevLineNum;
+            }
+
+            // If previous line ends with ), we might be in a multi-line clause
+            // Continue searching backwards to be safe
+            if (prevTrimmed.endsWith(')')) {
+              lineNum = prevLineNum;
+              break;
+            }
+
+            // If previous line doesn't end with comma, period, or paren, current line is likely a single-line fact
+            return currentLine;
+          }
+
+          // If we didn't find a previous line, current line is a single-line fact
+          if (prevLineNum < 0) {
+            return currentLine;
+          }
+          // Continue the outer loop with the new lineNum
+        } else {
+          // We found a period on a previous line - the term starts on the next line
+          return lineNum + 1 <= currentLine ? lineNum + 1 : null;
+        }
+      } else {
+        // Line doesn't end with period, continue searching backwards
+        lineNum--;
+      }
     }
 
     // If we reach the beginning of the file, the term starts at line 0
@@ -782,7 +843,7 @@ export class Utils {
   /**
    * Check if a line could be the start of a term
    */
-  private static isTermStart(lineText: string): boolean {
+  public static isTermStart(lineText: string): boolean {
     const trimmed = lineText.trim();
 
     // Directive start
@@ -799,6 +860,11 @@ export class Utils {
     if (/^\s*([a-z][a-zA-Z0-9_]*|'[^']*')(\(.*\))?\s*-->/.test(lineText)) {
       return true;
     }
+
+    // Note: We don't check for facts here (lines ending with .)
+    // because we can't distinguish between a single-line fact and the last line
+    // of a multi-line clause without looking at previous lines.
+    // This is handled in findTermStart() instead.
 
     return false;
   }

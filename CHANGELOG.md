@@ -2,6 +2,7 @@
 
 ## [0.72.0]
 
+* Add support for the "Expand selection" command
 * Improve documentation of optional settings
 
 ## [0.71.0]

@@ -42,6 +42,7 @@ import { LogtalkChatParticipant } from "./features/chatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
+import { LogtalkSelectionRangeProvider } from "./features/selectionRangeProvider";
 import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
@@ -646,6 +647,10 @@ export async function activate(context: ExtensionContext) {
 
   context.subscriptions.push(
     languages.registerRenameProvider(LOGTALK_MODE, new LogtalkRenameProvider())
+  );
+
+  context.subscriptions.push(
+    languages.registerSelectionRangeProvider(LOGTALK_MODE, new LogtalkSelectionRangeProvider())
   );
 
   const callHierarchyProvider = new LogtalkCallHierarchyProvider();

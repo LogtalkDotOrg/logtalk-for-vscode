@@ -30,6 +30,7 @@ This extension provides a comprehensive set of features for Logtalk development:
 
 - [Syntax highlighting](#syntax-highlighting)
 - [Snippets](#indentation-snippets-and-auto-completion)
+- [Selection ranges](#selection-ranges)
 - [Formatting support](#formatting-support)
 - [Linter](#linter)
 - [Commands](#commands)
@@ -96,6 +97,10 @@ Refer to the table below for other snippets:
 |    public | Public predicate                     |
 
 ![snippets](images/snippets.gif)
+
+### Selection ranges
+
+- The "Expand Selection" command can be used to expand the selection to next level using the hierarchy: word, line, block comment or directive or clause, entity, file.
 
 ### Formatting support
 
