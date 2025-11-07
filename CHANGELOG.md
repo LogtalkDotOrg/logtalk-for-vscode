@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.72.0]
+
+* Improve documentation of optional settings
+
 ## [0.71.0]
 
 * Create diagnostics from the "Logtalk: Run Project Testers" and "Logtalk: Run Project Doclets" commands output
