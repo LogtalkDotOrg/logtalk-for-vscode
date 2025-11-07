@@ -70,8 +70,11 @@ export class Utils {
     return [];
   }
 
-  public static init(context: ExtensionContext) {
-    Utils.CONTEXT = context;
+  /**
+   * Updates runtime configuration from workspace settings.
+   * This method is called both during initialization and when configuration changes.
+   */
+  private static updateRuntimeConfiguration(): void {
     Utils.REFMANPATH = `${process.env.LOGTALKHOME}/manuals/refman/`;
 
     Utils.RUNTIMEPATH = workspace
@@ -90,7 +93,6 @@ export class Utils {
       .getConfiguration("logtalk")
       .get("executable.arguments");
     Utils.RUNTIMEARGS = Utils.resolveExecutableArguments(executableArgsConfig, Utils.backend);
-    Utils.loadSnippets(context);
 
     if (Utils.RUNTIMEPATH == "") {
       switch(Utils.backend) {
@@ -145,6 +147,26 @@ export class Utils {
        }
     }
 
+    Utils.logger.debug(`Runtime configuration updated: RUNTIMEPATH=${Utils.RUNTIMEPATH}, RUNTIMEARGS=${JSON.stringify(Utils.RUNTIMEARGS)}`);
+  }
+
+  public static init(context: ExtensionContext) {
+    Utils.CONTEXT = context;
+    Utils.loadSnippets(context);
+    Utils.updateRuntimeConfiguration();
+
+    // Listen for configuration changes and update runtime configuration
+    context.subscriptions.push(
+      workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration("logtalk.executable.path") ||
+            event.affectsConfiguration("logtalk.executable.arguments") ||
+            event.affectsConfiguration("logtalk.backend") ||
+            event.affectsConfiguration("logtalk.home.path")) {
+          Utils.logger.info("Logtalk runtime configuration changed, updating...");
+          Utils.updateRuntimeConfiguration();
+        }
+      })
+    );
   }
 
   /**

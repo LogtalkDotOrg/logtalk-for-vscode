@@ -4,6 +4,7 @@
 
 * Add support for the "Expand selection" command
 * Improve documentation of optional settings
+* Fix missing configuration update listener in the `Utils` class
 
 ## [0.71.0]
 
