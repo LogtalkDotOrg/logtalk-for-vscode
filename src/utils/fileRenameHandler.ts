@@ -4,7 +4,7 @@ import { Uri, WorkspaceEdit, TextEdit, Range, Position } from 'vscode';
 import { getLogger } from './logger';
 
 /**
- * Handles propagation of file renames to loader.lgt and tester.lgt files
+ * Handles propagation of file renames and deletions to loader.lgt and tester.lgt files
  */
 export class FileRenameHandler {
   private static logger = getLogger();
@@ -344,6 +344,368 @@ export class FileRenameHandler {
     // Users can manually add the reference to the new loader/tester file
     this.logger.debug(`File moved to new directory - user should manually add ${baseName} to ${filePath}`);
     return [];
+  }
+
+  /**
+   * Propagates file deletion to loader.lgt and tester.lgt files in the same directory
+   * @param deletedUri The URI of the deleted file
+   * @param timeoutMs Timeout in milliseconds (default: 5000)
+   * @returns WorkspaceEdit with all necessary changes, or null if no changes needed
+   */
+  public static async propagateFileDeletion(deletedUri: Uri, timeoutMs: number = 5000): Promise<WorkspaceEdit | null> {
+    // Wrap the operation in a timeout to prevent hanging
+    return Promise.race([
+      this.propagateFileDeletionInternal(deletedUri),
+      new Promise<null>((resolve) => {
+        setTimeout(() => {
+          this.logger.warn(`File deletion propagation timed out after ${timeoutMs}ms`);
+          resolve(null);
+        }, timeoutMs);
+      })
+    ]);
+  }
+
+  /**
+   * Internal implementation of file deletion propagation
+   * @param deletedUri The URI of the deleted file
+   * @returns WorkspaceEdit with all necessary changes, or null if no changes needed
+   */
+  private static async propagateFileDeletionInternal(deletedUri: Uri): Promise<WorkspaceEdit | null> {
+    const deletedPath = deletedUri.fsPath;
+
+    // Get file name without extension
+    const baseName = path.basename(deletedPath, path.extname(deletedPath));
+
+    // Skip if deleting loader.lgt or tester.lgt themselves
+    const fileName = path.basename(deletedPath);
+    if (fileName === 'loader.lgt' || fileName === 'loader.logtalk' ||
+        fileName === 'tester.lgt' || fileName === 'tester.logtalk') {
+      this.logger.debug(`Skipping deletion propagation for ${fileName}`);
+      return null;
+    }
+
+    // Get the directory containing the deleted file
+    const directory = path.dirname(deletedPath);
+
+    this.logger.debug(`Propagating deletion of ${baseName} in directory ${directory}`);
+
+    const workspaceEdit = new WorkspaceEdit();
+    let hasChanges = false;
+
+    // Find and update loader.lgt and tester.lgt files
+    const loaderFiles = ['loader.lgt', 'loader.logtalk'];
+    const testerFiles = ['tester.lgt', 'tester.logtalk'];
+
+    // Update loader files
+    for (const loaderFile of loaderFiles) {
+      const loaderPath = path.join(directory, loaderFile);
+      if (fs.existsSync(loaderPath)) {
+        const edits = await this.removeFileReferences(loaderPath, baseName);
+        if (edits.length > 0) {
+          workspaceEdit.set(Uri.file(loaderPath), edits);
+          hasChanges = true;
+          this.logger.debug(`Added ${edits.length} deletion edits to ${loaderFile}`);
+        }
+      }
+    }
+
+    // Update tester files
+    for (const testerFile of testerFiles) {
+      const testerPath = path.join(directory, testerFile);
+      if (fs.existsSync(testerPath)) {
+        const edits = await this.removeFileReferences(testerPath, baseName);
+        if (edits.length > 0) {
+          workspaceEdit.set(Uri.file(testerPath), edits);
+          hasChanges = true;
+          this.logger.debug(`Added ${edits.length} deletion edits to ${testerFile}`);
+        }
+      }
+    }
+
+    return hasChanges ? workspaceEdit : null;
+  }
+
+  /**
+   * Removes file references from a loader or tester file
+   * @param filePath Path to the loader or tester file
+   * @param baseName File base name (without extension) to remove
+   * @returns Array of TextEdits
+   */
+  private static async removeFileReferences(filePath: string, baseName: string): Promise<TextEdit[]> {
+    const edits: TextEdit[] = [];
+
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      const lines = content.split('\n');
+
+      // Track whether we're inside a logtalk_load/ensure_loaded/include call
+      let insideLoadCall = false;
+      let depth = 0;
+
+      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+        const line = lines[lineIndex];
+
+        // Update depth tracking for this line
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+
+          // Check if we're starting a load directive
+          if (!insideLoadCall) {
+            if (char === '(' && i > 0) {
+              const beforeParen = line.substring(0, i);
+              if (beforeParen.includes('logtalk_load') ||
+                  beforeParen.includes('ensure_loaded') ||
+                  beforeParen.includes('include')) {
+                insideLoadCall = true;
+                depth = 1;
+                continue;
+              }
+            }
+          }
+
+          // If we're inside a load call, track depth
+          if (insideLoadCall) {
+            if (char === '(' || char === '[') {
+              depth++;
+            } else if (char === ')' || char === ']') {
+              depth--;
+              if (depth === 0) {
+                insideLoadCall = false;
+              }
+            }
+          }
+        }
+
+        // Process the line if we're inside a load call
+        if (insideLoadCall || line.includes('logtalk_load') ||
+            line.includes('ensure_loaded') || line.includes('include')) {
+          // Find and delete references to the deleted file
+          const lineEdits = this.findAndDeleteFileReferences(line, lineIndex, baseName, lines);
+          edits.push(...lineEdits);
+        }
+      }
+
+    } catch (error) {
+      this.logger.error(`Error removing file references in ${filePath}:`, error);
+    }
+
+    return edits;
+  }
+
+  /**
+   * Finds file references in a line and creates edits to delete them
+   * @param line The line to search
+   * @param lineIndex The line index (0-based)
+   * @param baseName File base name (without extension) to remove
+   * @param lines All lines in the file (for multi-line comma handling)
+   * @returns Array of TextEdits for this line
+   */
+  private static findAndDeleteFileReferences(
+    line: string,
+    lineIndex: number,
+    baseName: string,
+    lines: string[]
+  ): TextEdit[] {
+    const edits: TextEdit[] = [];
+
+    // Create patterns to match different reference formats
+    const singleQuotePattern = new RegExp(`'(${this.escapeRegex(baseName)})(?:\\.(lgt|logtalk))?'`, 'g');
+    const doubleQuotePattern = new RegExp(`"(${this.escapeRegex(baseName)})(?:\\.(lgt|logtalk))?"`, 'g');
+    const unquotedPattern = new RegExp(`\\b(${this.escapeRegex(baseName)})(?:\\.(lgt|logtalk))?\\b`, 'g');
+
+    const patterns = [
+      { pattern: singleQuotePattern, quoteStyle: 'single' },
+      { pattern: doubleQuotePattern, quoteStyle: 'double' },
+      { pattern: unquotedPattern, quoteStyle: 'none' }
+    ];
+
+    for (const { pattern, quoteStyle } of patterns) {
+      let match: RegExpExecArray | null;
+      pattern.lastIndex = 0;
+      let iterationCount = 0;
+      const maxIterations = 100;
+
+      while ((match = pattern.exec(line)) !== null) {
+        if (++iterationCount > maxIterations) {
+          this.logger.warn(`Maximum iteration limit reached while processing line ${lineIndex + 1}`);
+          break;
+        }
+
+        const matchText = match[0];
+        const startChar = match.index;
+
+        if (matchText.length === 0) {
+          pattern.lastIndex++;
+          continue;
+        }
+
+        // For unquoted matches, verify it's in a valid context
+        if (quoteStyle === 'none') {
+          const charBefore = startChar > 0 ? line[startChar - 1] : '';
+          if (charBefore === '(') {
+            let beforeParenIndex = startChar - 2;
+            while (beforeParenIndex >= 0 && /\s/.test(line[beforeParenIndex])) {
+              beforeParenIndex--;
+            }
+            if (beforeParenIndex >= 0 && /\w/.test(line[beforeParenIndex])) {
+              let atomStart = beforeParenIndex;
+              while (atomStart > 0 && /\w/.test(line[atomStart - 1])) {
+                atomStart--;
+              }
+              const atomBefore = line.substring(atomStart, beforeParenIndex + 1);
+              const loadingPredicates = ['logtalk_load', 'ensure_loaded', 'include', 'use_module', 'load_files'];
+              if (!loadingPredicates.includes(atomBefore)) {
+                this.logger.debug(`Skipping library notation at line ${lineIndex + 1}, col ${startChar + 1}: "${atomBefore}(${matchText})"`);
+                continue;
+              }
+            }
+          }
+        }
+
+        // Delete the reference and handle commas
+        const deleteEdits = this.createDeleteEdit(line, lineIndex, startChar, matchText, lines);
+        edits.push(...deleteEdits);
+        this.logger.debug(`Deleting reference at line ${lineIndex + 1}, col ${startChar + 1}: "${matchText}"`);
+
+        // Only delete once per line
+        break;
+      }
+    }
+
+    return edits;
+  }
+
+  /**
+   * Creates TextEdit(s) to delete a file reference and handle surrounding commas
+   * @param line The line containing the reference
+   * @param lineIndex The line index (0-based)
+   * @param startChar Start position of the match
+   * @param matchText The matched text to delete
+   * @param lines All lines in the file (for multi-line comma handling)
+   * @returns Array of TextEdits to delete the reference and comma
+   */
+  private static createDeleteEdit(
+    line: string,
+    lineIndex: number,
+    startChar: number,
+    matchText: string,
+    lines: string[]
+  ): TextEdit[] {
+    const endChar = startChar + matchText.length;
+
+    // Check if there's a comma after the match (on the same line)
+    let deleteEnd = endChar;
+    let deleteEndLine = lineIndex;
+    let foundCommaAfter = false;
+    for (let i = endChar; i < line.length; i++) {
+      const char = line[i];
+      if (char === ',') {
+        deleteEnd = i + 1;
+        foundCommaAfter = true;
+        // Also consume whitespace after the comma
+        while (deleteEnd < line.length && /\s/.test(line[deleteEnd])) {
+          deleteEnd++;
+        }
+        break;
+      } else if (!/\s/.test(char)) {
+        // Non-whitespace, non-comma character - stop looking
+        break;
+      }
+    }
+
+    // If no comma after on the same line, check if there's a comma before (possibly on previous line)
+    let deleteStart = startChar;
+    let deleteStartLine = lineIndex;
+    if (!foundCommaAfter) {
+      // First check on the same line
+      let foundCommaOnSameLine = false;
+      for (let i = startChar - 1; i >= 0; i--) {
+        const char = line[i];
+        if (char === ',') {
+          deleteStart = i;
+          foundCommaOnSameLine = true;
+          // Also consume whitespace before the match
+          while (deleteStart > 0 && /\s/.test(line[deleteStart - 1])) {
+            deleteStart--;
+          }
+          break;
+        } else if (!/\s/.test(char)) {
+          // Non-whitespace, non-comma character - stop looking
+          break;
+        }
+      }
+
+      // If no comma on the same line, check the previous line
+      if (!foundCommaOnSameLine && lineIndex > 0) {
+        const prevLine = lines[lineIndex - 1];
+        // Look for a trailing comma on the previous line
+        let foundCommaPrevLine = false;
+        for (let i = prevLine.length - 1; i >= 0; i--) {
+          const char = prevLine[i];
+          if (char === ',') {
+            // Found a comma on the previous line - delete it
+            deleteStartLine = lineIndex - 1;
+            deleteStart = i;
+            foundCommaPrevLine = true;
+            break;
+          } else if (!/\s/.test(char)) {
+            // Non-whitespace, non-comma character - stop looking
+            break;
+          }
+        }
+
+        // If we found a comma on the previous line, we need to delete it separately
+        if (foundCommaPrevLine) {
+          // Create TWO edits:
+          // 1. Delete the comma (and any trailing whitespace) on the previous line
+          // 2. Delete the entire current line including its newline
+
+          const edits: TextEdit[] = [];
+
+          // Edit 1: Delete comma and trailing whitespace on previous line (but not the newline)
+          let commaEnd = deleteStart + 1; // Position after the comma
+          // Consume trailing whitespace after the comma (but not newline)
+          while (commaEnd < prevLine.length && /\s/.test(prevLine[commaEnd])) {
+            commaEnd++;
+          }
+
+          const commaRange = new Range(
+            new Position(deleteStartLine, deleteStart),
+            new Position(deleteStartLine, commaEnd)
+          );
+          edits.push(TextEdit.delete(commaRange));
+
+          // Edit 2: Delete the entire current line including its newline
+          const lineRange = new Range(
+            new Position(lineIndex, 0),
+            new Position(lineIndex + 1, 0)
+          );
+          edits.push(TextEdit.delete(lineRange));
+
+          return edits;
+        }
+      }
+    }
+
+    // Check if we're deleting the entire line (only whitespace remains)
+    const remainingText = line.substring(0, deleteStart) + line.substring(deleteEnd);
+    const isLineEmpty = remainingText.trim().length === 0;
+
+    if (isLineEmpty) {
+      // Delete the entire line including the newline
+      const range = new Range(
+        new Position(lineIndex, 0),
+        new Position(lineIndex + 1, 0)
+      );
+      return [TextEdit.delete(range)];
+    } else {
+      // Delete just the reference and comma
+      const range = new Range(
+        new Position(deleteStartLine, deleteStart),
+        new Position(deleteEndLine, deleteEnd)
+      );
+      return [TextEdit.delete(range)];
+    }
   }
 
   /**

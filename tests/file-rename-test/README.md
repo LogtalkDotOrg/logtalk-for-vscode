@@ -1,6 +1,6 @@
-# File Rename Propagation Test
+# File Rename and Deletion Propagation Test
 
-This directory contains test files for verifying that file renames are properly propagated to `loader.lgt` and `tester.lgt` files.
+This directory contains test files for verifying that file renames and deletions are properly propagated to `loader.lgt` and `tester.lgt` files.
 
 ## Test Files
 
@@ -52,7 +52,30 @@ The rename handler should handle files referenced:
 1. Rename `third_file.lgt` to `new_third_file.lgt`
 2. Check that `loader.lgt` is updated with `"new_third_file"` (preserving double quotes)
 
+### Test 6: Delete a file
+
+1. Right-click on `example.lgt` in the file explorer
+2. Select "Delete" (or press Delete/Cmd+Backspace)
+3. **Preview Dialog**: VS Code will show a preview dialog with all the changes:
+   - The file deletion: `example.lgt`
+   - Updates to `loader.lgt`: Reference to `example` will be removed
+   - Updates to `tester.lgt`: Reference to `example` will be removed
+4. Click "Delete" to confirm the changes
+5. Check that:
+   - `example.lgt` is deleted
+   - `loader.lgt` has the reference to `example` removed (including trailing/leading commas)
+   - `tester.lgt` has the reference to `example` removed (including trailing/leading commas)
+   - If the line becomes empty after deletion, the entire line is removed
+
+### Test 7: Delete multiple files
+
+1. Select multiple files (e.g., `another_file.lgt` and `third_file.lgt`)
+2. Press Delete
+3. Verify that all references in `loader.lgt` are removed
+
 ## Expected Behavior
+
+### File Rename
 
 When you rename a Logtalk file (other than `loader.lgt` or `tester.lgt`):
 
@@ -69,7 +92,22 @@ When you rename a Logtalk file (other than `loader.lgt` or `tester.lgt`):
    - Double-quoted: `"example"` → `"example_renamed"`
    - With extension: `'example.lgt'` → `'example_renamed.lgt'`
 
+### File Deletion
+
+When you delete a Logtalk file (other than `loader.lgt` or `tester.lgt`):
+
+1. **Preview Dialog**: VS Code shows a preview of all changes before applying them
+   - You can review all the file updates that will be made
+   - You can cancel the deletion if the changes are not what you expected
+2. The file is deleted as usual
+3. Any references to the file in `logtalk_load/1` or `logtalk_load/2` calls in `loader.lgt` are removed
+4. Any references to the file in `logtalk_load/1` or `logtalk_load/2` calls in `tester.lgt` are removed
+5. Trailing or leading commas are automatically handled to avoid syntax errors
+6. If a line becomes empty after deletion, the entire line is removed
+
 ## How It Works
+
+### File Rename
 
 The file rename handler:
 
@@ -78,6 +116,20 @@ The file rename handler:
 3. Finds all references to the old file name in `logtalk_load/1` and `logtalk_load/2` calls
 4. Updates the references while preserving the original format (quotes, extension)
 5. Returns the edits to VS Code, which includes them in the rename preview dialog
+6. When the user confirms, all changes are applied together
+
+### File Deletion
+
+The file deletion handler:
+
+1. Detects when a Logtalk file is about to be deleted in VS Code (using `onWillDeleteFiles` event)
+2. Searches for `loader.lgt` and `tester.lgt` files in the same directory
+3. Finds all references to the deleted file name in `logtalk_load/1` and `logtalk_load/2` calls
+4. Deletes those references and handles commas appropriately:
+   - If there's a comma after the reference, deletes the reference and the comma
+   - If there's no comma after but there's one before, deletes the comma and the reference
+   - If the line becomes empty, deletes the entire line
+5. Returns the edits to VS Code, which includes them in the deletion preview dialog
 6. When the user confirms, all changes are applied together
 
 ## Logging
@@ -92,6 +144,8 @@ To see detailed logging of the rename propagation:
 
 ## Notes
 
-- The rename propagation only works for files in the same directory as the loader/tester files
+- The rename and deletion propagation only works for files in the same directory as the loader/tester files
 - Files referenced with library notation (e.g., `lgtunit(loader)`) are not affected
-- The feature preserves the original format of file references (quotes, extension)
+- The rename feature preserves the original format of file references (quotes, extension)
+- The deletion feature removes references and handles commas to avoid syntax errors
+- Both features include a preview dialog so you can review changes before applying them

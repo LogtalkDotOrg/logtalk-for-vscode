@@ -1,20 +1,24 @@
-# File Rename Propagation Implementation
+# File Rename and Deletion Propagation Implementation
 
 ## Overview
 
-This feature automatically propagates file renames to `loader.lgt` and `tester.lgt` files in the same directory. When a Logtalk file is renamed in VS Code, the extension automatically updates all references to that file in `logtalk_load/1` and `logtalk_load/2` calls.
+These features automatically propagate file renames and deletions to `loader.lgt` and `tester.lgt` files in the same directory.
+
+- **File Rename**: When a Logtalk file is renamed in VS Code, the extension automatically updates all references to that file in `logtalk_load/1` and `logtalk_load/2` calls.
+- **File Deletion**: When a Logtalk file is deleted in VS Code, the extension automatically removes all references to that file in `logtalk_load/1` and `logtalk_load/2` calls, handling commas appropriately to avoid syntax errors.
 
 ## Implementation Details
 
 ### Core Components
 
 1. **FileRenameHandler** (`src/utils/fileRenameHandler.ts`)
-   - Main class that handles the rename propagation logic
+   - Main class that handles both rename and deletion propagation logic
    - Searches for loader and tester files in the same directory
-   - Updates file references while preserving format
+   - For renames: Updates file references while preserving format
+   - For deletions: Removes file references and handles commas to avoid syntax errors
 
 2. **Integration** (`src/extension.ts`)
-   - Uses two workspace event handlers:
+   - Uses four workspace event handlers:
      - **`workspace.onWillRenameFiles`**: Provides rename preview
        - Called before the rename happens
        - Returns a `WorkspaceEdit` with all propagation changes
@@ -23,6 +27,14 @@ This feature automatically propagates file renames to `loader.lgt` and `tester.l
      - **`workspace.onDidRenameFiles`**: Cleanup after rename
        - Called after the rename is completed
        - Cleans up diagnostics for the old file path
+     - **`workspace.onWillDeleteFiles`**: Provides deletion preview
+       - Called before the deletion happens
+       - Returns a `WorkspaceEdit` with all propagation changes (removed references)
+       - VS Code includes these changes in the deletion preview dialog
+       - User can review and confirm or cancel all changes
+     - **`workspace.onDidDeleteFiles`**: Cleanup after deletion
+       - Called after the deletion is completed
+       - Cleans up diagnostics for the deleted file
 
 ### Supported Reference Formats
 
@@ -99,6 +111,31 @@ The implementation uses three main regex patterns:
 1. **Single-quoted**: `'(filename)(?:\.(lgt|logtalk))?'`
 2. **Double-quoted**: `"(filename)(?:\.(lgt|logtalk))?"`
 3. **Unquoted**: `\b(filename)(?:\.(lgt|logtalk))?\b`
+
+### Comma Handling (File Deletion)
+
+When deleting a file reference, the implementation handles commas to avoid syntax errors:
+
+1. **Comma after the reference (same line)**: Deletes the reference and the trailing comma
+   - Example: `[file1, file2, file3]` → `[file1, file3]` (when deleting `file2`)
+
+2. **Comma before the reference on the same line (no comma after)**: Deletes the leading comma and the reference
+   - Example: `[file1, file2]` → `[file1]` (when deleting `file2`)
+
+3. **Comma on the previous line (multi-line lists)**: When the reference is the last item and the comma is on the previous line
+   - Example:
+
+     ```logtalk
+     logtalk_load([
+         file1,
+         file2
+     ])
+     ```
+
+     When deleting `file2`, both the comma after `file1` and the entire line containing `file2` are deleted, preserving the indentation of remaining lines
+
+4. **Empty line after deletion**: Deletes the entire line including the newline
+   - Example: A line containing only the deleted reference is completely removed
 
 ### Performance
 

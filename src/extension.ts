@@ -745,6 +745,42 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  // Provide file deletion edits for preview (before deletion happens)
+  // Note: VS Code API does not support canceling file deletion from onWillDeleteFiles.
+  // The preview dialog only shows the edits, not the deletion itself.
+  // If the user cancels the preview, the file will still be deleted.
+  context.subscriptions.push(
+    workspace.onWillDeleteFiles(event => {
+      event.waitUntil((async () => {
+        const edit = new WorkspaceEdit();
+
+        for (const uri of event.files) {
+          // Only process Logtalk files (not Prolog files for this feature)
+          const fileName = uri.fsPath.toLowerCase();
+          if (fileName.endsWith('.lgt') || fileName.endsWith('.logtalk')) {
+            try {
+              const propagationEdit = await FileRenameHandler.propagateFileDeletion(uri);
+              if (propagationEdit) {
+                // Merge the propagation edits into the main edit
+                for (const [editUri, edits] of propagationEdit.entries()) {
+                  for (const textEdit of edits) {
+                    edit.replace(editUri, textEdit.range, textEdit.newText);
+                  }
+                }
+                logger.info(`Added file deletion propagation to preview for ${uri.fsPath}`);
+              }
+            } catch (error) {
+              logger.error(`Error preparing file deletion propagation:`, error);
+            }
+          }
+        }
+
+        // Return the edit so VS Code includes it in the deletion preview
+        return edit;
+      })());
+    })
+  );
+
   // Delete diagnostics when files are deleted from the workspace
   context.subscriptions.push(
     workspace.onDidDeleteFiles(event => {
