@@ -13,9 +13,29 @@ export class FileRenameHandler {
    * Propagates file rename to loader.lgt and tester.lgt files in the same directory
    * @param oldUri The old file URI
    * @param newUri The new file URI
+   * @param timeoutMs Timeout in milliseconds (default: 5000)
    * @returns WorkspaceEdit with all necessary changes, or null if no changes needed
    */
-  public static async propagateFileRename(oldUri: Uri, newUri: Uri): Promise<WorkspaceEdit | null> {
+  public static async propagateFileRename(oldUri: Uri, newUri: Uri, timeoutMs: number = 5000): Promise<WorkspaceEdit | null> {
+    // Wrap the operation in a timeout to prevent hanging
+    return Promise.race([
+      this.propagateFileRenameInternal(oldUri, newUri),
+      new Promise<null>((resolve) => {
+        setTimeout(() => {
+          this.logger.warn(`File rename propagation timed out after ${timeoutMs}ms`);
+          resolve(null);
+        }, timeoutMs);
+      })
+    ]);
+  }
+
+  /**
+   * Internal implementation of file rename propagation
+   * @param oldUri The old file URI
+   * @param newUri The new file URI
+   * @returns WorkspaceEdit with all necessary changes, or null if no changes needed
+   */
+  private static async propagateFileRenameInternal(oldUri: Uri, newUri: Uri): Promise<WorkspaceEdit | null> {
     const oldPath = oldUri.fsPath;
     const newPath = newUri.fsPath;
     
@@ -134,18 +154,54 @@ export class FileRenameHandler {
       // Files can be referenced with or without extension (.lgt, .logtalk)
       // Files can be quoted with single quotes, double quotes, or unquoted
 
+      // Track whether we're inside a logtalk_load/ensure_loaded/include call
+      // This is needed to handle multi-line calls
+      let insideLoadCall = false;
+      let depth = 0; // Track nesting depth (parentheses and brackets combined)
+
       for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
         const line = lines[lineIndex];
 
-        // Check if line contains logtalk_load, ensure_loaded, or include directives
-        if (!line.includes('logtalk_load') && !line.includes('ensure_loaded') && !line.includes('include')) {
-          continue;
+        // Update depth tracking for this line
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+
+          // Check if we're starting a load directive
+          if (!insideLoadCall) {
+            // Look for logtalk_load(, ensure_loaded(, or include(
+            if (char === '(' && i > 0) {
+              const beforeParen = line.substring(0, i);
+              if (beforeParen.includes('logtalk_load') ||
+                  beforeParen.includes('ensure_loaded') ||
+                  beforeParen.includes('include')) {
+                insideLoadCall = true;
+                depth = 1; // We just entered the opening parenthesis
+                continue;
+              }
+            }
+          }
+
+          // If we're inside a load call, track depth
+          if (insideLoadCall) {
+            if (char === '(' || char === '[') {
+              depth++;
+            } else if (char === ')' || char === ']') {
+              depth--;
+              // If depth reaches 0, we've closed the load call
+              if (depth === 0) {
+                insideLoadCall = false;
+              }
+            }
+          }
         }
 
-        // Find all occurrences of the old file name in this line
-        // We need to be careful to match whole words and handle different quote styles
-        const lineEdits = this.findAndReplaceFileReferences(line, lineIndex, oldBaseName, newBaseName);
-        edits.push(...lineEdits);
+        // Process the line if we're inside a load call
+        if (insideLoadCall || line.includes('logtalk_load') ||
+            line.includes('ensure_loaded') || line.includes('include')) {
+          // Find all occurrences of the old file name in this line
+          const lineEdits = this.findAndReplaceFileReferences(line, lineIndex, oldBaseName, newBaseName);
+          edits.push(...lineEdits);
+        }
       }
 
       // If file was moved to different directory, we should remove the reference
@@ -196,11 +252,25 @@ export class FileRenameHandler {
     for (const { pattern, quoteStyle } of patterns) {
       let match: RegExpExecArray | null;
       pattern.lastIndex = 0; // Reset regex state
+      let iterationCount = 0;
+      const maxIterations = 100; // Safety limit to prevent infinite loops
 
       while ((match = pattern.exec(line)) !== null) {
+        // Safety check to prevent infinite loops
+        if (++iterationCount > maxIterations) {
+          this.logger.warn(`Maximum iteration limit reached while processing line ${lineIndex + 1}`);
+          break;
+        }
+
         const matchText = match[0];
         const startChar = match.index;
         const endChar = startChar + matchText.length;
+
+        // Prevent infinite loop: if match is empty, advance manually
+        if (matchText.length === 0) {
+          pattern.lastIndex++;
+          continue;
+        }
 
         // For unquoted matches, verify it's in a valid context
         // Skip if it's part of library notation like library(file) or lgtunit(file)

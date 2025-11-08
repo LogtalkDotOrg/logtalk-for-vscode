@@ -33,6 +33,17 @@ The implementation handles all common ways files are referenced in `logtalk_load
 3. **Double-quoted**: `logtalk_load("example")` or `logtalk_load(["example"])`
 4. **With extensions**: `logtalk_load('example.lgt')` or `logtalk_load("example.logtalk")`
 5. **Mixed formats**: `logtalk_load([example, 'other', "third"])`
+6. **Multi-line calls**: Properly handles `logtalk_load` calls that span multiple lines:
+
+   ```logtalk
+   logtalk_load([
+       state_space,
+       water_jug,
+       farmer,
+       bridge,
+       eight_puzzle
+   ])
+   ```
 
 ### Format Preservation
 
@@ -92,11 +103,15 @@ The implementation uses three main regex patterns:
 ### Performance
 
 - Only processes files in the same directory as the renamed file
-- Only searches lines containing `logtalk_load`, `ensure_loaded`, or `include`
+- Tracks nesting depth to efficiently handle multi-line `logtalk_load` calls
 - Uses efficient regex matching with proper state reset
+- **Timeout protection**: Operations timeout after 5 seconds to prevent hanging
+- **Infinite loop prevention**: Maximum iteration limit (100) per line
 
 ### Error Handling
 
 - Wrapped in try-catch blocks with appropriate logging
 - Continues processing even if one file fails
 - Reports errors through the logger utility
+- **Empty match protection**: Advances regex manually if an empty match is detected
+- **Graceful timeout**: Returns null if operation takes too long, allowing rename to proceed
