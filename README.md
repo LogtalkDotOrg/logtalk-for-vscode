@@ -43,6 +43,7 @@ This extension provides a comprehensive set of features for Logtalk development:
 - [Profiling support](#profiling-support)
 - [Hover contents](#hover-contents)
 - [Chat Participant](#chat-participant)
+- [File renaming](#file-renaming)
 - [Virtual workspaces support](#virtual-workspaces-support)
 
 Most of the features rely on a Logtalk session running in the integrated terminal with VSCode support loaded. This session is automatically created when the extension is activated (by opening a Logtalk source file). This Logtalk session is functionally equivalent to a **portable** Language Server Protocol (LSP) server. You can also use this section for your own Logtalk queries. Alternatively, you can create a new terminal running a shell and call the backend integration script that you want to use.
@@ -469,6 +470,10 @@ For the `/workspace` slash command, the documentation assumes a `xml_docs` folde
 - **Graceful Fallbacks**: Works even when the language model is unavailable by showing documentation search results
 
 The chat participant automatically detects your Logtalk version from `$LOGTALKHOME/VERSION.txt` and fetches the corresponding documentation from the Logtalk website. Documentation is cached locally and only refreshed when the version changes, ensuring fast responses while staying current.
+
+### File renaming
+
+Renaming of Logtalk source files is propagated to `loader.lgt`, `loader.logtalk`, `tester.lgt`, and `tester.logtalk` files in the same directory. The propagation is done using a preview dialog to allow the user to review the changes before applying them.
 
 ### Virtual workspaces support
 

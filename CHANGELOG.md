@@ -2,6 +2,7 @@
 
 ## [0.73.0]
 
+* Propagate file renames to loader and tester driver files with a preview
 * Provide completions for list tail variables after typing the `|` character based on the head variable name
 * Add detailed `README.md` file section on automatic indentation
 

@@ -11,7 +11,8 @@ import {
   debug,
   window,
   SourceBreakpoint,
-  FunctionBreakpoint
+  FunctionBreakpoint,
+  WorkspaceEdit
 } from "vscode";
 import * as jsesc from "jsesc";
 
@@ -48,6 +49,7 @@ import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
 import { SvgViewerProvider } from "./features/svgViewer";
+import { FileRenameHandler } from "./utils/fileRenameHandler";
 
 const DEBUG = 1;
 
@@ -775,10 +777,43 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  // Provide file rename edits for preview (before rename happens)
+  context.subscriptions.push(
+    workspace.onWillRenameFiles(event => {
+      event.waitUntil((async () => {
+        const edit = new WorkspaceEdit();
+
+        for (const file of event.files) {
+          // Only process Logtalk files (not Prolog files for this feature)
+          const oldFileName = file.oldUri.fsPath.toLowerCase();
+          if (oldFileName.endsWith('.lgt') || oldFileName.endsWith('.logtalk')) {
+            try {
+              const propagationEdit = await FileRenameHandler.propagateFileRename(file.oldUri, file.newUri);
+              if (propagationEdit) {
+                // Merge the propagation edits into the main edit
+                for (const [uri, edits] of propagationEdit.entries()) {
+                  for (const textEdit of edits) {
+                    edit.replace(uri, textEdit.range, textEdit.newText);
+                  }
+                }
+                logger.info(`Added file rename propagation to preview for ${file.oldUri.fsPath}`);
+              }
+            } catch (error) {
+              logger.error(`Error preparing file rename propagation:`, error);
+            }
+          }
+        }
+
+        // Return the edit so VS Code includes it in the rename preview
+        return edit;
+      })());
+    })
+  );
+
   // Delete diagnostics when files are renamed/moved in the workspace
   context.subscriptions.push(
-    workspace.onDidRenameFiles(event => {
-      event.files.forEach(file => {
+    workspace.onDidRenameFiles(async event => {
+      for (const file of event.files) {
         // Only process Logtalk and Prolog files
         const oldFileName = file.oldUri.fsPath.toLowerCase();
         if (oldFileName.endsWith('.lgt') || oldFileName.endsWith('.logtalk') || oldFileName.endsWith('.pl') || oldFileName.endsWith('.prolog')) {
@@ -803,7 +838,7 @@ export async function activate(context: ExtensionContext) {
             delete documentationLinter.diagnostics[oldFilePath];
           }
         }
-      });
+      }
     })
   );
 
