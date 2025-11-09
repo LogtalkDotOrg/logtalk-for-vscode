@@ -2448,11 +2448,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return null;
     }
 
-    // Use termType to ensure we're not in an entity directive (before expensive Utils calls)
+    // Use termType to ensure we're not in an entity or conditional compilation directive (before expensive Utils calls)
     try {
       const termType = await Utils.termType(document.uri, position);
       // Exclude entity directives from predicate/non-terminal argument refactoring
-      if (termType === 'entity_directive') {
+      if (termType === 'entity_directive' || termType === 'conditional_compilation_directive') {
+        return null;
+      } else if (currentLineText.trim().match(/:-\s*module\(/)) {
         return null;
       }
     } catch (error) {

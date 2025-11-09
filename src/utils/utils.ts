@@ -940,11 +940,18 @@ export class Utils {
   }
 
   /**
-   * Classify a directive as entity or predicate directive
+   * Classify a directive as entity, predicate, or conditional compilation directive
    */
   private static classifyDirective(directiveText: string): string {
     // Normalize the directive text for multi-line matching
     const normalizedText = directiveText.replace(/\s+/g, ' ').trim();
+
+    // Check for conditional compilation directives
+    for (const pattern of PatternSets.conditionalCompilationDirectives) {
+      if (pattern.regex.test(normalizedText)) {
+        return 'conditional_compilation_directive';
+      }
+    }
 
     // Check for entity directives
     for (const pattern of PatternSets.entityOpening) {

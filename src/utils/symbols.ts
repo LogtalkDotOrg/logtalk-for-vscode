@@ -58,6 +58,12 @@ export const SymbolRegexes = {
   entityUseModule: /^\s*\:- use_module\(/,
   entityInclude: /^\s*\:- include\(/,
 
+  // Conditional compilation directives
+  conditionalIf: /^\s*\:- if\(/,
+  conditionalElif: /^\s*\:- elif\(/,
+  conditionalElse: /^\s*\:- else\s*\.\s*$/,
+  conditionalEndif: /^\s*\:- endif\s*\.\s*$/,
+
   // General directive pattern (starts with :-)
   directive: /^\s*\:-/,
 
@@ -704,5 +710,15 @@ export const PatternSets = {
     { regex: SymbolRegexes.publicScopeOpening, type: SymbolTypes.PUBLIC_PREDICATE },
     { regex: SymbolRegexes.protectedScopeOpening, type: SymbolTypes.PROTECTED_PREDICATE },
     { regex: SymbolRegexes.privateScopeOpening, type: SymbolTypes.PRIVATE_PREDICATE }
+  ],
+
+  /**
+   * Conditional compilation directive patterns
+   */
+  conditionalCompilationDirectives: [
+    { regex: SymbolRegexes.conditionalIf, type: 'conditional_if' },
+    { regex: SymbolRegexes.conditionalElif, type: 'conditional_elif' },
+    { regex: SymbolRegexes.conditionalElse, type: 'conditional_else' },
+    { regex: SymbolRegexes.conditionalEndif, type: 'conditional_endif' }
   ]
 };
