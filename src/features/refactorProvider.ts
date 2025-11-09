@@ -2460,6 +2460,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Exclude entity directives from predicate/non-terminal argument refactoring
       if (termType === 'entity_directive' || termType === 'conditional_compilation_directive') {
         return null;
+      } else if (termType === 'predicate_directive') {
+        // For predicate directives, ensure we're inside the directive arguments, not on the directive name
+        if (!this.isPositionInsideDirectiveArguments(document, position)) {
+          return null;
+        }
       } else if (currentLineText.trim().match(/:-\s*module\(/)) {
         return null;
       }
@@ -2488,6 +2493,31 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     return indicator;
+  }
+
+  /**
+   * Check if a position is inside directive arguments (after the opening parenthesis)
+   * @param document The text document
+   * @param position The position to check
+   * @returns true if the position is inside directive arguments, false otherwise
+   */
+  private isPositionInsideDirectiveArguments(document: TextDocument, position: Position): boolean {
+    const lineText = document.lineAt(position.line).text;
+
+    // Find the directive opening pattern: :- directive_name(
+    const directiveMatch = lineText.match(/^\s*:-\s*([a-z_][a-zA-Z0-9_]*)\(/);
+    if (!directiveMatch) {
+      return false;
+    }
+
+    // Find the position of the opening parenthesis
+    const openParenPos = lineText.indexOf('(', directiveMatch[0].indexOf(directiveMatch[1]));
+    if (openParenPos === -1) {
+      return false;
+    }
+
+    // Check if the cursor position is after the opening parenthesis
+    return position.character > openParenPos;
   }
 
   /**
