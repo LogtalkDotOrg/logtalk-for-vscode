@@ -29,7 +29,7 @@ For details, see [Configuration](#configuration). This extension includes a walk
 This extension provides a comprehensive set of features for Logtalk development:
 
 - [Syntax highlighting](#syntax-highlighting)
-- [Completions and Snippets](#automatic-indentation)
+- [Automatic indentation](#automatic-indentation)
 - [Completions](#completions)
 - [Snippets](#snippets)
 - [Selection ranges](#selection-ranges)
@@ -55,9 +55,9 @@ Most of the features rely on a Logtalk session running in the integrated termina
 
 ### Automatic indentation
 
-- Entity opening directives: increases indentation for multiline entity declarations (`:- object(...)`, `:- protocol(...)`, `:- category(...)`)
-- Predicate rules: increases indentation after rule heads ending with `:-` and DCG rule heads ending with `-->`
-- Term completion: automatically outdents and removes trailing whitespace after a period (`.`) that ends a term
+- Entity opening directives: increases indentation for multiline entity declarations (`:- object(...)`, `:- protocol(...)`, `:- category(...)`) after the first line
+- Predicate and grammar rules: increases indentation after the `:-` and `-->` operators
+- Term completion: automatically outdents and removes trailing whitespace after the period (`.`) that ends a term
 - Control constructs: increases indentation after disjunction (`;`), if-then-else (`->`), and soft-cut (`*->`) operators when they appear at the start of a line; maintains current indentation after `->` and `*->` when they appear mid-line
 - Brackets: automatically indents and outdents for opening brackets (`[`, `{`, `(`)
 - Block comments: smart formatting for JavaDoc-style block comments (`/** ... */`) with automatic continuation of comment lines with `* ` prefix and proper indentation handling
