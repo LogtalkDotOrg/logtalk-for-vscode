@@ -4,6 +4,7 @@
 
 * Add refactoring support for converting a Prolog module to an object
 * Fix predicate refactorings to not be offered for conditional compilation directives
+* Fix predicate declaration refactoring to not be offered for arguments of scope directives
 
 ## [0.73.0]
 

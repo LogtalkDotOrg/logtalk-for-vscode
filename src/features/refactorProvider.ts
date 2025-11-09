@@ -2423,6 +2423,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * Only returns true if position is at the term start (i.e., on the clause head line)
    */
   private async isPositionInClauseHead(document: TextDocument, position: Position): Promise<boolean> {
+    // Check that we're not in a directive or comment
+    const currentLineText = document.lineAt(position.line).text.trim();
+    if (currentLineText.startsWith("%") || currentLineText.startsWith(":-")) {
+      return null;
+    }
+
     // Find the start of the term (clause/rule)
     const termStart = Utils.findTermStart(document, position.line);
     if (termStart === null) {
