@@ -608,6 +608,14 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.convertModuleToObject', async (document, entityTypeInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.convertModuleToObject(document, entityTypeInfo);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

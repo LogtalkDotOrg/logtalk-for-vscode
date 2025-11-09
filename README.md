@@ -366,7 +366,13 @@ The "Split in individual directives" refactoring operation is available when the
 
 #### Converting between object, protocol, and category entity types
 
-Right-click on an entity name in its opening directive and select the "Convert to object", "Convert to protocol", or "Convert to category" context menu items. The applicability of these operations depends on the entity type and its opening directive arguments. Note that the entity name is not changed and further edits may be required to the entity code after the conversion to make it valid (for example, removing predicate definitions that are not allowed in a protocol).
+Right-click on an entity name in its opening directive and select the "Convert ... to object", "Convert ... to protocol", or "Convert ... to category" context menu items. The applicability of these operations depends on the entity type and its opening directive arguments. Note that the entity name is not changed and further edits may be required to the entity code after the conversion to make it valid (for example, removing predicate definitions that are not allowed in a protocol).
+
+#### Converting a Prolog module to an object
+
+Right-click on a module name in its opening directive and select the "Convert module to object" context menu item. The module is converted to an object by replacing the module directive with an object opening directive. Any predicates exported from the module directive are declared as public predicates. Any existing `export/1` directives are replaced by `public/1` directives. Any existing `reexport/2` directives are replaced with `uses/2` directives.
+
+Note that this conversion is always partial as several decisions are required by the user that cannot be automated.
 
 #### Known refactoring issues
 

@@ -255,12 +255,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
         if (!hasProhibitedRelations) {
           const convertToCategoryAction = new CodeAction(
-            "Convert to category",
+            "Convert object to category",
             CodeActionKind.RefactorRewrite
           );
           convertToCategoryAction.command = {
             command: "logtalk.refactor.convertObjectToCategory",
-            title: "Convert to category",
+            title: "Convert object to category",
             arguments: [document, entityTypeInfo]
           };
           actions.push(convertToCategoryAction);
@@ -270,23 +270,23 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Protocol conversions
       if (entityTypeInfo.type === 'protocol') {
         const convertToCategoryAction = new CodeAction(
-          "Convert to category",
+          "Convert protocol to category",
           CodeActionKind.RefactorRewrite
         );
         convertToCategoryAction.command = {
           command: "logtalk.refactor.convertProtocolToCategory",
-          title: "Convert to category",
+          title: "Convert protocol to category",
           arguments: [document, entityTypeInfo]
         };
         actions.push(convertToCategoryAction);
 
         const convertToObjectAction = new CodeAction(
-          "Convert to object",
+          "Convert protocol to object",
           CodeActionKind.RefactorRewrite
         );
         convertToObjectAction.command = {
           command: "logtalk.refactor.convertProtocolToObject",
-          title: "Convert to object",
+          title: "Convert protocol to object",
           arguments: [document, entityTypeInfo]
         };
         actions.push(convertToObjectAction);
@@ -302,24 +302,38 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
         if (!hasExtends) {
           const convertToProtocolAction = new CodeAction(
-            "Convert to protocol",
+            "Convert category to protocol",
             CodeActionKind.RefactorRewrite
           );
           convertToProtocolAction.command = {
             command: "logtalk.refactor.convertCategoryToProtocol",
-            title: "Convert to protocol",
+            title: "Convert category to protocol",
             arguments: [document, entityTypeInfo]
           };
           actions.push(convertToProtocolAction);
         }
 
         const convertToObjectAction = new CodeAction(
-          "Convert to object",
+          "Convert category to object",
           CodeActionKind.RefactorRewrite
         );
         convertToObjectAction.command = {
           command: "logtalk.refactor.convertCategoryToObject",
-          title: "Convert to object",
+          title: "Convert category to object",
+          arguments: [document, entityTypeInfo]
+        };
+        actions.push(convertToObjectAction);
+      }
+
+      // Module conversions
+      if (entityTypeInfo.type === 'module') {
+        const convertToObjectAction = new CodeAction(
+          "Convert module to object",
+          CodeActionKind.RefactorRewrite
+        );
+        convertToObjectAction.command = {
+          command: "logtalk.refactor.convertModuleToObject",
+          title: "Convert module to object",
           arguments: [document, entityTypeInfo]
         };
         actions.push(convertToObjectAction);
@@ -1359,7 +1373,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * @returns Entity type information if detected, null otherwise
    */
   private detectEntityTypeKeywordSelection(document: TextDocument, range: Range | Selection): {
-    type: 'object' | 'protocol' | 'category';
+    type: 'object' | 'protocol' | 'category' | 'module';
     line: number;
     directiveRange: { start: number; end: number };
     args: string[];
@@ -1369,8 +1383,18 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
     // Check if this line contains an entity opening directive
     const entityMatch = SymbolUtils.matchFirst(lineText.trim(), PatternSets.entityOpening);
+
+    let keyword: 'object' | 'protocol' | 'category' | 'module';
+
     if (!entityMatch) {
-      return null;
+      // Check if this is a Prolog module directive
+      const moduleMatch = lineText.trim().match(/^:-\s*module\(/);
+      if (!moduleMatch) {
+        return null;
+      }
+      keyword = 'module';
+    } else {
+      keyword = entityMatch.type.toLowerCase() as any;
     }
 
     // Get the complete multi-line directive content
@@ -1385,7 +1409,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     // Parse the directive arguments
-    const keyword: 'object' | 'protocol' | 'category' = entityMatch.type.toLowerCase() as any;
     const keywordStart = fullDirectiveText.indexOf(keyword);
     const openParenPos = fullDirectiveText.indexOf('(', keywordStart);
     const closeParenPos = ArgumentUtils.findMatchingCloseParen(fullDirectiveText, openParenPos);
@@ -8671,6 +8694,238 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     await this.convertEntityType(document, entityTypeInfo, 'object', [
       { from: 'extends', to: 'imports' }
     ]);
+  }
+
+  /**
+   * Convert Prolog module to Logtalk object
+   * Implements steps 1 and 2 from https://logtalk.org/manuals/userman/migration.html#converting-prolog-modules-into-objects
+   * Also converts reexport/2 directives to uses/2 directives
+   */
+  public async convertModuleToObject(
+    document: TextDocument,
+    entityTypeInfo: {
+      type: 'object' | 'protocol' | 'category' | 'module';
+      line: number;
+      directiveRange: { start: number; end: number };
+      args: string[];
+    }
+  ): Promise<void> {
+    try {
+      const edit = new WorkspaceEdit();
+
+      // Get the full module directive text
+      let fullDirectiveText = '';
+      for (let lineNum = entityTypeInfo.directiveRange.start; lineNum <= entityTypeInfo.directiveRange.end; lineNum++) {
+        if (lineNum < document.lineCount) {
+          const line = document.lineAt(lineNum).text;
+          fullDirectiveText += line + (lineNum < entityTypeInfo.directiveRange.end ? '\n' : '');
+        }
+      }
+
+      // Step 1: Convert module/1 or module/2 directive to object/1
+      // Replace 'module' keyword with 'object'
+      const keywordRegex = /(:- *module\()/i;
+      let newDirectiveText = fullDirectiveText.replace(keywordRegex, ':- object(');
+
+      // Step 2a: Convert exported predicates (second argument of module/2) to public/1 directives
+      const publicDirectives: string[] = [];
+
+      if (entityTypeInfo.args.length >= 2) {
+        // module/2 directive - second argument contains exported predicates
+        const exportList = entityTypeInfo.args[1];
+
+        // Parse the export list to extract individual predicates
+        const exports = ArgumentUtils.parseArguments(exportList.replace(/^\[|\]$/g, ''));
+
+        if (exports.length > 0) {
+          // Remove the second argument from the directive (export list)
+          // We need to convert module(name, [exports]) to object(name)
+          const moduleName = entityTypeInfo.args[0];
+          newDirectiveText = newDirectiveText.replace(
+            /(:- *object\([^)]+),\s*\[[^\]]*\]\s*\)/i,
+            `:- object(${moduleName})`
+          );
+
+          // Create public/1 directives for each exported predicate
+          for (const exp of exports) {
+            const trimmedExp = exp.trim();
+            if (trimmedExp) {
+              publicDirectives.push(`\t:- public(${trimmedExp}).`);
+            }
+          }
+        }
+      }
+
+      // Replace the module directive with the object directive
+      const openingRange = new Range(
+        new Position(entityTypeInfo.directiveRange.start, 0),
+        new Position(entityTypeInfo.directiveRange.end, document.lineAt(entityTypeInfo.directiveRange.end).text.length)
+      );
+      edit.replace(document.uri, openingRange, newDirectiveText);
+
+      // Step 2b: Find and convert any export/1 directives to public/1 directives
+      const exportDirectivesToReplace: { range: Range; exports: string[] }[] = [];
+
+      for (let lineNum = entityTypeInfo.directiveRange.end + 1; lineNum < document.lineCount; lineNum++) {
+        const lineText = document.lineAt(lineNum).text;
+        const trimmedLine = lineText.trim();
+
+        // Skip comments and empty lines
+        if (trimmedLine.startsWith('%') || trimmedLine === '') {
+          continue;
+        }
+
+        // Check if this line contains an export/1 directive
+        const exportMatch = trimmedLine.match(/^:-\s*export\(/);
+        if (exportMatch) {
+          // Get the full directive range (may be multi-line)
+          const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+
+          // Get the full directive text
+          let fullExportDirective = '';
+          for (let i = directiveRange.start; i <= directiveRange.end; i++) {
+            if (i < document.lineCount) {
+              const line = document.lineAt(i).text;
+              fullExportDirective += line + (i < directiveRange.end ? '\n' : '');
+            }
+          }
+
+          // Extract the argument of export/1
+          const openParenIndex = fullExportDirective.indexOf('(');
+          if (openParenIndex !== -1) {
+            const closeParenIndex = ArgumentUtils.findMatchingCloseParen(fullExportDirective, openParenIndex);
+            if (closeParenIndex !== -1) {
+              const exportArg = fullExportDirective.substring(openParenIndex + 1, closeParenIndex).trim();
+
+              // Parse the export argument (could be a single predicate or a list)
+              let exports: string[];
+              if (exportArg.startsWith('[')) {
+                // List of exports
+                exports = ArgumentUtils.parseArguments(exportArg.replace(/^\[|\]$/g, ''));
+              } else {
+                // Single export
+                exports = [exportArg];
+              }
+
+              // Store the directive to replace
+              const range = new Range(
+                new Position(directiveRange.start, 0),
+                new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+              );
+              exportDirectivesToReplace.push({ range, exports });
+
+              // Skip to the end of this directive
+              lineNum = directiveRange.end;
+            }
+          }
+        }
+      }
+
+      // Replace export/1 directives with public/1 directives
+      for (const { range, exports } of exportDirectivesToReplace) {
+        const publicDirs = exports.map(exp => `\t:- public(${exp.trim()}).`).join('\n');
+        edit.replace(document.uri, range, publicDirs);
+      }
+
+      // Step 2c: Find and convert any reexport/2 directives to uses/2 directives
+      for (let lineNum = entityTypeInfo.directiveRange.end + 1; lineNum < document.lineCount; lineNum++) {
+        const lineText = document.lineAt(lineNum).text;
+        const trimmedLine = lineText.trim();
+
+        // Skip comments and empty lines
+        if (trimmedLine.startsWith('%') || trimmedLine === '') {
+          continue;
+        }
+
+        // Check if this line contains a reexport directive
+        const reexportMatch = trimmedLine.match(/^:-\s*reexport\(/);
+        if (reexportMatch) {
+          // Get the full directive range (may be multi-line)
+          const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+
+          // Get the full directive text
+          let fullReexportDirective = '';
+          for (let i = directiveRange.start; i <= directiveRange.end; i++) {
+            if (i < document.lineCount) {
+              const line = document.lineAt(i).text;
+              fullReexportDirective += line + (i < directiveRange.end ? '\n' : '');
+            }
+          }
+
+          // Check if this is reexport/2 (has a comma indicating 2 arguments)
+          // We only convert reexport/2, not reexport/1
+          const hasComma = fullReexportDirective.includes(',');
+
+          if (hasComma) {
+            // This is reexport/2 - convert to uses/2
+            // Replace 'reexport' with 'uses' and extract compound term argument if needed
+            let newDirectiveText = fullReexportDirective.replace(/(:- *reexport\()/i, ':- uses(');
+
+            // Extract the first argument to check if it's a compound term
+            // Pattern: :- uses(FIRST_ARG, ... or :- uses(FIRST_ARG).
+            // We need to handle compound terms like library(lists), file(path), etc.
+            const compoundTermPattern = /(:- *uses\()([a-z_][a-z0-9_]*)\(([^)]+)\)/i;
+            const compoundMatch = newDirectiveText.match(compoundTermPattern);
+
+            if (compoundMatch) {
+              // compoundMatch[1] is ':- uses('
+              // compoundMatch[2] is the functor (e.g., 'library')
+              // compoundMatch[3] is the argument (e.g., 'lists')
+              const argument = compoundMatch[3];
+
+              // Replace the compound term with just its argument
+              // We need to be careful to only replace the first occurrence
+              const beforeCompound = compoundMatch[1]; // ':- uses('
+              const afterCompoundStart = compoundMatch.index! + compoundMatch[0].length;
+              const afterCompound = newDirectiveText.substring(afterCompoundStart);
+
+              newDirectiveText = beforeCompound + argument + afterCompound;
+            }
+
+            // Store the directive to replace
+            const range = new Range(
+              new Position(directiveRange.start, 0),
+              new Position(directiveRange.end, document.lineAt(directiveRange.end).text.length)
+            );
+            edit.replace(document.uri, range, newDirectiveText);
+          }
+
+          // Skip to the end of this directive (whether we converted it or not)
+          lineNum = directiveRange.end;
+        }
+      }
+
+      // Insert public/1 directives from module/2 after the object opening directive
+      if (publicDirectives.length > 0) {
+        const insertPosition = new Position(entityTypeInfo.directiveRange.end + 1, 0);
+        const publicDirectivesText = '\n' + publicDirectives.join('\n') + '\n';
+        edit.insert(document.uri, insertPosition, publicDirectivesText);
+      }
+
+      // Add :- end_object. at the end of the file with exactly one empty line before it
+      const lastLine = document.lineCount - 1;
+      const lastLineText = document.lineAt(lastLine).text;
+      const endPosition = new Position(lastLine, lastLineText.length);
+
+      // Check if the last line is empty
+      const lastLineIsEmpty = lastLineText.trim() === '';
+
+      // Ensure exactly one empty line before end_object
+      // If last line is empty, add one newline + end_object
+      // If last line is not empty, add two newlines (one to end current line, one for empty line) + end_object
+      const endObjectText = lastLineIsEmpty ? '\n:- end_object.\n' : '\n\n:- end_object.\n';
+      edit.insert(document.uri, endPosition, endObjectText);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        window.showInformationMessage('Converted module to object. Further edits may be required (see migration guide).');
+      } else {
+        window.showErrorMessage('Failed to convert module to object.');
+      }
+    } catch (error) {
+      this.logger.error(`Error converting module to object: ${error}`);
+      window.showErrorMessage(`Error converting module to object: ${error}`);
+    }
   }
 
 }

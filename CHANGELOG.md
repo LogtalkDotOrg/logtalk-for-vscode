@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.74.0]
+
+* Add refactoring support for converting a Prolog module to an object
+
 ## [0.73.0]
 
 * Propagate file renames and deletions to loader and tester driver files with a preview
