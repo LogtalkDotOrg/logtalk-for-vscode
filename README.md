@@ -362,7 +362,7 @@ To add a declaration for a local predicate (or non-terminal), right-click on the
 
 #### Directive refactoring
 
-The "Split in individual directives" refactoring operation is available when the user selects a region of code that contains a predicate directive with a list argument and uses the "Refactor" context menu item or the "Refactor" command palette item. The directive is split into individual directives, one for each element in the list.
+The "Split in individual directives" refactoring operation is available when the user selects a region of code that contains a predicate directive with a single list argument and uses the "Refactor" context menu item or the "Refactor" command palette item. The directive is split into individual directives, one for each element in the list.
 
 #### Converting between object, protocol, and category entity types
 

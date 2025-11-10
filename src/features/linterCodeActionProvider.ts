@@ -388,9 +388,9 @@ export default class LogtalkLinter implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       const predicateIndicator = diagnostic.message.match(/Missing meta_predicate\/1 directive for predicate: (.+)\/(\d+)/);
-      const stars = Array(predicateIndicator[2]).fill('*').join(',');
+      const stars = Array(parseInt(predicateIndicator[2])).fill('*').join(',');
       const indent = document.getText(diagnostic.range).match(/(\s*)/);
-      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- meta_predicate(' + predicateIndicator[1] + '(' + stars+ ')).\n');
+      edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- meta_predicate(' + predicateIndicator[1] + '(' + stars + ')).\n');
     } else if (diagnostic.message.includes('Missing meta_non_terminal/1 directive for non-terminal:')) {
       // Add missing meta_non_terminal/1 directive
       action = new CodeAction(
@@ -398,7 +398,7 @@ export default class LogtalkLinter implements CodeActionProvider {
         CodeActionKind.QuickFix
       );
       const nonTerminalIndicator = diagnostic.message.match(/Missing meta_non_terminal\/1 directive for non-terminal: (.+)\/\/(\d+)/);
-      const stars = Array(nonTerminalIndicator[2]).fill('*').join(',');
+      const stars = Array(parseInt(nonTerminalIndicator[2])).fill('*').join(',');
       const indent = document.getText(diagnostic.range).match(/(\s*)/);
       edit.insert(document.uri, diagnostic.range.start, indent[1] + ':- meta_non_terminal(' + nonTerminalIndicator[1] + '(' + stars + ')).\n');
     } else if (diagnostic.message.includes('Deprecated version format:')) {

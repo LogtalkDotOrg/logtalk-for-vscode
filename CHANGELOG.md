@@ -6,6 +6,7 @@
 * Fix predicate refactorings to not be offered for conditional compilation directives
 * Fix predicate argument refactorings applied to predicate directives to ensure they are only offered for the directive arguments
 * Fix predicate declaration refactoring to not be offered for arguments of scope directives
+* Fix quick fixes for missing `meta_predicate/1` and `meta_non_terminal/1` directives to correctly handle predicate arity
 
 ## [0.73.0]
 
