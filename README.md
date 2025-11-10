@@ -684,6 +684,8 @@ On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable 
 
 Precise code navigation and quick fixes require a Prolog backend that supports accessing read term starting line but only some backends (B-Prolog, GNU Prolog, JIProlog, SICStus Prolog, SWI-Prolog, Trealla Prolog, XVM, and YAP) provide accurate line numbers. This issue is fixed for ECLiPSe in version 7.2#5 when using Logtalk 3.96.0 or later.
 
+When using the "Make - Reload" command, spurious warnings may be reported when there are multiple modified files due to out-of-order compilation. Although the Logtalk `make` tool attempts to avoid or minimize such warnings, they may still occur as only a few backends provide time stamps with sub-second accuracy. See the `make` tool documentation for details.
+
 If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated context menu items even after uninstalling it. If that happens, delete any extension leftovers in the `%USERPROFILE%\.vscode\extensions` (for Windows) or `~/.vscode/extensions` (for Linux and macOS) directory.
 
 VSCode triggers the "Go to Definition" computations if the cursor happens to be in the middle of some text when pressing the command (macOS) or control (Windows, Linux) keys to type any keyboard command shortcut without waiting for or requiring cursor movement. It also doesn't allow disabling this "feature". This extension implements mitigation measures to avoid most accidental "Go to Definition" computations.
