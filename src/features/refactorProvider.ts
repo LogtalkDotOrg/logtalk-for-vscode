@@ -180,17 +180,22 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         actions.push(inferPublicPredicatesAction);
       }
 
-      // Extract protocol action
-      const extractProtocolAction = new CodeAction(
-        "Extract protocol",
-        CodeActionKind.RefactorExtract
-      );
-      extractProtocolAction.command = {
-        command: "logtalk.refactor.extractProtocol",
-        title: "Extract protocol",
-        arguments: [document, range]
-      };
-      actions.push(extractProtocolAction);
+      // Extract protocol action - only for objects or categories that contain scope directives
+      if (entityInfo.type === 'object' || entityInfo.type === 'category') {
+        const hasScopeDirective = this.entityContainsScopeDirective(document, entityInfo.line);
+        if (hasScopeDirective) {
+          const extractProtocolAction = new CodeAction(
+            "Extract protocol",
+            CodeActionKind.RefactorExtract
+          );
+          extractProtocolAction.command = {
+            command: "logtalk.refactor.extractProtocol",
+            title: "Extract protocol",
+            arguments: [document, range]
+          };
+          actions.push(extractProtocolAction);
+        }
+      }
 
       // Parameter refactorings for object/category
       const paramsCount = this.countEntityParameters(entityInfo.name);
@@ -9113,6 +9118,45 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.error(`Error wrapping file as object: ${error}`);
       window.showErrorMessage(`Error wrapping file as object: ${error}`);
     }
+  }
+
+  /**
+   * Check if an entity contains any scope directives (public/1, protected/1, or private/1)
+   * @param document The text document
+   * @param entityStartLine The line number where the entity opening directive is located
+   * @returns true if the entity contains scope directives, false otherwise
+   */
+  private entityContainsScopeDirective(document: TextDocument, entityStartLine: number): boolean {
+    // Determine the entity type to know which closing directive to look for
+    const entityOpeningLine = document.lineAt(entityStartLine).text.trim();
+    const entityMatch = SymbolUtils.matchFirst(entityOpeningLine, PatternSets.entityOpening);
+    if (!entityMatch) {
+      return false;
+    }
+
+    const endRegex = entityMatch.type === SymbolTypes.OBJECT ? SymbolRegexes.endObject :
+                    entityMatch.type === SymbolTypes.PROTOCOL ? SymbolRegexes.endProtocol :
+                    SymbolRegexes.endCategory;
+
+    // Search for scope directives or entity closing directive in a single pass
+    let lineNum = entityStartLine + 1;
+    while (lineNum < document.lineCount) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Check if this line contains a scope directive
+      if (/^:-\s*(public|protected|private)\(/.test(lineText)) {
+        return true;
+      }
+
+      // Check if we've reached the entity closing directive
+      if (endRegex.test(lineText)) {
+        return false;
+      }
+
+      lineNum++;
+    }
+
+    return false;
   }
 
   /**
