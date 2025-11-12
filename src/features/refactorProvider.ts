@@ -270,18 +270,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     if (entityTypeInfo) {
       // Object conversions
       if (entityTypeInfo.type === 'object') {
-        // Convert to protocol (only if single argument)
+        // Convert to protocol (only if single argument and contains no predicate clauses or grammar rules)
         if (entityTypeInfo.args.length === 1) {
-          const convertToProtocolAction = new CodeAction(
-            "Convert object to protocol",
-            CodeActionKind.RefactorRewrite
-          );
-          convertToProtocolAction.command = {
-            command: "logtalk.refactor.convertObjectToProtocol",
-            title: "Convert object to protocol",
-            arguments: [document, entityTypeInfo]
-          };
-          actions.push(convertToProtocolAction);
+          const onlyDirectivesAndComments = this.entityContainsOnlyDirectivesAndComments(document, entityTypeInfo.line, 'object');
+          if (onlyDirectivesAndComments) {
+            const convertToProtocolAction = new CodeAction(
+              "Convert object to protocol",
+              CodeActionKind.RefactorRewrite
+            );
+            convertToProtocolAction.command = {
+              command: "logtalk.refactor.convertObjectToProtocol",
+              title: "Convert object to protocol",
+              arguments: [document, entityTypeInfo]
+            };
+            actions.push(convertToProtocolAction);
+          }
         }
 
         // Convert to category (only if no instantiates/specializes/extends)
@@ -333,23 +336,26 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       // Category conversions
       if (entityTypeInfo.type === 'category') {
-        // Convert to protocol (only if no extends argument)
+        // Convert to protocol (only if no extends argument and contains no predicate clauses or grammar rules)
         const hasExtends = entityTypeInfo.args.slice(1).some(arg => {
           const argLower = arg.toLowerCase();
           return argLower.startsWith('extends(');
         });
 
         if (!hasExtends) {
-          const convertToProtocolAction = new CodeAction(
-            "Convert category to protocol",
-            CodeActionKind.RefactorRewrite
-          );
-          convertToProtocolAction.command = {
-            command: "logtalk.refactor.convertCategoryToProtocol",
-            title: "Convert category to protocol",
-            arguments: [document, entityTypeInfo]
-          };
-          actions.push(convertToProtocolAction);
+          const onlyDirectivesAndComments = this.entityContainsOnlyDirectivesAndComments(document, entityTypeInfo.line, 'category');
+          if (onlyDirectivesAndComments) {
+            const convertToProtocolAction = new CodeAction(
+              "Convert category to protocol",
+              CodeActionKind.RefactorRewrite
+            );
+            convertToProtocolAction.command = {
+              command: "logtalk.refactor.convertCategoryToProtocol",
+              title: "Convert category to protocol",
+              arguments: [document, entityTypeInfo]
+            };
+            actions.push(convertToProtocolAction);
+          }
         }
 
         const convertToObjectAction = new CodeAction(
@@ -9205,6 +9211,81 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     return false;
+  }
+
+  /**
+   * Check if an entity contains only directives and comments (no predicate clauses or grammar rules)
+   * @param document The text document
+   * @param entityStartLine The line number where the entity opening directive is located
+   * @param entityType The entity type ('object', 'protocol', or 'category')
+   * @returns true if the entity contains only directives and comments, false if it contains any clauses/rules
+   */
+  private entityContainsOnlyDirectivesAndComments(document: TextDocument, entityStartLine: number, entityType: string): boolean {
+    // Determine which closing directive to look for based on entity type
+    const endRegex = entityType === 'object' ? SymbolRegexes.endObject :
+                    entityType === 'protocol' ? SymbolRegexes.endProtocol :
+                    SymbolRegexes.endCategory;
+
+    let lineNum = entityStartLine + 1;
+    while (lineNum < document.lineCount) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedLine = lineText.trim();
+
+      // Check if we've reached the entity closing directive
+      if (endRegex.test(trimmedLine)) {
+        return true; // Reached end without finding any clauses/rules
+      }
+
+      // Skip empty lines
+      if (trimmedLine === '') {
+        lineNum++;
+        continue;
+      }
+
+      // Skip line comments
+      if (trimmedLine.startsWith('%')) {
+        lineNum++;
+        continue;
+      }
+
+      // Skip block comments
+      if (trimmedLine.startsWith('/*') || trimmedLine.includes('/*')) {
+        const blockCommentRange = this.getBlockCommentRange(document, lineNum);
+        lineNum = blockCommentRange.end + 1;
+        continue;
+      }
+
+      // Skip directives
+      if (trimmedLine.startsWith(':-')) {
+        const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+        lineNum = directiveRange.end + 1;
+        continue;
+      }
+
+      // If we reach here, this line is not empty, not a comment, and not a directive
+      // It must be a predicate clause or grammar rule
+      return false;
+    }
+
+    return true; // Reached end of document without finding any clauses/rules
+  }
+
+  /**
+   * Get the range of a block comment starting at the given line
+   * @param document The text document
+   * @param startLine The line number where the block comment starts
+   * @returns An object with start and end line numbers of the block comment
+   */
+  private getBlockCommentRange(document: TextDocument, startLine: number): { start: number; end: number } {
+    let endLine = startLine;
+    while (endLine < document.lineCount) {
+      const lineText = document.lineAt(endLine).text;
+      if (lineText.includes('*/')) {
+        break;
+      }
+      endLine++;
+    }
+    return { start: startLine, end: endLine };
   }
 
   /**

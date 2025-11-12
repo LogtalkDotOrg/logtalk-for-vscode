@@ -6,6 +6,7 @@
 * Add "Infer public predicates" refactoring support for inferring public predicates in objects and categories
 * Improve performance of the entity parameter refactorings
 * Fix the "Extract protocol" refactoring to only be offered for objects and categories that contain scope directives
+* Fix the "Convert object to protocol" and "Convert category to protocol" refactorings to only be offered when the entity contains no predicate clauses or grammar rules
 
 ## [0.74.0]
 
