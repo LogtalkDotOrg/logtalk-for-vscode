@@ -28,7 +28,7 @@ import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
-import { SymbolUtils, PatternSets, SymbolRegexes, SymbolTypes } from "../utils/symbols";
+import { SymbolUtils, PatternSets, SymbolRegexes } from "../utils/symbols";
 import LogtalkTerminal from "./terminal";
 import * as path from "path";
 import * as fs from "fs";
@@ -167,7 +167,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     if (entityInfo && (entityInfo.type === 'object' || entityInfo.type === 'category')) {
 
       // Infer public predicates action
-      const hasPublicDirective = this.entityContainsPublicDirective(document, entityInfo.line);
+      const hasPublicDirective = this.entityContainsPublicDirective(document, entityInfo.line, entityInfo.type);
       if (!hasPublicDirective) {
         const inferPublicPredicatesAction = new CodeAction(
           "Infer public predicates",
@@ -182,7 +182,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
 
       // Extract protocol action - only for objects or categories that contain scope directives
-      const hasScopeDirective = this.entityContainsScopeDirective(document, entityInfo.line);
+      const hasScopeDirective = this.entityContainsScopeDirective(document, entityInfo.line, entityInfo.type);
       if (hasScopeDirective) {
         const extractProtocolAction = new CodeAction(
           "Extract protocol",
@@ -9143,18 +9143,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * Check if an entity contains any scope directives (public/1, protected/1, or private/1)
    * @param document The text document
    * @param entityStartLine The line number where the entity opening directive is located
+   * @param entityType The entity type ('object', 'protocol', or 'category')
    * @returns true if the entity contains scope directives, false otherwise
    */
-  private entityContainsScopeDirective(document: TextDocument, entityStartLine: number): boolean {
-    // Determine the entity type to know which closing directive to look for
-    const entityOpeningLine = document.lineAt(entityStartLine).text.trim();
-    const entityMatch = SymbolUtils.matchFirst(entityOpeningLine, PatternSets.entityOpening);
-    if (!entityMatch) {
-      return false;
-    }
-
-    const endRegex = entityMatch.type === SymbolTypes.OBJECT ? SymbolRegexes.endObject :
-                    entityMatch.type === SymbolTypes.PROTOCOL ? SymbolRegexes.endProtocol :
+  private entityContainsScopeDirective(document: TextDocument, entityStartLine: number, entityType: string): boolean {
+    // Determine which closing directive to look for based on entity type
+    const endRegex = entityType === 'object' ? SymbolRegexes.endObject :
+                    entityType === 'protocol' ? SymbolRegexes.endProtocol :
                     SymbolRegexes.endCategory;
 
     // Search for scope directives or entity closing directive in a single pass
@@ -9182,29 +9177,31 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    * Check if an entity contains any public/1 directives
    * @param document The text document
    * @param entityStartLine The line number where the entity opening directive is located
+   * @param entityType The entity type ('object', 'protocol', or 'category')
    * @returns true if the entity contains public/1 directives, false otherwise
    */
-  private entityContainsPublicDirective(document: TextDocument, entityStartLine: number): boolean {
-    // Find the entity closing directive
-    const entityOpeningLine = document.lineAt(entityStartLine).text.trim();
-    const entityMatch = SymbolUtils.matchFirst(entityOpeningLine, PatternSets.entityOpening);
-    if (!entityMatch) {
-      return false;
-    }
-
-    const endRegex = entityMatch.type === SymbolTypes.OBJECT ? SymbolRegexes.endObject :
-                    entityMatch.type === SymbolTypes.PROTOCOL ? SymbolRegexes.endProtocol :
+  private entityContainsPublicDirective(document: TextDocument, entityStartLine: number, entityType: string): boolean {
+    // Determine which closing directive to look for based on entity type
+    const endRegex = entityType === 'object' ? SymbolRegexes.endObject :
+                    entityType === 'protocol' ? SymbolRegexes.endProtocol :
                     SymbolRegexes.endCategory;
-    const entityEndLine = SymbolUtils.findEndEntityDirectivePosition(document, entityStartLine, endRegex);
 
-    // Search for public/1 directives within the entity
-    for (let lineNum = entityStartLine + 1; lineNum < entityEndLine; lineNum++) {
+    // Search for public/1 directive or entity closing directive in a single pass
+    let lineNum = entityStartLine + 1;
+    while (lineNum < document.lineCount) {
       const lineText = document.lineAt(lineNum).text.trim();
 
       // Check if this line contains a public/1 directive
       if (/^:-\s*public\(/.test(lineText)) {
         return true;
       }
+
+      // Check if we've reached the entity closing directive
+      if (endRegex.test(lineText)) {
+        return false;
+      }
+
+      lineNum++;
     }
 
     return false;
