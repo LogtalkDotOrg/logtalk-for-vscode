@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.75.0]
+
+* Add "Wrap file contents as an object" refactoring support for converting plain Prolog files to Logtalk objects
+
 ## [0.74.0]
 
 * Add refactoring support for converting a Prolog module to an object

@@ -63,6 +63,23 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return actions;
     }
 
+    // Check if file has no entities or modules - offer wrap as object action
+    if (selection.isEmpty) {
+      const hasNoEntities = !this.fileContainsEntityOrModule(document);
+      if (hasNoEntities) {
+        const wrapAsObjectAction = new CodeAction(
+          "Wrap file contents as an object",
+          CodeActionKind.RefactorRewrite
+        );
+        wrapAsObjectAction.command = {
+          command: "logtalk.refactor.wrapFileAsObject",
+          title: "Wrap file contents as an object",
+          arguments: [document]
+        };
+        actions.push(wrapAsObjectAction);
+      }
+    }
+
     if (!selection.isEmpty) {
       if (includePosition !== null) {
         // Selection contains include/1 directive - provide replace action
@@ -8963,6 +8980,120 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error converting module to object: ${error}`);
       window.showErrorMessage(`Error converting module to object: ${error}`);
+    }
+  }
+
+  /**
+   * Check if the file contains any entity opening directive, entity closing directive, or module opening directive
+   * @param document The text document to check
+   * @returns true if the file contains entities or modules, false otherwise
+   */
+  private fileContainsEntityOrModule(document: TextDocument): boolean {
+    for (let lineNum = 0; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Skip empty lines and comments
+      if (lineText === '' || lineText.startsWith('%')) {
+        continue;
+      }
+
+      // Check for entity opening directives
+      if (SymbolUtils.matchFirst(lineText, PatternSets.entityOpening)) {
+        return true;
+      }
+
+      // Check for entity closing directives
+      if (SymbolUtils.matchFirst(lineText, PatternSets.entityEnding)) {
+        return true;
+      }
+
+      // Check for module opening directive
+      if (lineText.match(/^:-\s*module\(/)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Wrap file contents as an object
+   * Adds an object opening directive at the top and closing directive at the bottom
+   * @param document The text document to wrap
+   */
+  public async wrapFileAsObject(document: TextDocument): Promise<void> {
+    try {
+      // Get the basename of the file without any extension and convert to lowercase
+      const fileName = path.basename(document.uri.fsPath);
+      const objectName = fileName.replace(/\.[^.]*$/, '').toLowerCase();
+
+      // Validate that the object name is a valid Logtalk atom
+      if (!/^[a-z][a-zA-Z0-9_]*$/.test(objectName)) {
+        window.showErrorMessage(`Cannot wrap file: filename "${fileName}" does not produce a valid Logtalk object name. Object names must start with a lowercase letter and contain only letters, digits, and underscores.`);
+        return;
+      }
+
+      const edit = new WorkspaceEdit();
+
+      // Find the first non-empty line from the beginning
+      let firstNonEmptyLine = 0;
+      for (let i = 0; i < document.lineCount; i++) {
+        if (document.lineAt(i).text.trim() !== '') {
+          firstNonEmptyLine = i;
+          break;
+        }
+      }
+
+      // Find the last non-empty line from the end
+      let lastNonEmptyLine = document.lineCount - 1;
+      for (let i = document.lineCount - 1; i >= 0; i--) {
+        if (document.lineAt(i).text.trim() !== '') {
+          lastNonEmptyLine = i;
+          break;
+        }
+      }
+
+      // Delete empty lines at the beginning (if any)
+      if (firstNonEmptyLine > 0) {
+        const deleteRange = new Range(
+          new Position(0, 0),
+          new Position(firstNonEmptyLine, 0)
+        );
+        edit.delete(document.uri, deleteRange);
+      }
+
+      // Delete empty lines at the end (if any)
+      // Use the original line numbers since WorkspaceEdit applies all changes to the original document
+      if (lastNonEmptyLine < document.lineCount - 1) {
+        const lastNonEmptyLineText = document.lineAt(lastNonEmptyLine).text;
+        const deleteRange = new Range(
+          new Position(lastNonEmptyLine, lastNonEmptyLineText.length),
+          new Position(document.lineCount - 1, document.lineAt(document.lineCount - 1).text.length)
+        );
+        edit.delete(document.uri, deleteRange);
+      }
+
+      // Add object opening directive at the top of the file
+      const openingDirective = `:- object(${objectName}).\n\n`;
+      edit.insert(document.uri, new Position(0, 0), openingDirective);
+
+      // Add object closing directive at the bottom of the file
+      // Use the original line number (lastNonEmptyLine) since all edits are applied to the original document
+      const lastLineText = document.lineAt(lastNonEmptyLine).text;
+      const endPosition = new Position(lastNonEmptyLine, lastLineText.length);
+      const closingDirective = '\n\n:- end_object.\n';
+      edit.insert(document.uri, endPosition, closingDirective);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        this.logger.info(`Successfully wrapped file contents as object ${objectName}`);
+        window.showInformationMessage(`File contents wrapped as object ${objectName}.`);
+      } else {
+        window.showErrorMessage('Failed to wrap file contents as object.');
+      }
+    } catch (error) {
+      this.logger.error(`Error wrapping file as object: ${error}`);
+      window.showErrorMessage(`Error wrapping file as object: ${error}`);
     }
   }
 

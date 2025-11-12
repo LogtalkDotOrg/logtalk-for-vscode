@@ -374,6 +374,10 @@ Right-click on a module name in its opening directive and select the "Convert mo
 
 Note that this conversion is always partial as several decisions are required by the user that cannot be automated.
 
+#### Wrapping file contents as an object
+
+Right-click anywhere in a file that has no entity or module opening directives and select the "Wrap file contents as an object" context menu item. The file contents are wrapped with object opening and closing directives. The object name is derived from the file name. This refactoring is useful when converting plain Prolog files to Logtalk.
+
 #### Known refactoring issues
 
 - Some refactoring operations may not be complete, notably due to the use of dynamic binding or meta-predicate features.

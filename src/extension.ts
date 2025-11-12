@@ -616,6 +616,14 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.wrapFileAsObject', async (document) => {
+      if (refactorProvider) {
+        await refactorProvider.wrapFileAsObject(document);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {
