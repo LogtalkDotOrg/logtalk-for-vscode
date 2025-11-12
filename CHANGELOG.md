@@ -3,6 +3,7 @@
 ## [0.75.0]
 
 * Add "Wrap file contents as an object" refactoring support for converting plain Prolog files to Logtalk objects
+* Add "Infer public predicates" refactoring support for inferring public predicates in objects and categories
 
 ## [0.74.0]
 

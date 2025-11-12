@@ -98,6 +98,7 @@ export default class LogtalkTerminal {
       ".vscode_descendants_done",
       ".vscode_type_done",
       ".vscode_find_parent_done",
+      ".vscode_infer_public_predicates_done",
       ".vscode_tester_output",
       ".vscode_doclet_output"
     ];
@@ -1515,6 +1516,19 @@ export default class LogtalkTerminal {
     let type = fs.readFileSync(result).toString();
     await fsp.rm(result, { force: true });
     return type;
+  }
+
+  public static async inferPublicPredicates(entityName: string) {
+    LogtalkTerminal.createLogtalkTerm();
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
+    let goals = `vscode::infer_public_predicates('${wdir}', ${entityName}).\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(wdir, ".vscode_infer_public_predicates_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
   }
 
   public static async openParentFile(uri: Uri) {

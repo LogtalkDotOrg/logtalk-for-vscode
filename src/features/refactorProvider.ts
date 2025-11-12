@@ -28,7 +28,7 @@ import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
-import { SymbolUtils, PatternSets, SymbolRegexes } from "../utils/symbols";
+import { SymbolUtils, PatternSets, SymbolRegexes, SymbolTypes } from "../utils/symbols";
 import LogtalkTerminal from "./terminal";
 import * as path from "path";
 import * as fs from "fs";
@@ -160,9 +160,27 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     }
 
-    // Check for extract protocol action (works with cursor position or entity name selection)
+    // Check for entity opening directive (works with cursor position or entity name selection)
     const entityInfo = this.detectEntityOpeningDirective(document, range);
+
+    // Extract protocol, infer public predicates, and parameter refactorings - only for objects and categories
     if (entityInfo && (entityInfo.type === 'object' || entityInfo.type === 'category')) {
+      // Infer public predicates action
+      const hasPublicDirective = this.entityContainsPublicDirective(document, entityInfo.line);
+      if (!hasPublicDirective) {
+        const inferPublicPredicatesAction = new CodeAction(
+          "Infer public predicates",
+          CodeActionKind.RefactorRewrite
+        );
+        inferPublicPredicatesAction.command = {
+          command: "logtalk.refactor.inferPublicPredicates",
+          title: "Infer public predicates",
+          arguments: [document, entityInfo]
+        };
+        actions.push(inferPublicPredicatesAction);
+      }
+
+      // Extract protocol action
       const extractProtocolAction = new CodeAction(
         "Extract protocol",
         CodeActionKind.RefactorExtract
@@ -251,12 +269,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         // Convert to protocol (only if single argument)
         if (entityTypeInfo.args.length === 1) {
           const convertToProtocolAction = new CodeAction(
-            "Convert to protocol",
+            "Convert object to protocol",
             CodeActionKind.RefactorRewrite
           );
           convertToProtocolAction.command = {
             command: "logtalk.refactor.convertObjectToProtocol",
-            title: "Convert to protocol",
+            title: "Convert object to protocol",
             arguments: [document, entityTypeInfo]
           };
           actions.push(convertToProtocolAction);
@@ -9094,6 +9112,140 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error wrapping file as object: ${error}`);
       window.showErrorMessage(`Error wrapping file as object: ${error}`);
+    }
+  }
+
+  /**
+   * Check if an entity contains any public/1 directives
+   * @param document The text document
+   * @param entityStartLine The line number where the entity opening directive is located
+   * @returns true if the entity contains public/1 directives, false otherwise
+   */
+  private entityContainsPublicDirective(document: TextDocument, entityStartLine: number): boolean {
+    // Find the entity closing directive
+    const entityOpeningLine = document.lineAt(entityStartLine).text.trim();
+    const entityMatch = SymbolUtils.matchFirst(entityOpeningLine, PatternSets.entityOpening);
+    if (!entityMatch) {
+      return false;
+    }
+
+    const endRegex = entityMatch.type === SymbolTypes.OBJECT ? SymbolRegexes.endObject :
+                    entityMatch.type === SymbolTypes.PROTOCOL ? SymbolRegexes.endProtocol :
+                    SymbolRegexes.endCategory;
+    const entityEndLine = SymbolUtils.findEndEntityDirectivePosition(document, entityStartLine, endRegex);
+
+    // Search for public/1 directives within the entity
+    for (let lineNum = entityStartLine + 1; lineNum < entityEndLine; lineNum++) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Check if this line contains a public/1 directive
+      if (/^:-\s*public\(/.test(lineText)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Infer public predicates for an entity
+   * @param document The text document
+   * @param entityInfo The entity information
+   */
+  public async inferPublicPredicates(document: TextDocument, entityInfo: { type: string; name: string; nameWithoutParams: string; line: number }): Promise<void> {
+    try {
+      this.logger.info(`Inferring public predicates for entity ${entityInfo.name}`);
+
+      // Call LogtalkTerminal to infer public predicates
+      await LogtalkTerminal.inferPublicPredicates(entityInfo.name);
+
+      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      if (!wdir) {
+        window.showErrorMessage('No workspace folder open');
+        return;
+      }
+
+      const resultsFile = path.join(wdir, ".vscode_infer_public_predicates");
+      if (!fs.existsSync(resultsFile)) {
+        window.showErrorMessage(`Could not infer public predicates for entity ${entityInfo.name}`);
+        return;
+      }
+
+      const out = fs.readFileSync(resultsFile).toString().trim();
+      await fs.promises.rm(resultsFile, { force: true });
+
+      // Parse the results - should be a list like [foo/1, bar/2]
+      if (!out || out === '[]') {
+        window.showInformationMessage(`No public predicates to infer for entity ${entityInfo.name}`);
+        return;
+      }
+
+      // Remove the surrounding brackets and parse the list
+      const listContent = out.replace(/^\[/, '').replace(/\]$/, '').trim();
+      if (!listContent) {
+        window.showInformationMessage(`No public predicates to infer for entity ${entityInfo.name}`);
+        return;
+      }
+
+      // Split the list into individual predicates and format them
+      const predicates = listContent.split(',').map(p => p.trim()).filter(p => p.length > 0);
+      if (predicates.length === 0) {
+        window.showInformationMessage(`No public predicates to infer for entity ${entityInfo.name}`);
+        return;
+      }
+
+      // Create the public/1 directive
+      const edit = new WorkspaceEdit();
+
+      // Find the end of the entity opening directive
+      const directiveRange = PredicateUtils.getDirectiveRange(document, entityInfo.line);
+      let insertLine = directiveRange.end + 1;
+
+      // Check if there's an info/1 directive immediately after the entity opening directive
+      // If so, insert after the info/1 directive instead
+      let currentLine = insertLine;
+      while (currentLine < document.lineCount) {
+        const lineText = document.lineAt(currentLine).text.trim();
+
+        // Skip empty lines and comments
+        if (lineText === '' || lineText.startsWith('%')) {
+          currentLine++;
+          continue;
+        }
+
+        // Check if this is an info/1 directive
+        if (/^:-\s*info\(/.test(lineText)) {
+          const infoDirectiveRange = PredicateUtils.getDirectiveRange(document, currentLine);
+          insertLine = infoDirectiveRange.end + 1;
+          break;
+        }
+
+        // If we hit any other directive or code, stop searching
+        break;
+      }
+
+      // Get the indentation from the entity opening directive
+      const entityLineText = document.lineAt(entityInfo.line).text;
+      const indentMatch = entityLineText.match(/^(\s*)/);
+      const indent = indentMatch ? indentMatch[1] + '\t' : '\t';
+
+      // Create the public/1 directive with the inferred predicates
+      // Format: one predicate per line, with an empty line before the directive
+      const formattedPredicates = predicates.join(`,\n${indent}\t`);
+      const publicDirective = `\n${indent}:- public([\n${indent}\t${formattedPredicates}\n${indent}]).\n`;
+
+      edit.insert(document.uri, new Position(insertLine, 0), publicDirective);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        this.logger.info(`Successfully added public/1 directive for entity ${entityInfo.name}`);
+        window.showInformationMessage(`Added public/1 directive for entity ${entityInfo.name}`);
+      } else {
+        window.showErrorMessage('Failed to add public/1 directive.');
+      }
+    } catch (error) {
+      this.logger.error(`Error inferring public predicates: ${error}`);
+      window.showErrorMessage(`Error inferring public predicates: ${error}`);
     }
   }
 

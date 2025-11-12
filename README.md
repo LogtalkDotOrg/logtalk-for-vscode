@@ -378,6 +378,10 @@ Note that this conversion is always partial as several decisions are required by
 
 Right-click anywhere in a file that has no entity or module opening directives and select the "Wrap file contents as an object" context menu item. The file contents are wrapped with object opening and closing directives. The object name is derived from the file name. This refactoring is useful when converting plain Prolog files to Logtalk.
 
+#### Inferring public predicates
+
+Right-click on an object or category name in its opening directive and select the "Infer public predicates" context menu item. The file must be loaded. The public predicates are inferred from the entity's implementation and a `public/1` directive is added with the inferred predicates. This refactoring is only available for objects and categories with no `public/1` directives. It's typically used after converting a plain Prolog file to a Logtalk object using the "Wrap file contents as an object" refactoring.
+
 #### Known refactoring issues
 
 - Some refactoring operations may not be complete, notably due to the use of dynamic binding or meta-predicate features.

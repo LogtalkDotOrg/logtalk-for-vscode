@@ -624,6 +624,14 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.inferPublicPredicates', async (document, entityInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.inferPublicPredicates(document, entityInfo);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {
