@@ -2,7 +2,7 @@
 
 A VSCode extension that provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Requires Logtalk 3.95.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
+Requires Logtalk 3.96.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
@@ -702,7 +702,7 @@ In rare cases, the Logtalk terminal may be restored when reloading the VSCode wi
 
 ## Development
 
-Developed and tested with **Logtalk 3.95.0** and **VSCode 1.105** on **macOS 14.8** and **Windows 10** with **Node 24.10**.
+Developed and tested with **Logtalk 3.96.0** and **VSCode 1.106.2** on **macOS 14.8** and **Windows 10** with **Node 25.1.0**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 
