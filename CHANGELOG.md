@@ -4,6 +4,7 @@
 
 * Add "Wrap file contents as an object" refactoring support for converting plain Prolog files to Logtalk objects
 * Add "Infer public predicates" refactoring support for inferring public predicates in objects and categories
+* Improve performance of the entity parameter refactorings
 * Fix the "Extract protocol" refactoring to only be offered for objects and categories that contain scope directives
 
 ## [0.74.0]

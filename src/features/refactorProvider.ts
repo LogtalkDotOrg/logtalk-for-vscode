@@ -163,8 +163,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // Check for entity opening directive (works with cursor position or entity name selection)
     const entityInfo = this.detectEntityOpeningDirective(document, range);
 
-    // Extract protocol, infer public predicates, and parameter refactorings - only for objects and categories
+    // Infer public predicates, extract protocol, and parameter refactorings - only for objects and categories
     if (entityInfo && (entityInfo.type === 'object' || entityInfo.type === 'category')) {
+
       // Infer public predicates action
       const hasPublicDirective = this.entityContainsPublicDirective(document, entityInfo.line);
       if (!hasPublicDirective) {
@@ -181,20 +182,18 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
 
       // Extract protocol action - only for objects or categories that contain scope directives
-      if (entityInfo.type === 'object' || entityInfo.type === 'category') {
-        const hasScopeDirective = this.entityContainsScopeDirective(document, entityInfo.line);
-        if (hasScopeDirective) {
-          const extractProtocolAction = new CodeAction(
-            "Extract protocol",
-            CodeActionKind.RefactorExtract
-          );
-          extractProtocolAction.command = {
-            command: "logtalk.refactor.extractProtocol",
-            title: "Extract protocol",
-            arguments: [document, range]
-          };
-          actions.push(extractProtocolAction);
-        }
+      const hasScopeDirective = this.entityContainsScopeDirective(document, entityInfo.line);
+      if (hasScopeDirective) {
+        const extractProtocolAction = new CodeAction(
+          "Extract protocol",
+          CodeActionKind.RefactorExtract
+        );
+        extractProtocolAction.command = {
+          command: "logtalk.refactor.extractProtocol",
+          title: "Extract protocol",
+          arguments: [document, range]
+        };
+        actions.push(extractProtocolAction);
       }
 
       // Parameter refactorings for object/category
@@ -2285,41 +2284,50 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, entityInfo.type, newIdentifier);
     workspaceEdit.replace(document.uri, fullDirRange, updatedDirText);
 
-    // Update info/1 directive - reorder parnames and parameters entries
-    const endLine = SymbolUtils.findEndEntityDirectivePosition(
-      document,
-      entityInfo.line,
-      entityInfo.type === 'object' ? SymbolRegexes.endObject : (entityInfo.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
-    );
+    // Update info/1 directive - reorder parnames or parameters entry (at most one exists)
+    // Use while loop to exit early when found or when entity closing directive is reached
+    // Only objects and categories can be parametric
+    const endRegex = entityInfo.type === 'object' ? SymbolRegexes.endObject : SymbolRegexes.endCategory;
 
-    for (let i = entityInfo.line + 1; i <= endLine && i < document.lineCount; i++) {
+    let i = entityInfo.line + 1;
+    while (i < document.lineCount) {
       const lt = document.lineAt(i).text;
+      const trimmedLine = lt.trim();
+
+      // Check if we've reached the entity closing directive
+      if (endRegex.test(trimmedLine)) {
+        break;
+      }
 
       // Multi-line parnames
       const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
       if (mlParnames) {
         const tempEdits: TextEdit[] = [];
-        const endLineNum = this.reorderMultiLineParnames(document, i, newOrder, tempEdits);
+        this.reorderMultiLineParnames(document, i, newOrder, tempEdits);
         for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
-        i = endLineNum;
-        continue;
+        break;
       }
 
       // Multi-line parameters (reuse arguments)
       const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
       if (mlParameters) {
         const tempEdits: TextEdit[] = [];
-        const endLineNum = this.reorderMultiLineArguments(document, i, newOrder, tempEdits);
+        this.reorderMultiLineArguments(document, i, newOrder, tempEdits);
         for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
-        i = endLineNum;
-        continue;
+        break;
       }
 
+      // Single-line parnames or parameters
       let updated = this.updateParInfoLineForReorder(lt, 'parnames', newOrder);
-      updated = this.updateParInfoLineForReorder(updated, 'parameters', newOrder);
+      if (updated === lt) {
+        updated = this.updateParInfoLineForReorder(lt, 'parameters', newOrder);
+      }
       if (updated !== lt) {
         workspaceEdit.replace(document.uri, document.lineAt(i).range, updated);
+        break;
       }
+
+      i++;
     }
 
     // Update references across workspace
@@ -2376,34 +2384,37 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const updatedDirText = this.replaceEntityOpeningIdentifierInDirectiveText(dirText, entityInfo.type, newIdentifier);
     workspaceEdit.replace(document.uri, fullDirRange, updatedDirText);
 
-    // Update info/1 directive - remove parnames and parameters entries
-    const endLine = SymbolUtils.findEndEntityDirectivePosition(
-      document,
-      entityInfo.line,
-      entityInfo.type === 'object' ? SymbolRegexes.endObject : (entityInfo.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
-    );
+    // Update info/1 directive - remove parnames or parameters entry (at most one exists)
+    // Use while loop to exit early when found or when entity closing directive is reached
+    // Only objects and categories can be parametric
+    const endRegex = entityInfo.type === 'object' ? SymbolRegexes.endObject : SymbolRegexes.endCategory;
 
-    for (let i = entityInfo.line + 1; i <= endLine && i < document.lineCount; i++) {
+    let i = entityInfo.line + 1;
+    while (i < document.lineCount) {
       const lt = document.lineAt(i).text;
+      const trimmedLine = lt.trim();
+
+      // Check if we've reached the entity closing directive
+      if (endRegex.test(trimmedLine)) {
+        break;
+      }
 
       // Multi-line parnames
       const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
       if (mlParnames) {
         const tempEdits: TextEdit[] = [];
-        const endLineNum = this.removeFromMultiLineParnames(document, i, parameterPosition, params.length, tempEdits);
+        this.removeFromMultiLineParnames(document, i, parameterPosition, params.length, tempEdits);
         for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
-        i = endLineNum;
-        continue;
+        break;
       }
 
       // Multi-line parameters (reuse arguments)
       const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
       if (mlParameters) {
         const tempEdits: TextEdit[] = [];
-        const endLineNum = this.removeFromMultiLineArguments(document, i, parameterPosition, params.length, tempEdits);
+        this.removeFromMultiLineArguments(document, i, parameterPosition, params.length, tempEdits);
         for (const te of tempEdits) workspaceEdit.replace(document.uri, te.range, te.newText);
-        i = endLineNum;
-        continue;
+        break;
       }
 
       // Check if parnames line should be deleted (becomes empty)
@@ -2411,7 +2422,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (updated === null) {
         // Delete the entire line (parnames became empty) and handle trailing comma
         this.deleteInfoLineAndHandleComma(document, workspaceEdit, i);
-        continue;
+        break;
       }
 
       // Check if parameters line should be deleted (becomes empty)
@@ -2419,13 +2430,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       if (updated === null) {
         // Delete the entire line (parameters became empty) and handle trailing comma
         this.deleteInfoLineAndHandleComma(document, workspaceEdit, i);
-        continue;
+        break;
       }
 
       // If line was modified but not deleted, replace it
       if (updated !== lt) {
         workspaceEdit.replace(document.uri, document.lineAt(i).range, updated);
+        break;
       }
+
+      i++;
     }
 
     // Update references across workspace
@@ -8424,19 +8438,24 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       edit.replace(document.uri, fullDirRange, updatedDirText);
 
       // Update info/1 parnames/parameters single-line entries within entity block
-      const endLine = SymbolUtils.findEndEntityDirectivePosition(
-        document,
-        info.line,
-        info.type === 'object' ? SymbolRegexes.endObject : (info.type === 'category' ? SymbolRegexes.endCategory : SymbolRegexes.endProtocol)
-      );
+      // Use while loop to exit early when parnames/parameters found or entity closing directive reached
+      // Only objects and categories can be parametric
+      const endRegex = info.type === 'object' ? SymbolRegexes.endObject : SymbolRegexes.endCategory;
 
       // Track if we found any existing parnames/parameters
       let foundParnames = false;
       let foundParameters = false;
       let infoDirectiveRange: { start: number, end: number } | null = null;
 
-      for (let i = info.line + 1; i <= endLine && i < document.lineCount; i++) {
+      let i = info.line + 1;
+      while (i < document.lineCount) {
         const lt = document.lineAt(i).text;
+        const trimmedLine = lt.trim();
+
+        // Check if we've reached the entity closing directive
+        if (endRegex.test(trimmedLine)) {
+          break;
+        }
 
         // Check if this is an info/1 directive
         if (lt.match(/^(\s*):-\s*info\(\s*\[/)) {
@@ -8449,9 +8468,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         const mlParnames = lt.match(/^(\s*)parnames\s+is\s+\[([^\]]*)?$/);
         if (mlParnames) {
           foundParnames = true;
-          const { edits, endLineNum } = this.constructMultiLineParnames(document, i, newName, pos);
+          const { edits } = this.constructMultiLineParnames(document, i, newName, pos);
           for (const te of edits) edit.replace(document.uri, te.range, te.newText);
-          i = endLineNum;
           break;
         }
 
@@ -8459,9 +8477,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         const mlParameters = lt.match(/^(\s*)parameters\s+is\s+\[([^\]]*)?$/);
         if (mlParameters) {
           foundParameters = true;
-          const { edits, endLineNum } = this.constructMultiLineParameters(document, i, newName, pos);
+          const { edits } = this.constructMultiLineParameters(document, i, newName, pos);
           for (const te of edits) edit.replace(document.uri, te.range, te.newText);
-          i = endLineNum;
           break;
         }
 
@@ -8479,6 +8496,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           edit.replace(document.uri, document.lineAt(i).range, updated);
           break;
         }
+
+        i++;
       }
 
       // If we found an info/1 directive but no parnames or parameters, add parnames line
