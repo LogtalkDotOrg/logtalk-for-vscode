@@ -113,50 +113,53 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           actions.push(splitDirectivesAction);
         }
 
-        // Provide extract actions
-        const extractToEntityAction = new CodeAction(
-          "Extract to Logtalk entity",
-          CodeActionKind.RefactorExtract
-        );
-        extractToEntityAction.command = {
-          command: "logtalk.refactor.extractToEntity",
-          title: "Extract to Logtalk entity",
-          arguments: [document, range]
-        };
-        actions.push(extractToEntityAction);
+        // Provide extract actions when the selection contains complete terms
+        const containsCompleteTerms = this.selectionContainsCompleteTerms(document, selection);
+        if (containsCompleteTerms) {
+          const extractToEntityAction = new CodeAction(
+            "Extract to Logtalk entity",
+            CodeActionKind.RefactorExtract
+          );
+          extractToEntityAction.command = {
+            command: "logtalk.refactor.extractToEntity",
+            title: "Extract to Logtalk entity",
+            arguments: [document, range]
+          };
+          actions.push(extractToEntityAction);
 
-        const extractToNewEntityAction = new CodeAction(
-          "Extract to new Logtalk entity",
-          CodeActionKind.RefactorExtract
-        );
-        extractToNewEntityAction.command = {
-          command: "logtalk.refactor.extractToNewEntity",
-          title: "Extract to new Logtalk entity",
-          arguments: [document, range]
-        };
-        actions.push(extractToNewEntityAction);
+          const extractToNewEntityAction = new CodeAction(
+            "Extract to new Logtalk entity",
+            CodeActionKind.RefactorExtract
+          );
+          extractToNewEntityAction.command = {
+            command: "logtalk.refactor.extractToNewEntity",
+            title: "Extract to new Logtalk entity",
+            arguments: [document, range]
+          };
+          actions.push(extractToNewEntityAction);
 
-        const extractToNewFileAction = new CodeAction(
-          "Extract to new Logtalk file",
-          CodeActionKind.RefactorExtract
-        );
-        extractToNewFileAction.command = {
-          command: "logtalk.refactor.extractToNewFile",
-          title: "Extract to new Logtalk file",
-          arguments: [document, range]
-        };
-        actions.push(extractToNewFileAction);
+          const extractToNewFileAction = new CodeAction(
+            "Extract to new Logtalk file",
+            CodeActionKind.RefactorExtract
+          );
+          extractToNewFileAction.command = {
+            command: "logtalk.refactor.extractToNewFile",
+            title: "Extract to new Logtalk file",
+            arguments: [document, range]
+          };
+          actions.push(extractToNewFileAction);
 
-        const replaceWithIncludeAction = new CodeAction(
-          "Replace with include/1 directive",
-          CodeActionKind.RefactorExtract
-        );
-        replaceWithIncludeAction.command = {
-          command: "logtalk.refactor.replaceWithInclude",
-          title: "Replace with include/1 directive",
-          arguments: [document, range]
-        };
-        actions.push(replaceWithIncludeAction);
+          const replaceWithIncludeAction = new CodeAction(
+            "Replace with include/1 directive",
+            CodeActionKind.RefactorExtract
+          );
+          replaceWithIncludeAction.command = {
+            command: "logtalk.refactor.replaceWithInclude",
+            title: "Replace with include/1 directive",
+            arguments: [document, range]
+          };
+          actions.push(replaceWithIncludeAction);
+        }
       }
     }
 
@@ -2742,6 +2745,105 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     return null;
+  }
+
+  /**
+   * Check if a selection contains complete terms using quick heuristics
+   * @param document The text document
+   * @param selection The selection to check
+   * @returns true if the selection appears to contain complete terms, false otherwise
+   */
+  private selectionContainsCompleteTerms(document: TextDocument, selection: Selection): boolean {
+    let startLine = selection.start.line;
+    let endLine = selection.end.line;
+
+    // Handle triple-click selection: if selection ends at character 0 of next line,
+    // it's actually a single-line selection that includes the newline
+    if (endLine > startLine && selection.end.character === 0) {
+      endLine--;
+    }
+
+    // Trim empty lines from the beginning of the selection
+    while (startLine <= endLine && document.lineAt(startLine).text.trim() === '') {
+      startLine++;
+    }
+
+    // Trim empty lines from the end of the selection
+    while (endLine >= startLine && document.lineAt(endLine).text.trim() === '') {
+      endLine--;
+    }
+
+    // If all lines were empty, treat as invalid
+    if (startLine > endLine) {
+      return false;
+    }
+
+    // Check the first line of the selection
+    const firstLineText = document.lineAt(startLine).text;
+    const firstLineTrimmed = firstLineText.trim();
+
+    // The beginning of the selection should be:
+    // - A comment (line comment or block comment start)
+    // - The first line of a directive (starts with :-)
+    // - The first line of a predicate clause or grammar rule
+
+    if (firstLineTrimmed === '') {
+      // Empty line at start - could be valid, continue checking
+    } else if (firstLineTrimmed.startsWith('%')) {
+      // Line comment - valid start
+    } else if (firstLineTrimmed.startsWith('/*')) {
+      // Block comment start - valid start
+    } else if (firstLineTrimmed.startsWith(':-')) {
+      // Directive - valid start
+    } else {
+      // Should be a predicate clause or grammar rule
+      // Check that selection starts at beginning of line or after whitespace (not in the middle of a term)
+      const selectionStartChar = selection.start.character;
+      const beforeSelection = firstLineText.substring(0, selectionStartChar).trim();
+
+      // If there's non-whitespace content before the selection start, it's likely in the middle of a term
+      if (beforeSelection !== '' && !beforeSelection.endsWith('%')) {
+        return false;
+      }
+    }
+
+    // Check the last line of the selection (after trimming empty lines)
+    const lastLineText = document.lineAt(endLine).text;
+    let lastLineTrimmed = lastLineText.trim();
+
+    // The end of the selection should be:
+    // - A closing block comment (*/)
+    // - A line comment
+    // - End with a period (.)
+    // NOT end with a comma (indicates term continues on next line)
+
+    // If the line is a comment, it's a valid end
+    if (lastLineTrimmed.startsWith('%')) {
+      // Line comment - valid end
+      return true;
+    } else if (lastLineTrimmed.includes('*/')) {
+      // Block comment end - valid end
+      return true;
+    }
+
+    // Strip any line comment from the end before checking how the line ends
+    const commentIndex = lastLineTrimmed.indexOf('%');
+    if (commentIndex !== -1) {
+      lastLineTrimmed = lastLineTrimmed.substring(0, commentIndex).trim();
+    }
+
+    // Now check how the line ends (after removing any trailing comment)
+    if (lastLineTrimmed.endsWith(',')) {
+      // Ends with comma - term continues on next line, so we're in the middle
+      return false;
+    } else if (lastLineTrimmed.endsWith('.')) {
+      // Ends with period - valid end
+      return true;
+    } else {
+      // Doesn't end with period or comma
+      // This is likely incomplete (term continues on next line)
+      return false;
+    }
   }
 
   /**
