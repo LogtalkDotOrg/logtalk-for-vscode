@@ -2259,26 +2259,49 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Create workspace edit
       const edit = new WorkspaceEdit();
 
-      // Replace the selected term with the variable
-      edit.replace(document.uri, selection, trimmedVarName);
-
       // Add unification goal
       if (isInHead) {
-        // Selection is in head: add unification after the head (after :- or -->)
-        const headEndPos = this.findHeadEnd(document, selection.start.line);
-        if (headEndPos) {
-          const indent = this.getIndentForBody(document, selection.start.line);
-          const unificationGoal = `\n${indent}${trimmedVarName} = ${selectedTerm},`;
-          edit.insert(document.uri, headEndPos, unificationGoal);
+        // Selection is in head: replace term with variable and add unification after the head
+        edit.replace(document.uri, selection, trimmedVarName);
+
+        const operatorInfo = this.findOperatorPosition(document, selection.start.line);
+        if (operatorInfo) {
+          // Check if this is a single-line rule by finding the complete rule range
+          const ruleRange = this.findCompleteRuleRange(document, selection.start.line);
+          const isSingleLineRule = ruleRange && ruleRange.start.line === ruleRange.end.line;
+
+          if (isSingleLineRule) {
+            // Single-line rule: insert unification inline after the operator
+            const insertPos = new Position(operatorInfo.line, operatorInfo.endPosition);
+            const unificationGoal = ` ${trimmedVarName} = ${selectedTerm},`;
+            edit.insert(document.uri, insertPos, unificationGoal);
+          } else {
+            // Multi-line rule: insert on new line after the operator
+            const operatorEndPos = new Position(operatorInfo.line, operatorInfo.endPosition);
+            const indent = this.getIndentForBody(document, selection.start.line);
+            const unificationGoal = `\n${indent}${trimmedVarName} = ${selectedTerm},`;
+            edit.insert(document.uri, operatorEndPos, unificationGoal);
+          }
         } else {
           window.showErrorMessage("Could not find clause/rule head end.");
           return;
         }
       } else {
-        // Selection is in body: add unification before the current line
-        const currentLineIndent = document.lineAt(selection.start.line).text.match(/^\s*/)[0];
-        const unificationGoal = `${currentLineIndent}${trimmedVarName} = ${selectedTerm},\n`;
-        edit.insert(document.uri, new Position(selection.start.line, 0), unificationGoal);
+        // Selection is in body
+        // Check if the body is on the same line as the operator
+        const operatorInfo = this.findOperatorPosition(document, selection.start.line);
+        if (operatorInfo && operatorInfo.line === selection.start.line) {
+          // Body on same line as operator: replace term with unification inline
+          const unificationGoal = `${trimmedVarName} = ${selectedTerm}`;
+          edit.replace(document.uri, selection, unificationGoal);
+        } else {
+          // Body on different line: replace term with variable and add unification before the line
+          edit.replace(document.uri, selection, trimmedVarName);
+
+          const currentLineIndent = document.lineAt(selection.start.line).text.match(/^\s*/)[0];
+          const unificationGoal = `${currentLineIndent}${trimmedVarName} = ${selectedTerm},\n`;
+          edit.insert(document.uri, new Position(selection.start.line, 0), unificationGoal);
+        }
       }
 
       const success = await workspace.applyEdit(edit);
@@ -2620,10 +2643,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     return false;
   }
 
+
+
   /**
-   * Find the end position of a clause/rule head (after :- or -->)
+   * Find the position of the :- or --> operator in a clause/rule
+   * Returns the line number and the character position after the operator
    */
-  private findHeadEnd(document: TextDocument, startLine: number): Position | null {
+  private findOperatorPosition(document: TextDocument, startLine: number): { line: number; endPosition: number } | null {
     // Find the start of the clause/rule
     const termStart = Utils.findTermStart(document, startLine);
     if (termStart === null) {
@@ -2637,15 +2663,15 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Check for :- operator
       const colonDashIndex = lineText.indexOf(':-');
       if (colonDashIndex !== -1) {
-        // Return position at end of line (after the :-)
-        return new Position(lineNum, lineText.length);
+        // Return line and position after the :-
+        return { line: lineNum, endPosition: colonDashIndex + 2 };
       }
 
       // Check for --> operator
       const arrowIndex = lineText.indexOf('-->');
       if (arrowIndex !== -1) {
-        // Return position at end of line (after the -->)
-        return new Position(lineNum, lineText.length);
+        // Return line and position after the -->
+        return { line: lineNum, endPosition: arrowIndex + 3 };
       }
 
       // Check if we've reached the end of the clause

@@ -60,6 +60,33 @@
 		findall(N, between(1, 10, N), List),
 		Y = List.
 
+	:- public(example5/1).
+	:- mode(example5(-list), one).
+	:- info(example5/1, [
+		comment is 'Example with body term on same line as --> operator.',
+		argnames is ['Words']
+	]).
+
+	% Test case 5: Body term on same line as --> operator
+	% Select "separator" in the body on the same line as -->, name variable Sep
+	% The unification should be inserted inline: message([Word| Words]) --> Sep = separator, word(Chars), ...
+	example5([Word| Words]) --> separator, word(Chars), {atom_chars(Word, Chars)}, !, example5(Words).
+	example5([]) --> [].
+
+	:- public(example6/1).
+	:- mode(example6(-compound), one).
+	:- info(example6/1, [
+		comment is 'Example with single-line grammar rule.',
+		argnames is ['NounPhrase']
+	]).
+
+	% Test case 6: Single-line grammar rule
+	% Select "np(D,NP)" in the head, name variable NP_Arg
+	% Since the entire rule (head + operator + body) is on one line,
+	% the unification must be inserted inline after --> (not on a new line)
+	% Result: example6(NP_Arg) --> NP_Arg = np(D,NP), determiner(D), noun(NP).
+	example6(np(D,NP)) --> determiner(D), noun(NP).
+
 	:- public(valid_terms/0).
 	:- mode(valid_terms, one).
 	:- info(valid_terms/0, [
