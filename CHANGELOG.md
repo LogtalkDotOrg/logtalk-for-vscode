@@ -2,6 +2,7 @@
 
 ## [0.75.0]
 
+* Add "Unify with new variable" refactoring support for selected terms in predicate rules and grammar rules
 * Add "Wrap file contents as an object" refactoring support for converting plain Prolog files to Logtalk objects
 * Add "Infer public predicates" refactoring support for inferring public predicates in objects and categories
 * Improve performance of the entity parameter refactorings

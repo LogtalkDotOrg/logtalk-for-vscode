@@ -81,6 +81,18 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     if (!selection.isEmpty) {
+      // Unify with new variable - for any non-empty selection
+      const unifyWithVariableAction = new CodeAction(
+        "Unify with new variable",
+        CodeActionKind.RefactorExtract
+      );
+      unifyWithVariableAction.command = {
+        command: "logtalk.refactor.unifyWithNewVariable",
+        title: "Unify with new variable",
+        arguments: [document, selection]
+      };
+      actions.push(unifyWithVariableAction);
+
       if (includePosition !== null) {
         // Selection contains include/1 directive - provide replace action
         const replaceIncludeAction = new CodeAction(
@@ -2189,6 +2201,213 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.error(`Error replacing magic number: ${error}`);
       window.showErrorMessage(`Error replacing magic number: ${error}`);
     }
+  }
+
+  /**
+   * Unify with new variable refactoring
+   * Replaces a selected term with a new variable and adds a unification goal
+   * Only applies to rules (clauses with :- or grammar rules with -->), not facts
+   */
+  public async unifyWithNewVariable(document: TextDocument, selection: Selection): Promise<void> {
+    try {
+      const selectedTerm = document.getText(selection).trim();
+
+      // Ask user for variable name
+      const variableName = await window.showInputBox({
+        prompt: "Enter the name for the new variable",
+        placeHolder: "NewVar",
+        validateInput: (value: string) => {
+          if (!value.trim()) {
+            return "Variable name cannot be empty";
+          }
+          if (!ArgumentUtils.isValidVariableName(value.trim())) {
+            return "Variable name must be a valid Logtalk variable (start with uppercase letter or underscore)";
+          }
+          return null;
+        }
+      });
+
+      if (!variableName) {
+        return; // User cancelled
+      }
+
+      const trimmedVarName = variableName.trim();
+
+      // Determine if selection is in clause/rule head or body
+      const isInHead = this.isSelectionInClauseOrRuleHead(document, selection);
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Replace the selected term with the variable
+      edit.replace(document.uri, selection, trimmedVarName);
+
+      // Add unification goal
+      if (isInHead) {
+        // Selection is in head: add unification after the head (after :- or -->)
+        const headEndPos = this.findHeadEnd(document, selection.start.line);
+        if (headEndPos) {
+          const indent = this.getIndentForBody(document, selection.start.line);
+          const unificationGoal = `\n${indent}${trimmedVarName} = ${selectedTerm},`;
+          edit.insert(document.uri, headEndPos, unificationGoal);
+        } else {
+          window.showErrorMessage("Could not find clause/rule head end.");
+          return;
+        }
+      } else {
+        // Selection is in body: add unification before the current line
+        const currentLineIndent = document.lineAt(selection.start.line).text.match(/^\s*/)[0];
+        const unificationGoal = `${currentLineIndent}${trimmedVarName} = ${selectedTerm},\n`;
+        edit.insert(document.uri, new Position(selection.start.line, 0), unificationGoal);
+      }
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        window.showInformationMessage(`Term unified with variable ${trimmedVarName}.`);
+      } else {
+        window.showErrorMessage("Failed to apply unification.");
+      }
+    } catch (error) {
+      this.logger.error(`Error in unifyWithNewVariable: ${error}`);
+      window.showErrorMessage(`Error unifying with variable: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if selection is in the head of a clause or grammar rule
+   * Only applies to rules (with :- or -->), not facts
+   */
+  private isSelectionInClauseOrRuleHead(document: TextDocument, selection: Selection): boolean {
+    const startLine = selection.start.line;
+
+    // Find the start of the clause/rule
+    const termStart = Utils.findTermStart(document, startLine);
+    if (termStart === null) {
+      return false;
+    }
+
+    // Find the position of :- or --> operator
+    for (let lineNum = termStart; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+
+      // Check for :- operator (clause)
+      const colonDashIndex = lineText.indexOf(':-');
+      if (colonDashIndex !== -1) {
+        // Found :- operator
+        if (lineNum < startLine) {
+          // Operator is before selection line, so selection is in body
+          return false;
+        } else if (lineNum === startLine) {
+          // Same line: check if selection is before the operator
+          return selection.start.character < colonDashIndex;
+        } else {
+          // Operator is after selection line, so selection is in head
+          return true;
+        }
+      }
+
+      // Check for --> operator (grammar rule)
+      const arrowIndex = lineText.indexOf('-->');
+      if (arrowIndex !== -1) {
+        // Found --> operator
+        if (lineNum < startLine) {
+          // Operator is before selection line, so selection is in body
+          return false;
+        } else if (lineNum === startLine) {
+          // Same line: check if selection is before the operator
+          return selection.start.character < arrowIndex;
+        } else {
+          // Operator is after selection line, so selection is in head
+          return true;
+        }
+      }
+
+      // Check if we've reached the end of the clause (period)
+      if (/\.\s*(?:%.*)?$/.test(lineText)) {
+        // Reached end without finding :- or -->, not a rule
+        break;
+      }
+    }
+
+    // No operator found, not applicable
+    return false;
+  }
+
+  /**
+   * Find the end position of a clause/rule head (after :- or -->)
+   */
+  private findHeadEnd(document: TextDocument, startLine: number): Position | null {
+    // Find the start of the clause/rule
+    const termStart = Utils.findTermStart(document, startLine);
+    if (termStart === null) {
+      return null;
+    }
+
+    // Search for :- or --> operator
+    for (let lineNum = termStart; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+
+      // Check for :- operator
+      const colonDashIndex = lineText.indexOf(':-');
+      if (colonDashIndex !== -1) {
+        // Return position at end of line (after the :-)
+        return new Position(lineNum, lineText.length);
+      }
+
+      // Check for --> operator
+      const arrowIndex = lineText.indexOf('-->');
+      if (arrowIndex !== -1) {
+        // Return position at end of line (after the -->)
+        return new Position(lineNum, lineText.length);
+      }
+
+      // Check if we've reached the end of the clause
+      if (/\.\s*(?:%.*)?$/.test(lineText)) {
+        break;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get appropriate indentation for body goals
+   */
+  private getIndentForBody(document: TextDocument, headLine: number): string {
+    // Look for existing body goals to match their indentation
+    const termStart = Utils.findTermStart(document, headLine);
+    if (termStart === null) {
+      return '\t'; // Default to tab
+    }
+
+    // Search for first body line after :- or -->
+    for (let lineNum = termStart; lineNum < document.lineCount; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+
+      // Check if this line has :- or -->
+      if (lineText.includes(':-') || lineText.includes('-->')) {
+        // Check next non-empty line for indentation
+        for (let nextLine = lineNum + 1; nextLine < document.lineCount; nextLine++) {
+          const nextLineText = document.lineAt(nextLine).text;
+          const trimmed = nextLineText.trim();
+
+          if (trimmed && !trimmed.startsWith('%')) {
+            // Found first body goal, use its indentation
+            const indent = nextLineText.match(/^\s*/)[0];
+            return indent || '\t';
+          }
+        }
+        break;
+      }
+
+      // Check if we've reached the end of the clause
+      if (/\.\s*(?:%.*)?$/.test(lineText)) {
+        break;
+      }
+    }
+
+    // Default to tab if no body found
+    return '\t';
   }
 
   /**
