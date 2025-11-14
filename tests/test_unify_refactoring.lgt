@@ -114,6 +114,19 @@
 		write(X),
 		write([H| T]).
 
+	:- public(directive_example/0).
+	:- mode(directive_example, one).
+	:- info(directive_example/0, [
+		comment is 'Example showing refactoring should NOT be available in directives.'
+	]).
+
+	% Test case 7: Refactoring should NOT be available when selecting terms in directives
+	% Even though 'directive_example' is a valid term, selecting it in the :- public() directive
+	% should NOT offer the "Unify with new variable" refactoring
+	directive_example :-
+		write('This is a clause, refactoring IS available here'),
+		write(atom_concat(foo, bar)).
+
 	:- public(inline_example1/2).
 	:- mode(inline_example1(+list, -atom), one).
 	:- info(inline_example1/2, [

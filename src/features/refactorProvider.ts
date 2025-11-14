@@ -99,8 +99,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         actions.push(inlineVariableAction);
       }
 
-      // Unify with new variable - only for valid terms
-      if (this.isValidTerm(selectedText)) {
+      // Unify with new variable - only for valid terms in clauses/rules (not directives)
+      if (this.isValidTerm(selectedText) && !this.isSelectionInDirective(document, selection)) {
         const unifyWithVariableAction = new CodeAction(
           "Unify with new variable",
           CodeActionKind.RefactorExtract
@@ -2420,6 +2420,22 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         new Position(lineNum, lineText.length)
       );
     }
+  }
+
+  /**
+   * Check if selection is inside a directive
+   * Directives start with :- at the beginning of a line (possibly with leading whitespace)
+   */
+  private isSelectionInDirective(document: TextDocument, selection: Selection): boolean {
+    // Find the start of the term containing the selection
+    const termStart = Utils.findTermStart(document, selection.start.line);
+    if (termStart === null) {
+      return false;
+    }
+
+    // Check if the term starts with a directive marker (:-)
+    const startLineText = document.lineAt(termStart).text.trim();
+    return startLineText.startsWith(':-');
   }
 
   /**
