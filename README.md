@@ -204,7 +204,7 @@ These commands can be triggered from the editor/context menu via right-click in 
 
 The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Tests" command looks for a `tester.lgt` or `tester.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Doclet" command looks for a `doclet.lgt` or `doclet.logtalk` file in the directory of the selected file, printing a warning if not found.
 
-The "Run Tests" and "Run Tests with Coverage" commands adds failed tests to the "PROBLEMS" pane. Quick fixes are provided for some test definition warnings.
+The "Run Tests" and "Run Tests with Coverage" commands add failed tests to the "PROBLEMS" pane. Quick fixes are provided for some test definition warnings.
 
 The "Generate Documentation" and "Scan Dead Code" commands add linter warnings to the "PROBLEMS" pane. Quick fixes are provided for some of the warnings.
 
@@ -325,7 +325,9 @@ Right-click on an entity name and select the "Show Type Hierarchy" context menu 
 
 ### Refactoring support
 
-Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them (see also the `files.refactoring.autoSave` setting). After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them (note that this command can be called automatically when saving files using the `logtalk.make.onSave` setting). Due to VSCode limitations, refactoring operations that require user input cannot be previewed. But the files changed are opened in the editor and the user can verify the changes before saving them (using e.g. the "File: Compare Active File with Saved" command, which also allow selectively undoing refactoring changes). Note that most refactoring operations require the code to be loaded.
+Several refactoring operations are supported. Users should commit their work before using this feature and preview the changes (when available) before applying them (see also the `files.refactoring.autoSave` setting). After, the "Make - Reload" and "Make - Check" commands can be used to verify the changes before committing them. Due to VSCode limitations, refactoring operations that require user input cannot be previewed. But the files changed are opened in the editor and the user can verify the changes before saving them (using e.g. the "File: Compare Active File with Saved" command, which also allow selectively undoing refactoring changes). Note that most refactoring operations require the code to be loaded.
+
+When a refactoring results in changes to multiple files, use the "Save All" command to save all modified files so that a single "Make - Reload" command can be used to reload the modified code. Note that this command can be called automatically when saving files using the `logtalk.make.onSave` setting.
 
 #### Code extraction
 
@@ -692,7 +694,7 @@ On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable 
 
 Precise code navigation and quick fixes require a Prolog backend that supports accessing read term starting line but only some backends (B-Prolog, GNU Prolog, JIProlog, SICStus Prolog, SWI-Prolog, Trealla Prolog, XVM, and YAP) provide accurate line numbers. This issue is fixed for ECLiPSe in version 7.2#5 when using Logtalk 3.96.0 or later.
 
-When using the "Make - Reload" command, spurious warnings may be reported when there are multiple modified files due to out-of-order compilation. Although the Logtalk `make` tool attempts to avoid or minimize such warnings, they may still occur as only a few backends provide time stamps with sub-second accuracy. See the `make` tool documentation for details.
+When using the "Make - Reload" command, spurious warnings may be reported when there are multiple modified files due to out-of-order compilation. Although the Logtalk `make` tool attempts to avoid or minimize such warnings, they may still occur (e.g. due to circular dependencies). See the `make` tool documentation for details.
 
 If you're migrating from the old "VSC-Logtalk" extension, you may see duplicated context menu items even after uninstalling it. If that happens, delete any extension leftovers in the `%USERPROFILE%\.vscode\extensions` (for Windows) or `~/.vscode/extensions` (for Linux and macOS) directory.
 
