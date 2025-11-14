@@ -329,9 +329,13 @@ Several refactoring operations are supported. Users should commit their work bef
 
 When a refactoring results in changes to multiple files, use the "Save All" command to save all modified files so that a single "Make - Reload" command can be used to reload the modified code. Note that this command can be called automatically when saving files using the `logtalk.make.onSave` setting.
 
+#### Variable inlining
+
+An "Inline variable" refactoring operation is available when the user selects a unification goal in a rule body and uses the "Refactor" context menu item or the "Refactor" command palette item. The refactoring replaces all occurrences of the variable in the rule with its unified term. The unification goal should be the only goal in the line.
+
 #### Code extraction
 
-A "Unify with new variable" refactoring operation is available when the user selects a complete term in a predicate rule or in a grammar rule (e.g., a head argument) and uses the "Refactor" context menu item or the "Refactor" command palette item. The refactoring asks the user for the name of the new variable, replaces the selected term with the new variable, and adds a unification goal to the rule body (after the rule head when the term is a head argument, before the line of the selected term otherwise). Note that this refactoring doesn't attempt to validate the selected term, thus allowing for the creation of invalid code.
+A "Unify with new variable" refactoring operation is available when the user selects a complete term in a predicate rule or in a grammar rule (e.g., a head argument) and uses the "Refactor" context menu item or the "Refactor" command palette item. The refactoring asks the user for the name of the new variable, replaces the selected term with the new variable, and adds a unification goal to the rule body (after the rule head when the term is a head argument, before the line of the selected term otherwise).
 
 A "Replace magic number with predicate call" refactoring operation is available when the user selects a number in a rule body and uses the "Refactor" context menu item or the "Refactor" command palette item. The user is asked to enter the name of the predicate to be created and its scope. The predicate is created with the number as its single argument and added to the entity. The selected number is replaced with a variable derived from the predicate name and the rule body is updated with a call to the new predicate inserted after the clause head (note that when compiling the code in optimal mode, the call to the new predicate is inlined).
 
