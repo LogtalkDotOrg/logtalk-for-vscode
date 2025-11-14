@@ -81,6 +81,24 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     if (!selection.isEmpty) {
+      // Check if selection is a unification goal for inline variable refactoring
+      const selectedText = document.getText(selection).trim();
+      const unificationMatch = selectedText.match(/^([A-Z_][a-zA-Z0-9_]*)\s*=\s*(.+?),?$/);
+
+      if (unificationMatch) {
+        // Inline variable - for unification goals
+        const inlineVariableAction = new CodeAction(
+          "Inline variable",
+          CodeActionKind.RefactorRewrite
+        );
+        inlineVariableAction.command = {
+          command: "logtalk.refactor.inlineVariable",
+          title: "Inline variable",
+          arguments: [document, selection]
+        };
+        actions.push(inlineVariableAction);
+      }
+
       // Unify with new variable - for any non-empty selection
       const unifyWithVariableAction = new CodeAction(
         "Unify with new variable",
@@ -2270,6 +2288,135 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error in unifyWithNewVariable: ${error}`);
       window.showErrorMessage(`Error unifying with variable: ${error.message}`);
+    }
+  }
+
+  /**
+   * Inline variable refactoring
+   * Replaces all occurrences of a variable in a rule with its unified term
+   * Applies to unification goals with syntax: Var = Term
+   */
+  public async inlineVariable(document: TextDocument, selection: Selection): Promise<void> {
+    try {
+      const selectedText = document.getText(selection).trim();
+
+      // Parse the unification goal: Var = Term (with optional trailing comma)
+      const unificationMatch = selectedText.match(/^([A-Z_][a-zA-Z0-9_]*)\s*=\s*(.+?),?$/);
+      if (!unificationMatch) {
+        window.showErrorMessage("Selection is not a valid unification goal (Var = Term).");
+        return;
+      }
+
+      const variableName = unificationMatch[1];
+      const term = unificationMatch[2];
+
+      // Find the complete rule range
+      const ruleRange = this.findCompleteRuleRange(document, selection.start.line);
+      if (!ruleRange) {
+        window.showErrorMessage("Could not find complete rule containing the unification goal.");
+        return;
+      }
+
+      // Get the rule text
+      const ruleText = document.getText(ruleRange);
+
+      // Count occurrences of the variable in the rule (excluding the unification line)
+      const variablePattern = new RegExp(`\\b${variableName}\\b`, 'g');
+      const unificationLineText = document.lineAt(selection.start.line).text;
+      const ruleTextWithoutUnification = ruleText.replace(unificationLineText, '');
+      const matches = ruleTextWithoutUnification.match(variablePattern);
+      const occurrenceCount = matches ? matches.length : 0;
+
+      if (occurrenceCount === 0) {
+        window.showWarningMessage(`Variable ${variableName} is not used elsewhere in the rule.`);
+        return;
+      }
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Replace all occurrences of the variable with the term in the rule
+      for (let lineNum = ruleRange.start.line; lineNum <= ruleRange.end.line; lineNum++) {
+        // Skip the unification line itself
+        if (lineNum === selection.start.line) {
+          continue;
+        }
+
+        const lineText = document.lineAt(lineNum).text;
+        const lineMatches = [...lineText.matchAll(new RegExp(`\\b${variableName}\\b`, 'g'))];
+
+        for (const match of lineMatches) {
+          const startChar = match.index!;
+          const endChar = startChar + variableName.length;
+          const replaceRange = new Range(
+            new Position(lineNum, startChar),
+            new Position(lineNum, endChar)
+          );
+          edit.replace(document.uri, replaceRange, term);
+        }
+      }
+
+      // Delete the unification line
+      const unificationLineRange = this.getUnificationLineRange(document, selection.start.line);
+      edit.delete(document.uri, unificationLineRange);
+
+      // Apply edit (VS Code will show preview automatically for refactorings)
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        window.showInformationMessage(`Inlined variable ${variableName} (${occurrenceCount} occurrence${occurrenceCount !== 1 ? 's' : ''} replaced).`);
+      } else {
+        window.showErrorMessage("Failed to inline variable.");
+      }
+    } catch (error) {
+      this.logger.error(`Error in inlineVariable: ${error}`);
+      window.showErrorMessage(`Error inlining variable: ${error.message}`);
+    }
+  }
+
+  /**
+   * Find the complete range of a rule (clause or grammar rule)
+   */
+  private findCompleteRuleRange(document: TextDocument, startLine: number): Range | null {
+    // Find the start of the rule
+    const termStart = Utils.findTermStart(document, startLine);
+    if (termStart === null) {
+      return null;
+    }
+
+    // Check if this is a directive (not a rule)
+    const startLineText = document.lineAt(termStart).text.trim();
+    if (startLineText.startsWith(':-')) {
+      return null;
+    }
+
+    // Find the end of the rule using PredicateUtils
+    const clauseRange = PredicateUtils.getClauseRange(document, termStart);
+
+    return new Range(
+      new Position(clauseRange.start, 0),
+      new Position(clauseRange.end, document.lineAt(clauseRange.end).text.length)
+    );
+  }
+
+  /**
+   * Get the range of the unification line to delete (including the newline)
+   */
+  private getUnificationLineRange(document: TextDocument, lineNum: number): Range {
+    const lineText = document.lineAt(lineNum).text;
+    const nextLineNum = lineNum + 1;
+
+    // If there's a next line, include the newline character
+    if (nextLineNum < document.lineCount) {
+      return new Range(
+        new Position(lineNum, 0),
+        new Position(nextLineNum, 0)
+      );
+    } else {
+      // Last line in document - delete from start of line to end
+      return new Range(
+        new Position(lineNum, 0),
+        new Position(lineNum, lineText.length)
+      );
     }
   }
 

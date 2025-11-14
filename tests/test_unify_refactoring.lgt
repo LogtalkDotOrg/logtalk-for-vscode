@@ -60,5 +60,38 @@
 		findall(N, between(1, 10, N), List),
 		Y = List.
 
+	:- public(inline_example1/2).
+	:- mode(inline_example1(+list, -atom), one).
+	:- info(inline_example1/2, [
+		comment is 'Example for inline variable refactoring.',
+		argnames is ['Items', 'Result']
+	]).
+
+	% Test case 5: Inline variable refactoring
+	% Select the line "Bar = [H| T]," and inline the variable Bar
+	inline_example1(A, C) :-
+		Bar = [H| T],
+		write(A),
+		process(Bar),
+		length(Bar, Len),
+		format('Processed ~w items~n', [Len]),
+		C = Bar.
+
+	:- public(inline_example2/2).
+	:- mode(inline_example2(+atom, -atom), one).
+	:- info(inline_example2/2, [
+		comment is 'Another example for inline variable refactoring.',
+		argnames is ['Input', 'Output']
+	]).
+
+	% Test case 6: Inline variable in body
+	% Select the line "Result = atom_concat(foo, bar)," and inline Result
+	inline_example2(Input, Output) :-
+		write(Input),
+		Result = atom_concat(foo, bar),
+		atom_length(Result, Len),
+		format('Result length: ~w~n', [Len]),
+		Output = Result.
+
 :- end_object.
 

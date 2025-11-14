@@ -567,6 +567,14 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.inlineVariable', async (document, selection) => {
+      if (refactorProvider) {
+        await refactorProvider.inlineVariable(document, selection);
+      }
+    })
+  );
+
   // Entity type conversion refactorings
   context.subscriptions.push(
     commands.registerCommand('logtalk.refactor.convertObjectToProtocol', async (document, entityTypeInfo) => {
