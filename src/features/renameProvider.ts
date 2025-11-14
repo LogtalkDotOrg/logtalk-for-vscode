@@ -42,10 +42,45 @@ export class LogtalkRenameProvider implements RenameProvider {
     if (newName.startsWith("'") && newName.endsWith("'") && newName.length > 2) {
       return true;
     }
-    
+
     // Check if it's a regular atom (starts with lowercase letter, followed by letters, digits, underscores)
     const atomRegex = /^[a-z][a-zA-Z0-9_]*$/;
     return atomRegex.test(newName);
+  }
+
+  /**
+   * Detects if the cursor position is on a variable
+   * @param document The document
+   * @param position The cursor position
+   * @returns Object with variable info if detected, null otherwise
+   */
+  private detectVariableContext(document: TextDocument, position: Position): { name: string; range: Range } | null {
+    // Get the word at the cursor position
+    const wordRange = document.getWordRangeAtPosition(position, /[A-Z_][A-Za-z0-9_]*/);
+    if (!wordRange) {
+      return null;
+    }
+
+    const word = document.getText(wordRange);
+
+    // Check if we're in a comment
+    const lineText = document.lineAt(position.line).text;
+    if (lineText.trim().startsWith("%")) {
+      return null;
+    }
+
+    // Check if we're in a string literal
+    const beforeCursor = lineText.substring(0, position.character);
+    const singleQuotes = (beforeCursor.match(/'/g) || []).length;
+    const doubleQuotes = (beforeCursor.match(/"/g) || []).length;
+    if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
+      return null;
+    }
+
+    return {
+      name: word,
+      range: wordRange
+    };
   }
 
   /**
@@ -71,7 +106,14 @@ export class LogtalkRenameProvider implements RenameProvider {
     const sourceDir = path.resolve(sourceDir0).split(path.sep).join("/");
     LogtalkTerminal.checkCodeLoadedFromDirectory(sourceDir);
 
-    // First, check if we're in an entity context
+    // First, check if we're in a variable context
+    const variableContext = this.detectVariableContext(document, position);
+    if (variableContext) {
+      this.logger.debug(`Found variable: ${variableContext.name}`);
+      return variableContext.range;
+    }
+
+    // Check if we're in an entity context
     const entityContext = this.detectEntityContext(document, position);
     if (entityContext) {
       this.logger.debug(`Found entity: ${entityContext.indicator} (${entityContext.type})`);
@@ -94,7 +136,7 @@ export class LogtalkRenameProvider implements RenameProvider {
                       Utils.getCallUnderCursor(document, position);
 
     if (!indicator) {
-      this.logger.debug("No predicate, non-terminal, or entity found at position");
+      this.logger.debug("No predicate, non-terminal, entity, or variable found at position");
       return null;
     }
 
@@ -124,7 +166,22 @@ export class LogtalkRenameProvider implements RenameProvider {
     newName: string,
     token: CancellationToken
   ): Promise<WorkspaceEdit | null> {
-    // Validate the new name
+    // Check if we're in a variable context
+    const variableContext = this.detectVariableContext(document, position);
+    if (variableContext) {
+      // Validate the new variable name
+      if (!ArgumentUtils.isValidVariableName(newName)) {
+        window.showErrorMessage(
+          `Invalid variable name: "${newName}". ` +
+          `Variable names must start with uppercase letter or underscore.`
+        );
+        return null;
+      }
+      this.logger.debug(`Renaming variable: ${variableContext.name} to ${newName}`);
+      return this.handleVariableRename(document, position, variableContext, newName);
+    }
+
+    // Validate the new name for predicates/entities
     if (!this.isValidPredicateName(newName)) {
       window.showErrorMessage(
         `Invalid predicate name: "${newName}". ` +
@@ -788,6 +845,101 @@ export class LogtalkRenameProvider implements RenameProvider {
     );
 
     return workspaceEdit;
+  }
+
+  /**
+   * Handles variable renaming by finding all occurrences in the clause/rule/directive and creating rename edits
+   * @param document The document containing the variable
+   * @param position The position where the user clicked
+   * @param variableContext The detected variable context
+   * @param newName The new variable name
+   * @returns WorkspaceEdit with all rename operations
+   */
+  private handleVariableRename(
+    document: TextDocument,
+    position: Position,
+    variableContext: { name: string; range: Range },
+    newName: string
+  ): WorkspaceEdit {
+    const { name: currentName } = variableContext;
+    const workspaceEdit = new WorkspaceEdit();
+
+    // Determine the scope: clause, grammar rule, or directive
+    const lineText = document.lineAt(position.line).text;
+    const trimmedLine = lineText.trim();
+
+    let scopeRange: { start: number; end: number };
+
+    if (trimmedLine.startsWith(':-')) {
+      // We're in a directive
+      scopeRange = PredicateUtils.getDirectiveRange(document, position.line);
+      this.logger.debug(`Variable in directive scope: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
+    } else {
+      // We're in a clause or grammar rule
+      // Find the start of the term
+      const termStart = Utils.findTermStart(document, position.line);
+      if (termStart === null) {
+        this.logger.warn(`Could not find term start for variable at line ${position.line + 1}`);
+        return workspaceEdit;
+      }
+
+      scopeRange = PredicateUtils.getClauseRange(document, termStart);
+      this.logger.debug(`Variable in clause/rule scope: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
+    }
+
+    // Find all occurrences of the variable in the scope
+    // Variable names only contain alphanumeric characters and underscores, so no escaping needed
+    const variablePattern = new RegExp(`\\b${currentName}\\b`, 'g');
+    const textEdits: TextEdit[] = [];
+
+    for (let lineNum = scopeRange.start; lineNum <= scopeRange.end; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+
+      // Find all matches in this line
+      let match: RegExpExecArray | null;
+      while ((match = variablePattern.exec(lineText)) !== null) {
+        const startChar = match.index;
+        const endChar = startChar + currentName.length;
+
+        // Validate that this is a valid variable context (not in a string)
+        if (this.isValidVariableContextInLine(lineText, startChar, endChar)) {
+          const range = new Range(lineNum, startChar, lineNum, endChar);
+          const edit = TextEdit.replace(range, newName);
+          textEdits.push(edit);
+          this.logger.debug(`Found variable occurrence at ${lineNum + 1}:${startChar + 1}`);
+        }
+      }
+    }
+
+    workspaceEdit.set(document.uri, textEdits);
+
+    // Show preview information
+    this.logger.debug(`Variable rename: ${textEdits.length} occurrences found`);
+    window.showInformationMessage(
+      `Rename will update ${textEdits.length} occurrence${textEdits.length !== 1 ? 's' : ''} of variable ${currentName}`
+    );
+
+    return workspaceEdit;
+  }
+
+  /**
+   * Validates if a variable occurrence is in a valid context (not in string)
+   * Note: We DO want to rename variables in comments to keep them accurate
+   * @param lineText The line text
+   * @param startPos Start position of the variable
+   * @param endPos End position of the variable
+   * @returns true if valid context
+   */
+  private isValidVariableContextInLine(lineText: string, startPos: number, endPos: number): boolean {
+    // Check if this is in a string literal
+    const beforeMatch = lineText.substring(0, startPos);
+    const singleQuotes = (beforeMatch.match(/'/g) || []).length;
+    const doubleQuotes = (beforeMatch.match(/"/g) || []).length;
+    if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
