@@ -54,11 +54,65 @@
 	]).
 
 	% Test case 4: Nested term in body
-	% Select findall(N, between(1, 10, N), _) and unify with variable Numbers
+	% Select findall(N, between(1, 10, N), List) and unify with variable Numbers
 	example4(X, Y) :-
 		write(X),
 		findall(N, between(1, 10, N), List),
 		Y = List.
+
+	:- public(valid_terms/0).
+	:- mode(valid_terms, one).
+	:- info(valid_terms/0, [
+		comment is 'Examples of valid terms for unify refactoring.'
+	]).
+
+	% Test case 5: Valid terms that should enable the refactoring
+	% - Atom: foo
+	% - Integer: 42
+	% - Float: 3.14
+	% - Scientific notation: 1.5e10
+	% - Binary: 0b1010
+	% - Octal: 0o777
+	% - Hex: 0xFF
+	% - Character code: 0'a
+	% - Single-quoted atom: 'Hello World'
+	% - Double-quoted string: "Hello World"
+	% - Bracketed list: [H| T]
+	% - Curly brackets: {X, Y}
+	% - Compound: atom_concat(foo, bar)
+	% - Parenthesized: (X + Y)
+	valid_terms :-
+		write(foo),
+		write(42),
+		write(3.14),
+		write(1.5e10),
+		write(0b1010),
+		write(0o777),
+		write(0xFF),
+		write(0'a),
+		write('Hello World'),
+		write("Hello World"),
+		write([H| T]),
+		write({X, Y}),
+		write(atom_concat(foo, bar)),
+		write((X + Y)).
+
+	:- public(invalid_terms/0).
+	:- mode(invalid_terms, one).
+	:- info(invalid_terms/0, [
+		comment is 'Examples of invalid/incomplete selections that should NOT enable the refactoring.'
+	]).
+
+	% Test case 6: Invalid selections that should NOT enable the refactoring
+	% - Partial term: "atom_concat(foo," (missing closing paren)
+	% - Just an operator: "+"
+	% - Variable alone: "X" (variables should not be extracted)
+	% - Unbalanced brackets: "[H| T"
+	invalid_terms :-
+		write(atom_concat(foo, bar)),
+		write(X + Y),
+		write(X),
+		write([H| T]).
 
 	:- public(inline_example1/2).
 	:- mode(inline_example1(+list, -atom), one).

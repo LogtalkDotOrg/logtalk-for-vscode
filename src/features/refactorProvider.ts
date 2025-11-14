@@ -99,17 +99,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         actions.push(inlineVariableAction);
       }
 
-      // Unify with new variable - for any non-empty selection
-      const unifyWithVariableAction = new CodeAction(
-        "Unify with new variable",
-        CodeActionKind.RefactorExtract
-      );
-      unifyWithVariableAction.command = {
-        command: "logtalk.refactor.unifyWithNewVariable",
-        title: "Unify with new variable",
-        arguments: [document, selection]
-      };
-      actions.push(unifyWithVariableAction);
+      // Unify with new variable - only for valid terms
+      if (this.isValidTerm(selectedText)) {
+        const unifyWithVariableAction = new CodeAction(
+          "Unify with new variable",
+          CodeActionKind.RefactorExtract
+        );
+        unifyWithVariableAction.command = {
+          command: "logtalk.refactor.unifyWithNewVariable",
+          title: "Unify with new variable",
+          arguments: [document, selection]
+        };
+        actions.push(unifyWithVariableAction);
+      }
 
       if (includePosition !== null) {
         // Selection contains include/1 directive - provide replace action
@@ -2418,6 +2420,128 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         new Position(lineNum, lineText.length)
       );
     }
+  }
+
+  /**
+   * Check if a string is a valid Prolog/Logtalk term
+   * Valid terms: atom, number, bracketed term, curly bracket term, quoted string, or compound (atom + "(" + arguments + ")")
+   */
+  private isValidTerm(text: string): boolean {
+    if (!text || text.trim().length === 0) {
+      return false;
+    }
+
+    const trimmed = text.trim();
+
+    // Check for number (integer, float, scientific notation, binary, octal, hex, character code)
+    // Integer or float: 42, -5, 3.14, -2.5
+    // Scientific notation: 1.5e10, 1e-5, -2.3E+4
+    // Binary: 0b1010, 0B1111
+    // Octal: 0o777, 0O123
+    // Hex: 0x1A2F, 0XFF
+    // Character code: 0'a, 0'\n
+    if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(trimmed) ||  // Integer, float, scientific
+        /^0[bB][01]+$/.test(trimmed) ||                     // Binary
+        /^0[oO][0-7]+$/.test(trimmed) ||                    // Octal
+        /^0[xX][0-9a-fA-F]+$/.test(trimmed) ||              // Hex
+        /^0'(\\.|.)$/.test(trimmed)) {                      // Character code
+      return true;
+    }
+
+    // Check for atom (lowercase start, followed by alphanumeric/underscore)
+    if (/^[a-z][a-zA-Z0-9_]*$/.test(trimmed)) {
+      return true;
+    }
+
+    // Check for quoted atom (single quotes)
+    if (/^'([^'\\]|\\.)*'$/.test(trimmed)) {
+      return true;
+    }
+
+    // Check for double-quoted string
+    if (/^"([^"\\]|\\.)*"$/.test(trimmed)) {
+      return true;
+    }
+
+    // Check for bracketed term: [...]
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      return this.hasBalancedBrackets(trimmed);
+    }
+
+    // Check for curly bracket term: {...}
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      return this.hasBalancedCurlyBrackets(trimmed);
+    }
+
+    // Check for compound term: atom(...)
+    const compoundMatch = trimmed.match(/^([a-z][a-zA-Z0-9_]*)\s*\((.+)\)$/);
+    if (compoundMatch) {
+      return this.hasBalancedParentheses(trimmed);
+    }
+
+    // Check for parenthesized term: (...)
+    if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+      return this.hasBalancedParentheses(trimmed);
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if a string has balanced parentheses
+   */
+  private hasBalancedParentheses(text: string): boolean {
+    let depth = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (char === '(') {
+        depth++;
+      } else if (char === ')') {
+        depth--;
+        if (depth < 0) {
+          return false;
+        }
+      }
+    }
+    return depth === 0;
+  }
+
+  /**
+   * Check if a string has balanced brackets
+   */
+  private hasBalancedBrackets(text: string): boolean {
+    let depth = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (char === '[') {
+        depth++;
+      } else if (char === ']') {
+        depth--;
+        if (depth < 0) {
+          return false;
+        }
+      }
+    }
+    return depth === 0;
+  }
+
+  /**
+   * Check if a string has balanced curly brackets
+   */
+  private hasBalancedCurlyBrackets(text: string): boolean {
+    let depth = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (char === '{') {
+        depth++;
+      } else if (char === '}') {
+        depth--;
+        if (depth < 0) {
+          return false;
+        }
+      }
+    }
+    return depth === 0;
   }
 
   /**
