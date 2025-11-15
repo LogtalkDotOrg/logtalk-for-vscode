@@ -21,7 +21,7 @@ import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
-import { PatternSets, SymbolUtils } from "../utils/symbols";
+import { PatternSets, SymbolRegexes, SymbolUtils } from "../utils/symbols";
 import LogtalkTerminal from "./terminal";
 import * as path from "path";
 
@@ -864,13 +864,22 @@ export class LogtalkRenameProvider implements RenameProvider {
     const { name: currentName } = variableContext;
     const workspaceEdit = new WorkspaceEdit();
 
-    // Determine the scope: clause, grammar rule, or directive
+    // Check if this is a parameter variable (e.g., _Foo_) in an entity opening directive
+    const isParameterVariable = this.isParameterVariable(currentName);
+    const isInEntityOpening = this.isInEntityOpeningDirective(document, position.line);
+
+    // Determine the scope: clause, grammar rule, directive, or entire entity
     const lineText = document.lineAt(position.line).text;
     const trimmedLine = lineText.trim();
 
     let scopeRange: { start: number; end: number };
 
-    if (trimmedLine.startsWith(':-')) {
+    if (isParameterVariable && isInEntityOpening) {
+      // Special case: parameter variable in entity opening directive
+      // Rename throughout the entire entity (all directives, clauses, and grammar rules)
+      scopeRange = this.getEntityScopeRange(document, position.line);
+      this.logger.debug(`Parameter variable in entity scope: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
+    } else if (trimmedLine.startsWith(':-')) {
       // We're in a directive
       scopeRange = PredicateUtils.getDirectiveRange(document, position.line);
       this.logger.debug(`Variable in directive scope: lines ${scopeRange.start + 1}-${scopeRange.end + 1}`);
@@ -940,6 +949,101 @@ export class LogtalkRenameProvider implements RenameProvider {
     }
 
     return true;
+  }
+
+  /**
+   * Checks if a variable name uses parameter variable syntax
+   * Parameter variables start with uppercase letter and have underscore prefix and suffix (e.g., _Foo_)
+   * @param variableName The variable name to check
+   * @returns true if this is a parameter variable
+   */
+  private isParameterVariable(variableName: string): boolean {
+    // Must start with underscore, followed by uppercase letter, and end with underscore
+    // Examples: _Foo_, _Bar_, _X_
+    return /^_[A-Z][A-Za-z0-9_]*_$/.test(variableName);
+  }
+
+  /**
+   * Checks if a line is part of an entity opening directive (object or category only)
+   * Note: Only objects and categories can be parametric, not protocols
+   * @param document The document
+   * @param lineNum The line number to check
+   * @returns true if the line is part of an object or category opening directive
+   */
+  private isInEntityOpeningDirective(document: TextDocument, lineNum: number): boolean {
+    // Search backwards to find the start of the directive
+    for (let i = lineNum; i >= 0; i--) {
+      const lineText = document.lineAt(i).text.trim();
+
+      // Check if this is an object or category opening directive
+      // Only objects and categories can be parametric
+      if (SymbolRegexes.openingObject.test(lineText) ||
+          SymbolRegexes.openingCategory.test(lineText)) {
+        // Found entity opening - now check if our line is within this directive
+        const directiveRange = PredicateUtils.getDirectiveRange(document, i);
+        return lineNum >= directiveRange.start && lineNum <= directiveRange.end;
+      }
+
+      // If we hit another directive or clause, we're not in an entity opening
+      if (lineText.startsWith(':-') && !lineText.match(/^:-\s*(object|category)\(/)) {
+        return false;
+      }
+
+      // If we hit a clause head (not a directive), we're not in an entity opening
+      if (!lineText.startsWith(':-') && lineText.includes(':-')) {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Gets the range of the entire entity (from opening to closing directive)
+   * Note: Only objects and categories can be parametric
+   * @param document The document
+   * @param lineNum A line number within the entity
+   * @returns The range of the entity
+   */
+  private getEntityScopeRange(document: TextDocument, lineNum: number): { start: number; end: number } {
+    // Search backwards to find the entity opening directive
+    let entityStartLine: number | null = null;
+    let entityType: 'object' | 'category' | null = null;
+
+    for (let i = lineNum; i >= 0; i--) {
+      const lineText = document.lineAt(i).text.trim();
+
+      // Only check for object and category (protocols cannot be parametric)
+      if (SymbolRegexes.openingObject.test(lineText)) {
+        entityStartLine = i;
+        entityType = 'object';
+        break;
+      } else if (SymbolRegexes.openingCategory.test(lineText)) {
+        entityStartLine = i;
+        entityType = 'category';
+        break;
+      }
+    }
+
+    if (entityStartLine === null || entityType === null) {
+      // Fallback: return just the current line
+      this.logger.warn(`Could not find entity opening directive for line ${lineNum + 1}`);
+      return { start: lineNum, end: lineNum };
+    }
+
+    // Search forwards to find the entity closing directive
+    const endRegex = entityType === 'object' ? SymbolRegexes.endObject : SymbolRegexes.endCategory;
+
+    for (let i = entityStartLine + 1; i < document.lineCount; i++) {
+      const lineText = document.lineAt(i).text.trim();
+      if (endRegex.test(lineText)) {
+        return { start: entityStartLine, end: i };
+      }
+    }
+
+    // Entity not properly closed, return range to end of file
+    this.logger.warn(`Entity at line ${entityStartLine + 1} not properly closed`);
+    return { start: entityStartLine, end: document.lineCount - 1 };
   }
 
   /**

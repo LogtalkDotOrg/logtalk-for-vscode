@@ -354,7 +354,12 @@ When the user selects a region of code that contains an `include/1` directive, t
 
 #### Symbol renaming
 
-Entity, predicate, non-terminal, and variable rename support is available. To rename an entity, right-click on the entity name and use the "Go to Type Definition" context menu item to go to the entity opening directive. Then, right-click on the entity name and select the "Rename Symbol" context menu item. To rename a predicate (non-terminal), right-click on the predicate (non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Rename Symbol" context menu item. To rename a variable, right-click on the variable name and select the "Rename Symbol" context menu item.
+Entity, predicate, non-terminal, and variable rename support is available:
+
+- Entities (objects, categories, or protocols): right-click on the entity name and use the "Go to Type Definition" context menu item to go to the entity opening directive. Then, right-click on the entity name and select the "Rename Symbol" context menu item.
+- Predicates (or non-terminals): right-click on the predicate (or non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Rename Symbol" context menu item.
+- Variables (within the scope of a clause, grammar rule, or directive): right-click on the variable name and select the "Rename Symbol" context menu item.
+- Parameter variables (within the scope of an entity): right-click on the parameter variable name in the entity opening directive and select the "Rename Symbol" context menu item.
 
 #### Entity parameters refactoring
 

@@ -1,7 +1,14 @@
 # Variable Rename Implementation
 
 ## Overview
-Added support for renaming variables in the Logtalk rename provider. When the cursor is positioned on a variable, all occurrences of that variable within the same scope (clause, grammar rule, or directive) are renamed.
+
+Added support for renaming variables in the Logtalk rename provider. When the cursor is positioned on a variable, all occurrences of that variable within the appropriate scope are renamed.
+
+### Scope Rules
+
+1. **Parameter Variables in Entity Opening Directives**: When renaming a parameter variable (e.g., `_Foo_` - starts with uppercase letter, has underscore prefix and suffix) that appears in an entity opening directive, the variable is renamed throughout the **entire entity** (all directives, clauses, and grammar rules).
+
+2. **Regular Variables**: For all other variables, renaming is scoped to the containing clause, grammar rule, or directive only.
 
 ## Implementation Details
 
@@ -33,6 +40,28 @@ Added support for renaming variables in the Logtalk rename provider. When the cu
 - Only checks if the variable is in a string literal (balanced quotes before the position)
 - Note: Variables in comments ARE renamed to keep comments accurate with code changes
 
+#### 4. `isParameterVariable(variableName: string): boolean`
+
+- Checks if a variable name uses parameter variable syntax
+- Parameter variables start with uppercase letter and have underscore prefix and suffix
+- Pattern: `/^_[A-Z][A-Za-z0-9_]*_$/`
+- Examples: `_Foo_`, `_Bar_`, `_Value_`
+
+#### 5. `isInEntityOpeningDirective(document, lineNum): boolean`
+
+- Checks if a line is part of an object or category opening directive
+- Note: Only objects and categories can be parametric, not protocols
+- Searches backwards to find entity opening (`:- object(...)` or `:- category(...)`)
+- Uses `PredicateUtils.getDirectiveRange()` to check if the line is within the directive range
+
+#### 6. `getEntityScopeRange(document, lineNum): { start: number; end: number }`
+
+- Gets the range of the entire entity (from opening to closing directive)
+- Note: Only handles objects and categories (protocols cannot be parametric)
+- Searches backwards to find object or category opening directive
+- Searches forwards to find entity closing directive (`:- end_object.` or `:- end_category.`)
+- Returns the complete entity range for parameter variable renaming
+
 ### Integration Points
 
 #### Modified `prepareRename()`
@@ -62,9 +91,11 @@ The implementation includes several validation checks:
 2. **Context validation**: Ensures we're not renaming variables in comments or strings
 3. **Scope validation**: Only renames within the same clause/rule/directive
 
-## Test File
+## Test Files
 
-Created `tests/variable-rename-test.lgt` with 15 test cases covering:
+### `tests/variable-rename-test.lgt`
+
+Created with 15 test cases covering:
 - Simple variables
 - Multiple occurrences
 - Variables in head and body
@@ -80,6 +111,14 @@ Created `tests/variable-rename-test.lgt` with 15 test cases covering:
 - Variable shadowing
 - Variables in strings (should NOT be renamed)
 - Variables in comments (SHOULD be renamed to keep comments accurate)
+
+### `tests/parameter-variable-rename-test.lgt`
+
+Created with 4 test cases demonstrating parameter variable renaming:
+- Simple parametric object with one parameter variable
+- Parametric object with multiple parameter variables
+- Parametric category with parameter variable
+- Regular variables (non-parameter) that should NOT rename across entity
 
 ## Usage
 
