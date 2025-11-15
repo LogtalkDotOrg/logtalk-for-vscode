@@ -484,6 +484,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     }
 
+    // Renumber variables - works with cursor position (empty or non-empty selection)
+    const variableAtCursor = this.getNumberedVariableAtPosition(document, selection.active);
+    if (variableAtCursor && !this.isSelectionInDirective(document, selection)) {
+      const renumberVariablesAction = new CodeAction(
+        "Renumber variables",
+        CodeActionKind.RefactorRewrite
+      );
+      renumberVariablesAction.command = {
+        command: "logtalk.refactor.renumberVariables",
+        title: "Renumber variables",
+        arguments: [document, selection]
+      };
+      actions.push(renumberVariablesAction);
+    }
+
     return actions;
   }
 
@@ -2395,6 +2410,146 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error in inlineVariable: ${error}`);
       window.showErrorMessage(`Error inlining variable: ${error.message}`);
+    }
+  }
+
+  /**
+   * Parse a variable name to check if it ends with a number
+   * Returns { prefix, number } if it matches, null otherwise
+   */
+  private parseNumberedVariable(text: string): { prefix: string; number: number } | null {
+    // Variable must start with uppercase or underscore
+    const match = text.match(/^([A-Z_][a-zA-Z0-9_]*)(\d+)$/);
+    if (!match) {
+      return null;
+    }
+
+    const prefix = match[1];
+    const number = parseInt(match[2], 10);
+
+    return { prefix, number };
+  }
+
+  /**
+   * Get the numbered variable at a specific position in the document
+   * Returns the variable info if the position is within a numbered variable, null otherwise
+   */
+  private getNumberedVariableAtPosition(document: TextDocument, position: Position): { prefix: string; number: number; range: Range } | null {
+    // Use getWordRangeAtPosition with regex for numbered variables
+    const variableRegex = /\b[A-Z_][a-zA-Z0-9_]*\d+\b/;
+    const range = document.getWordRangeAtPosition(position, variableRegex);
+
+    if (!range) {
+      return null;
+    }
+
+    const variableName = document.getText(range);
+    const parsed = this.parseNumberedVariable(variableName);
+
+    if (!parsed) {
+      return null;
+    }
+
+    return {
+      ...parsed,
+      range
+    };
+  }
+
+  /**
+   * Renumber variables in a rule
+   * Finds all variables with the same prefix ending with numbers and renumbers them
+   */
+  public async renumberVariables(document: TextDocument, selection: Selection): Promise<void> {
+    try {
+      // Try to get variable at cursor position first
+      let variableInfo = this.getNumberedVariableAtPosition(document, selection.active);
+
+      // If no variable at cursor, try parsing the selection
+      if (!variableInfo && !selection.isEmpty) {
+        const selectedText = document.getText(selection).trim();
+        const parsed = this.parseNumberedVariable(selectedText);
+        if (parsed) {
+          variableInfo = {
+            ...parsed,
+            range: selection
+          };
+        }
+      }
+
+      if (!variableInfo) {
+        window.showErrorMessage("Cursor is not on a variable ending with a number.");
+        return;
+      }
+
+      const { prefix, number: selectedNumber } = variableInfo;
+
+      // Find the complete rule range
+      const ruleRange = this.findCompleteRuleRange(document, selection.start.line);
+      if (!ruleRange) {
+        window.showErrorMessage("Could not find the complete rule.");
+        return;
+      }
+
+      // Get the rule text
+      const ruleText = document.getText(ruleRange);
+
+      // Find all variables with the same prefix ending with numbers
+      const variableRegex = new RegExp(`\\b${prefix}(\\d+)\\b`, 'g');
+
+      // Collect all unique numbered variables with this prefix
+      const numberedVariables = new Map<number, string>(); // number -> variable name
+      let match: RegExpExecArray | null;
+      while ((match = variableRegex.exec(ruleText)) !== null) {
+        const num = parseInt(match[1], 10);
+        const varName = `${prefix}${num}`;
+        numberedVariables.set(num, varName);
+      }
+
+      // Calculate the increment amount (how much to add to each number)
+      const increment = 1;
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Sort numbers in descending order to avoid conflicts when renaming
+      const sortedNumbers = Array.from(numberedVariables.keys()).sort((a, b) => b - a);
+
+      // Renumber variables starting from the selected one
+      for (const num of sortedNumbers) {
+        if (num >= selectedNumber) {
+          const oldVarName = numberedVariables.get(num)!;
+          const newNum = num + increment;
+          const newVarName = `${prefix}${newNum}`;
+
+          // Find and replace all occurrences of this variable in the rule
+          for (let lineNum = ruleRange.start.line; lineNum <= ruleRange.end.line; lineNum++) {
+            const lineText = document.lineAt(lineNum).text;
+            const lineMatches = [...lineText.matchAll(new RegExp(`\\b${oldVarName}\\b`, 'g'))];
+
+            for (const lineMatch of lineMatches) {
+              const startChar = lineMatch.index!;
+              const endChar = startChar + oldVarName.length;
+              const replaceRange = new Range(
+                new Position(lineNum, startChar),
+                new Position(lineNum, endChar)
+              );
+              edit.replace(document.uri, replaceRange, newVarName);
+            }
+          }
+        }
+      }
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        const count = sortedNumbers.filter(n => n >= selectedNumber).length;
+        window.showInformationMessage(`Renumbered ${count} variable${count !== 1 ? 's' : ''}.`);
+      } else {
+        window.showErrorMessage("Failed to renumber variables.");
+      }
+    } catch (error) {
+      this.logger.error(`Error in renumberVariables: ${error}`);
+      window.showErrorMessage(`Error renumbering variables: ${error.message}`);
     }
   }
 

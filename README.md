@@ -329,6 +329,10 @@ Several refactoring operations are supported. Users should commit their work bef
 
 When a refactoring results in changes to multiple files, use the "Save All" command to save all modified files so that a single "Make - Reload" command can be used to reload the modified code. Note that this command can be called automatically when saving files using the `logtalk.make.onSave` setting.
 
+#### Renumber variables
+
+A "Renumber variables" refactoring operation is available when the user right-clicks on a variable ending with a number in a predicate rule or in a grammar rule and uses the "Refactor" context menu item or the "Refactor" command palette item. The refactoring renumbers all variables with the same prefix and a number equal or greater than the selected variable number in the rule to consecutive numbers. The selected variable can be anywhere in the rule (e.g., in the head, in the body, or in a comment).
+
 #### Variable inlining
 
 An "Inline variable" refactoring operation is available when the user selects a unification goal in a rule body and uses the "Refactor" context menu item or the "Refactor" command palette item. The refactoring replaces all occurrences of the variable in the rule with its unified term. The unification goal should be the only goal in the line.
