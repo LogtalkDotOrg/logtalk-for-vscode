@@ -964,10 +964,19 @@ export async function activate(context: ExtensionContext) {
   context.subscriptions.push(await LogtalkTerminal.init(context, linter, testsReporter, deadCodeScanner, documentationLinter));
   updateBreakpointStates(logtalkDebuggingEnabled);
 
-  // Load project on activation if setting is enabled
+  // Load project on activation if setting is enabled and a Logtalk file is open
   const loadProjectOnActivation = workspace.getConfiguration("logtalk").get<boolean>("loadProject.onActivation", false);
   if (loadProjectOnActivation) {
-    commands.executeCommand('logtalk.load.project');
+    const activeEditor = window.activeTextEditor;
+    if (activeEditor) {
+      const document = activeEditor.document;
+      const isLogtalkFile = document.languageId === 'logtalk' ||
+                           document.fileName.endsWith('.lgt') ||
+                           document.fileName.endsWith('.logtalk');
+      if (isLogtalkFile) {
+        commands.executeCommand('logtalk.load.project');
+      }
+    }
   }
 }
 

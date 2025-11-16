@@ -13,6 +13,7 @@
 * Fix the "Extract protocol" refactoring to only be offered for objects and categories that contain scope directives
 * Fix extract code refactorings to only be offered when the selection contains complete terms
 * Fix the "Convert object to protocol" and "Convert category to protocol" refactorings to only be offered when the entity contains no predicate clauses or grammar rules
+* Fix extension activation to only attempt to load the project loader file when the activation resulted from opening a Logtalk file
 
 ## [0.74.0]
 
