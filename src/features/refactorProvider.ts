@@ -1120,30 +1120,110 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
   /**
    * Find the clause containing the given position
+   * Returns the range of the clause that contains the selection
    */
   private findClauseContaining(document: TextDocument, position: Position): Range | null {
     const startLine = position.line;
+    this.logger.debug(`findClauseContaining: searching for clause containing line ${startLine + 1}`);
 
-    // Find the start of the clause by looking backwards for a clause head
-    let clauseStart = startLine;
-    for (let lineNum = startLine; lineNum >= 0; lineNum--) {
-      const lineText = document.lineAt(lineNum).text.trim();
+    // Use Utils.findTermStart to find the beginning of the clause/rule containing the position
+    const termStartLine = Utils.findTermStart(document, startLine);
 
-      // Skip empty lines and comments
-      if (lineText === '' || lineText.startsWith('%')) {
-        continue;
-      }
-
-      // Check if this looks like a clause rule head (predicate name followed by ( or :-)
-      if (/^[a-z][a-zA-Z0-9_]+(\()?.*:-/.test(lineText)) {
-        clauseStart = lineNum;
-        break;
-      }
+    if (termStartLine === null) {
+      this.logger.debug(`findClauseContaining: Could not find term start for line ${startLine + 1}`);
+      return null;
     }
 
-    // Find the end of the clause by looking for the terminating period
-    const clauseRange = PredicateUtils.getClauseRange(document, clauseStart);
+    this.logger.debug(`  Found term start at line ${termStartLine + 1}`);
 
+    // Check if the term start is a directive (not a clause)
+    const startLineText = document.lineAt(termStartLine).text.trim();
+    if (startLineText.startsWith(':-')) {
+      this.logger.debug(`  Term is a directive, not a clause`);
+      return null;
+    }
+
+    // Get the clause range starting from the term start line
+    const clauseRange = PredicateUtils.getClauseRange(document, termStartLine);
+    this.logger.debug(`  Clause range: lines ${clauseRange.start + 1}-${clauseRange.end + 1}`);
+
+    this.logger.debug(`  ✓ Found clause containing position`);
+    return new Range(
+      new Position(clauseRange.start, 0),
+      new Position(clauseRange.end, document.lineAt(clauseRange.end).text.length)
+    );
+  }
+
+  /**
+   * Find the first clause definition of the predicate/non-terminal containing the given position
+   * Returns the range of the FIRST clause (used to find where all consecutive clauses end)
+   */
+  private async findFirstClauseDefinition(document: TextDocument, position: Position): Promise<Range | null> {
+    const startLine = position.line;
+    this.logger.debug(`findFirstClauseDefinition: searching for first clause at line ${startLine + 1}`);
+
+    // Step 1: Use Utils.findTermStart to find the beginning of the clause/rule containing the position
+    const termStartLine = Utils.findTermStart(document, startLine);
+
+    if (termStartLine === null) {
+      this.logger.debug(`  Could not find term start for line ${startLine + 1}`);
+      return null;
+    }
+
+    this.logger.debug(`  Found term start at line ${termStartLine + 1}`);
+
+    // Check if the term start is a directive (not a clause)
+    const startLineText = document.lineAt(termStartLine).text.trim();
+    if (startLineText.startsWith(':-')) {
+      this.logger.debug(`  Term is a directive, not a clause`);
+      return null;
+    }
+
+    // Step 2: Extract the predicate/non-terminal name from the clause head
+    const headLineText = document.lineAt(termStartLine).text;
+    const predicateNameMatch = headLineText.match(/^\s*([a-z][a-zA-Z0-9_]*)/);
+    if (!predicateNameMatch) {
+      this.logger.debug(`  Could not extract predicate name from line ${termStartLine + 1}`);
+      return null;
+    }
+
+    const predicateName = predicateNameMatch[1];
+    const predicateNameStart = headLineText.indexOf(predicateName);
+    this.logger.debug(`  Extracted predicate name: ${predicateName} at character ${predicateNameStart}`);
+
+    // Step 3: Create a position on the predicate name and use definition provider to find the first clause
+    const predicatePosition = new Position(termStartLine, predicateNameStart);
+
+    // Set the active selection to the predicate name line (required by definition provider)
+    const editor = window.activeTextEditor;
+    if (editor && editor.document === document) {
+      editor.selection = new Selection(predicatePosition, predicatePosition);
+    }
+
+    const tokenSource = new CancellationTokenSource();
+    const definitionLocation = await this.definitionProvider.provideDefinition(document, predicatePosition, tokenSource.token);
+    tokenSource.dispose();
+
+    if (!definitionLocation || !this.isValidLocation(definitionLocation)) {
+      this.logger.debug(`  Could not find definition for ${predicateName}`);
+      return null;
+    }
+
+    this.logger.debug(`  Found definition at line ${definitionLocation.range.start.line + 1}`);
+
+    // Check if the definition is in the same file
+    if (definitionLocation.uri.fsPath !== document.uri.fsPath) {
+      this.logger.debug(`  Definition is in a different file`);
+      return null;
+    }
+
+    const defLine = definitionLocation.range.start.line;
+
+    // Step 4: Get the clause range starting from the definition line (first clause)
+    const clauseRange = PredicateUtils.getClauseRange(document, defLine);
+    this.logger.debug(`  First clause range: lines ${clauseRange.start + 1}-${clauseRange.end + 1}`);
+
+    this.logger.debug(`  ✓ Found first clause of predicate/non-terminal`);
     return new Range(
       new Position(clauseRange.start, 0),
       new Position(clauseRange.end, document.lineAt(clauseRange.end).text.length)
@@ -2362,7 +2442,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.debug(`Extract predicate: selection from line ${selection.start.line + 1} to ${selection.end.line + 1}`);
 
       // Find the clause containing the selection
+      this.logger.debug(`Calling findClauseContaining for position line ${selection.start.line + 1}`);
       const clauseRange = this.findClauseContaining(document, selection.start);
+      this.logger.debug(`findClauseContaining returned: ${clauseRange ? `lines ${clauseRange.start.line + 1}-${clauseRange.end.line + 1}` : 'null'}`);
       if (!clauseRange) {
         window.showErrorMessage("Could not find clause containing the selection.");
         return;
@@ -2373,20 +2455,48 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Find the clause head to determine the predicate indicator
       const clauseStartLine = clauseRange.start.line;
 
-      // Determine if this is a non-terminal (contains -->) or predicate (contains :-)
+      // Find the predicate indicator for the current clause
+      // We need to find the position of the predicate/non-terminal name in the clause head
+      const clauseHeadLine = document.lineAt(clauseStartLine).text;
+      const nameMatch = clauseHeadLine.match(/^\s*([a-z][a-zA-Z0-9_]*)/);
+
+      if (!nameMatch) {
+        window.showErrorMessage("Could not determine predicate/non-terminal name.");
+        return;
+      }
+
+      const predicateNameInClause = nameMatch[1];
+
+      // Determine if this is a non-terminal by checking the clause containing the selection
       let isNonTerminal = false;
-      for (let lineNum = clauseStartLine; lineNum <= clauseRange.end.line; lineNum++) {
+      this.logger.debug(`Checking clause range lines ${clauseRange.start.line + 1}-${clauseRange.end.line + 1} for --> or :-`);
+      for (let lineNum = clauseRange.start.line; lineNum <= clauseRange.end.line; lineNum++) {
         const lineText = document.lineAt(lineNum).text;
+        this.logger.debug(`Line ${lineNum + 1}: "${lineText}"`);
         if (lineText.includes('-->')) {
           isNonTerminal = true;
+          this.logger.debug(`Found --> on line ${lineNum + 1}, setting isNonTerminal = true`);
           break;
         }
+        // If we find :- first, it's a predicate
         if (lineText.includes(':-')) {
+          isNonTerminal = false;
+          this.logger.debug(`Found :- on line ${lineNum + 1}, setting isNonTerminal = false`);
           break;
         }
       }
+      this.logger.debug(`Final isNonTerminal: ${isNonTerminal}`);
 
-      this.logger.debug(`Is non-terminal: ${isNonTerminal}`);
+      // Get the indicator for finding consecutive clauses
+      const namePosition = new Position(clauseStartLine, clauseHeadLine.indexOf(predicateNameInClause));
+      const indicator = await this.isPredicateReference(document, namePosition);
+
+      if (!indicator) {
+        window.showErrorMessage("Could not determine predicate indicator.");
+        return;
+      }
+
+      this.logger.debug(`Current predicate indicator: ${indicator}`);
 
       // Get all variables in the clause
       const clauseVariables = PredicateUtils.findVariablesInRange(document, clauseRange);
@@ -2464,19 +2574,18 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const extractedBody = extractedLines.join('\n');
       this.logger.debug(`Extracted body:\n${extractedBody}`);
 
-      // Find the predicate indicator for the current clause
-      const position = new Position(clauseStartLine, 0);
-      const indicator = await this.isPredicateReference(document, position);
-
-      if (!indicator) {
-        window.showErrorMessage("Could not determine predicate indicator.");
+      // Find the first clause definition to get the starting line for finding all consecutive clauses
+      const firstClauseRange = await this.findFirstClauseDefinition(document, selection.start);
+      if (!firstClauseRange) {
+        window.showErrorMessage("Could not find first clause definition.");
         return;
       }
 
-      this.logger.debug(`Current predicate indicator: ${indicator}`);
+      const firstClauseLine = firstClauseRange.start.line;
+      this.logger.debug(`First clause line: ${firstClauseLine + 1}`);
 
       // Find all consecutive clauses of the current predicate
-      const predicateRanges = PredicateUtils.findConsecutivePredicateClauseRanges(document, indicator, clauseStartLine);
+      const predicateRanges = PredicateUtils.findConsecutivePredicateClauseRanges(document, indicator, firstClauseLine);
 
       if (predicateRanges.length === 0) {
         window.showErrorMessage("Could not find predicate definition range.");
@@ -2488,8 +2597,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const insertionLine = lastClauseRange.end.line + 1;
       this.logger.debug(`Insertion line for new predicate: ${insertionLine + 1}`);
 
+      // Get the indentation from the original clause head
+      const clauseHeadIndent = document.lineAt(clauseStartLine).text.match(/^\s*/)?.[0] || '';
+      this.logger.debug(`Clause head indentation: "${clauseHeadIndent}"`);
+
       // Build the new predicate/non-terminal
       const operator = isNonTerminal ? '-->' : ':-';
+      this.logger.debug(`Building new predicate/non-terminal with operator: ${operator} (isNonTerminal=${isNonTerminal})`);
       const argumentsList = commonVariables.join(', ');
       const headWithArgs = commonVariables.length > 0
         ? `${trimmedPredicateName}(${argumentsList})`
@@ -2497,7 +2611,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       const newPredicateLines: string[] = [];
       newPredicateLines.push('');  // Empty line before new predicate
-      newPredicateLines.push(`${headWithArgs} ${operator}`);
+      newPredicateLines.push(`${clauseHeadIndent}${headWithArgs} ${operator}`);
 
       // Add the extracted body with proper indentation
       const bodyIndent = '\t';  // Use tab for body indentation
@@ -2511,7 +2625,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       bodyLines.forEach(line => {
         if (line.trim() !== '') {
-          newPredicateLines.push(`${bodyIndent}${line}`);
+          newPredicateLines.push(`${clauseHeadIndent}${bodyIndent}${line}`);
         } else {
           newPredicateLines.push('');
         }
