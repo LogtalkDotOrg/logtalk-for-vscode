@@ -10,6 +10,7 @@
 * Add "Inline variable" refactoring support for replacing variable unification goals in predicate rules and grammar rules
 * Add "Wrap file contents as an object" refactoring support for converting plain Prolog files to Logtalk objects
 * Add "Infer public predicates" refactoring support for inferring public predicates in objects and categories
+* Add "Sort files by dependencies" refactoring support for `logtalk_load/1-2` calls with a list of atoms in the first argument
 * Improve performance of the entity parameter refactorings
 * Fix the "Extract protocol" refactoring to only be offered for objects and categories that contain scope directives
 * Fix extract code refactorings to only be offered when the selection contains complete terms

@@ -99,6 +99,7 @@ export default class LogtalkTerminal {
       ".vscode_type_done",
       ".vscode_find_parent_done",
       ".vscode_infer_public_predicates_done",
+      ".vscode_files_topological_sort_done",
       ".vscode_tester_output",
       ".vscode_doclet_output"
     ];
@@ -1527,6 +1528,16 @@ export default class LogtalkTerminal {
     let goals = `vscode::infer_public_predicates('${wdir}', ${entityName}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_infer_public_predicates_done");
+    await LogtalkTerminal.waitForFile(marker);
+    await fsp.rm(marker, { force: true });
+  }
+
+  public static async sortFilesByDependencies(workspaceDir: string, loaderDir: string, files: string[]) {
+    LogtalkTerminal.createLogtalkTerm();
+    const filesListStr = '[' + files.join(', ') + ']';
+    let goals = `vscode::files_topological_sort('${workspaceDir}', '${loaderDir}', ${filesListStr}).\r`;
+    LogtalkTerminal.sendString(goals);
+    const marker = path.join(workspaceDir, ".vscode_files_topological_sort_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
   }

@@ -401,6 +401,10 @@ Right-click anywhere in a file that has no entity or module opening directives a
 
 Right-click on an object or category name in its opening directive and select the "Infer public predicates" context menu item. The file must be loaded. The public predicates are inferred from the entity's implementation and a `public/1` directive is added with the inferred predicates. This refactoring is only available for objects and categories with no `public/1` directives. It's typically used after converting a plain Prolog file to a Logtalk object using the "Wrap file contents as an object" refactoring.
 
+#### Sorting files by dependencies
+
+Right-click on the predicate name in a `logtalk_load/1-2` call with a list of atoms in the first argument and select the "Sort files by dependencies" context menu item. The file list is sorted based on the dependencies between the files. The files must be loaded prior to applying this refactoring. This refactoring is useful when porting Prolog code to Logtalk, notably when using the `wrapper` tool (which generates a first version of a `loader.lgt` file for the ported code).
+
 #### Known refactoring issues
 
 - Some refactoring operations may not be complete, notably due to the use of dynamic binding or meta-predicate features.

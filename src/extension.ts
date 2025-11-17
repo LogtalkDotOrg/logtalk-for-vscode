@@ -664,6 +664,14 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.sortFilesByDependencies', async (document, position, logtalkLoadInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.sortFilesByDependencies(document, position, logtalkLoadInfo);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

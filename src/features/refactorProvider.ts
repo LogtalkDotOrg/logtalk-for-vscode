@@ -520,6 +520,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       actions.push(renumberVariablesAction);
     }
 
+    // Sort files by dependencies - for logtalk_load/1-2 predicates with list of atoms
+    const logtalkLoadInfo = this.detectLogtalkLoadCall(document, position);
+    if (logtalkLoadInfo) {
+      const sortFilesAction = new CodeAction(
+        "Sort files by dependencies",
+        CodeActionKind.RefactorRewrite
+      );
+      sortFilesAction.command = {
+        command: "logtalk.refactor.sortFilesByDependencies",
+        title: "Sort files by dependencies",
+        arguments: [document, position, logtalkLoadInfo]
+      };
+      actions.push(sortFilesAction);
+    }
+
     return actions;
   }
 
@@ -1621,6 +1636,147 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       line: position.line,
       directiveRange: directiveRange,
       args: args
+    };
+  }
+
+  /**
+   * Detect if the cursor is positioned on "logtalk_load" in a logtalk_load/1 or logtalk_load/2 call
+   * with a list of 2 or more atoms (no compound terms)
+   * @param document The text document
+   * @param position The cursor position
+   * @returns Information about the logtalk_load call if detected, null otherwise
+   */
+  private detectLogtalkLoadCall(document: TextDocument, position: Position): {
+    line: number;
+    callRange: { start: number; end: number };
+    listRange: Range;
+    files: string[];
+    isMultiLine: boolean;
+    indentation: string;
+  } | null {
+    // Check if the cursor is on "logtalk_load([" using getWordRangeAtPosition
+    const wordRange = document.getWordRangeAtPosition(position, /logtalk_load\s*\(\s*\[/);
+    if (!wordRange) {
+      this.logger.debug(`Cursor not on logtalk_load([ at line ${position.line + 1}`);
+      return null;
+    }
+
+    this.logger.debug(`Cursor is on logtalk_load([ at line ${position.line + 1}, searching for ])...`);
+
+    // Find the position of the opening [ in the matched range
+    const matchedText = document.getText(wordRange);
+    const openBracketIndex = matchedText.indexOf('[');
+
+    const listStartLine = wordRange.start.line;
+    const listStartChar = wordRange.start.character + openBracketIndex;
+    let listEndLine = -1;
+    let listEndChar = -1;
+    let fullListContent = '';
+
+    // Search for the closing ]) - start from the line with [
+    let currentLine = wordRange.start.line;
+    let currentChar = wordRange.start.character + openBracketIndex + 1;
+
+    while (currentLine < document.lineCount) {
+      let lineText = document.lineAt(currentLine).text;
+      const startChar = (currentLine === wordRange.start.line) ? currentChar : 0;
+
+      // Remove comments from the line
+      const commentPos = lineText.indexOf('%');
+      if (commentPos !== -1) {
+        lineText = lineText.substring(0, commentPos);
+      }
+
+      // Search for ])
+      const searchText = lineText.substring(startChar);
+      const closingPos = searchText.indexOf('])');
+
+      if (closingPos !== -1) {
+        // Found ])
+        const actualPos = startChar + closingPos;
+        listEndLine = currentLine;
+        listEndChar = actualPos + 1; // Position after ]
+
+        // Extract content from [ to ]
+        fullListContent += lineText.substring(startChar, actualPos);
+        this.logger.debug(`Found ]) at line ${currentLine + 1}, char ${actualPos + 1}`);
+        break;
+      }
+
+      // Not found on this line, add the content and continue
+      fullListContent += lineText.substring(startChar) + ' ';
+      currentLine++;
+      currentChar = 0;
+    }
+
+    if (listEndLine === -1) {
+      this.logger.debug(`Could not find matching ]) for the list`);
+      return null;
+    }
+
+    fullListContent = fullListContent.trim();
+
+    if (!fullListContent) {
+      this.logger.debug(`List is empty`);
+      return null;
+    }
+
+    this.logger.debug(`List content: ${fullListContent}`);
+
+    // Parse list elements
+    const listElements = ArgumentUtils.parseArguments(fullListContent);
+    this.logger.debug(`Parsed ${listElements.length} list elements`);
+
+    // Need at least 2 elements
+    if (listElements.length < 2) {
+      this.logger.debug(`List has only ${listElements.length} element(s), need at least 2`);
+      return null;
+    }
+
+    // Check that all elements are atoms (not compound terms)
+    const files: string[] = [];
+    for (const element of listElements) {
+      const trimmed = element.trim();
+
+      // Check if it's a compound term (contains parentheses)
+      if (trimmed.includes('(')) {
+        this.logger.debug(`List contains compound term: ${trimmed}`);
+        return null;
+      }
+
+      // Remove quotes if present
+      let atom = trimmed;
+      if ((atom.startsWith("'") && atom.endsWith("'")) ||
+          (atom.startsWith('"') && atom.endsWith('"'))) {
+        atom = atom.substring(1, atom.length - 1);
+      }
+
+      files.push(atom);
+    }
+
+    this.logger.debug(`Valid logtalk_load call detected with ${files.length} files: ${files.join(', ')}`);
+
+    // Determine if the call is multi-line
+    const isMultiLine = listStartLine !== listEndLine;
+
+    // Get the indentation from the line with logtalk_load
+    const logtalkLoadLine = document.lineAt(wordRange.start.line).text;
+    const indentMatch = logtalkLoadLine.match(/^(\s*)/);
+    const indentation = indentMatch ? indentMatch[1] : '';
+
+    // Create the list range (from [ to ])
+    const listRange = new Range(
+      new Position(listStartLine, listStartChar),
+      new Position(listEndLine, listEndChar)
+    );
+
+    return {
+      line: position.line,
+      callRange: { start: listStartLine, end: listEndLine },
+      listRange: listRange,
+      files: files,
+      isMultiLine: isMultiLine,
+      indentation: indentation
     };
   }
 
@@ -10553,6 +10709,91 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error inferring public predicates: ${error}`);
       window.showErrorMessage(`Error inferring public predicates: ${error}`);
+    }
+  }
+
+  /**
+   * Sort files by dependencies refactoring
+   * Sorts the file list in a logtalk_load/1-2 call based on their dependencies
+   */
+  public async sortFilesByDependencies(
+    document: TextDocument,
+    _position: Position,
+    logtalkLoadInfo: {
+      line: number;
+      callRange: { start: number; end: number };
+      listRange: Range;
+      files: string[];
+      isMultiLine: boolean;
+      indentation: string;
+    }
+  ): Promise<void> {
+    try {
+      this.logger.info(`Sorting files by dependencies: ${logtalkLoadInfo.files.join(', ')}`);
+
+      // Get workspace directory
+      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      if (!wdir) {
+        window.showErrorMessage('No workspace folder open');
+        return;
+      }
+
+      // Get the directory of the file containing the logtalk_load/1-2 call
+      const loaderDir = path.resolve(path.dirname(document.uri.fsPath)).split(path.sep).join("/");
+
+      // Call the vscode predicate to sort files
+      await LogtalkTerminal.sortFilesByDependencies(wdir, loaderDir, logtalkLoadInfo.files);
+
+      // Read the sorted files
+      const resultFile = path.join(wdir, ".vscode_files_topological_sort");
+      if (!fs.existsSync(resultFile)) {
+        window.showErrorMessage('Failed to get sorted files from Logtalk');
+        return;
+      }
+
+      const resultContent = fs.readFileSync(resultFile, 'utf-8').trim();
+      await fs.promises.rm(resultFile, { force: true });
+
+      // Parse the result - it should be a Logtalk list
+      if (!resultContent.startsWith('[') || !resultContent.endsWith(']')) {
+        window.showErrorMessage('Invalid result format from Logtalk');
+        return;
+      }
+
+      const sortedListContent = resultContent.substring(1, resultContent.length - 1);
+      const sortedFiles = ArgumentUtils.parseArguments(sortedListContent);
+
+      if (sortedFiles.length === 0) {
+        window.showErrorMessage('No files returned from sorting operation');
+        return;
+      }
+
+      // Build the new list text based on whether original was multi-line or single-line
+      let newListText: string;
+      if (logtalkLoadInfo.isMultiLine) {
+        // Multi-line format: one element per line with indentation
+        const elementIndent = logtalkLoadInfo.indentation + '\t';
+        const elements = sortedFiles.map(file => elementIndent + file.trim()).join(',\n');
+        newListText = '[\n' + elements + '\n' + logtalkLoadInfo.indentation + ']';
+      } else {
+        // Single-line format
+        newListText = '[' + sortedFiles.join(', ') + ']';
+      }
+
+      // Replace the list in the document
+      const edit = new WorkspaceEdit();
+      edit.replace(document.uri, logtalkLoadInfo.listRange, newListText);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        this.logger.info(`Successfully sorted files by dependencies`);
+        window.showInformationMessage(`Files sorted by dependencies`);
+      } else {
+        window.showErrorMessage('Failed to apply file sorting');
+      }
+    } catch (error) {
+      this.logger.error(`Error sorting files by dependencies: ${error}`);
+      window.showErrorMessage(`Error sorting files by dependencies: ${error}`);
     }
   }
 
