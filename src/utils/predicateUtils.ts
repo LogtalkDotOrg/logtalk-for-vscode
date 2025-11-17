@@ -821,4 +821,177 @@ export class PredicateUtils {
     const args = ArgumentUtils.parseArguments(argsText);
     return args.length;
   }
+
+  /**
+   * Find all variables used in a given range of text
+   * Variables are identifiers that start with an uppercase letter or underscore
+   * This method ignores variables inside:
+   * - Single-quoted strings
+   * - Double-quoted strings
+   * - Line comments (%)
+   * - Block comments
+   *
+   * @param document The text document
+   * @param range The range to search for variables
+   * @returns A Set of unique variable names found in the range
+   */
+  static findVariablesInRange(document: TextDocument, range: Range): Set<string> {
+    const variables = new Set<string>();
+    const text = document.getText(range);
+
+    let inQuotes = false;
+    let inSingleQuotes = false;
+    let escapeNext = false;
+    let inCharCode = false;
+    let inLineComment = false;
+    let inBlockComment = false;
+    let currentToken = '';
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = i + 1 < text.length ? text[i + 1] : '';
+
+      // Handle newlines - reset line comment flag
+      if (char === '\n') {
+        inLineComment = false;
+        // Process any accumulated token before the newline
+        if (currentToken && !inQuotes && !inSingleQuotes && !inBlockComment) {
+          this.addVariableIfValid(currentToken, variables);
+        }
+        currentToken = '';
+        continue;
+      }
+
+      // Handle character code notation: after 0' we need to consume the character
+      // This must be checked BEFORE backslash and quote handling
+      if (inCharCode) {
+        if (char === '\\') {
+          // Escape sequence in char code (e.g., 0'\\, 0'\', 0'\")
+          // Need to consume the next character as well
+          if (i + 1 < text.length) {
+            i++;
+          }
+        }
+        inCharCode = false;
+        continue;
+      }
+
+      // Skip everything inside comments
+      if (inLineComment) {
+        continue;
+      }
+
+      // Handle block comments
+      if (inBlockComment) {
+        if (char === '*' && nextChar === '/') {
+          inBlockComment = false;
+          i++; // Skip the '/'
+        }
+        continue;
+      }
+
+      // Check for start of block comment
+      if (!inQuotes && !inSingleQuotes && char === '/' && nextChar === '*') {
+        // Process any accumulated token before entering block comment
+        if (currentToken) {
+          this.addVariableIfValid(currentToken, variables);
+        }
+        currentToken = '';
+        inBlockComment = true;
+        i++; // Skip the '*'
+        continue;
+      }
+
+      // Check for start of line comment
+      if (!inQuotes && !inSingleQuotes && char === '%') {
+        // Process any accumulated token before entering line comment
+        if (currentToken) {
+          this.addVariableIfValid(currentToken, variables);
+        }
+        currentToken = '';
+        inLineComment = true;
+        continue;
+      }
+
+      // Handle escape sequences
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escapeNext = true;
+        continue;
+      }
+
+      // Handle double quotes
+      if (char === '"' && !inSingleQuotes) {
+        // Process any accumulated token before entering/exiting quotes
+        if (!inQuotes && currentToken) {
+          this.addVariableIfValid(currentToken, variables);
+          currentToken = '';
+        }
+        inQuotes = !inQuotes;
+        continue;
+      }
+
+      // Handle single quotes
+      if (char === "'" && !inQuotes) {
+        // Check if this is a character code notation (zero followed by single quote)
+        // This only applies when we're NOT already inside a single-quoted string
+        if (!inSingleQuotes && i > 0 && text[i - 1] === '0') {
+          // This is character code notation like 0'x, 0'\n, etc.
+          // Set flag to handle the next character(s) specially
+          inCharCode = true;
+          continue;
+        } else {
+          // Process any accumulated token before entering/exiting single quotes
+          if (!inSingleQuotes && currentToken) {
+            this.addVariableIfValid(currentToken, variables);
+            currentToken = '';
+          }
+          // This is a regular quoted string (opening or closing quote)
+          inSingleQuotes = !inSingleQuotes;
+          continue;
+        }
+      }
+
+      // Skip everything inside quotes
+      if (inQuotes || inSingleQuotes) {
+        continue;
+      }
+
+      // Build tokens from valid identifier characters
+      if (/[a-zA-Z0-9_]/.test(char)) {
+        currentToken += char;
+      } else {
+        // Non-identifier character - process accumulated token
+        if (currentToken) {
+          this.addVariableIfValid(currentToken, variables);
+          currentToken = '';
+        }
+      }
+    }
+
+    // Process any remaining token at the end
+    if (currentToken && !inQuotes && !inSingleQuotes && !inLineComment && !inBlockComment) {
+      this.addVariableIfValid(currentToken, variables);
+    }
+
+    return variables;
+  }
+
+  /**
+   * Helper method to add a token to the variables set if it's a valid variable name
+   * Variables must start with an uppercase letter or underscore
+   *
+   * @param token The token to check
+   * @param variables The set to add the variable to
+   */
+  private static addVariableIfValid(token: string, variables: Set<string>): void {
+    // Variables must start with uppercase letter or underscore
+    if (token && /^[A-Z_]/.test(token)) {
+      variables.add(token);
+    }
+  }
 }

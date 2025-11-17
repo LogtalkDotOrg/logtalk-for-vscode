@@ -568,6 +568,14 @@ export async function activate(context: ExtensionContext) {
   );
 
   context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.extractPredicate', async (document, selection) => {
+      if (refactorProvider) {
+        await refactorProvider.extractPredicate(document, selection);
+      }
+    })
+  );
+
+  context.subscriptions.push(
     commands.registerCommand('logtalk.refactor.inlineVariable', async (document, selection) => {
       if (refactorProvider) {
         await refactorProvider.inlineVariable(document, selection);

@@ -113,6 +113,27 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         actions.push(unifyWithVariableAction);
       }
 
+      // Extract predicate/non-terminal - only for selections in clause/rule bodies
+      if (selection.start.line !== selection.end.line || selection.start.line === selection.end.line) {
+        // Check if selection is in a clause/rule body (not in head, not in directive)
+        if (!this.isSelectionInDirective(document, selection) && !this.isSelectionInClauseOrRuleHead(document, selection)) {
+          // Check if we're inside a rule body
+          const isInBody = this.isInsideRuleBody(document, selection.start);
+          if (isInBody) {
+            const extractPredicateAction = new CodeAction(
+              "Extract predicate/non-terminal",
+              CodeActionKind.RefactorExtract
+            );
+            extractPredicateAction.command = {
+              command: "logtalk.refactor.extractPredicate",
+              title: "Extract predicate/non-terminal",
+              arguments: [document, selection]
+            };
+            actions.push(extractPredicateAction);
+          }
+        }
+      }
+
       if (includePosition !== null) {
         // Selection contains include/1 directive - provide replace action
         const replaceIncludeAction = new CodeAction(
@@ -2328,6 +2349,242 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error in unifyWithNewVariable: ${error}`);
       window.showErrorMessage(`Error unifying with variable: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract predicate/non-terminal refactoring
+   * Extracts selected lines from a clause/rule body into a new predicate/non-terminal
+   * The new predicate/non-terminal is added after all clauses of the current predicate
+   */
+  public async extractPredicate(document: TextDocument, selection: Selection): Promise<void> {
+    try {
+      this.logger.debug(`Extract predicate: selection from line ${selection.start.line + 1} to ${selection.end.line + 1}`);
+
+      // Find the clause containing the selection
+      const clauseRange = this.findClauseContaining(document, selection.start);
+      if (!clauseRange) {
+        window.showErrorMessage("Could not find clause containing the selection.");
+        return;
+      }
+
+      this.logger.debug(`Found clause range: lines ${clauseRange.start.line + 1}-${clauseRange.end.line + 1}`);
+
+      // Find the clause head to determine the predicate indicator
+      const clauseStartLine = clauseRange.start.line;
+
+      // Determine if this is a non-terminal (contains -->) or predicate (contains :-)
+      let isNonTerminal = false;
+      for (let lineNum = clauseStartLine; lineNum <= clauseRange.end.line; lineNum++) {
+        const lineText = document.lineAt(lineNum).text;
+        if (lineText.includes('-->')) {
+          isNonTerminal = true;
+          break;
+        }
+        if (lineText.includes(':-')) {
+          break;
+        }
+      }
+
+      this.logger.debug(`Is non-terminal: ${isNonTerminal}`);
+
+      // Get all variables in the clause
+      const clauseVariables = PredicateUtils.findVariablesInRange(document, clauseRange);
+      this.logger.debug(`Clause variables: ${Array.from(clauseVariables).join(', ')}`);
+
+      // Get all variables in the selection
+      const selectionVariables = PredicateUtils.findVariablesInRange(document, selection);
+      this.logger.debug(`Selection variables: ${Array.from(selectionVariables).join(', ')}`);
+
+      // Get variables that appear outside the selection (before or after)
+      // These are the variables that need to be passed as arguments
+      const beforeSelectionRange = new Range(clauseRange.start, selection.start);
+      const afterSelectionRange = new Range(selection.end, clauseRange.end);
+
+      const beforeVariables = PredicateUtils.findVariablesInRange(document, beforeSelectionRange);
+      const afterVariables = PredicateUtils.findVariablesInRange(document, afterSelectionRange);
+
+      // Combine variables from before and after the selection
+      const outsideVariables = new Set([...beforeVariables, ...afterVariables]);
+      this.logger.debug(`Variables outside selection: ${Array.from(outsideVariables).join(', ')}`);
+
+      // Arguments are variables that appear in BOTH the selection AND outside the selection
+      const commonVariables = Array.from(selectionVariables).filter(v => outsideVariables.has(v));
+      this.logger.debug(`Common variables (arguments): ${commonVariables.join(', ')}`);
+
+      // Ask user for the new predicate/non-terminal name
+      const predicateName = await window.showInputBox({
+        prompt: `Enter the name for the new ${isNonTerminal ? 'non-terminal' : 'predicate'}`,
+        placeHolder: isNonTerminal ? "non_terminal_name" : "predicate_name",
+        validateInput: (value: string) => {
+          if (!value.trim()) {
+            return `${isNonTerminal ? 'Non-terminal' : 'Predicate'} name cannot be empty`;
+          }
+          if (!/^[a-z][a-zA-Z0-9_]*$/.test(value.trim())) {
+            return `${isNonTerminal ? 'Non-terminal' : 'Predicate'} name must start with lowercase letter and contain only letters, digits, and underscores`;
+          }
+          return null;
+        }
+      });
+
+      if (!predicateName) {
+        return; // User cancelled
+      }
+
+      const trimmedPredicateName = predicateName.trim();
+      this.logger.debug(`New predicate/non-terminal name: ${trimmedPredicateName}`);
+
+      // Get the selected text (the body to extract)
+      const selectedText = document.getText(selection);
+      const selectedLines = selectedText.split('\n');
+
+      // Preserve indentation of the first selected line for the extracted code
+      const firstLineIndent = selectedLines[0].match(/^\s*/)?.[0] || '';
+
+      // Remove the common indentation from all lines
+      const extractedLines = selectedLines.map((line, index) => {
+        if (index === 0) {
+          return line.trimStart();
+        }
+        // For subsequent lines, remove the first line's indentation if present
+        if (line.startsWith(firstLineIndent)) {
+          return line.substring(firstLineIndent.length);
+        }
+        return line;
+      });
+
+      // Trim empty lines at the beginning and end
+      while (extractedLines.length > 0 && extractedLines[0].trim() === '') {
+        extractedLines.shift();
+      }
+      while (extractedLines.length > 0 && extractedLines[extractedLines.length - 1].trim() === '') {
+        extractedLines.pop();
+      }
+
+      const extractedBody = extractedLines.join('\n');
+      this.logger.debug(`Extracted body:\n${extractedBody}`);
+
+      // Find the predicate indicator for the current clause
+      const position = new Position(clauseStartLine, 0);
+      const indicator = await this.isPredicateReference(document, position);
+
+      if (!indicator) {
+        window.showErrorMessage("Could not determine predicate indicator.");
+        return;
+      }
+
+      this.logger.debug(`Current predicate indicator: ${indicator}`);
+
+      // Find all consecutive clauses of the current predicate
+      const predicateRanges = PredicateUtils.findConsecutivePredicateClauseRanges(document, indicator, clauseStartLine);
+
+      if (predicateRanges.length === 0) {
+        window.showErrorMessage("Could not find predicate definition range.");
+        return;
+      }
+
+      // Get the last clause range
+      const lastClauseRange = predicateRanges[predicateRanges.length - 1];
+      const insertionLine = lastClauseRange.end.line + 1;
+      this.logger.debug(`Insertion line for new predicate: ${insertionLine + 1}`);
+
+      // Build the new predicate/non-terminal
+      const operator = isNonTerminal ? '-->' : ':-';
+      const argumentsList = commonVariables.join(', ');
+      const headWithArgs = commonVariables.length > 0
+        ? `${trimmedPredicateName}(${argumentsList})`
+        : trimmedPredicateName;
+
+      const newPredicateLines: string[] = [];
+      newPredicateLines.push('');  // Empty line before new predicate
+      newPredicateLines.push(`${headWithArgs} ${operator}`);
+
+      // Add the extracted body with proper indentation
+      const bodyIndent = '\t';  // Use tab for body indentation
+      let bodyLines = extractedBody.split('\n');
+
+      // Replace any trailing comma on the last line with a period
+      if (bodyLines.length > 0) {
+        const lastLineIndex = bodyLines.length - 1;
+        bodyLines[lastLineIndex] = bodyLines[lastLineIndex].replace(/,\s*$/, '.');
+      }
+
+      bodyLines.forEach(line => {
+        if (line.trim() !== '') {
+          newPredicateLines.push(`${bodyIndent}${line}`);
+        } else {
+          newPredicateLines.push('');
+        }
+      });
+
+      newPredicateLines.push('');  // Empty line after new predicate
+
+      const newPredicateText = newPredicateLines.join('\n');
+      this.logger.debug(`New predicate/non-terminal:\n${newPredicateText}`);
+
+      // Determine if the selection ends at the last line of the clause body
+      // We need to check if there are any more body goals after the selection
+      let isLastLineOfClause = false;
+
+      // Check if there are any non-comment, non-empty lines after the selection end
+      let hasContentAfterSelection = false;
+      for (let lineNum = selection.end.line; lineNum <= clauseRange.end.line; lineNum++) {
+        const lineText = document.lineAt(lineNum).text;
+
+        if (lineNum === selection.end.line) {
+          // For the selection end line, check what's after the selection end character
+          const afterSelection = lineText.substring(selection.end.character);
+          // Remove comments and trim
+          const withoutComment = afterSelection.replace(/%.*$/, '').trim();
+          // If there's content other than just punctuation (comma or period), we have more goals
+          if (withoutComment && withoutComment !== ',' && withoutComment !== '.') {
+            hasContentAfterSelection = true;
+            break;
+          }
+        } else {
+          // For lines after the selection, check if there's any goal content
+          const withoutComment = lineText.replace(/%.*$/, '').trim();
+          // If there's content other than just the closing period, we have more goals
+          if (withoutComment && withoutComment !== '.') {
+            hasContentAfterSelection = true;
+            break;
+          }
+        }
+      }
+
+      isLastLineOfClause = !hasContentAfterSelection;
+      this.logger.debug(`Is last line of clause: ${isLastLineOfClause} (has content after: ${hasContentAfterSelection})`);
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Replace the selected text with a call to the new predicate
+      const callIndent = document.lineAt(selection.start.line).text.match(/^\s*/)?.[0] || '';
+      const callTerminator = isLastLineOfClause ? '.' : ',';
+      // Always add a newline after the call to preserve the line after the selection
+      const predicateCall = `${callIndent}${headWithArgs}${callTerminator}\n`;
+
+      // The replacement range should be exactly the selection
+      // We don't extend it because the predicateCall already includes a newline
+      const replacementRange: Range = selection;
+
+      edit.replace(document.uri, replacementRange, predicateCall);
+
+      // Insert the new predicate after all clauses
+      edit.insert(document.uri, new Position(insertionLine, 0), newPredicateText);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        const arity = commonVariables.length;
+        const separator = isNonTerminal ? '//' : '/';
+        const indicator = `${trimmedPredicateName}${separator}${arity}`;
+        window.showInformationMessage(`Extracted ${isNonTerminal ? 'non-terminal' : 'predicate'}: ${indicator}`);
+      } else {
+        window.showErrorMessage("Failed to apply extraction.");
+      }
+    } catch (error) {
+      this.logger.error(`Error in extractPredicate: ${error}`);
+      window.showErrorMessage(`Error in extractPredicate: ${error}`);
     }
   }
 
