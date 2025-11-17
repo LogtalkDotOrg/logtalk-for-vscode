@@ -3865,6 +3865,12 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     }
 
+    // If there's a rule head before the selection start or a comma at the end of the previous line, it's likely in the middle of the body
+    const previousLineText = startLine > 0 ? document.lineAt(startLine - 1).text.trimEnd() : '';
+    if (previousLineText.endsWith(':-') || previousLineText.endsWith('-->') || previousLineText.endsWith(',')) {
+      return false;
+    }
+
     // Check the last line of the selection (after trimming empty lines)
     const lastLineText = document.lineAt(endLine).text;
     let lastLineTrimmed = lastLineText.trim();
