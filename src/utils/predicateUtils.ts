@@ -990,7 +990,7 @@ export class PredicateUtils {
    */
   private static addVariableIfValid(token: string, variables: Set<string>): void {
     // Variables must start with uppercase letter or underscore
-    if (token && /^[A-Z_]/.test(token)) {
+    if (token && /^[A-Z_]/.test(token) && token !== '_') {
       variables.add(token);
     }
   }
