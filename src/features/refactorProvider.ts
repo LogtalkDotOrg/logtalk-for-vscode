@@ -10414,6 +10414,32 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         }
       }
 
+      // Find the end of leading comments (if any)
+      let lastCommentLine = -1;
+      for (let i = firstNonEmptyLine; i < document.lineCount; i++) {
+        const lineText = document.lineAt(i).text.trim();
+
+        // Check if this line is a comment
+        if (lineText.startsWith('%') || lineText.startsWith('/*')) {
+          lastCommentLine = i;
+          // For block comments, find the closing */
+          if (lineText.startsWith('/*') && !lineText.includes('*/')) {
+            for (let j = i + 1; j < document.lineCount; j++) {
+              lastCommentLine = j;
+              if (document.lineAt(j).text.includes('*/')) {
+                break;
+              }
+            }
+          }
+        } else if (lineText === '') {
+          // Empty line - continue checking
+          continue;
+        } else {
+          // Non-comment, non-empty line - stop
+          break;
+        }
+      }
+
       // Find the last non-empty line from the end
       let lastNonEmptyLine = document.lineCount - 1;
       for (let i = document.lineCount - 1; i >= 0; i--) {
@@ -10443,9 +10469,40 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         edit.delete(document.uri, deleteRange);
       }
 
-      // Add object opening directive at the top of the file
-      const openingDirective = `:- object(${objectName}).\n\n`;
-      edit.insert(document.uri, new Position(0, 0), openingDirective);
+      // Find the first non-comment, non-empty line after the comments
+      let firstCodeLine = lastCommentLine >= 0 ? lastCommentLine + 1 : firstNonEmptyLine;
+      while (firstCodeLine < document.lineCount && document.lineAt(firstCodeLine).text.trim() === '') {
+        firstCodeLine++;
+      }
+
+      // Delete any empty lines between the last comment and the first code line
+      if (lastCommentLine >= 0 && firstCodeLine > lastCommentLine + 1) {
+        const deleteRange = new Range(
+          new Position(lastCommentLine + 1, 0),
+          new Position(firstCodeLine, 0)
+        );
+        edit.delete(document.uri, deleteRange);
+      }
+
+      // Add object opening directive
+      // If there are leading comments, add it after the comments with two empty lines before
+      // and one empty line after
+      // Otherwise, add it at the top of the file with one empty line after
+      let openingDirective: string;
+      let insertPosition: Position;
+
+      if (lastCommentLine >= 0) {
+        // Insert after the last comment line with two empty lines before and one after
+        const lastCommentLineText = document.lineAt(lastCommentLine).text;
+        insertPosition = new Position(lastCommentLine, lastCommentLineText.length);
+        openingDirective = '\n\n\n:- object(' + objectName + ').\n';
+      } else {
+        // Insert at the beginning of the file with one empty line after
+        insertPosition = new Position(0, 0);
+        openingDirective = ':- object(' + objectName + ').\n\n';
+      }
+
+      edit.insert(document.uri, insertPosition, openingDirective);
 
       // Add object closing directive at the bottom of the file
       // Use the original line number (lastNonEmptyLine) since all edits are applied to the original document

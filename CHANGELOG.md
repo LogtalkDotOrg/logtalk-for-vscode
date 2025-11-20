@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.76.0]
+
+* Improve the "Wrap file contents as an object" refactoring to insert the object opening directive after any comments at the beginning of the file
+
 ## [0.75.0]
 
 * Add support for renaming variables within the scope of a predicate clause, grammar rule, or directive
