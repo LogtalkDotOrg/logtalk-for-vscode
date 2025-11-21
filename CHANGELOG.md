@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.77.0]
+
+* Fix the settings grouping in the VS Code settings editor
+
 ## [0.76.0]
 
 * Rename the "Renumber variables" refactoring to "Increment numbered variables" and add a corresponding "Decrement numbered variables" refactoring
