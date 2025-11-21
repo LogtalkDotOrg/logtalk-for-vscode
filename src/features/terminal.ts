@@ -1563,6 +1563,10 @@ export default class LogtalkTerminal {
     const result = path.join(wdir, ".vscode_find_parent");
     let loader = fs.readFileSync(result).toString();
     await fsp.rm(result, { force: true });
+    if (loader.trim() === '') {
+      window.showInformationMessage("No parent file found for the current file.");
+      return;
+    }
     workspace.openTextDocument(loader).then(doc => {
       vscode.window.showTextDocument(doc);
     });

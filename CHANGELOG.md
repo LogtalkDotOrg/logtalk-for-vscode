@@ -2,7 +2,8 @@
 
 ## [0.76.0]
 
-* Improve the "Wrap file contents as an object" refactoring to insert the object opening directive after any comments at the beginning of the file
+* Update the "Wrap file contents as an object" refactoring to insert the object opening directive after any comments at the beginning of the file
+* Update the "Open parent file" command to show a message if no parent file is found
 
 ## [0.75.0]
 
