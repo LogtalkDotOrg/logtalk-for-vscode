@@ -2,6 +2,7 @@
 
 ## [0.76.0]
 
+* Rename the "Renumber variables" refactoring to "Increment numbered variables" and add a corresponding "Decrement numbered variables" refactoring
 * Update the "Wrap file contents as an object" refactoring to insert the object opening directive after any comments at the beginning of the file
 * Update the "Open parent file" command to show a message if no parent file is found
 
@@ -10,7 +11,8 @@
 * Add support for renaming variables within the scope of a predicate clause, grammar rule, or directive
 * Add support for renaming parameter variables within the scope of an entity
 * Add "Extract predicate/non-terminal" refactoring support for selected code in predicate clauses and grammar rules
-* Add "Renumber variables" refactoring support for variables ending with numbers within the scope of a predicate clause or grammar rule
+* Add "Increment numbered variables" refactoring support for variables ending with numbers within the scope of a predicate clause or grammar rule
+* Add "Decrement numbered variables" refactoring support for variables ending with numbers within the scope of a predicate clause or grammar rule
 * Add "Unify with new variable" refactoring support for selected terms in predicate rules and grammar rules
 * Add "Inline variable" refactoring support for replacing variable unification goals in predicate rules and grammar rules
 * Add "Wrap file contents as an object" refactoring support for converting plain Prolog files to Logtalk objects

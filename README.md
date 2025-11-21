@@ -329,17 +329,17 @@ Several refactoring operations are supported. Users should commit their work bef
 
 When a refactoring results in changes to multiple files, use the "Save All" command to save all modified files so that a single "Make - Reload" command can be used to reload the modified code. Note that this command can be called automatically when saving files using the `logtalk.make.onSave` setting.
 
-#### Renumber variables
+#### Increment and decrement numbered variables
 
-A "Renumber variables" refactoring operation is available when the user right-clicks on a variable ending with a number in a predicate rule or in a grammar rule and uses the "Refactor" context menu item or the "Refactor" command palette item. The refactoring renumbers all variables with the same prefix and a number equal or greater than the selected variable number in the rule to consecutive numbers. The selected variable can be anywhere in the rule (e.g., in the head, in the body, or in a comment).
+The "Increment numbered variables" and "Decrement numbered variables" refactoring operations are available when the user right-clicks on a variable ending with a number in a predicate rule or in a grammar rule and uses the "Refactor" context menu items or the "Refactor" command palette items. These refactorings increment or decrement all variables with the same prefix and a number equal or greater than the selected variable number in the rule. The selected variable can be anywhere in the rule (e.g., in the head, in the body, or in a comment).
 
-#### Variable inlining
+#### Variable inlining and variable introduction
 
 An "Inline variable" refactoring operation is available when the user selects a unification goal in a rule body and uses the "Refactor" context menu item or the "Refactor" command palette item. The refactoring replaces all occurrences of the variable in the rule with its unified term. The unification goal should be the only goal in the line.
 
-#### Code extraction
-
 A "Unify with new variable" refactoring operation is available when the user selects a complete term in a predicate rule or in a grammar rule (e.g., a head argument) and uses the "Refactor" context menu item or the "Refactor" command palette item. The refactoring asks the user for the name of the new variable, replaces the selected term with the new variable, and adds a unification goal to the rule body (after the rule head when the term is a head argument, before the line of the selected term otherwise).
+
+#### Code extraction
 
 A "Replace magic number with predicate call" refactoring operation is available when the user selects a number in a rule body and uses the "Refactor" context menu item or the "Refactor" command palette item. The user is asked to enter the name of the predicate to be created and its scope. The predicate is created with the number as its single argument and added to the entity. The selected number is replaced with a variable derived from the predicate name and the rule body is updated with a call to the new predicate inserted after the clause head (note that when compiling the code in optimal mode, the call to the new predicate is inlined).
 
@@ -352,11 +352,12 @@ Four other code extraction refactoring operations are supported when the user se
 - "Extract to Logtalk entity" (the user is asked to select the target entity)
 - "Extract to new Logtalk entity" (the user is asked to select the entity type, entity name, file name, and file location)
 - "Extract to new Logtalk file" (the user is asked to select the file name and file location)
-- "Replace with include/1 directive" (the user is asked to select the file name and file location)
 
-#### Resolve include/1 directive
+#### Resolving and introducing include/1 directives
 
 When the user selects a region of code that contains an `include/1` directive, the "Refactor" context menu item or the "Refactor" command palette item provides a "Replace include/1 directive with file contents" action. The included file is resolved if it's a relative or absolute path, with or without a common Logtalk or Prolog extension. The included file contents are indented to match the indentation of the `include/1` directive.
+
+The "Replace with include/1 directive" refactoring operation is available when the user selects a region of code and uses the "Refactor" context menu item or the "Refactor" command palette item. The user is asked to select the new file name and file location. The selected code is extracted to the new file and the selection is replaced with an `include/1` directive.
 
 #### Symbol renaming
 

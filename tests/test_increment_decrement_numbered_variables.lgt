@@ -1,10 +1,10 @@
-:- object(test_renumber_variables).
+:- object(test_increment_decrement_numbered_variables).
 
   :- info([
     version is 1:0:0,
     author is 'Paulo Moura',
     date is 2025-11-15,
-    comment is 'Test cases for the "Renumber variables" refactoring.'
+    comment is 'Test cases for the "Increment numbered variables" and "Decrement numbered variables" refactorings.'
   ]).
 
   :- public(example1/2).

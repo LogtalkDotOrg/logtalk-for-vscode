@@ -505,19 +505,30 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     }
 
-    // Renumber variables - works with cursor position (empty or non-empty selection)
+    // Increment/Decrement numbered variables - works with cursor position (empty or non-empty selection)
     const variableAtCursor = this.getNumberedVariableAtPosition(document, selection.active);
     if (variableAtCursor && !this.isSelectionInDirective(document, selection)) {
-      const renumberVariablesAction = new CodeAction(
-        "Renumber variables",
+      const incrementVariablesAction = new CodeAction(
+        "Increment numbered variables",
         CodeActionKind.RefactorRewrite
       );
-      renumberVariablesAction.command = {
-        command: "logtalk.refactor.renumberVariables",
-        title: "Renumber variables",
+      incrementVariablesAction.command = {
+        command: "logtalk.refactor.incrementNumberedVariables",
+        title: "Increment numbered variables",
         arguments: [document, selection]
       };
-      actions.push(renumberVariablesAction);
+      actions.push(incrementVariablesAction);
+
+      const decrementVariablesAction = new CodeAction(
+        "Decrement numbered variables",
+        CodeActionKind.RefactorRewrite
+      );
+      decrementVariablesAction.command = {
+        command: "logtalk.refactor.decrementNumberedVariables",
+        title: "Decrement numbered variables",
+        arguments: [document, selection]
+      };
+      actions.push(decrementVariablesAction);
     }
 
     // Sort files by dependencies - for logtalk_load/1-2 predicates with list of atoms
@@ -2984,10 +2995,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Renumber variables in a rule
-   * Finds all variables with the same prefix ending with numbers and renumbers them
+   * Increment numbered variables in a rule
+   * Finds all variables with the same prefix ending with numbers and increments them
    */
-  public async renumberVariables(document: TextDocument, selection: Selection): Promise<void> {
+  public async incrementNumberedVariables(document: TextDocument, selection: Selection): Promise<void> {
     try {
       // Try to get variable at cursor position first
       let variableInfo = this.getNumberedVariableAtPosition(document, selection.active);
@@ -3042,7 +3053,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       // Sort numbers in descending order to avoid conflicts when renaming
       const sortedNumbers = Array.from(numberedVariables.keys()).sort((a, b) => b - a);
 
-      // Renumber variables starting from the selected one
+      // Increment variables starting from the selected one
       for (const num of sortedNumbers) {
         if (num >= selectedNumber) {
           const oldVarName = numberedVariables.get(num)!;
@@ -3070,13 +3081,117 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const success = await workspace.applyEdit(edit);
       if (success) {
         const count = sortedNumbers.filter(n => n >= selectedNumber).length;
-        window.showInformationMessage(`Renumbered ${count} variable${count !== 1 ? 's' : ''}.`);
+        window.showInformationMessage(`Incremented ${count} variable${count !== 1 ? 's' : ''}.`);
       } else {
-        window.showErrorMessage("Failed to renumber variables.");
+        window.showErrorMessage("Failed to increment variables.");
       }
     } catch (error) {
-      this.logger.error(`Error in renumberVariables: ${error}`);
-      window.showErrorMessage(`Error renumbering variables: ${error.message}`);
+      this.logger.error(`Error in incrementNumberedVariables: ${error}`);
+      window.showErrorMessage(`Error incrementing variables: ${error.message}`);
+    }
+  }
+
+  /**
+   * Decrement numbered variables in a rule
+   * Finds all variables with the same prefix ending with numbers and decrements them
+   */
+  public async decrementNumberedVariables(document: TextDocument, selection: Selection): Promise<void> {
+    try {
+      // Try to get variable at cursor position first
+      let variableInfo = this.getNumberedVariableAtPosition(document, selection.active);
+
+      // If no variable at cursor, try parsing the selection
+      if (!variableInfo && !selection.isEmpty) {
+        const selectedText = document.getText(selection).trim();
+        const parsed = this.parseNumberedVariable(selectedText);
+        if (parsed) {
+          variableInfo = {
+            ...parsed,
+            range: selection
+          };
+        }
+      }
+
+      if (!variableInfo) {
+        window.showErrorMessage("Cursor is not on a variable ending with a number.");
+        return;
+      }
+
+      const { prefix, number: selectedNumber } = variableInfo;
+
+      // Find the complete rule range
+      const ruleRange = this.findCompleteRuleRange(document, selection.start.line);
+      if (!ruleRange) {
+        window.showErrorMessage("Could not find the complete rule.");
+        return;
+      }
+
+      // Get the rule text
+      const ruleText = document.getText(ruleRange);
+
+      // Find all variables with the same prefix ending with numbers
+      const variableRegex = new RegExp(`\\b${prefix}(\\d+)\\b`, 'g');
+
+      // Collect all unique numbered variables with this prefix
+      const numberedVariables = new Map<number, string>(); // number -> variable name
+      let match: RegExpExecArray | null;
+      while ((match = variableRegex.exec(ruleText)) !== null) {
+        const num = parseInt(match[1], 10);
+        const varName = `${prefix}${num}`;
+        numberedVariables.set(num, varName);
+      }
+
+      // Check if decrementing would result in a number less than 0
+      const minNumber = Math.min(...Array.from(numberedVariables.keys()).filter(n => n >= selectedNumber));
+      if (minNumber - 1 < 0) {
+        window.showErrorMessage("Cannot decrement: would result in negative variable number.");
+        return;
+      }
+
+      // Calculate the decrement amount (how much to subtract from each number)
+      const decrement = 1;
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Sort numbers in ascending order to avoid conflicts when renaming
+      const sortedNumbers = Array.from(numberedVariables.keys()).sort((a, b) => a - b);
+
+      // Decrement variables starting from the selected one
+      for (const num of sortedNumbers) {
+        if (num >= selectedNumber) {
+          const oldVarName = numberedVariables.get(num)!;
+          const newNum = num - decrement;
+          const newVarName = `${prefix}${newNum}`;
+
+          // Find and replace all occurrences of this variable in the rule
+          for (let lineNum = ruleRange.start.line; lineNum <= ruleRange.end.line; lineNum++) {
+            const lineText = document.lineAt(lineNum).text;
+            const lineMatches = [...lineText.matchAll(new RegExp(`\\b${oldVarName}\\b`, 'g'))];
+
+            for (const lineMatch of lineMatches) {
+              const startChar = lineMatch.index!;
+              const endChar = startChar + oldVarName.length;
+              const replaceRange = new Range(
+                new Position(lineNum, startChar),
+                new Position(lineNum, endChar)
+              );
+              edit.replace(document.uri, replaceRange, newVarName);
+            }
+          }
+        }
+      }
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        const count = sortedNumbers.filter(n => n >= selectedNumber).length;
+        window.showInformationMessage(`Decremented ${count} variable${count !== 1 ? 's' : ''}.`);
+      } else {
+        window.showErrorMessage("Failed to decrement variables.");
+      }
+    } catch (error) {
+      this.logger.error(`Error in decrementNumberedVariables: ${error}`);
+      window.showErrorMessage(`Error decrementing variables: ${error.message}`);
     }
   }
 

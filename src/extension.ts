@@ -584,9 +584,17 @@ export async function activate(context: ExtensionContext) {
   );
 
   context.subscriptions.push(
-    commands.registerCommand('logtalk.refactor.renumberVariables', async (document, selection) => {
+    commands.registerCommand('logtalk.refactor.incrementNumberedVariables', async (document, selection) => {
       if (refactorProvider) {
-        await refactorProvider.renumberVariables(document, selection);
+        await refactorProvider.incrementNumberedVariables(document, selection);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.decrementNumberedVariables', async (document, selection) => {
+      if (refactorProvider) {
+        await refactorProvider.decrementNumberedVariables(document, selection);
       }
     })
   );
