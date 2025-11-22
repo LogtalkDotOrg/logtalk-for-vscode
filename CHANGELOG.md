@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.78.0]
+
+* Fix walkthrough listing of supported Prolog backends
+
 ## [0.77.0]
 
 * Fix the settings grouping in the VS Code settings editor

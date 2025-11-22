@@ -17,8 +17,6 @@ The Prolog backend you intend to use, specified using its identifier:
 * CxProlog: `cx`
 * ECLiPSe: `eclipse`
 * GNU Prolog: `gnu`
-* JIProlog: `ji`
-* Quintus Prolog: `quintus`
 * SICStus Prolog: `sicstus`
 * SWI-Prolog: `swi`
 * Tau Prolog: `tau`
