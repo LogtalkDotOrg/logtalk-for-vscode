@@ -151,21 +151,6 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
                   selection.end.character > document.lineAt(selection.end.line).text.length)) {
         // Selection spans multiple lines OR includes at least one complete line
 
-        // Check if selection contains a list directive that can be split
-        const listDirectiveInfo = this.containsListDirective(document, selection);
-        if (listDirectiveInfo) {
-          const splitDirectivesAction = new CodeAction(
-            "Split in individual directives",
-            CodeActionKind.RefactorRewrite
-          );
-          splitDirectivesAction.command = {
-            command: "logtalk.refactor.splitInIndividualDirectives",
-            title: "Split in individual directives",
-            arguments: [document, listDirectiveInfo]
-          };
-          actions.push(splitDirectivesAction);
-        }
-
         // Provide extract actions when the selection contains complete terms
         const containsCompleteTerms = this.selectionContainsCompleteTerms(document, selection);
         if (containsCompleteTerms) {
@@ -559,6 +544,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         arguments: [document, sortableDirectiveInfo]
       };
       actions.push(sortDirectiveAction);
+    }
+
+    // Split in individual directives - for directives with list arguments
+    const splittableDirectiveInfo = this.detectSplittableDirective(document, position);
+    if (splittableDirectiveInfo) {
+      const splitDirectiveAction = new CodeAction(
+        "Split in individual directives",
+        CodeActionKind.RefactorRewrite
+      );
+      splitDirectiveAction.command = {
+        command: "logtalk.refactor.splitInIndividualDirectives",
+        title: "Split in individual directives",
+        arguments: [document, splittableDirectiveInfo]
+      };
+      actions.push(splitDirectiveAction);
     }
 
     return actions;
@@ -4234,64 +4234,48 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Check if the selection contains a list directive that can be split
-   *
-   * Checks for directives: public/1, protected/1, private/1, dynamic/1, multifile/1,
-   * discontiguous/1, synchronized/1 with list arguments containing multiple indicators
+   * Detect if the cursor is on a directive name that can be split into individual directives.
+   * Supports directives with a single list argument: public/1, protected/1, private/1,
+   * dynamic/1, multifile/1, discontiguous/1, synchronized/1, coinductive/1.
    *
    * @param document The text document
-   * @param selection The selected range
+   * @param position The cursor position
    * @returns Directive info if found, null otherwise
    */
-  private containsListDirective(document: TextDocument, selection: Selection): {
+  private detectSplittableDirective(document: TextDocument, position: Position): {
     directiveName: string;
     range: { start: number; end: number };
     indicators: string[];
   } | null {
-    // Skip empty lines and line comments at the start of the selection
-    let startLine = selection.start.line;
-    const endLine = selection.end.line;
+    const line = document.lineAt(position.line);
+    const lineText = line.text;
 
-    while (startLine <= endLine) {
-      const lineText = document.lineAt(startLine).text.trim();
+    // Check if cursor is on a directive name
+    // Directive types that can have list arguments and be split
+    const splittableDirectivePattern = /\b(public|protected|private|dynamic|multifile|discontiguous|synchronized|coinductive)\s*\(/;
+    const wordRange = document.getWordRangeAtPosition(position, splittableDirectivePattern);
 
-      // Skip empty lines and line comments
-      if (lineText === '' || lineText.startsWith('%')) {
-        startLine++;
-        continue;
-      }
-
-      break;
-    }
-
-    // No non-comment, non-empty line found
-    if (startLine > endLine) {
+    if (!wordRange) {
       return null;
     }
 
-    const lineText = document.lineAt(startLine).text.trim();
+    const word = document.getText(wordRange);
+    const directiveMatch = word.match(/^(public|protected|private|dynamic|multifile|discontiguous|synchronized|coinductive)/);
 
-    // Check if this line starts a directive with a list argument
-    const directiveMatch = lineText.match(/^:-\s*(\w+)\(\[/);
     if (!directiveMatch) {
       return null;
     }
 
     const directiveName = directiveMatch[1];
 
-    // Directive types that can have list arguments
-    const listDirectiveTypes = [
-      'public', 'protected', 'private',
-      'dynamic', 'multifile', 'discontiguous', 'synchronized'
-    ];
-
-    // Check if it's one of the supported list directive types
-    if (!listDirectiveTypes.includes(directiveName)) {
+    // Find the start of the directive (the :- part)
+    const directiveStartMatch = lineText.match(/:-\s*\w+/);
+    if (!directiveStartMatch) {
       return null;
     }
 
     // Get the complete directive range
-    const directiveRange = PredicateUtils.getDirectiveRange(document, startLine);
+    const directiveRange = PredicateUtils.getDirectiveRange(document, position.line);
 
     // Get the complete directive text
     let directiveText = '';

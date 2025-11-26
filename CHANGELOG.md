@@ -3,6 +3,7 @@
 ## [0.78.0]
 
 * Add "Sort predicates/non-terminals" refactoring support for predicate directives with a list argument
+* Simplify the "Split in individual directives" refactoring by not requiring the user to select a region containing the directive
 * Fix walkthrough listing of supported Prolog backends
 
 ## [0.77.0]
