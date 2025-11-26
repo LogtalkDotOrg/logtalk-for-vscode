@@ -28,6 +28,7 @@ import { LogtalkDeclarationProvider } from "./declarationProvider";
 import { LogtalkDefinitionProvider } from "./definitionProvider";
 import { LogtalkImplementationProvider } from "./implementationProvider";
 import { LogtalkReferenceProvider } from "./referenceProvider";
+import { LogtalkDocumentRangeFormattingEditProvider } from "./documentRangeFormattingEditProvider";
 import { SymbolUtils, PatternSets, SymbolRegexes } from "../utils/symbols";
 import LogtalkTerminal from "./terminal";
 import * as path from "path";
@@ -45,6 +46,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   private definitionProvider = new LogtalkDefinitionProvider();
   private implementationProvider = new LogtalkImplementationProvider();
   private referenceProvider = new LogtalkReferenceProvider();
+  private rangeFormatter = new LogtalkDocumentRangeFormattingEditProvider();
 
   public async provideCodeActions(
     document: TextDocument,
@@ -11272,6 +11274,11 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       const success = await workspace.applyEdit(edit);
       if (success) {
+        // If multi-line, apply formatting using the formatter
+        if (directiveInfo.isMultiLine) {
+          await this.formatSortedDirective(document, directiveInfo);
+        }
+
         this.logger.info(`Successfully sorted ${directiveInfo.directiveName} directive`);
         window.showInformationMessage(`Sorted ${directiveInfo.directiveName} directive`);
       } else {
@@ -11280,6 +11287,58 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error sorting directive: ${error}`);
       window.showErrorMessage(`Error sorting directive: ${error}`);
+    }
+  }
+
+  /**
+   * Format a sorted directive using the document range formatter
+   */
+  private async formatSortedDirective(
+    document: TextDocument,
+    directiveInfo: {
+      directiveName: string;
+      directiveRange: { start: number; end: number };
+      isSingleArgumentDirective: boolean;
+    }
+  ): Promise<void> {
+    try {
+      // Get the updated document (after sorting was applied)
+      const updatedDocument = await workspace.openTextDocument(document.uri);
+
+      // Create a range for the directive
+      const range = new Range(
+        new Position(directiveInfo.directiveRange.start, 0),
+        new Position(
+          directiveInfo.directiveRange.end,
+          updatedDocument.lineAt(directiveInfo.directiveRange.end).text.length
+        )
+      );
+
+      // Use the document range formatter to format the directive
+      const formattingOptions = {
+        tabSize: 4,
+        insertSpaces: false
+      };
+
+      const edits = this.rangeFormatter.provideDocumentRangeFormattingEdits(
+        updatedDocument,
+        range,
+        formattingOptions,
+        null as any // CancellationToken - not needed for our use case
+      );
+
+      if (edits && edits.length > 0) {
+        const formatEdit = new WorkspaceEdit();
+        edits.forEach(edit => {
+          formatEdit.replace(updatedDocument.uri, edit.range, edit.newText);
+        });
+
+        await workspace.applyEdit(formatEdit);
+        this.logger.info(`Applied formatting to sorted ${directiveInfo.directiveName} directive`);
+      }
+    } catch (error) {
+      this.logger.error(`Error formatting sorted directive: ${error}`);
+      // Don't show error to user - formatting is optional
     }
   }
 
