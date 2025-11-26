@@ -546,6 +546,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       actions.push(sortFilesAction);
     }
 
+    // Sort predicates/non-terminals - for various directives with list arguments
+    const sortableDirectiveInfo = this.detectSortableDirective(document, position);
+    if (sortableDirectiveInfo) {
+      const sortDirectiveAction = new CodeAction(
+        "Sort predicates/non-terminals",
+        CodeActionKind.RefactorRewrite
+      );
+      sortDirectiveAction.command = {
+        command: "logtalk.refactor.sortDirectiveList",
+        title: "Sort predicates/non-terminals",
+        arguments: [document, sortableDirectiveInfo]
+      };
+      actions.push(sortDirectiveAction);
+    }
+
     return actions;
   }
 
@@ -1788,6 +1803,245 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       files: files,
       isMultiLine: isMultiLine,
       indentation: indentation
+    };
+  }
+
+  /**
+   * Detect if the cursor is positioned on a directive name in a sortable directive
+   * Supports:
+   * - Two-argument directives: uses/2, use_module/2, alias/2 (sorts second argument)
+   * - Single-argument directives: public/1, protected/1, private/1, dynamic/1,
+   *   discontiguous/1, multifile/1, synchronized/1, coinductive/1 (sorts first argument)
+   * @param document The text document
+   * @param position The cursor position
+   * @returns Information about the directive if detected, null otherwise
+   */
+  private detectSortableDirective(document: TextDocument, position: Position): {
+    directiveName: string;
+    line: number;
+    directiveRange: { start: number; end: number };
+    listRange: Range;
+    elements: string[];
+    isMultiLine: boolean;
+    indentation: string;
+    isSingleArgumentDirective: boolean;
+  } | null {
+    // Check if the cursor is on one of the directive names
+    const twoArgPattern = /\b(uses|use_module|alias)\s*\(/;
+    const singleArgPattern = /\b(public|protected|private|dynamic|discontiguous|multifile|synchronized|coinductive)\s*\(/;
+
+    let wordRange = document.getWordRangeAtPosition(position, twoArgPattern);
+    let isSingleArgumentDirective = false;
+
+    if (!wordRange) {
+      wordRange = document.getWordRangeAtPosition(position, singleArgPattern);
+      isSingleArgumentDirective = true;
+    }
+
+    if (!wordRange) {
+      return null;
+    }
+
+    const matchedText = document.getText(wordRange);
+    const directiveName = matchedText.match(/\b(uses|use_module|alias|public|protected|private|dynamic|discontiguous|multifile|synchronized|coinductive)/)?.[1];
+    if (!directiveName) {
+      return null;
+    }
+
+    this.logger.debug(`Cursor is on ${directiveName} directive at line ${position.line + 1}`);
+
+    // Get the full directive range
+    const directiveRange = PredicateUtils.getDirectiveRange(document, position.line);
+
+    // Get the full directive text
+    let directiveText = '';
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      directiveText += document.lineAt(lineNum).text.trim();
+    }
+
+    // Parse the directive to extract arguments
+    const directivePattern = new RegExp(`^:-\\s*${directiveName}\\(\\s*(.*)\\)\\s*\\.$`);
+    const match = directiveText.match(directivePattern);
+    if (!match) {
+      this.logger.debug(`Could not parse ${directiveName} directive`);
+      return null;
+    }
+
+    const argumentsText = match[1].trim();
+    if (!argumentsText) {
+      return null;
+    }
+
+    // Parse the arguments
+    const directiveArguments = ArgumentUtils.parseArguments(argumentsText);
+
+    let listArgument: string;
+
+    if (isSingleArgumentDirective) {
+      // For single-argument directives (public/1, protected/1, etc.), the first argument should be a list
+      if (directiveArguments.length !== 1) {
+        this.logger.debug(`${directiveName} directive does not have exactly 1 argument`);
+        return null;
+      }
+      listArgument = directiveArguments[0].trim();
+    } else {
+      // For two-argument directives (uses/2, use_module/2, alias/2), the second argument should be a list
+      if (directiveArguments.length !== 2) {
+        this.logger.debug(`${directiveName} directive does not have exactly 2 arguments`);
+        return null;
+      }
+      listArgument = directiveArguments[1].trim();
+    }
+
+    // Extract list content from [...]
+    const listMatch = listArgument.match(/^\[(.*)\]$/);
+    if (!listMatch) {
+      this.logger.debug(`Second argument is not a list`);
+      return null;
+    }
+
+    const listContent = listMatch[1].trim();
+    if (!listContent) {
+      this.logger.debug(`List is empty`);
+      return null;
+    }
+
+    // Parse list elements
+    const elements = ArgumentUtils.parseArguments(listContent);
+    this.logger.debug(`Parsed ${elements.length} list elements`);
+
+    // Need at least 2 elements to make sorting meaningful
+    if (elements.length < 2) {
+      this.logger.debug(`List has only ${elements.length} element(s), need at least 2`);
+      return null;
+    }
+
+    // Find the list range in the document
+    // We need to find where the [ and ] are in the actual document
+    let listStartLine = -1;
+    let listStartChar = -1;
+    let listEndLine = -1;
+    let listEndChar = -1;
+
+    // Search for the opening [ of the list argument
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+
+      let foundFirstArg = false;
+      let depth = 0;
+      let inQuotes = false;
+      let inSingleQuotes = false;
+
+      for (let i = 0; i < lineText.length; i++) {
+        const char = lineText[i];
+
+        if (char === '"' && !inSingleQuotes) {
+          inQuotes = !inQuotes;
+        } else if (char === "'" && !inQuotes) {
+          inSingleQuotes = !inSingleQuotes;
+        } else if (!inQuotes && !inSingleQuotes) {
+          if (char === '(') {
+            depth++;
+          } else if (char === ')') {
+            depth--;
+          } else if (isSingleArgumentDirective) {
+            // For single-argument directives, find the first [ after the opening (
+            if (char === '[' && depth === 1) {
+              listStartLine = lineNum;
+              listStartChar = i;
+              break;
+            }
+          } else {
+            // For two-argument directives, skip the first argument and find the [ that starts the second argument
+            if (char === ',' && depth === 1 && !foundFirstArg) {
+              // Found the comma after the first argument
+              foundFirstArg = true;
+            } else if (char === '[' && foundFirstArg && depth === 1) {
+              // Found the opening [ of the second argument
+              listStartLine = lineNum;
+              listStartChar = i;
+              break;
+            }
+          }
+        }
+      }
+
+      if (listStartLine !== -1) {
+        break;
+      }
+    }
+
+    if (listStartLine === -1) {
+      this.logger.debug(`Could not find opening [ of list`);
+      return null;
+    }
+
+    // Search for the closing ]
+    let depth = 0;
+    let inQuotes = false;
+    let inSingleQuotes = false;
+
+    for (let lineNum = listStartLine; lineNum <= directiveRange.end; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      const startChar = (lineNum === listStartLine) ? listStartChar : 0;
+
+      for (let i = startChar; i < lineText.length; i++) {
+        const char = lineText[i];
+
+        if (char === '"' && !inSingleQuotes) {
+          inQuotes = !inQuotes;
+        } else if (char === "'" && !inQuotes) {
+          inSingleQuotes = !inSingleQuotes;
+        } else if (!inQuotes && !inSingleQuotes) {
+          if (char === '[') {
+            depth++;
+          } else if (char === ']') {
+            depth--;
+            if (depth === 0) {
+              // Found the closing ]
+              listEndLine = lineNum;
+              listEndChar = i;
+              break;
+            }
+          }
+        }
+      }
+
+      if (listEndLine !== -1) {
+        break;
+      }
+    }
+
+    if (listEndLine === -1) {
+      this.logger.debug(`Could not find closing ] of list`);
+      return null;
+    }
+
+    // Determine if the directive is multi-line
+    const isMultiLine = listStartLine !== listEndLine;
+
+    // Get the indentation from the directive line
+    const directiveLine = document.lineAt(directiveRange.start).text;
+    const indentMatch = directiveLine.match(/^(\s*)/);
+    const indentation = indentMatch ? indentMatch[1] : '';
+
+    // Create the list range (from [ to ])
+    const listRange = new Range(
+      new Position(listStartLine, listStartChar),
+      new Position(listEndLine, listEndChar + 1)
+    );
+
+    this.logger.debug(`Valid ${directiveName} directive detected with ${elements.length} elements, isMultiLine=${isMultiLine}`);
+
+    return {
+      directiveName: directiveName,
+      line: position.line,
+      directiveRange: directiveRange,
+      listRange: listRange,
+      elements: elements,
+      isMultiLine: isMultiLine,
+      indentation: indentation,
+      isSingleArgumentDirective: isSingleArgumentDirective
     };
   }
 
@@ -10966,6 +11220,82 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     } catch (error) {
       this.logger.error(`Error sorting files by dependencies: ${error}`);
       window.showErrorMessage(`Error sorting files by dependencies: ${error}`);
+    }
+  }
+
+  /**
+   * Sort the list of predicates/non-terminals in sortable directives
+   * Supports:
+   * - Two-argument directives: uses/2, use_module/2, alias/2 (sorts second argument)
+   * - Single-argument directives: public/1, protected/1, private/1, dynamic/1,
+   *   discontiguous/1, multifile/1, synchronized/1, coinductive/1 (sorts first argument)
+   * @param document The text document
+   * @param directiveInfo Information about the directive
+   */
+  public async sortDirectiveList(
+    document: TextDocument,
+    directiveInfo: {
+      directiveName: string;
+      line: number;
+      directiveRange: { start: number; end: number };
+      listRange: Range;
+      elements: string[];
+      isMultiLine: boolean;
+      indentation: string;
+      isSingleArgumentDirective: boolean;
+    }
+  ): Promise<void> {
+    try {
+      this.logger.info(`Sorting ${directiveInfo.directiveName} directive with ${directiveInfo.elements.length} elements`);
+
+      // Sort the elements alphabetically (case-insensitive)
+      const sortedElements = [...directiveInfo.elements].sort((a, b) => {
+        // For all directives, if an element has an alias (uses 'as'), sort by the original
+        // predicate/non-terminal name (the part before 'as')
+        let aKey = a.trim();
+        let bKey = b.trim();
+
+        // Extract the part before 'as' if present (for alias/2, uses/2, and use_module/2 with aliases)
+        const aMatch = aKey.match(/^(.+?)\s+as\s+/);
+        const bMatch = bKey.match(/^(.+?)\s+as\s+/);
+
+        if (aMatch) {
+          aKey = aMatch[1].trim();
+        }
+        if (bMatch) {
+          bKey = bMatch[1].trim();
+        }
+
+        // Case-insensitive comparison
+        return aKey.toLowerCase().localeCompare(bKey.toLowerCase());
+      });
+
+      // Build the new list text based on whether original was multi-line or single-line
+      let newListText: string;
+      if (directiveInfo.isMultiLine) {
+        // Multi-line format: one element per line with indentation
+        const elementIndent = directiveInfo.indentation + '\t';
+        const elements = sortedElements.map(elem => elementIndent + elem.trim()).join(',\n');
+        newListText = '[\n' + elements + '\n' + directiveInfo.indentation + ']';
+      } else {
+        // Single-line format
+        newListText = '[' + sortedElements.map(elem => elem.trim()).join(', ') + ']';
+      }
+
+      // Replace the list in the document
+      const edit = new WorkspaceEdit();
+      edit.replace(document.uri, directiveInfo.listRange, newListText);
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        this.logger.info(`Successfully sorted ${directiveInfo.directiveName} directive`);
+        window.showInformationMessage(`Sorted ${directiveInfo.directiveName} directive`);
+      } else {
+        window.showErrorMessage('Failed to apply sorting');
+      }
+    } catch (error) {
+      this.logger.error(`Error sorting directive: ${error}`);
+      window.showErrorMessage(`Error sorting directive: ${error}`);
     }
   }
 

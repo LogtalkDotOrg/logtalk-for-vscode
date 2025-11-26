@@ -680,6 +680,14 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.sortDirectiveList', async (document, directiveInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.sortDirectiveList(document, directiveInfo);
+      }
+    })
+  );
+
   // Listen for breakpoint changes
   context.subscriptions.push(
     debug.onDidChangeBreakpoints(session => {

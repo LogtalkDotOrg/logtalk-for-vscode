@@ -384,6 +384,8 @@ To add a declaration for a local predicate (or non-terminal), right-click on the
 
 The "Split in individual directives" refactoring operation is available when the user selects a region of code that contains a predicate directive with a single list argument and uses the "Refactor" context menu item or the "Refactor" command palette item. The directive is split into individual directives, one for each element in the list.
 
+The "Sort predicates/non-terminals" refactoring operation is available when the user right-clicks on the directive name in a predicate directive with a list argument and selects the "Sort predicates/non-terminals" context menu item. The list is sorted alphabetically while trying to preserve the formatting (single-line or multi-line). For directives defining aliases (using the `as` operator), the sorting is based on the original predicate/non-terminal name (the left operand of the `as` operator).
+
 #### Converting between object, protocol, and category entity types
 
 Right-click on an entity name in its opening directive and select the "Convert ... to object", "Convert ... to protocol", or "Convert ... to category" context menu items. The applicability of these operations depends on the entity type and its opening directive arguments. Note that the entity name is not changed and further edits may be required to the entity code after the conversion to make it valid (for example, removing predicate definitions that are not allowed in a protocol).

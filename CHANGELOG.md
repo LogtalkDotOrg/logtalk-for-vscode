@@ -2,6 +2,7 @@
 
 ## [0.78.0]
 
+* Add "Sort predicates/non-terminals" refactoring support for predicate directives with a list argument
 * Fix walkthrough listing of supported Prolog backends
 
 ## [0.77.0]
