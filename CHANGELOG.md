@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.79.0]
+
+* Fix handling of terminal links on Windows with drive letters in the file path
+
 ## [0.78.0]
 
 * Add "Sort predicates/non-terminals" refactoring support for predicate directives with a list argument

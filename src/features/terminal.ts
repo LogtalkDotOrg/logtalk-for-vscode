@@ -357,20 +357,40 @@ export default class LogtalkTerminal {
         },
         handleTerminalLink: async (tooltipText) => {
 
-          let text =  tooltipText.tooltip.split(":");
-          let range = text[1].split("-");
-          var pos1 = new vscode.Position(parseInt(range[0]) - 1,0);
+          // Handle Windows paths with drive letters (e.g., c:\path\file.lgt:848)
+          // On Windows, the tooltip will be like "c:\path\file.lgt:848"
+          // We need to extract the file path and line number correctly
+          let filePath: string;
+          let lineInfo: string;
+
+          const tooltip = tooltipText.tooltip;
+
+          // Check if this is a Windows path (starts with drive letter followed by colon)
+          if (process.platform === 'win32' && /^[a-zA-Z]:/.test(tooltip)) {
+            // Find the last colon which separates the file path from the line number
+            const lastColonIndex = tooltip.lastIndexOf(':');
+            filePath = tooltip.substring(0, lastColonIndex);
+            lineInfo = tooltip.substring(lastColonIndex + 1);
+          } else {
+            // Unix-style path
+            const parts = tooltip.split(":");
+            filePath = parts[0];
+            lineInfo = parts[1];
+          }
+
+          const range = lineInfo.split("-");
+          var pos1 = new vscode.Position(parseInt(range[0]) - 1, 0);
           var pos2;
           if(range[1]) {
-            pos2 = new vscode.Position(parseInt(range[1]),0);
+            pos2 = new vscode.Position(parseInt(range[1]), 0);
           } else {
             pos2 = pos1;
           }
 
-          vscode.workspace.openTextDocument(text[0]).then(
+          vscode.workspace.openTextDocument(filePath).then(
             document => vscode.window.showTextDocument(document).then((editor) =>
               {
-                editor.selections = [new vscode.Selection(pos1,pos2)]; 
+                editor.selections = [new vscode.Selection(pos1, pos2)];
                 var range = new vscode.Range(pos1, pos2);
                 editor.revealRange(range);
               }
