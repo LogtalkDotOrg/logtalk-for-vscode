@@ -2,6 +2,7 @@
 
 ## [0.79.0]
 
+* Add support for ctrl-click on file paths in "loaded" comment messages in the terminal
 * Fix handling of terminal links on Windows with drive letters in the file path
 
 ## [0.78.0]

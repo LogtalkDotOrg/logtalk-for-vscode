@@ -324,77 +324,113 @@ export default class LogtalkTerminal {
         isTransient: true
       });
 
-      let UrlRegex = new RegExp(/(in file)\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/);
+      // Match "in file <path> at/between line(s) <number(s)>" pattern for warnings/errors
+      let errorWarningRegex = new RegExp(/(in file)\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/);
+      // Match "% [ <path> loaded ]" pattern for informative messages
+      let loadedRegex = new RegExp(/%\s\[\s(.+?)\sloaded\s\]/);
 
       vscode.window.registerTerminalLinkProvider({
         provideTerminalLinks: (context: vscode.TerminalLinkContext, token: vscode.CancellationToken) => {
 
-          let match = UrlRegex.exec(context.line);
-    
-          if (match == null) {
-            return [];
-          } else if (match.length === 0) {
-            return [];
+          // Try to match error/warning pattern first
+          let match = errorWarningRegex.exec(context.line);
+
+          if (match != null && match.length > 0) {
+            // Error/warning pattern matched
+            const startIndex = context.line.indexOf(match[0]) + 5; // "file"
+
+            let file = match[2] + ":"
+
+            if (match[7] && match[8]) {
+              file += match[7] + "-" + match[8]
+            } else if (match[10]){
+              file += match[10];
+            } else {
+              file += match[5];
+            }
+
+            return [{
+              startIndex,
+              length: match[2].length,
+              tooltip: file
+            }]
           }
 
-          const startIndex = context.line.indexOf(match[0]) + 5; // "file"
+          // Try to match loaded file pattern
+          match = loadedRegex.exec(context.line);
 
-          let file = match[2] + ":"
+          if (match != null && match.length > 0) {
+            // Loaded file pattern matched
+            const filePath = match[1];
+            const startIndex = context.line.indexOf(filePath);
 
-          if (match[7] && match[8]) {
-            file += match[7] + "-" + match[8]
-          } else if (match[10]){
-            file += match[10];
-          } else {
-            file += match[5];
+            return [{
+              startIndex,
+              length: filePath.length,
+              tooltip: filePath
+            }]
           }
-  
-          return [{
-            startIndex,
-            length: match[2].length,
-            tooltip: file
-          }]
+
+          return [];
         },
         handleTerminalLink: async (tooltipText) => {
 
-          // Handle Windows paths with drive letters (e.g., c:\path\file.lgt:848)
-          // On Windows, the tooltip will be like "c:\path\file.lgt:848"
-          // We need to extract the file path and line number correctly
-          let filePath: string;
-          let lineInfo: string;
-
           const tooltip = tooltipText.tooltip;
+          let filePath: string;
+          let lineInfo: string | undefined;
 
-          // Check if this is a Windows path (starts with drive letter followed by colon)
+          // Check if tooltip contains line number information (has a colon after the path)
+          // For Windows: "c:\path\file.lgt:848" or "c:\path\file.lgt"
+          // For Unix: "/path/file.lgt:848" or "/path/file.lgt"
+
           if (process.platform === 'win32' && /^[a-zA-Z]:/.test(tooltip)) {
-            // Find the last colon which separates the file path from the line number
+            // Windows path with drive letter
             const lastColonIndex = tooltip.lastIndexOf(':');
-            filePath = tooltip.substring(0, lastColonIndex);
-            lineInfo = tooltip.substring(lastColonIndex + 1);
+            const driveColonIndex = tooltip.indexOf(':');
+
+            // Check if there's a colon after the drive letter (indicating line number)
+            if (lastColonIndex > driveColonIndex) {
+              // Has line number: "c:\path\file.lgt:848"
+              filePath = tooltip.substring(0, lastColonIndex);
+              lineInfo = tooltip.substring(lastColonIndex + 1);
+            } else {
+              // No line number: "c:\path\file.lgt"
+              filePath = tooltip;
+              lineInfo = undefined;
+            }
           } else {
             // Unix-style path
-            const parts = tooltip.split(":");
-            filePath = parts[0];
-            lineInfo = parts[1];
+            const colonIndex = tooltip.indexOf(':');
+            if (colonIndex !== -1) {
+              // Has line number: "/path/file.lgt:848"
+              filePath = tooltip.substring(0, colonIndex);
+              lineInfo = tooltip.substring(colonIndex + 1);
+            } else {
+              // No line number: "/path/file.lgt"
+              filePath = tooltip;
+              lineInfo = undefined;
+            }
           }
 
-          const range = lineInfo.split("-");
-          var pos1 = new vscode.Position(parseInt(range[0]) - 1, 0);
-          var pos2;
-          if(range[1]) {
-            pos2 = new vscode.Position(parseInt(range[1]), 0);
-          } else {
-            pos2 = pos1;
-          }
-
+          // Open the document
           vscode.workspace.openTextDocument(filePath).then(
-            document => vscode.window.showTextDocument(document).then((editor) =>
-              {
+            document => vscode.window.showTextDocument(document).then((editor) => {
+              // If we have line information, navigate to it
+              if (lineInfo) {
+                const range = lineInfo.split("-");
+                var pos1 = new vscode.Position(parseInt(range[0]) - 1, 0);
+                var pos2;
+                if(range[1]) {
+                  pos2 = new vscode.Position(parseInt(range[1]), 0);
+                } else {
+                  pos2 = pos1;
+                }
                 editor.selections = [new vscode.Selection(pos1, pos2)];
-                var range = new vscode.Range(pos1, pos2);
-                editor.revealRange(range);
+                var revealRange = new vscode.Range(pos1, pos2);
+                editor.revealRange(revealRange);
               }
-            )
+              // If no line info, just open the file at the top (default behavior)
+            })
           )
         }
       });
