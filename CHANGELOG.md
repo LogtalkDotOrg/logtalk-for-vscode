@@ -4,6 +4,7 @@
 
 * Add support for ctrl-click on file paths in "loaded" comment messages in the terminal
 * Fix handling of terminal links on Windows with drive letters in the file path
+* Workaround driver letter casing issues on Windows due to inconsistent path handling between Windows, VSCode, and Node.js APIs
 
 ## [0.78.0]
 

@@ -455,6 +455,21 @@ export default class LogtalkTerminal {
     }
   }
 
+  /**
+   * Normalize a path to use forward slashes and ensure uppercase drive letter on Windows.
+   * @param filePath The file path to normalize
+   * @returns The normalized path with forward slashes and uppercase drive letter
+   */
+  private static normalizePath(filePath: string): string {
+    filePath = path.resolve(filePath).split(path.sep).join("/");
+    // Ensure uppercase drive letter on Windows
+    // VSCode uri.fsPath normalizes drive letters to lowercase, but we want uppercase
+    if (process.platform === 'win32' && /^[a-z]:/.test(filePath)) {
+      return filePath.charAt(0).toUpperCase() + filePath.slice(1);
+    }
+    return filePath;
+  }
+
   public static openLogtalk() {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._terminal.show(true);
@@ -503,8 +518,8 @@ export default class LogtalkTerminal {
     // Declare Variables
     const dir0 = LogtalkTerminal.getWorkspaceFolder(uri);
     const loader0 = path.join(dir0, "loader");
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
+    const loader = LogtalkTerminal.normalizePath(loader0);
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -562,8 +577,8 @@ export default class LogtalkTerminal {
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const loader0 = path.join(dir0, "loader");
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const loader = path.resolve(loader0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
+    const loader = LogtalkTerminal.normalizePath(loader0);
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -621,9 +636,9 @@ export default class LogtalkTerminal {
     // Declare Variables
     let dir0: string;
     dir0 = path.dirname(uri.fsPath);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     const file0: string = await LogtalkTerminal.ensureFile(uri);
-    const file = path.resolve(file0).split(path.sep).join("/");
+    const file = LogtalkTerminal.normalizePath(file0);
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -711,16 +726,16 @@ export default class LogtalkTerminal {
     }
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
+    if (section) {
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
     }
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
@@ -772,8 +787,8 @@ export default class LogtalkTerminal {
     }
 
     const tester0 = path.join(dir0, "tester");
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const tester = path.resolve(tester0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
+    const tester = LogtalkTerminal.normalizePath(tester0);
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -836,8 +851,8 @@ export default class LogtalkTerminal {
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const file = path.resolve(uri.fsPath).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
+    const file = LogtalkTerminal.normalizePath(uri.fsPath);
     let textDocument = null;
     let logtalkUser: string = '';
     // Check for Configurations
@@ -895,8 +910,8 @@ export default class LogtalkTerminal {
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const file = path.resolve(uri.fsPath).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
+    const file = LogtalkTerminal.normalizePath(uri.fsPath);
     let textDocument = null;
     let logtalkUser: string = '';
     // Check for Configurations
@@ -956,8 +971,8 @@ export default class LogtalkTerminal {
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const tester0 = path.join(dir0, "tester");
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const tester = path.resolve(tester0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
+    const tester = LogtalkTerminal.normalizePath(tester0);
     let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
@@ -1018,7 +1033,7 @@ export default class LogtalkTerminal {
   public static async computeMetrics(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     let goals = `vscode::metrics('${dir}').\r`;
     LogtalkTerminal.sendString(goals, true);
@@ -1032,7 +1047,7 @@ export default class LogtalkTerminal {
   public static async rcomputeMetrics(uri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     let goals = `vscode::metrics_recursive('${dir}').\r`;
     LogtalkTerminal.sendString(goals, true);
@@ -1050,8 +1065,8 @@ export default class LogtalkTerminal {
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
     const doclet0 = path.join(dir0, "doclet");
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const doclet = path.resolve(doclet0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
+    const doclet = LogtalkTerminal.normalizePath(doclet0);
     let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
@@ -1135,10 +1150,10 @@ export default class LogtalkTerminal {
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const xmlDir0 = path.join(dir, "xml_docs");
-    const xmlDir = path.resolve(xmlDir0).split(path.sep).join("/");
+    const xmlDir = LogtalkTerminal.normalizePath(xmlDir0);
     LogtalkTerminal.sendString(`vscode::${predicate}('${dir}').\r`, true);
     const marker = path.join(dir0, ".vscode_xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
@@ -1185,7 +1200,7 @@ export default class LogtalkTerminal {
 
   public static async rgenDiagramsHelper(dir0: string, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const project = path.basename(dir);
     const format = workspace.getConfiguration("logtalk").get<string>("diagrams.format", "Graphviz");
@@ -1238,7 +1253,7 @@ export default class LogtalkTerminal {
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     let goals = `vscode::${predicate}('${dir}').\r`;
     LogtalkTerminal.sendString(goals);
@@ -1412,9 +1427,9 @@ export default class LogtalkTerminal {
   public static async getDeclaration(doc: TextDocument, position: Position, call: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    const file = LogtalkTerminal.normalizePath(doc.fileName);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
       throw new Error('No workspace folder open');
@@ -1429,9 +1444,9 @@ export default class LogtalkTerminal {
   public static async getDefinition(doc: TextDocument, position: Position, call: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    const file = LogtalkTerminal.normalizePath(doc.fileName);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
       throw new Error('No workspace folder open');
@@ -1446,9 +1461,9 @@ export default class LogtalkTerminal {
   public static async getTypeDefinition(doc: TextDocument, position: Position, entity: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    const file = LogtalkTerminal.normalizePath(doc.fileName);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
       throw new Error('No workspace folder open');
@@ -1463,9 +1478,9 @@ export default class LogtalkTerminal {
   public static async getReferences(doc: TextDocument, position: Position, call: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    const file = LogtalkTerminal.normalizePath(doc.fileName);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
       throw new Error('No workspace folder open');
@@ -1480,9 +1495,9 @@ export default class LogtalkTerminal {
   public static async getImplementations(doc: TextDocument, position: Position, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = path.resolve(doc.fileName).split(path.sep).join("/");
+    const file = LogtalkTerminal.normalizePath(doc.fileName);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
       throw new Error('No workspace folder open');
@@ -1496,9 +1511,9 @@ export default class LogtalkTerminal {
 
   public static async getCallers(file: string, position: Position, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
-    const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const fileSlash = path.resolve(file).split(path.sep).join("/");
+    const fileSlash = LogtalkTerminal.normalizePath(file);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
       throw new Error('No workspace folder open');
@@ -1512,9 +1527,9 @@ export default class LogtalkTerminal {
 
   public static async getCallees(file: string, position: Position, predicate: string) {
     LogtalkTerminal.createLogtalkTerm();
-    const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const fileSlash = path.resolve(file).split(path.sep).join("/");
+    const fileSlash = LogtalkTerminal.normalizePath(file);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
       throw new Error('No workspace folder open');
@@ -1528,7 +1543,7 @@ export default class LogtalkTerminal {
 
   public static async getAncestors(file: string, entity: string) {
     LogtalkTerminal.createLogtalkTerm();
-    const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
@@ -1543,7 +1558,7 @@ export default class LogtalkTerminal {
 
   public static async getDescendants(file: string, entity: string) {
     LogtalkTerminal.createLogtalkTerm();
-    const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
@@ -1558,7 +1573,7 @@ export default class LogtalkTerminal {
 
   public static async getType(file: string, entity: string): Promise<string> {
     LogtalkTerminal.createLogtalkTerm();
-    const dir = path.resolve(path.dirname(file)).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
@@ -1605,8 +1620,8 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     const dir0: string = LogtalkTerminal.ensureDir(uri);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir0);
-    const dir = path.resolve(dir0).split(path.sep).join("/");
-    const file: string = path.resolve(uri.fsPath).split(path.sep).join("/");
+    const dir = LogtalkTerminal.normalizePath(dir0);
+    const file: string = LogtalkTerminal.normalizePath(uri.fsPath);
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
     if (!wdir) {
       throw new Error('No workspace folder open');
@@ -1870,7 +1885,7 @@ export default class LogtalkTerminal {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
       return undefined;
     }
-    return path.resolve(vscode.workspace.workspaceFolders[0].uri.fsPath).split(path.sep).join("/");
+    return LogtalkTerminal.normalizePath(vscode.workspace.workspaceFolders[0].uri.fsPath);
   }
 
   private static getWorkspaceFolder(uri: Uri): string {
