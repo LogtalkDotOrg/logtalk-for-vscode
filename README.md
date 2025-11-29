@@ -714,7 +714,7 @@ Controls the verbosity of logging output for the Logtalk extension. Available le
 
 Code issues detected when running the "Make - Check" or "Make - Circular" commands are displayed in the integrated terminal but not added to the "PROBLEMS" pane. But when an issue is reported in a source file, you can right-click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in the file path to navigate to the issue location.
 
-On Windows systems, some Prolog backends such as ECLiPSe and XSB are not usable due to file path representation issues.
+On Windows systems, some Prolog backends such as ECLiPSe and XSB are not fully usable due to file path representation issues and backend limitations.
 
 Precise code navigation and quick fixes require a Prolog backend that supports accessing read term starting line but only some backends (B-Prolog, GNU Prolog, JIProlog, SICStus Prolog, SWI-Prolog, Trealla Prolog, XVM, and YAP) provide accurate line numbers. This issue is fixed for ECLiPSe in version 7.2#5 when using Logtalk 3.96.0 or later.
 

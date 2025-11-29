@@ -412,6 +412,11 @@ export default class LogtalkTerminal {
             }
           }
 
+          // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
+          if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
+            filePath = filePath[2] + ':' + filePath.substring(3);
+          }
+
           // Open the document
           vscode.workspace.openTextDocument(filePath).then(
             document => vscode.window.showTextDocument(document).then((editor) => {
@@ -554,7 +559,11 @@ export default class LogtalkTerminal {
           // Extract the directory from the compilation message
           const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
           if (match) {
-            const filePath = match[1];
+            // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
+            let filePath = match[1];
+            if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
+              filePath = filePath[2] + ':' + filePath.substring(3);
+            }
             const compiledDir = path.dirname(filePath);
             LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
           }
@@ -613,7 +622,11 @@ export default class LogtalkTerminal {
           // Extract the directory from the compilation message
           const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
           if (match) {
-            const filePath = match[1];
+            // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
+            let filePath = match[1];
+            if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
+              filePath = filePath[2] + ':' + filePath.substring(3);
+            }
             const compiledDir = path.dirname(filePath);
             LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
           }
@@ -668,7 +681,11 @@ export default class LogtalkTerminal {
           // Extract the directory from the compilation message
           const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
           if (match) {
-            const filePath = match[1];
+            // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
+            let filePath = match[1];
+            if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
+              filePath = filePath[2] + ':' + filePath.substring(3);
+            }
             const compiledDir = path.dirname(filePath);
             LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
           }

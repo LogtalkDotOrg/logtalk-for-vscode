@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.80.0]
+
+* Partial fix for handling ECLiPSe file paths on Windows that start with a double slash followed by a drive letter followed by a slash
+
 ## [0.79.0]
 
 * Add support for ctrl-click on file paths in "loaded" comment messages in the terminal

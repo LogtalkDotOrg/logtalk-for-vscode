@@ -202,6 +202,11 @@ export class SvgViewerProvider {
    */
   private static async handleOpenFile(filePath: string, line?: number, column?: number, fragment?: string, panelKey?: string, panel?: vscode.WebviewPanel, context?: vscode.ExtensionContext) {
     try {
+      // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
+      if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
+        filePath = filePath[2] + ':' + filePath.substring(3);
+      }
+
       // Expand ${workspaceFolder} variable
       let expandedPath = filePath;
       if (filePath.includes('${workspaceFolder}')) {

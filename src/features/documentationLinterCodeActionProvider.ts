@@ -418,7 +418,13 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
     }
     this.logger.debug("severity:", severity);
 
-    let fileName = fs.realpathSync.native(match[6]);
+    // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
+    let filePath = match[6];
+    if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
+      filePath = filePath[2] + ':' + filePath.substring(3);
+    }
+
+    let fileName = fs.realpathSync.native(filePath);
     this.logger.debug(fileName);
     let lineFrom = 0,
         lineTo   = 0;
@@ -472,7 +478,13 @@ export default class LogtalkDocumentationLinter implements CodeActionProvider {
   public clear(line: string) {
     let match = line.match(this.compilingFileRegex)
     if (match) {
-      const filePath = fs.realpathSync.native(match[1]);
+      // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
+      let filePath = match[1];
+      if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
+        filePath = filePath[2] + ':' + filePath.substring(3);
+      }
+
+      filePath = fs.realpathSync.native(filePath);
       this.diagnosticCollection.delete(Uri.file(filePath));
       if (filePath in this.diagnostics) {
         this.diagnostics[filePath] = [];
