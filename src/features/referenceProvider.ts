@@ -83,7 +83,8 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
       const matches = out.matchAll(/File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {
-        locations.push(new Location(Uri.file(match[1]), new Position(parseInt(match[2]) - 1, 0)));
+        let fileName = Utils.normalizeDoubleSlashPath(match[1]);
+        locations.push(new Location(Uri.file(fileName), new Position(parseInt(match[2]) - 1, 0)));
       }
     } else {
       this.logger.error('.vscode_references file not found');

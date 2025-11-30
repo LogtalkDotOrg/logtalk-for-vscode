@@ -81,7 +81,7 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
       await fsp.rm(def, { force: true });
       const match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
-        const fileName: string = match[1];
+        let fileName = Utils.normalizeDoubleSlashPath(match[1]);
         const lineNum: number = parseInt(match[2]);
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }

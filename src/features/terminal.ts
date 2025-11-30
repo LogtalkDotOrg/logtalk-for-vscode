@@ -1904,6 +1904,7 @@ export default class LogtalkTerminal {
     dir: string
   ): void {
     const normalizedDir = fs.realpathSync(dir).split(path.sep).join("/").toLowerCase();
+    getLogger().debug("recordedDir: " + normalizedDir);
     LogtalkTerminal._loadedDirectories.add(normalizedDir);
   }
 
@@ -1911,7 +1912,7 @@ export default class LogtalkTerminal {
     dir: string
   ): void {
     const normalizedDir = fs.realpathSync(dir).split(path.sep).join("/").toLowerCase();
-    getLogger().debug("normalizedDir: " + normalizedDir);
+    getLogger().debug("checkLoadedDir: " + normalizedDir);
 
     if (!LogtalkTerminal._loadedDirectories.has(normalizedDir)) {
       let found: boolean = false;
