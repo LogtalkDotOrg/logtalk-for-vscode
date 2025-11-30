@@ -18,7 +18,6 @@ interface ISnippet {
 }
 import * as fs from "fs";
 import * as fsp from "fs/promises";
-import * as cp from "child_process";
 import * as jsesc from "jsesc";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -366,6 +365,8 @@ export class Utils {
     doc: TextDocument,
     position: Position
   ): string {
+    const { ArgumentUtils } = require('./argumentUtils');
+
     let wordRange: Range = doc.getWordRangeAtPosition(position);
     if (!wordRange) {
       return null;
@@ -385,42 +386,21 @@ export class Utils {
       .slice(wordRange.start.character)
       .replace(/\s+/g, " ");
     if (re.test(text)) {
-      let i = text.indexOf("(") + 1;
-      let parenDepth = 1;
-      while (parenDepth > 0 && i < text.length) {
-        if (text.charAt(i) === "(") {
-          parenDepth++;
-        } else if (text.charAt(i) === ")") {
-          parenDepth--;
-        }
-        i++;
+      // Find the opening parenthesis position
+      const openParenPos = text.indexOf("(");
+      // Use ArgumentUtils to find the matching closing parenthesis
+      const closeParenPos = ArgumentUtils.findMatchingCloseParen(text, openParenPos);
+      if (closeParenPos === -1) {
+        // No matching closing parenthesis found
+        return null;
       }
-      let wholePred = jsesc(text.slice(0, i), { quotes: "double" });
+      let wholePred = text.slice(0, closeParenPos + 1);
       Utils.logger.debug("wholePred: " + wholePred);
-      let env;
-      if (process.platform === 'win32') {
-        env = workspace.getConfiguration("terminal.integrated.env.windows", doc.uri);
-      } else if (process.platform === 'darwin') {
-        env = workspace.getConfiguration("terminal.integrated.env.osx", doc.uri);
-      } else {
-        env = workspace.getConfiguration("terminal.integrated.env.linux", doc.uri);
-      }
-      let pp = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
-        cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
-        env: Object.assign({}, process.env, env),
-        encoding: "utf8",
-        input: `functor(${wholePred}, N, A), write((name=N;arity=A)), nl.`
-      });
 
-      if (pp.status === 0) {
-        let out = pp.stdout.toString();
-        let match = out.match(/name=[(]?(\w+)[)]?;arity=(\d+)/);
-        if (match) {
-          [name, arity] = [match[1], parseInt(match[2])];
-        }
-      } else {
-        Utils.logger.debug(pp.stderr.toString());
-      }
+      // Parse the predicate call using ArgumentUtils
+      const args = ArgumentUtils.extractArgumentsFromCall(wholePred);
+      arity = args.length;
+      Utils.logger.debug("Parsed arity: " + arity);
     } else {
       let m = text.match(re1);
       if (m) {
@@ -563,6 +543,8 @@ export class Utils {
     doc: TextDocument,
     position: Position
   ): string {
+    const { ArgumentUtils } = require('./argumentUtils');
+
     let wordRange: Range = doc.getWordRangeAtPosition(
       position,
       /(\w+(\(.*\))?)?(::|\^\^)?\w+|@\w+/
@@ -586,45 +568,65 @@ export class Utils {
     Utils.logger.debug("text: " + text);
     if (re.test(text)) {
       Utils.logger.debug("match");
-      let i = wordRange.end.character - wordRange.start.character + 1;
-      let parenDepth = 1;
-      // Just find the end of the term by matching parentheses
-      while (parenDepth > 0 && i < text.length) {
-        if (text.charAt(i) === "(") {
-          parenDepth++;
-        } else if (text.charAt(i) === ")") {
-          parenDepth--;
-        }
-        i++;
+      // Find the opening parenthesis position
+      const openParenPos = wordRange.end.character - wordRange.start.character;
+      // Use ArgumentUtils to find the matching closing parenthesis
+      const closeParenPos = ArgumentUtils.findMatchingCloseParen(text, openParenPos);
+      if (closeParenPos === -1) {
+        // No matching closing parenthesis found
+        return null;
       }
-      let wholePred = text.slice(0, i);
+      let wholePred = text.slice(0, closeParenPos + 1);
       Utils.logger.debug("wholePred: " + wholePred);
-      let env;
-      if (process.platform === 'win32') {
-        env = workspace.getConfiguration("terminal.integrated.env.windows", doc.uri);
-      } else if (process.platform === 'darwin') {
-        env = workspace.getConfiguration("terminal.integrated.env.osx", doc.uri);
-      } else {
-        env = workspace.getConfiguration("terminal.integrated.env.linux", doc.uri);
-      }
-      let pp = cp.spawnSync(Utils.RUNTIMEPATH, Utils.RUNTIMEARGS, {
-        cwd: Utils.getWorkspaceFolderFromTextDocument(doc),
-        env: Object.assign({}, process.env, env),
-        encoding: "utf8",
-        input: `(${wholePred} = (Obj::Pred) -> functor(Pred, N, A), write((arity=A;name=(Obj::N))); ${wholePred} = (::Pred) -> functor(Pred, N, A), write((arity=A;name=(::N))); ${wholePred} = (^^Pred) -> functor(Pred, N, A), write((arity=A;name=(^^N))); functor(${wholePred}, N, A), write((arity=A;name=N))), nl.`
-      });
 
-      if (pp.status === 0) {
-        let out = pp.stdout.toString();
-        Utils.logger.debug("out: " + out);
-        let match = out.match(/arity=(\d+);name=(.*)/);
-        if (match) {
-          Utils.logger.debug("m1: " + match[1]);
-          Utils.logger.debug("m2: " + match[2]);
-          [arity, name] = [parseInt(match[1]), match[2]];
+      // Parse the predicate call using regular expressions
+      // Check for Obj::Pred pattern
+      let match = wholePred.match(/^(.+)\s*::\s*(.+)$/);
+      if (match) {
+        const obj = match[1];
+        const pred = match[2];
+        const args = ArgumentUtils.extractArgumentsFromCall(pred);
+        arity = args.length;
+        const predNameMatch = pred.match(/^(\w+)/);
+        if (predNameMatch) {
+          name = obj + "::" + predNameMatch[1];
         }
+        Utils.logger.debug("Obj::Pred pattern - name: " + name + ", arity: " + arity);
       } else {
-        Utils.logger.debug(pp.stderr.toString());
+        // Check for ::Pred pattern
+        match = wholePred.match(/^::\s*(.+)$/);
+        if (match) {
+          const pred = match[1];
+          const args = ArgumentUtils.extractArgumentsFromCall(pred);
+          arity = args.length;
+          const predNameMatch = pred.match(/^(\w+)/);
+          if (predNameMatch) {
+            name = "::" + predNameMatch[1];
+          }
+          Utils.logger.debug("::Pred pattern - name: " + name + ", arity: " + arity);
+        } else {
+          // Check for ^^Pred pattern
+          match = wholePred.match(/^\^\^\s*(.+)$/);
+          if (match) {
+            const pred = match[1];
+            const args = ArgumentUtils.extractArgumentsFromCall(pred);
+            arity = args.length;
+            const predNameMatch = pred.match(/^(\w+)/);
+            if (predNameMatch) {
+              name = "^^" + predNameMatch[1];
+            }
+            Utils.logger.debug("^^Pred pattern - name: " + name + ", arity: " + arity);
+          } else {
+            // Regular predicate call
+            const args = ArgumentUtils.extractArgumentsFromCall(wholePred);
+            arity = args.length;
+            const predNameMatch = wholePred.match(/^(\w+)/);
+            if (predNameMatch) {
+              name = predNameMatch[1];
+            }
+            Utils.logger.debug("Regular predicate - name: " + name + ", arity: " + arity);
+          }
+        }
       }
     } else {
       let m = text.match(re1);

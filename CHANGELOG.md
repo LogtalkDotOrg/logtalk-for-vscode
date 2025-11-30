@@ -2,6 +2,7 @@
 
 ## [0.80.0]
 
+* Improve predicate call parsing performance when using the code navigation features
 * Partial fix for handling ECLiPSe file paths on Windows that start with a double slash followed by a drive letter followed by a slash
 
 ## [0.79.0]
