@@ -413,9 +413,7 @@ export default class LogtalkTerminal {
           }
 
           // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
-          if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
-            filePath = filePath[2] + ':' + filePath.substring(3);
-          }
+          filePath = Utils.normalizeDoubleSlashPath(filePath);
 
           // Open the document
           vscode.workspace.openTextDocument(filePath).then(
@@ -560,10 +558,7 @@ export default class LogtalkTerminal {
           const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
           if (match) {
             // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
-            let filePath = match[1];
-            if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
-              filePath = filePath[2] + ':' + filePath.substring(3);
-            }
+            let filePath = Utils.normalizeDoubleSlashPath(match[1]);
             const compiledDir = path.dirname(filePath);
             LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
           }
@@ -623,10 +618,7 @@ export default class LogtalkTerminal {
           const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
           if (match) {
             // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
-            let filePath = match[1];
-            if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
-              filePath = filePath[2] + ':' + filePath.substring(3);
-            }
+            let filePath = Utils.normalizeDoubleSlashPath(match[1]);
             const compiledDir = path.dirname(filePath);
             LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
           }
@@ -682,10 +674,7 @@ export default class LogtalkTerminal {
           const match = line.match(/% \[ compiling (.*?) \.\.\. \]/);
           if (match) {
             // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
-            let filePath = match[1];
-            if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
-              filePath = filePath[2] + ':' + filePath.substring(3);
-            }
+            let filePath = Utils.normalizeDoubleSlashPath(match[1]);
             const compiledDir = path.dirname(filePath);
             LogtalkTerminal.recordCodeLoadedFromDirectory(compiledDir);
           }

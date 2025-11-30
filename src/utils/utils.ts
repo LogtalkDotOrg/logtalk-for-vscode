@@ -1028,6 +1028,21 @@ export class Utils {
   }
 
   /**
+   * Normalize paths starting with double slash followed by drive letter on Windows.
+   * Converts paths like //C/path to C:/path on Windows systems.
+   * On non-Windows systems, returns the path unchanged.
+   * @param filePath The file path to normalize
+   * @returns The normalized file path
+   */
+  public static normalizeDoubleSlashPath(filePath: string): string {
+    // Handle paths starting with double slash followed by drive letter (e.g., //C/path -> C:/path)
+    if (process.platform === 'win32' && /^\/\/[a-zA-Z]\//.test(filePath)) {
+      return filePath[2] + ':' + filePath.substring(3);
+    }
+    return filePath;
+  }
+
+  /**
    * Clean up temporary files from a given directory.
    * Silently ignores errors if a file cannot be deleted.
    * @param directory The root directory path (can be undefined if no workspace is open)
