@@ -1644,6 +1644,7 @@ export default class LogtalkTerminal {
       window.showInformationMessage("No parent file found for the current file.");
       return;
     }
+    loader = Utils.normalizeDoubleSlashPath(loader);
     workspace.openTextDocument(loader).then(doc => {
       vscode.window.showTextDocument(doc);
     });

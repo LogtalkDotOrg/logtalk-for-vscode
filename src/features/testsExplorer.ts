@@ -510,7 +510,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         const testMatchFailed = line.match(testRegexFailed);
         if (testMatchFailed) {
           testResults.push({
-            file: testMatchFailed[1],
+            file: Utils.normalizeDoubleSlashPath(testMatchFailed[1]),
             line: parseInt(testMatchFailed[2]),
             object: testMatchFailed[3],
             test: testMatchFailed[4],
@@ -520,7 +520,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           continue;
         } else if (testMatch) {
           testResults.push({
-            file: testMatch[1],
+            file: Utils.normalizeDoubleSlashPath(testMatch[1]),
             line: parseInt(testMatch[2]),
             object: testMatch[3],
             test: testMatch[4],
@@ -532,7 +532,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         const summaryMatch = line.match(summaryRegex);
         if (summaryMatch) {
           summaryResults.push({
-            file: summaryMatch[1],
+            file: Utils.normalizeDoubleSlashPath(summaryMatch[1]),
             line: parseInt(summaryMatch[2]),
             object: summaryMatch[3],
             status: summaryMatch[4]
@@ -562,7 +562,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           }
 
           coverageResults.push({
-            file: coverageMatch[1],
+            file: Utils.normalizeDoubleSlashPath(coverageMatch[1]),
             line: parseInt(coverageMatch[2]),
             covered,
             total,
