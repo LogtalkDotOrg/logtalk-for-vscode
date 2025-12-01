@@ -16,6 +16,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { getLogger } from "../utils/logger";
 import LogtalkTerminal from "./terminal";
+import { Utils } from "../utils/utils";
 
 export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
   private logger = getLogger();
@@ -96,33 +97,33 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
         out = fs.readFileSync(recursiveResults).toString();
       }
       if (out) {
-        // use case-insensitive matching to workaround Prolog
-        // backends down-casing file paths on Windows
-        const regex = new RegExp("File:" + file + ";Line:(\\d+);Score:(\\d+)", "ig");
+        // Match any file path, then filter to current file
+        // Use case-insensitive matching to workaround Prolog backends down-casing file paths on Windows
+        const regex = /File:(.+);Line:(\d+);Score:(\d+)/ig;
         let matches = out.matchAll(regex);
         var match = null;
+        var outdated = "";
         for (match of matches) {
-          const showOutdated = (doc.isDirty || LogtalkMetricsCodeLensProvider.outdated) && 
-            fs.existsSync(results) && 
-            fs.readFileSync(results).toString().toLowerCase().includes('file:' + file.toLowerCase() + ';');
-          if (showOutdated) {
+          // Check for cancellation
+          if (token.isCancellationRequested) {
+            return [];
+          }
+
+          // Normalize the matched file path and compare with current file
+          let matchedFile = Utils.normalizeDoubleSlashPath(match[1]);
+          if (matchedFile.toLowerCase() === file.toLowerCase()) {
+            // Found a match for current file (there's a score per entity defined in the file)
+
+            // Alert when results may be outdated
+            if ((doc.isDirty || LogtalkMetricsCodeLensProvider.outdated)) {
+              outdated = " (may be outdated)";
+            }
+
             codeLenses.push(
               new CodeLens(
-                new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
+                new Range(new Position(parseInt(match[2]) - 1, 0), new Position(parseInt(match[2]) - 1, 0)),
                 {
-                  title: "Cyclomatic complexity: " + match[2] + " (may be outdated)",
-                  tooltip: "Re-compute metrics",
-                  command: "logtalk.compute.metrics",
-                  arguments: [doc.uri]
-                }
-              )
-            );
-          } else {
-            codeLenses.push(
-              new CodeLens(
-                new Range(new Position(parseInt(match[1]) - 1, 0), new Position(parseInt(match[1]) - 1, 0)),
-                {
-                  title: "Cyclomatic complexity: " + match[2],
+                  title: "Cyclomatic complexity: " + match[3] + outdated,
                   tooltip: "Re-compute metrics",
                   command: "logtalk.compute.metrics",
                   arguments: [doc.uri]
@@ -130,7 +131,7 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
               )
             );
           }
-        }
+         }
       }
       return codeLenses;
     } else {
