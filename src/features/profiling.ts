@@ -7,6 +7,7 @@ import * as fsp from "fs/promises";
 import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { PredicateUtils } from "../utils/predicateUtils";
+import { Utils } from '../utils/utils';
 
 /**
  * Logtalk Profiling Feature
@@ -868,7 +869,7 @@ export class LogtalkProfiling {
 
         const match = out.match(/File:(.+);Line:(\d+)/);
         if (match) {
-          const fileName: string = match[1];
+          const fileName: string = Utils.normalizeDoubleSlashPath(match[1]);
           const lineNum: number = parseInt(match[2]);
           this.logger.info(`Opening file: ${fileName} at line ${lineNum}`);
           const location = new vscode.Location(vscode.Uri.file(fileName), new vscode.Position(lineNum - 1, 0));
@@ -917,7 +918,7 @@ export class LogtalkProfiling {
 
         const match = out.match(/File:(.+);Line:(\d+)/);
         if (match) {
-          const fileName: string = match[1];
+          const fileName: string = Utils.normalizeDoubleSlashPath(match[1]);
           const lineNum: number = parseInt(match[2]);
           this.logger.info(`Opening file: ${fileName} at line ${lineNum}`);
           const location = new vscode.Location(vscode.Uri.file(fileName), new vscode.Position(lineNum - 1, 0));
@@ -996,7 +997,7 @@ export class LogtalkProfiling {
         return [];
       }
 
-      const fileName: string = match[1];
+      const fileName: string = Utils.normalizeDoubleSlashPath(match[1]);
       const lineNum: number = parseInt(match[2]);
       const fileUri = vscode.Uri.file(fileName);
       const startLine = lineNum - 1; // Convert to 0-based
