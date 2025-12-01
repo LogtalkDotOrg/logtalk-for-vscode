@@ -396,7 +396,7 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
       return null;
     }
 
-    const fileName: string = match[1];
+    const fileName: string = Utils.normalizeDoubleSlashPath(match[1]);
     const definitionLine: number = parseInt(match[2]) - 1; // Convert to 0-based
 
     // Check if the definition is in the same file

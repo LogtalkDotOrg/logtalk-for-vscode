@@ -173,7 +173,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
       for (match of matches) {
         const ancestorType = match[1];
         const ancestorName = match[2];
-        const ancestorFile = match[3];
+        const ancestorFile = Utils.normalizeDoubleSlashPath(match[3]);
         const ancestorLine = parseInt(match[4]);
 
         symbol = ancestorType == "object" ? SymbolKind.Class : ancestorType == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
@@ -226,7 +226,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
         const descendantType = match[1];
         const descendantName = match[2];
         this.logger.debug(`Descendant: ${descendantName}`);
-        const descendantFile = match[3];
+        const descendantFile = Utils.normalizeDoubleSlashPath(match[3]);
         const descendantLine = parseInt(match[4]);
 
         symbol = descendantType == "object" ? SymbolKind.Class : descendantType == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;

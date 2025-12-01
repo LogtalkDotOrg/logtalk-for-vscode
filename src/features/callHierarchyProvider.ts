@@ -212,7 +212,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
       var match = null;
       for (match of matches) {
         const callerName = match[1];
-        const callerFile = match[2];
+        const callerFile = Utils.normalizeDoubleSlashPath(match[2]);
         const callerLine = parseInt(match[3]);
 
         // Create proper ranges for the caller
@@ -267,7 +267,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
       var match = null;
       for (match of matches) {
         const calleeName = match[1];
-        const calleeFile = match[2];
+        const calleeFile = Utils.normalizeDoubleSlashPath(match[2]);
         const calleeLine = parseInt(match[3]);
 
         // Create proper ranges for the callee

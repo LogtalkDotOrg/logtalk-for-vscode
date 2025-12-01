@@ -668,7 +668,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         return;
       }
 
-      const fileName: string = match[1];
+      const fileName: string = Utils.normalizeDoubleSlashPath(match[1]);
       const lineNum: number = parseInt(match[2]);
 
       // Open the target entity file
