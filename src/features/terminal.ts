@@ -592,6 +592,10 @@ export default class LogtalkTerminal {
 
   public static async loadDirectory(uri: Uri, linter: LogtalkLinter) {
     if (typeof uri === 'undefined') {
+      if (!window.activeTextEditor) {
+        window.showErrorMessage('No file open or selected');
+        return;
+      }
       uri = window.activeTextEditor.document.uri;
     }
     // Declare Variables
@@ -652,6 +656,10 @@ export default class LogtalkTerminal {
 
   public static async loadFile(uri: Uri, linter: LogtalkLinter) {
     if (typeof uri === 'undefined') {
+      if (!window.activeTextEditor) {
+        window.showErrorMessage('No file open or selected');
+        return;
+      }
       uri = window.activeTextEditor.document.uri;
     }
     // Declare Variables
