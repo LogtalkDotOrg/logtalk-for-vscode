@@ -418,7 +418,7 @@ Right-click on the predicate name in a `logtalk_load/1-2` call with a list of at
 
 When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is shown in the active editor window. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. See the documentation of the `debugger` tool for details.
 
-This extension provides a button with a Logtalk icon at the top-right corner to toggle debugging (equivalent to the `debugger` messages `debug/0` and `nodebug/0`), also removing and re-adding the defined breakpoints and log points (that were set using the VSCode GUI). Alternatively, use the "Run > Start Debugging" and "Run > Run Without Debugging" commands.
+The standard "Run > Start Debugging" and "Run > Run Without Debugging" commands can be used to start and stop debugging. They are equivalent to sending the `debug/0` and `nodebug/0` messages to the `debugger` tool, also re-adding and removing the defined breakpoints and log points (that were set using the VSCode GUI).
 
 Breakpoints and log points can be added and removed using the "Run" menu breakpoint items. Clicking at the left of a line number in an editor window, in the same line as a clause head, creates a clause breakpoint represented by a red dot. Control-clicking in this red dot allows the breakpoint to be removed, edited, or disabled. But, although VSCode supports it, a Logtalk breakpoint cannot be a combination of log point and different types of breakpoints. If you edit a breakpoint, you must keep its singular type.
 

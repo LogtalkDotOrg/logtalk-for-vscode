@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-    <!-- Turnstile symbol using Unicode -->
-    <text x="2" y="10" fill="#C5C5C5" font-size="15">⊨</text>
-    <!-- Small bug in corner -->
-    <path fill="#C5C5C5" d="M12.5 12.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-1.5-1.5a.75.75 0 100 1.5.75.75 0 000-1.5zm3 0a.75.75 0 100 1.5.75.75 0 000-1.5z"/>
-</svg>

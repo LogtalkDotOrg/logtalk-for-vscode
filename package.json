@@ -438,11 +438,6 @@
                     "command": "logtalk.svgViewer.zoomReset",
                     "when": "activeWebviewPanelId == 'logtalk.svgViewer'",
                     "group": "navigation@5"
-                },
-                {
-                    "command": "logtalk.toggleDebugging",
-                    "when": "editorLangId == logtalk && !virtualWorkspace",
-                    "group": "navigation@6"
                 }
             ],
             "editor/context": [
