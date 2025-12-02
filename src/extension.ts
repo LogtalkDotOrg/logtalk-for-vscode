@@ -50,6 +50,7 @@ import { getLogger } from "./utils/logger";
 import { DiagnosticsUtils } from "./utils/diagnostics";
 import { SvgViewerProvider } from "./features/svgViewer";
 import { FileRenameHandler } from "./utils/fileRenameHandler";
+import { StatusBarManager } from "./features/statusBar";
 
 const DEBUG = 1;
 
@@ -112,6 +113,11 @@ export async function activate(context: ExtensionContext) {
   subscriptions.push({ dispose: () => logger.dispose() });
 
   DEBUG ? logger.debug('Congratulations, your extension "logtalk-for-vscode" is now active!') : null;
+
+  // Initialize status bar manager
+  const statusBarManager = StatusBarManager.getInstance();
+  statusBarManager.initialize(context);
+  subscriptions.push({ dispose: () => statusBarManager.dispose() });
 
   const LOGTALK_MODE: DocumentFilter = { language: "logtalk", scheme: "file" };
 

@@ -2,6 +2,7 @@
 
 ## [0.80.0]
 
+* Add status bar indicators for profiling and CodeLens on/off state
 * Improve predicate call parsing performance when using the code navigation features
 * Improve performance of the tests and metrics CodeLens providers
 * Partial fix for handling ECLiPSe file paths on Windows that start with a double slash followed by a drive letter followed by a slash

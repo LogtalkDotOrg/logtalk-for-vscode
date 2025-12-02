@@ -273,13 +273,13 @@ export class FileRenameHandler {
         }
 
         // For unquoted matches, verify it's in a valid context
-        // Skip if it's part of library notation like library(file) or lgtunit(file)
+        // Skip if it's part of library notation like lgtunit(loader)
         if (quoteStyle === 'none') {
           // Check if preceded by '(' which would indicate library notation
           const charBefore = startChar > 0 ? line[startChar - 1] : '';
           if (charBefore === '(') {
             // This might be library notation - check if there's an atom immediately before the '('
-            // We need to look backwards from the '(' to find if there's a library/module name
+            // We need to look backwards from the '(' to find if there's a library name
             let beforeParenIndex = startChar - 2; // Start before the '('
             // Skip whitespace backwards
             while (beforeParenIndex >= 0 && /\s/.test(line[beforeParenIndex])) {
@@ -293,7 +293,7 @@ export class FileRenameHandler {
                 atomStart--;
               }
               const atomBefore = line.substring(atomStart, beforeParenIndex + 1);
-              // Check if this looks like a library/module name (not a predicate like logtalk_load)
+              // Check if this looks like a library name (not a predicate like logtalk_load)
               // Library notation typically uses short names like: lgtunit, library, types, etc.
               // We should skip if it's NOT logtalk_load, ensure_loaded, include, etc.
               const loadingPredicates = ['logtalk_load', 'ensure_loaded', 'include', 'use_module', 'load_files'];

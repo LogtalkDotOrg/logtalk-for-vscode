@@ -31,6 +31,7 @@ import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
+import { StatusBarManager } from "./statusBar";
 
 export default class LogtalkTerminal {
   private static _terminal:       Terminal;
@@ -1668,6 +1669,8 @@ export default class LogtalkTerminal {
         LogtalkMetricsCodeLensProvider.outdated = metricsCodeLensOutdated;
         LogtalkTestsCodeLensProvider.outdated = testsCodeLensOutdated;
       }
+      // Update status bar (will be updated by configuration change listener)
+      StatusBarManager.getInstance().updateCodeLensStatus();
     } else {
       throw new Error("configuration settings error: logtalk");
     }

@@ -8,6 +8,7 @@ import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { PredicateUtils } from "../utils/predicateUtils";
 import { Utils } from '../utils/utils';
+import { StatusBarManager } from "./statusBar";
 
 /**
  * Logtalk Profiling Feature
@@ -48,11 +49,14 @@ export class LogtalkProfiling {
       this.logger.info("Enabling Logtalk profiling");
 
       // Load the ports_profiler tool and switch to debug mode
-      LogtalkTerminal.sendString("logtalk_load(ports_profiler(loader)), logtalk_make(debug), ports_profiler::start.\r", false);      
+      LogtalkTerminal.sendString("logtalk_load(ports_profiler(loader)), logtalk_make(debug), ports_profiler::start.\r", false);
       vscode.window.showInformationMessage("Logtalk profiling enabled. Code will be (re)compiled in debug mode.");
 
       // Update context for UI
       vscode.commands.executeCommand('setContext', 'logtalk.profilingEnabled', true);
+
+      // Update status bar
+      StatusBarManager.getInstance().updateProfilingStatus(true);
     } else {
       // Turn off profiling
       this.logger.info("Disabling Logtalk profiling");
@@ -63,6 +67,9 @@ export class LogtalkProfiling {
 
       // Update context for UI
       vscode.commands.executeCommand('setContext', 'logtalk.profilingEnabled', false);
+
+      // Update status bar
+      StatusBarManager.getInstance().updateProfilingStatus(false);
 
       // Close the webview if it's open
       if (this.webviewPanel) {

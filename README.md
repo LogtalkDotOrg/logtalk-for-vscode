@@ -200,7 +200,7 @@ These commands can be triggered from the editor/context menu via right-click in 
 | Run Tests with Coverage | Loads the tester file under the active source file directory and report coverage |
 |              Run Doclet | Loads the doclet file under the active source file directory                     |
 |                 Jupyter | Sub-menu with Jupyter commands                                                   |
-|        Toggle Code Lens | Toggles code lens of test results and cyclomatic complexity                      |
+|         Toggle CodeLens | Toggles code lens of test results and cyclomatic complexity                      |
 
 The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Tests" command looks for a `tester.lgt` or `tester.logtalk` file in the directory of the selected file, printing a warning if not found. The "Run Doclet" command looks for a `doclet.lgt` or `doclet.logtalk` file in the directory of the selected file, printing a warning if not found.
 
@@ -451,6 +451,8 @@ Note that collecting code coverage data depends solely on the tests driver file.
 
 Support for profiling is provided. This allows browsing and analyzing profiling data from the "Logtalk: Profiling" sub-menu in the explorer and editor context menus. After running the "Logtalk: Toggle Profiling" command, loaded code is recompiled in debug mode and profiling is enabled. The "Logtalk: Show Profiling Data" command can be used to show the profiling data in a webview. The webview allows navigating to the source file location of entities, predicates, and clauses. It also allows saving the profiling data as a CSV file. Collected profiling data can be reset using the "Logtalk: Reset Profiling Data" command. The profiling commands are also available from the command palette. See the documentation of the `ports_profiler` tool for details and hints on how to interpret profiling data.
 
+When editing a Logtalk file, the status bar shows a `$(pulse) Profiling: on/off` item. Clicking on this item toggles profiling. This status bar item is hidden when editing a non-Logtalk file.
+
 ### Hover contents
 
 Hover contents is provided for built-in directives, built-in predicates, and built-in methods.
@@ -684,7 +686,9 @@ Automatically call the "Logtalk: Make - Reload" command when saving a Logtalk so
 
     "logtalk.enableCodeLens": true
 
-Enables displaying inline test results (including code coverage when collected) using code lens in both the test object and the tested entity source files opened in the editor. It also enables displaying inline entity cyclomatic complexity after computing code metrics. The tests and metrics data is persistent and can be updated by re-running tests and re-computing metrics (e.g., by simply clicking in the inline data). This setting can be toggled using the "Toggle Code Lens" command.
+Enables displaying inline test results (including code coverage when collected) using code lens in both the test object and the tested entity source files opened in the editor. It also enables displaying inline entity cyclomatic complexity after computing code metrics. The tests and metrics data is persistent and can be updated by re-running tests and re-computing metrics (e.g., by simply clicking in the inline data). This setting can be toggled using the "Toggle CodeLens" command.
+
+When editing a Logtalk file, the status bar shows a `$(info) CodeLens: on/off` item. Clicking on this item toggles CodeLens. This status bar item is hidden when editing a non-Logtalk file.
 
 #### Diagrams file format
 
@@ -716,7 +720,7 @@ Code issues detected when running the "Make - Check" or "Make - Circular" comman
 
 On Windows systems, some Prolog backends such as ECLiPSe and XSB are not fully usable due to file path representation issues and backend limitations.
 
-Precise code navigation and quick fixes require a Prolog backend that supports accessing read term starting line but only some backends (B-Prolog, GNU Prolog, JIProlog, SICStus Prolog, SWI-Prolog, Trealla Prolog, XVM, and YAP) provide accurate line numbers. This issue is fixed for ECLiPSe in version 7.2#5 when using Logtalk 3.96.0 or later.
+Several features (notably, precise code navigation, quick fixes, and refactoring operations) require a Prolog backend that supports accessing read term starting line but only some backends (B-Prolog, GNU Prolog, JIProlog, SICStus Prolog, SWI-Prolog, Trealla Prolog, XVM, and YAP) provide accurate line numbers. This issue is fixed for ECLiPSe in version 7.2#5 when using Logtalk 3.96.0 or later. XSB doesn't support accessing the starting line of read terms, preventing most features from working with this backend.
 
 When using the "Make - Reload" command, spurious warnings may be reported when there are multiple modified files due to out-of-order compilation. Although the Logtalk `make` tool attempts to avoid or minimize such warnings, they may still occur (e.g. due to circular dependencies). See the `make` tool documentation for details.
 
@@ -728,7 +732,7 @@ In rare cases, the Logtalk terminal may be restored when reloading the VSCode wi
 
 ## Development
 
-Developed and tested with **Logtalk 3.96.0** and **VSCode 1.106.2** on **macOS 14.8** and **Windows 10** with **Node 25.1.0**.
+Developed and tested with **Logtalk 3.96.0** and **VSCode 1.106.3** on **macOS 14.8** and **Windows 10** with **Node 25.2.1**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 

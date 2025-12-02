@@ -217,7 +217,7 @@
             },
             {
                 "command": "logtalk.toggle.codeLens",
-                "title": "Logtalk: Toggle Code Lens"
+                "title": "Logtalk: Toggle CodeLens"
             },
             {
                 "command": "logtalk.compute.metrics",
