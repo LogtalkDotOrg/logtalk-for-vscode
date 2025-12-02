@@ -191,6 +191,21 @@ export default class LogtalkTerminal {
     return (<any>window).onDidCloseTerminal(terminal => {
       // Only clear if the closed terminal is the Logtalk terminal
       if (terminal === LogtalkTerminal._terminal) {
+        // Check if the terminal crashed
+        if (terminal.exitStatus) {
+          if (terminal.exitStatus.code !== undefined && terminal.exitStatus.code !== 0) {
+            // Non-zero exit code indicates crash or error
+            window.showErrorMessage(
+              `Logtalk terminal exited with code ${terminal.exitStatus.code}. The terminal may have crashed.`,
+              'Restart Terminal'
+            ).then(selection => {
+              if (selection === 'Restart Terminal') {
+                commands.executeCommand('logtalk.open');
+              }
+            });
+          }
+        }
+
         LogtalkTerminal._loadedDirectories.clear();
         LogtalkTerminal._terminal = null;
         terminal.dispose();
