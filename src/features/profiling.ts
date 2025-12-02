@@ -193,6 +193,9 @@ export class LogtalkProfiling {
    */
   private async getProfilingData(entity?: string, predicate?: string): Promise<string> {
     const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
     const profilingDataFile = path.join(wdir, ".vscode_profiling_data");
 
     // Remove old file if it exists
@@ -864,6 +867,10 @@ export class LogtalkProfiling {
 
       // Read the result from the marker file
       const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      if (!wdir) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+      }
       const resultFile = path.join(wdir, ".vscode_entity_definition");
 
       this.logger.info(`Looking for result file at: ${resultFile}`);
@@ -913,6 +920,10 @@ export class LogtalkProfiling {
 
       // Read the result from the marker file
       const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      if (!wdir) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+      }
       const resultFile = path.join(wdir, ".vscode_predicate_definition");
 
       this.logger.info(`Looking for result file at: ${resultFile}`);
@@ -990,6 +1001,9 @@ export class LogtalkProfiling {
 
       // Read the result from the marker file
       const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      if (!wdir) {
+        return [];
+      }
       const resultFile = path.join(wdir, ".vscode_predicate_definition");
 
       if (!fs.existsSync(resultFile)) {

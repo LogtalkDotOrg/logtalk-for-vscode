@@ -88,7 +88,7 @@ export class LogtalkMetricsCodeLensProvider implements CodeLensProvider {
       const dir0 = path.dirname(doc.uri.fsPath);
       const dir = path.resolve(dir0).split(path.sep).join("/");
       const results = path.join(dir, ".vscode_metrics_results");
-      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
       const recursiveResults = wdir ? path.join(wdir, ".vscode_metrics_results") : null;
       let out = null;
       if (fs.existsSync(results)) {

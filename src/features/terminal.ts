@@ -76,8 +76,7 @@ export default class LogtalkTerminal {
     documentationLinter?: LogtalkDocumentationLinter
   ): Promise<Disposable> {
 
-    // Delete any temporary files from previous sessions
-    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    // Delete any temporary files from previous sessions in all workspace folders
     const files = [
       ".vscode_loading_done",
       ".vscode_make_done",
@@ -104,8 +103,12 @@ export default class LogtalkTerminal {
       ".vscode_tester_output",
       ".vscode_doclet_output"
     ];
-    // Wait for cleanup to complete
-    await Utils.cleanupTemporaryFiles(directory, files);
+    // Wait for cleanup to complete in all workspace folders
+    if (vscode.workspace.workspaceFolders) {
+      for (const folder of vscode.workspace.workspaceFolders) {
+        await Utils.cleanupTemporaryFiles(folder.uri.fsPath, files);
+      }
+    }
 
     // Clean up any temporary files when folders are added to the workspace
     const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders(async (event) => {
@@ -259,19 +262,33 @@ export default class LogtalkTerminal {
 
     // Clear loaded directories
     LogtalkTerminal._loadedDirectories.clear();
+
+    // Reset terminal creation flag
+    LogtalkTerminal._terminalCreationInProgress = false;
   }
 
+  // Flag to track if terminal creation is in progress (to prevent race conditions)
+  private static _terminalCreationInProgress: boolean = false;
+
   public static createLogtalkTerm() {
-    if (LogtalkTerminal._terminal) {
+    if (LogtalkTerminal._terminal || LogtalkTerminal._terminalCreationInProgress) {
       return;
     }
 
-    // Set to a placeholder to prevent concurrent calls from creating multiple terminals
-    // This will be replaced with the actual terminal below
-    LogtalkTerminal._terminal = null as any;
+    // Check if a Logtalk terminal already exists (e.g., from a previous session or multi-root workspace)
+    // This handles cases where _terminal reference was lost but the terminal still exists
+    const existingTerminal = window.terminals.find(t => t.name === "Logtalk");
+    if (existingTerminal) {
+      LogtalkTerminal._terminal = existingTerminal;
+      return;
+    }
 
-    let section = workspace.getConfiguration("logtalk");
-    if (section) {
+    // Set flag to prevent concurrent calls from creating multiple terminals
+    LogtalkTerminal._terminalCreationInProgress = true;
+
+    try {
+      let section = workspace.getConfiguration("logtalk");
+      if (section) {
       let logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
       let logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
       let logtalkBackend = jsesc(section.get<string>("backend", "logtalk"));
@@ -339,6 +356,9 @@ export default class LogtalkTerminal {
         shellArgs: args,
         isTransient: true
       });
+
+      // Reset the creation flag now that terminal is created
+      LogtalkTerminal._terminalCreationInProgress = false;
 
       // Match "in file <path> at/between line(s) <number(s)>" pattern for warnings/errors
       let errorWarningRegex = new RegExp(/(in file)\s(.+)\s((at or above line\s(\d+))|(between lines\s(\d+)[-](\d+))|(at line\s(\d+)))/);
@@ -461,8 +481,13 @@ export default class LogtalkTerminal {
       const normalizedCore = fs.realpathSync(path.join(logtalkHome, "core")).split(path.sep).join("/").toLowerCase();
       LogtalkTerminal._loadedDirectories.add(normalizedCore);
 
-    } else {
-      throw new Error("configuration settings error: logtalk");
+      } else {
+        throw new Error("configuration settings error: logtalk");
+      }
+    } catch (error) {
+      // Reset the flag on error so terminal creation can be retried
+      LogtalkTerminal._terminalCreationInProgress = false;
+      throw error;
     }
   }
 
@@ -532,10 +557,18 @@ export default class LogtalkTerminal {
 
   public static async loadProject(uri: Uri, linter: LogtalkLinter) {
     if (typeof uri === 'undefined') {
-      uri = workspace.workspaceFolders[0].uri;
+      if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+      }
+      uri = vscode.workspace.workspaceFolders[0].uri;
     }
     // Declare Variables
-    const dir0 = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir0 = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!dir0) {
+      vscode.window.showErrorMessage('No workspace folder found for the selected file');
+      return;
+    }
     const loader0 = path.join(dir0, "loader");
     const dir = LogtalkTerminal.normalizePath(dir0);
     const loader = LogtalkTerminal.normalizePath(loader0);
@@ -1154,9 +1187,17 @@ export default class LogtalkTerminal {
 
   public static async rgenDocumentation(uri: Uri, documentationLinter: LogtalkDocumentationLinter) {
     if (typeof uri === 'undefined') {
-      uri = workspace.workspaceFolders[0].uri;
+      if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+      }
+      uri = vscode.workspace.workspaceFolders[0].uri;
     }
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir0 = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!dir0) {
+      vscode.window.showErrorMessage('No workspace folder found for the selected file');
+      return;
+    }
     LogtalkTerminal.genDocumentationHelper(documentationLinter, dir0, "documentation_recursive");
   }
 
@@ -1222,9 +1263,17 @@ export default class LogtalkTerminal {
 
   public static async rgenDiagrams(uri: Uri) {
     if (typeof uri === 'undefined') {
-      uri = workspace.workspaceFolders[0].uri;
+      if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+      }
+      uri = vscode.workspace.workspaceFolders[0].uri;
     }
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir0 = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!dir0) {
+      vscode.window.showErrorMessage('No workspace folder found for the selected file');
+      return;
+    }
     LogtalkTerminal.rgenDiagramsHelper(dir0, "diagrams_recursive");
   }
 
@@ -1257,9 +1306,17 @@ export default class LogtalkTerminal {
 
   public static async rscanForDeadCode(uri: Uri, deadCodeScanner: LogtalkDeadCodeScanner) {
     if (typeof uri === 'undefined') {
-      uri = workspace.workspaceFolders[0].uri;
+      if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage('No workspace folder open');
+        return;
+      }
+      uri = vscode.workspace.workspaceFolders[0].uri;
     }
-    const dir0: string = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir0 = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!dir0) {
+      vscode.window.showErrorMessage('No workspace folder found for the selected file');
+      return;
+    }
     LogtalkTerminal.scanForDeadCodeHelper(uri, deadCodeScanner, dir0, "dead_code_recursive")
   }
 
@@ -1357,11 +1414,15 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._outputChannel.clear();
 
-    const dir = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!dir) {
+      vscode.window.showErrorMessage('No workspace folder open');
+      return;
+    }
     const outputFile = linter && testsReporter ? path.join(dir, '.vscode_tester_output') : undefined;
 
     LogtalkTerminal.spawnScriptWorkspace(
-      uri,
+      dir,
       ["logtalk_tester", "logtalk.run.tester", LogtalkTerminal._testerExec],
       LogtalkTerminal._testerExec,
       LogtalkTerminal._testerArgs,
@@ -1412,11 +1473,15 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._outputChannel.clear();
 
-    const dir = LogtalkTerminal.getWorkspaceFolder(uri);
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!dir) {
+      vscode.window.showErrorMessage('No workspace folder open');
+      return;
+    }
     const outputFile = linter && documentationLinter ? path.join(dir, '.vscode_doclet_output') : undefined;
 
     LogtalkTerminal.spawnScriptWorkspace(
-      uri,
+      dir,
       ["logtalk_doclet", "logtalk.run.doclets", LogtalkTerminal._docletExec],
       LogtalkTerminal._docletExec,
       LogtalkTerminal._docletArgs,
@@ -1460,7 +1525,7 @@ export default class LogtalkTerminal {
     const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = LogtalkTerminal.normalizePath(doc.fileName);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1477,7 +1542,7 @@ export default class LogtalkTerminal {
     const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = LogtalkTerminal.normalizePath(doc.fileName);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1494,7 +1559,7 @@ export default class LogtalkTerminal {
     const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = LogtalkTerminal.normalizePath(doc.fileName);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1511,7 +1576,7 @@ export default class LogtalkTerminal {
     const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = LogtalkTerminal.normalizePath(doc.fileName);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1528,7 +1593,7 @@ export default class LogtalkTerminal {
     const dir = LogtalkTerminal.normalizePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const file = LogtalkTerminal.normalizePath(doc.fileName);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1539,12 +1604,12 @@ export default class LogtalkTerminal {
     await fsp.rm(marker, { force: true });
   }
 
-  public static async getCallers(file: string, position: Position, predicate: string) {
+  public static async getCallers(file: string, position: Position, predicate: string, fileUri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const fileSlash = LogtalkTerminal.normalizePath(file);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(fileUri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1555,12 +1620,12 @@ export default class LogtalkTerminal {
     await fsp.rm(marker, { force: true });
   }
 
-  public static async getCallees(file: string, position: Position, predicate: string) {
+  public static async getCallees(file: string, position: Position, predicate: string, fileUri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const fileSlash = LogtalkTerminal.normalizePath(file);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(fileUri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1571,11 +1636,11 @@ export default class LogtalkTerminal {
     await fsp.rm(marker, { force: true });
   }
 
-  public static async getAncestors(file: string, entity: string) {
+  public static async getAncestors(file: string, entity: string, fileUri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(fileUri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1586,11 +1651,11 @@ export default class LogtalkTerminal {
     await fsp.rm(marker, { force: true });
   }
 
-  public static async getDescendants(file: string, entity: string) {
+  public static async getDescendants(file: string, entity: string, fileUri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
     const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(fileUri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1601,11 +1666,11 @@ export default class LogtalkTerminal {
     await fsp.rm(marker, { force: true });
   }
 
-  public static async getType(file: string, entity: string): Promise<string> {
+  public static async getType(file: string, entity: string, fileUri: Uri): Promise<string> {
     LogtalkTerminal.createLogtalkTerm();
     const dir = LogtalkTerminal.normalizePath(path.dirname(file));
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(fileUri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1620,9 +1685,9 @@ export default class LogtalkTerminal {
     return type;
   }
 
-  public static async inferPublicPredicates(entityName: string) {
+  public static async inferPublicPredicates(entityName: string, fileUri: Uri) {
     LogtalkTerminal.createLogtalkTerm();
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(fileUri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1652,7 +1717,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir0);
     const dir = LogtalkTerminal.normalizePath(dir0);
     const file: string = LogtalkTerminal.normalizePath(uri.fsPath);
-    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(uri);
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
@@ -1852,7 +1917,7 @@ export default class LogtalkTerminal {
   }
 
   private static spawnScriptWorkspace(
-    uri: Uri,
+    dir: string,
     type: string[],
     path: string,
     args: string[],
@@ -1860,8 +1925,6 @@ export default class LogtalkTerminal {
     outputFile?: string,
     onComplete?: (outputFile: string) => Promise<void>
   ) {
-    let dir: string;
-    dir = LogtalkTerminal.getWorkspaceFolder(uri);
     LogtalkTerminal.spawnScript(dir, type, path, args, message, outputFile, onComplete);
   }
 
@@ -1888,6 +1951,9 @@ export default class LogtalkTerminal {
     if (uri && uri.fsPath) {
       dir = path.dirname(uri.fsPath);
     } else {
+      if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+        throw new Error('No workspace folder open');
+      }
       dir = vscode.workspace.workspaceFolders[0].uri.fsPath;
     }
     return dir;
@@ -1921,8 +1987,34 @@ export default class LogtalkTerminal {
     return LogtalkTerminal.normalizePath(vscode.workspace.workspaceFolders[0].uri.fsPath);
   }
 
-  private static getWorkspaceFolder(uri: Uri): string {
-    return workspace.workspaceFolders
+  /**
+   * Gets the workspace folder path for a given URI.
+   * This is the primary method for multi-root workspace support.
+   * @param uri The URI to find the workspace folder for
+   * @returns The normalized workspace folder path, or undefined if not found
+   */
+  public static getWorkspaceFolderForUri(uri: Uri): string | undefined {
+    if (!uri) {
+      return LogtalkTerminal.getFirstWorkspaceFolder();
+    }
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+    if (workspaceFolder) {
+      return LogtalkTerminal.normalizePath(workspaceFolder.uri.fsPath);
+    }
+    // Fallback: try to find workspace folder by path prefix matching
+    const folder = LogtalkTerminal.findWorkspaceFolderByPathPrefix(uri);
+    if (folder) {
+      return LogtalkTerminal.normalizePath(folder);
+    }
+    // Last resort: return first workspace folder
+    return LogtalkTerminal.getFirstWorkspaceFolder();
+  }
+
+  private static findWorkspaceFolderByPathPrefix(uri: Uri): string | undefined {
+    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+      return undefined;
+    }
+    return vscode.workspace.workspaceFolders
       ?.map((folder) => folder.uri.fsPath)
       .filter((fsPath) => uri.fsPath?.startsWith(fsPath))[0];
   }

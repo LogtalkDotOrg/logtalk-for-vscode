@@ -152,7 +152,7 @@ Most commands, notably those that run the developer tools, **require** the code 
 
 #### Project commands
 
-Project (workspace) commands can be triggered from the command palette by typing 'Logtalk' in the input box to pop up the list of all commands of this extension. In this case, the commands resort to the first workspace root folder in the case of [multi-root workspaces](https://code.visualstudio.com/docs/editor/workspaces). Alternatively, these commands can be triggered from the explorer/context menu via right-click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in a Logtalk source file in the Explorer.
+Project (workspace) commands can be triggered from the command palette by typing 'Logtalk' in the input box to pop up the list of all commands of this extension. In the case of [multi-root workspaces](https://code.visualstudio.com/docs/editor/workspaces), when triggered from the command palette these commands use the first workspace root folder; when triggered from the explorer/context menu they use the workspace folder containing the selected file.
 
 |                         Command | Description                                                        |
 | ------------------------------: | :----------------------------------------------------------------- |
@@ -487,7 +487,7 @@ The `/docs` slash command uses the "Documenting" section from the Logtalk Handbo
 
 The `/tests` slash command uses the `lgtunit` testing tool documentation from the Logtalk Handbook and APIs as context to answer questions about writing and running tests.
 
-For the `/workspace` slash command, the documentation assumes a `xml_docs` folder at the root of the workspace containing HTML or Markdown files (which can be generated using the "Generate Project Documentation" or ""Generate Documentation" commands). This slash command works best with entities and predicates names or with keywords found in their descriptions.
+For the `/workspace` slash command, the documentation assumes a `xml_docs` folder at the root of the workspace (or at the root of any workspace folder in multi-root workspaces) containing HTML or Markdown files (which can be generated using the "Generate Project Documentation" or "Generate Documentation" commands). This slash command works best with entities and predicates names or with keywords found in their descriptions.
 
 **Examples:**
 
@@ -674,7 +674,7 @@ The "logtalk.diagrams.arguments" setting is only used when the "logtalk.diagrams
 
     "logtalk.loadProject.onActivation": false
 
-Load project on extension activation. Although the default value is `false` (for backward compatibility), it's recommended to enable this feature for a better development experience as several extension features require the code to be loaded.
+Load project on extension activation. Although the default value is `false` (for backward compatibility), it's recommended to enable this feature for a better development experience as several extension features require the code to be loaded. In the case of multi-root workspaces, the project is loaded from the workspace folder containing the active editor's document.
 
 #### Run Logtalk make on save
 

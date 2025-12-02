@@ -378,7 +378,7 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
     await LogtalkTerminal.getDefinition(document, position, call);
 
     // Read the definition location from the .vscode_definition file
-    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(document.uri);
     if (!dir) {
       return null;
     }

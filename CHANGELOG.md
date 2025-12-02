@@ -2,6 +2,7 @@
 
 ## [0.80.0]
 
+* Add multi-root workspace support for code navigation, refactoring, testing, documentation, and chat participant features
 * Remove the "Logtalk: Toggle Debugging" button from the editor title bar (subsumed by the "Run" menu commands)
 * Add status bar indicators for profiling and CodeLens on/off state
 * Show an error message when the Logtalk terminal crashes with a button to restart the terminal

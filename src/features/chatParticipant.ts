@@ -512,30 +512,20 @@ export class LogtalkChatParticipant {
   /**
    * Search workspace documentation in xml_docs folder for relevant content.
    * Supports both HTML and Markdown files.
+   * Searches all workspace folders in multi-root workspaces.
    * @param query The search query
    * @param maxResults Maximum number of results to return (default: 8)
    * @returns Array of formatted search results
    */
   private async getWorkspaceContext(query: string, maxResults: number = 8): Promise<string[]> {
-    // Get the first workspace folder
+    // Get all workspace folders
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
       this.logger.debug("No workspace folder found for workspace documentation search");
       return [];
     }
 
-    const workspaceRoot = workspaceFolders[0].uri.fsPath;
-    const xmlDocsPath = path.join(workspaceRoot, "xml_docs");
-
-    // Check if xml_docs folder exists
-    if (!fs.existsSync(xmlDocsPath)) {
-      this.logger.debug(`xml_docs folder not found at: ${xmlDocsPath}`);
-      return [];
-    }
-
-    this.logger.debug(`Searching workspace documentation in: ${xmlDocsPath}`);
-
-    // Find all HTML and Markdown files in xml_docs folder
+    // Find all HTML and Markdown files in xml_docs folders across all workspace folders
     const docFiles: string[] = [];
     const findDocFiles = (dir: string) => {
       try {
@@ -556,14 +546,26 @@ export class LogtalkChatParticipant {
       }
     };
 
-    findDocFiles(xmlDocsPath);
+    // Search all workspace folders for xml_docs directories
+    for (const folder of workspaceFolders) {
+      const workspaceRoot = folder.uri.fsPath;
+      const xmlDocsPath = path.join(workspaceRoot, "xml_docs");
+
+      // Check if xml_docs folder exists in this workspace folder
+      if (fs.existsSync(xmlDocsPath)) {
+        this.logger.debug(`Searching workspace documentation in: ${xmlDocsPath}`);
+        findDocFiles(xmlDocsPath);
+      } else {
+        this.logger.debug(`xml_docs folder not found at: ${xmlDocsPath}`);
+      }
+    }
 
     if (docFiles.length === 0) {
-      this.logger.debug("No HTML or Markdown files found in xml_docs folder");
+      this.logger.debug("No HTML or Markdown files found in any workspace xml_docs folder");
       return [];
     }
 
-    this.logger.debug(`Found ${docFiles.length} documentation files in workspace`);
+    this.logger.debug(`Found ${docFiles.length} documentation files across all workspace folders`);
 
     // Extract sections from all documentation files
     const allSections: WorkspaceDocSection[] = [];

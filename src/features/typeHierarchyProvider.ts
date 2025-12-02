@@ -24,8 +24,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
   private disposables: Disposable[] = [];
 
   constructor() {
-    // Delete any temporary files from previous sessions
-    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    // Delete any temporary files from previous sessions in all workspace folders
     const files = [
       ".vscode_ancestors",
       ".vscode_ancestors_done",
@@ -33,7 +32,11 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
       ".vscode_descendants_done"
     ];
     // Fire-and-forget cleanup - errors are logged internally
-    Utils.cleanupTemporaryFiles(directory, files);
+    if (workspace.workspaceFolders) {
+      for (const wf of workspace.workspaceFolders) {
+        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+      }
+    }
 
     // Clean up any temporary files when folders are added to the workspace
     const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
@@ -134,7 +137,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     if (!entity) {
       return null;
     } else {
-      let type = await LogtalkTerminal.getType(doc.uri.fsPath, entity);
+      let type = await LogtalkTerminal.getType(doc.uri.fsPath, entity, doc.uri);
       let symbol = type == "object" ? SymbolKind.Class : type == "protocol" ? SymbolKind.Interface : SymbolKind.Struct;
       return new TypeHierarchyItem(
         symbol,
@@ -155,9 +158,9 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     let file = item.uri.fsPath;
     let entity = item.name;
 
-    await LogtalkTerminal.getAncestors(file, entity);
+    await LogtalkTerminal.getAncestors(file, entity, item.uri);
 
-    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(item.uri);
     if (!dir) {
       this.logger.error('No workspace folder open');
       return [];
@@ -207,9 +210,9 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     let file = item.uri.fsPath;
     let entity = item.name;
 
-    await LogtalkTerminal.getDescendants(file, entity);
+    await LogtalkTerminal.getDescendants(file, entity, item.uri);
 
-    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(item.uri);
     if (!dir) {
       this.logger.error('No workspace folder open');
       return [];

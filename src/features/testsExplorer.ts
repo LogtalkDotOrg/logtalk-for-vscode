@@ -104,13 +104,55 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private disposables: Disposable[] = [];
   private linter: any; // LogtalkLinter instance
   private testsReporter: any; // LogtalkTestsReporter instance
-  private coverageData: Map<string, CoverageData[]> = new Map(); // Store coverage data by file path
+  // Store coverage data by file path with workspace folder context for multi-root workspace support
+  // Key format: "workspaceFolderName::normalizedFilePath" in multi-root, or just "normalizedFilePath" in single-root
+  private coverageData: Map<string, CoverageData[]> = new Map();
+
+  /**
+   * Check if we're in a multi-root workspace
+   */
+  private isMultiRootWorkspace(): boolean {
+    return workspace.workspaceFolders !== undefined && workspace.workspaceFolders.length > 1;
+  }
+
+  /**
+   * Generate a unique ID for a test item that includes workspace folder context
+   * This prevents conflicts when tests from different workspace folders have the same relative path
+   */
+  private generateTestItemId(uri: Uri, suffix?: string): string {
+    const workspaceFolder = workspace.getWorkspaceFolder(uri);
+    const baseId = uri.toString();
+
+    // In multi-root workspaces, prefix with workspace folder name to ensure uniqueness
+    if (this.isMultiRootWorkspace() && workspaceFolder) {
+      const prefix = workspaceFolder.name;
+      return suffix ? `${prefix}::${baseId}::${suffix}` : `${prefix}::${baseId}`;
+    }
+
+    return suffix ? `${baseId}::${suffix}` : baseId;
+  }
+
+  /**
+   * Generate a unique key for coverage data that includes workspace folder context
+   * This prevents coverage data from different workspace folders from overwriting each other
+   */
+  private generateCoverageKey(filePath: string): string {
+    const fileUri = Uri.file(filePath);
+    const workspaceFolder = workspace.getWorkspaceFolder(fileUri);
+
+    // In multi-root workspaces, prefix with workspace folder name to ensure uniqueness
+    if (this.isMultiRootWorkspace() && workspaceFolder) {
+      return `${workspaceFolder.name}::${filePath}`;
+    }
+
+    return filePath;
+  }
 
   /**
    * Get test item for a file
    */
   public getTestItemForFile(uri: Uri): TestItem | undefined {
-    const fileId = uri.toString();
+    const fileId = this.generateTestItemId(uri);
     return this.testItems.get(fileId);
   }
 
@@ -118,7 +160,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * Get test item for an object (test suite)
    */
   public getTestItemForObject(uri: Uri, objectName: string): TestItem | undefined {
-    const objectId = `${uri.toString()}::${objectName}`;
+    const objectId = this.generateTestItemId(uri, objectName);
     return this.testItems.get(objectId);
   }
 
@@ -126,7 +168,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * Get test item for a specific test
    */
   public getTestItemForTest(uri: Uri, objectName: string, testName: string): TestItem | undefined {
-    const testId = `${uri.toString()}::${objectName}::${testName}`;
+    const testId = this.generateTestItemId(uri, `${objectName}::${testName}`);
     return this.testItems.get(testId);
   }
 
@@ -178,13 +220,16 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.disposables.push(this.coverageProfile);
 
-    // Delete any temporary files from previous sessions
-    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    // Delete any temporary files from previous sessions in all workspace folders
     const files = [
       ".vscode_test_results"
     ];
     // Fire-and-forget cleanup - errors are logged internally
-    Utils.cleanupTemporaryFiles(directory, files);
+    if (workspace.workspaceFolders) {
+      for (const wf of workspace.workspaceFolders) {
+        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+      }
+    }
 
     // Clean up any temporary files when folders are added to the workspace
     const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
@@ -644,7 +689,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     for (const result of testResults) {
       const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
       const fileUri = Uri.file(normalizedPath);
-      const testId = `${fileUri.toString()}::${result.object}::${result.test}`;
+      const testId = this.generateTestItemId(fileUri, `${result.object}::${result.test}`);
       const testItem = this.testItems.get(testId);
       if (testItem) {
         testItemsWithResults.push(testItem);
@@ -683,7 +728,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     for (const result of testResults) {
       const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
       const fileUri = Uri.file(normalizedPath);
-      const testId = `${fileUri.toString()}::${result.object}::${result.test}`;
+      const testId = this.generateTestItemId(fileUri, `${result.object}::${result.test}`);
       const testItem = this.testItems.get(testId);
 
       if (testItem) {
@@ -726,6 +771,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private updateCoverageFromResults(coverageResults: CoverageData[], testRun: TestRun): void {
     this.logger.debug('Updating coverage from results');
 
+    // Track which coverage keys are being updated in this run
+    const updatedCoverageKeys = new Set<string>();
+
     // Group coverage data by file
     const coverageByFile = new Map<string, CoverageData[]>();
     for (const coverage of coverageResults) {
@@ -736,54 +784,89 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       coverageByFile.get(normalizedPath)!.push(coverage);
     }
 
-    // Store coverage data and create FileCoverage for each file
+    // Store coverage data and create FileCoverage for each file from current results
     for (const [filePath, coverages] of coverageByFile) {
-      const fileUri = Uri.file(filePath);
+      // Store coverage data for later retrieval using workspace-aware key
+      // This prevents coverage data from different workspace folders from overwriting each other
+      const coverageKey = this.generateCoverageKey(filePath);
+      this.coverageData.set(coverageKey, coverages);
+      updatedCoverageKeys.add(coverageKey);
 
-      // Store coverage data for later retrieval
-      this.coverageData.set(filePath, coverages);
+      this.addFileCoverageToTestRun(filePath, coverages, testRun);
+    }
 
-      // Calculate summary statistics
-      // Statement coverage: clauses (sum of all clauses across all predicates)
-      // Declaration coverage: predicates (number of predicates)
-      let coveredStatements = 0;
-      let totalStatements = 0;
-      let coveredDeclarations = 0;
-      let totalDeclarations = coverages.length;
-
-      for (const coverage of coverages) {
-        // Statement coverage: sum of clauses
-        totalStatements += coverage.total;
-        coveredStatements += coverage.covered;
-
-        // Declaration coverage: count predicates with at least one clause covered
-        if (coverage.covered > 0) {
-          coveredDeclarations++;
-        }
-
-        this.logger.debug(`Line ${coverage.line}: covered=${coverage.covered}, total=${coverage.total}`);
+    // Also add previously stored coverage from other workspace folders
+    // This ensures coverage from multiple workspace folders is visible in the same test run
+    for (const [coverageKey, coverages] of this.coverageData) {
+      if (!updatedCoverageKeys.has(coverageKey)) {
+        // Extract file path from coverage key (remove workspace folder prefix if present)
+        const filePath = this.extractFilePathFromCoverageKey(coverageKey);
+        this.addFileCoverageToTestRun(filePath, coverages, testRun);
+        this.logger.debug(`Re-added previous coverage for ${filePath}`);
       }
-
-      // Create file coverage with both statement and declaration coverage
-      // Parameters: uri, statementCoverage, branchCoverage, declarationCoverage
-      const fileCoverage = new FileCoverage(
-        fileUri,
-        {
-          covered: coveredStatements,
-          total: totalStatements
-        },
-        undefined, // branchCoverage - not applicable for Logtalk
-        {
-          covered: coveredDeclarations,
-          total: totalDeclarations
-        }
-      );
-
-      testRun.addCoverage(fileCoverage);
-      this.logger.debug(`Added coverage for ${filePath}: ${coveredStatements}/${totalStatements} statements (clauses) covered, ${coveredDeclarations}/${totalDeclarations} declarations (predicates) covered`);
     }
 
     this.logger.debug('Coverage update completed');
+  }
+
+  /**
+   * Extract the file path from a coverage key
+   * In multi-root workspaces, the key format is "workspaceFolderName::normalizedFilePath"
+   */
+  private extractFilePathFromCoverageKey(coverageKey: string): string {
+    if (this.isMultiRootWorkspace()) {
+      const separatorIndex = coverageKey.indexOf('::');
+      if (separatorIndex !== -1) {
+        return coverageKey.substring(separatorIndex + 2);
+      }
+    }
+    return coverageKey;
+  }
+
+  /**
+   * Add file coverage to a test run
+   */
+  private addFileCoverageToTestRun(filePath: string, coverages: CoverageData[], testRun: TestRun): void {
+    const fileUri = Uri.file(filePath);
+
+    // Calculate summary statistics
+    // Statement coverage: clauses (sum of all clauses across all predicates)
+    // Declaration coverage: predicates (number of predicates)
+    let coveredStatements = 0;
+    let totalStatements = 0;
+    let coveredDeclarations = 0;
+    let totalDeclarations = coverages.length;
+
+    for (const coverage of coverages) {
+      // Statement coverage: sum of clauses
+      totalStatements += coverage.total;
+      coveredStatements += coverage.covered;
+
+      // Declaration coverage: count predicates with at least one clause covered
+      if (coverage.covered > 0) {
+        coveredDeclarations++;
+      }
+
+      this.logger.debug(`Line ${coverage.line}: covered=${coverage.covered}, total=${coverage.total}`);
+    }
+
+    // Create file coverage with both statement and declaration coverage
+    // Parameters: uri, statementCoverage, branchCoverage, declarationCoverage
+    const fileCoverage = new FileCoverage(
+      fileUri,
+      {
+        covered: coveredStatements,
+        total: totalStatements
+      },
+      undefined, // branchCoverage - not applicable for Logtalk
+      {
+        covered: coveredDeclarations,
+        total: totalDeclarations
+      }
+    );
+
+    testRun.addCoverage(fileCoverage);
+    this.logger.debug(`Added coverage for ${filePath}: ${coveredStatements}/${totalStatements} statements (clauses) covered, ${coveredDeclarations}/${totalDeclarations} declarations (predicates) covered`);
   }
 
   /**
@@ -795,10 +878,12 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     this.logger.debug(`Loading detailed coverage for ${fileCoverage.uri.fsPath}`);
 
     const normalizedPath = path.resolve(fileCoverage.uri.fsPath).split(path.sep).join("/");
-    this.logger.debug(`Normalized path: ${normalizedPath}`);
-    this.logger.debug(`Available coverage paths: ${Array.from(this.coverageData.keys()).join(', ')}`);
+    // Use workspace-aware key to retrieve coverage data
+    const coverageKey = this.generateCoverageKey(normalizedPath);
+    this.logger.debug(`Coverage key: ${coverageKey}`);
+    this.logger.debug(`Available coverage keys: ${Array.from(this.coverageData.keys()).join(', ')}`);
 
-    const coverages = this.coverageData.get(normalizedPath);
+    const coverages = this.coverageData.get(coverageKey);
 
     if (!coverages) {
       this.logger.debug('No coverage data found for file');
@@ -1022,7 +1107,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     // Create or update test items for each file
     for (const filePath of allFiles) {
       const fileUri = Uri.file(filePath);
-      const fileId = fileUri.toString();
+      const fileId = this.generateTestItemId(fileUri);
       expectedTestIds.add(fileId);
 
       // Get workspace folder for this file
@@ -1035,6 +1120,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const testerDir = path.dirname(resultsFileUri.fsPath);
       const workspacePath = workspaceFolder.uri.fsPath;
       const isInSubdirectory = testerDir !== workspacePath;
+      const isMultiRoot = this.isMultiRootWorkspace();
 
       // Determine parent item for file
       let parentItem: TestItem | null = null;
@@ -1042,8 +1128,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       if (isInSubdirectory) {
         // Tester is in a subdirectory - create/get directory item
         const dirUri = Uri.file(testerDir);
-        const dirId = dirUri.toString();
-        const dirRelativePath = path.relative(workspacePath, testerDir);
+        const dirId = this.generateTestItemId(dirUri);
+        // In multi-root workspaces, prefix with workspace folder name
+        const dirRelativePath = isMultiRoot
+          ? `${workspaceFolder.name}/${path.relative(workspacePath, testerDir)}`
+          : path.relative(workspacePath, testerDir);
 
         // Always add directory ID to expected IDs
         expectedTestIds.add(dirId);
@@ -1092,7 +1181,15 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       // Get or create file-level test item
       // Use relative path from tester directory to file for the label
-      const fileLabel = isInSubdirectory ? path.relative(testerDir, filePath) : path.basename(filePath);
+      // In multi-root workspaces at workspace root, prefix with workspace folder name
+      let fileLabel: string;
+      if (isInSubdirectory) {
+        fileLabel = path.relative(testerDir, filePath);
+      } else if (isMultiRoot) {
+        fileLabel = `${workspaceFolder.name}/${path.basename(filePath)}`;
+      } else {
+        fileLabel = path.basename(filePath);
+      }
       let fileItem = this.testItems.get(fileId);
       if (!fileItem) {
         fileItem = this.controller.createTestItem(
@@ -1182,7 +1279,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       // Create object-level and test-level items
       for (const objectName of allObjects) {
-        const objectId = `${fileId}::${objectName}`;
+        const objectId = this.generateTestItemId(fileUri, objectName);
         expectedTestIds.add(objectId);
 
         const objectTests = testsByObject.get(objectName) || [];
@@ -1219,7 +1316,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
         // Create individual test items (only if we have test results)
         for (const test of objectTests) {
-          const testId = `${objectId}::${test.test}`;
+          const testId = this.generateTestItemId(fileUri, `${objectName}::${test.test}`);
           expectedTestIds.add(testId);
 
           // Create test item (always create new since we cleared children)
@@ -1311,7 +1408,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private invalidateTestResultsForFile(uri: Uri): void {
     const normalizedPath = path.resolve(uri.fsPath).split(path.sep).join("/");
     const fileUri = Uri.file(normalizedPath);
-    const fileId = fileUri.toString();
+    const fileId = this.generateTestItemId(fileUri);
 
     this.logger.debug(`Invalidating test results for file: ${fileUri.fsPath}`);
 

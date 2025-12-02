@@ -27,8 +27,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
   private disposables: Disposable[] = [];
 
   constructor() {
-    // Delete any temporary files from previous sessions
-    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    // Delete any temporary files from previous sessions in all workspace folders
     const files = [
       ".vscode_callers",
       ".vscode_callers_done",
@@ -36,7 +35,11 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
       ".vscode_callees_done"
     ];
     // Fire-and-forget cleanup - errors are logged internally
-    Utils.cleanupTemporaryFiles(directory, files);
+    if (workspace.workspaceFolders) {
+      for (const wf of workspace.workspaceFolders) {
+        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+      }
+    }
 
     // Clean up any temporary files when folders are added to the workspace
     const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
@@ -196,9 +199,9 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     let predicate = item.name;
     let position = item.range.start;
 
-    await LogtalkTerminal.getCallers(file, position, predicate);
+    await LogtalkTerminal.getCallers(file, position, predicate, item.uri);
 
-    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(item.uri);
     if (!dir) {
       this.logger.error('No workspace folder open');
       return [];
@@ -251,9 +254,9 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     let predicate = item.name;
     let position = item.range.start;
 
-    await LogtalkTerminal.getCallees(file, position, predicate);
+    await LogtalkTerminal.getCallees(file, position, predicate, item.uri);
 
-    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(item.uri);
     if (!dir) {
       this.logger.error('No workspace folder open');
       return [];

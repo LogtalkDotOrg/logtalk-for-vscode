@@ -1332,11 +1332,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         // Use the directory of the current document
         defaultDirectory = Uri.file(path.dirname(document.uri.fsPath));
       } else {
-        // Fallback to workspace folder
-        const workspaceFolders = workspace.workspaceFolders;
-        defaultDirectory = workspaceFolders && workspaceFolders.length > 0
-          ? workspaceFolders[0].uri
-          : Uri.file('.');
+        // Fallback to workspace folder containing the document, or first workspace folder
+        const docWorkspaceFolder = workspace.getWorkspaceFolder(document.uri);
+        if (docWorkspaceFolder) {
+          defaultDirectory = docWorkspaceFolder.uri;
+        } else {
+          const workspaceFolders = workspace.workspaceFolders;
+          defaultDirectory = workspaceFolders && workspaceFolders.length > 0
+            ? workspaceFolders[0].uri
+            : Uri.file('.');
+        }
       }
 
       // Create default URI with the filename
@@ -1402,11 +1407,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         // Use the directory of the current document
         defaultDirectory = Uri.file(path.dirname(document.uri.fsPath));
       } else {
-        // Fallback to workspace folder
-        const workspaceFolders = workspace.workspaceFolders;
-        defaultDirectory = workspaceFolders && workspaceFolders.length > 0
-          ? workspaceFolders[0].uri
-          : Uri.file('.');
+        // Fallback to workspace folder containing the document, or first workspace folder
+        const docWorkspaceFolder = workspace.getWorkspaceFolder(document.uri);
+        if (docWorkspaceFolder) {
+          defaultDirectory = docWorkspaceFolder.uri;
+        } else {
+          const workspaceFolders = workspace.workspaceFolders;
+          defaultDirectory = workspaceFolders && workspaceFolders.length > 0
+            ? workspaceFolders[0].uri
+            : Uri.file('.');
+        }
       }
 
       // Create default URI with the confirmed filename
@@ -11032,9 +11042,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.info(`Inferring public predicates for entity ${entityInfo.name}`);
 
       // Call LogtalkTerminal to infer public predicates
-      await LogtalkTerminal.inferPublicPredicates(entityInfo.name);
+      await LogtalkTerminal.inferPublicPredicates(entityInfo.name, document.uri);
 
-      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      const wdir = LogtalkTerminal.getWorkspaceFolderForUri(document.uri);
       if (!wdir) {
         window.showErrorMessage('No workspace folder open');
         return;
@@ -11144,7 +11154,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.info(`Sorting files by dependencies: ${logtalkLoadInfo.files.join(', ')}`);
 
       // Get workspace directory
-      const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+      const wdir = LogtalkTerminal.getWorkspaceFolderForUri(document.uri);
       if (!wdir) {
         window.showErrorMessage('No workspace folder open');
         return;

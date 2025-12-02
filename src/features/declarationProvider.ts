@@ -22,14 +22,17 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
   private disposables: Disposable[] = [];
 
   constructor() {
-    // Delete any temporary files from previous sessions
-    const directory = LogtalkTerminal.getFirstWorkspaceFolder();
+    // Delete any temporary files from previous sessions in all workspace folders
     const files = [
       ".vscode_declaration",
       ".vscode_declaration_done"
     ];
     // Fire-and-forget cleanup - errors are logged internally
-    Utils.cleanupTemporaryFiles(directory, files);
+    if (workspace.workspaceFolders) {
+      for (const wf of workspace.workspaceFolders) {
+        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
+      }
+    }
 
     // Clean up any temporary files when folders are added to the workspace
     const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
@@ -64,7 +67,7 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
     await LogtalkTerminal.getDeclaration(doc, position, call);
 
     let location: Location = null;
-    const dir = LogtalkTerminal.getFirstWorkspaceFolder();
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
     if (!dir) {
       this.logger.error('No workspace folder open');
       return location;
