@@ -6,8 +6,9 @@
 * Remove the "Logtalk: Toggle Debugging" button from the editor title bar (subsumed by the "Run" menu commands)
 * Add status bar indicators for profiling and CodeLens on/off state
 * Show an error message when the Logtalk terminal crashes with a button to restart the terminal
-* Improve predicate call parsing performance when using the code navigation features
+* Refresh active editor tests and metrics CodeLens when results files change without waiting for user interaction
 * Improve performance of the tests and metrics CodeLens providers
+* Improve predicate call parsing performance when using the code navigation features
 * Partial fix for handling ECLiPSe file paths on Windows that start with a double slash followed by a drive letter followed by a slash
 * Fix error when calling the "Load File" and "Load Directory" commands from the command palette when no file is open or selected
 

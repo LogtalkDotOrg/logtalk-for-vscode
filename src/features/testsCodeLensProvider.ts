@@ -10,7 +10,9 @@ import {
   EventEmitter,
   Event,
   workspace,
-  Disposable
+  Disposable,
+  FileSystemWatcher,
+  RelativePattern
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
@@ -24,6 +26,7 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
 
   private configurationListener: Disposable;
   private textDocumentListener: Disposable;
+  private resultsFileWatchers: FileSystemWatcher[] = [];
 
   constructor() {
     this.configurationListener = workspace.onDidChangeConfiguration((_) => {
@@ -57,6 +60,38 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
       LogtalkTestsCodeLensProvider.outdated = true;
       this._onDidChangeCodeLenses.fire();
     });
+
+    // Watch for changes to test results files to refresh CodeLens automatically
+    this.setupResultsFileWatchers();
+  }
+
+  /**
+   * Set up file system watchers for .vscode_test_results files in all workspace folders
+   */
+  private setupResultsFileWatchers(): void {
+    // Create watchers for each workspace folder
+    if (workspace.workspaceFolders) {
+      for (const folder of workspace.workspaceFolders) {
+        const pattern = new RelativePattern(folder, '**/.vscode_test_results');
+        const watcher = workspace.createFileSystemWatcher(pattern);
+
+        watcher.onDidCreate(() => {
+          LogtalkTestsCodeLensProvider.outdated = false;
+          this._onDidChangeCodeLenses.fire();
+        });
+
+        watcher.onDidChange(() => {
+          LogtalkTestsCodeLensProvider.outdated = false;
+          this._onDidChangeCodeLenses.fire();
+        });
+
+        watcher.onDidDelete(() => {
+          this._onDidChangeCodeLenses.fire();
+        });
+
+        this.resultsFileWatchers.push(watcher);
+      }
+    }
   }
 
   /**
@@ -69,6 +104,10 @@ export class LogtalkTestsCodeLensProvider implements CodeLensProvider {
     if (this.textDocumentListener) {
       this.textDocumentListener.dispose();
     }
+    for (const watcher of this.resultsFileWatchers) {
+      watcher.dispose();
+    }
+    this.resultsFileWatchers = [];
     if (this._onDidChangeCodeLenses) {
       this._onDidChangeCodeLenses.dispose();
     }
