@@ -50,8 +50,12 @@ Most of the features rely on a Logtalk session running in the integrated termina
 
 ### Syntax highlighting
 
+This extension assumes that the Logtalk source files use either the `.lgt` or `.logtalk` extensions.
+
 - Full syntax highlight for all Logtalk built-in control constructs, directives, methods, and predicates
 - Full syntax highlight for all ISO Prolog standard built-in control constructs, directives, and predicates
+
+To also use the syntax highlighting support with Prolog source files, open the VSCode settings, search for "files.associations", and add an entry for each Prolog extension you want to associate with Logtalk syntax highlighting.
 
 ### Automatic indentation
 
