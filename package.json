@@ -279,6 +279,11 @@
                 "command": "logtalk.svgViewer.zoomReset",
                 "title": "Reset Zoom",
                 "icon": "$(search-stop)"
+            },
+            {
+                "command": "logtalk.help.handbook",
+                "title": "Logtalk Handbook",
+                "category": "Help"
             }
         ],
         "keybindings": [],

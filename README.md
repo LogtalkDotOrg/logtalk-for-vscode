@@ -152,7 +152,13 @@ Quick fixes are provided for some errors and warnings. When applying quick fixes
 
 ### Commands
 
-Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item. In the command palette and context menus, all commands have a "Logtalk:" prefix.
+Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item. In the command palette and context menus, all commands (except the help command) have a "Logtalk:" prefix.
+
+#### Help command
+
+The "Help: Logtalk Handbook" command opens the Logtalk Handbook (from the currently installed version) using [Live Preview](https://marketplace.visualstudio.com/items?itemName=ms-vscode.live-server) if installed, or the default browser otherwise. The Handbook includes a link to the APIs documentation.
+
+Due to Live Preview limitations, the command adds the Logtalk documentation folder to the workspace if it's not already there (it can be removed at any time without any consequence to the Logtalk installation using the explorer context menu "Remove Folder from Workspace" command).
 
 #### Project commands
 

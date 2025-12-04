@@ -12,9 +12,14 @@ import {
   window,
   SourceBreakpoint,
   FunctionBreakpoint,
-  WorkspaceEdit
+  WorkspaceEdit,
+  Uri,
+  env,
+  extensions
 } from "vscode";
 import * as jsesc from "jsesc";
+import * as fs from "fs";
+import * as path from "path";
 
 import { loadEditHelpers } from "./features/editHelpers";
 import { Utils } from "./utils/utils";
@@ -243,6 +248,76 @@ export async function activate(context: ExtensionContext) {
           `Please check your internet connection and Logtalk configuration. ` +
           `Error: ${error instanceof Error ? error.message : String(error)}`
         );
+      }
+    })
+  );
+
+  // Add help command to open Logtalk Handbook
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.help.handbook', async () => {
+      // Get the Logtalk home path
+      const logtalkHome = workspace.getConfiguration("logtalk").get<string>("home.path") || process.env.LOGTALKHOME;
+
+      if (!logtalkHome) {
+        window.showErrorMessage('LOGTALKHOME is not configured. Please set the logtalk.home.path setting or the LOGTALKHOME environment variable.');
+        return;
+      }
+
+      const docsPath = path.join(logtalkHome, 'docs');
+      const handbookPath = path.join(docsPath, 'handbook', 'index.html');
+
+      // Check if the file exists
+      if (!fs.existsSync(handbookPath)) {
+        window.showErrorMessage(`Logtalk Handbook not found at: ${handbookPath}`);
+        return;
+      }
+
+      // Check if Live Preview extension is installed
+      const livePreviewExtension = extensions.getExtension('ms-vscode.live-server');
+
+      if (livePreviewExtension) {
+        try {
+          // Ensure the extension is activated
+          if (!livePreviewExtension.isActive) {
+            await livePreviewExtension.activate();
+          }
+
+          // Live Preview's serverRoot setting only works for files within a workspace folder.
+          // To ensure relative links (like to APIs) work correctly, we need to add the docs
+          // folder to the workspace if it's not already there.
+          const docsUri = Uri.file(docsPath);
+          const workspaceFolders = workspace.workspaceFolders || [];
+          const docsInWorkspace = workspaceFolders.some(folder =>
+            folder.uri.fsPath === docsUri.fsPath ||
+            docsUri.fsPath.startsWith(folder.uri.fsPath + path.sep)
+          );
+
+          if (!docsInWorkspace) {
+            // Add docs folder to workspace so Live Preview serves from the correct root
+            const added = workspace.updateWorkspaceFolders(
+              workspaceFolders.length,
+              0,
+              { uri: docsUri, name: 'Logtalk Documentation' }
+            );
+            if (added) {
+              logger.info(`Added Logtalk Documentation folder to workspace: ${docsPath}`);
+              // Wait for the workspace update to take effect
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+
+          // Use Live Preview to open the handbook
+          await commands.executeCommand('livePreview.start.preview.atFileString', handbookPath);
+          logger.info(`Opened Logtalk Handbook in Live Preview: ${handbookPath}`);
+        } catch (error) {
+          logger.warn(`Failed to open Handbook in Live Preview, falling back to external browser: ${error}`);
+          // Fall back to external browser
+          await env.openExternal(Uri.file(handbookPath));
+        }
+      } else {
+        // Live Preview not installed, open in external browser
+        logger.info(`Live Preview extension not installed, opening Handbook in external browser: ${handbookPath}`);
+        await env.openExternal(Uri.file(handbookPath));
       }
     })
   );
