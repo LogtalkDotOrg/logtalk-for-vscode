@@ -543,8 +543,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       const summaryRegex = /File:(.+);Line:(\d+);Object:(.+);Status:(.+)/i;
 
       // Parse coverage data
-      // Format: File:<path>;Line:<line>;Status:Tests clause coverage: <covered>/<total> - (all) or [1,2,3]
-      const coverageRegex = /File:(.+?);Line:(\d+);Status:Tests clause coverage: (\d+)\/(\d+)(?:\s*-\s*(.+))?/i;
+      // Format: File:<path>;Line:<line>;Status:Tests coverage: <covered>/<total> clause(s) - (all) or [1,2,3]
+      const coverageRegex = /File:(.+?);Line:(\d+);Status:Tests coverage: (\d+)\/(\d+) clause(?:s)? - (.+)/i;
 
       const testResults: TestResultData[] = [];
       const summaryResults: TestSummaryData[] = [];
