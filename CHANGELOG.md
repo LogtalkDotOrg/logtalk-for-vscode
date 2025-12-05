@@ -5,6 +5,7 @@
 * Add "Help: Logtalk Handbook" command to open the Logtalk Handbook using Live Preview if installed, or the default browser otherwise
 * Add multi-root workspace support for code navigation, refactoring, testing, documentation, and chat participant features
 * Remove the "Logtalk: Toggle Debugging" button from the editor title bar (subsumed by the "Run" menu commands)
+* Remove the "Logtalk:" prefix from all context menu items
 * Add status bar indicators for profiling and CodeLens on/off state
 * Show an error message when the Logtalk terminal crashes with a button to restart the terminal
 * Support ECLiPSe file paths on Windows

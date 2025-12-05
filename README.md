@@ -152,7 +152,7 @@ Quick fixes are provided for some errors and warnings. When applying quick fixes
 
 ### Commands
 
-Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" menu or context menu item. In the command palette and context menus, all commands (except the help command) have a "Logtalk:" prefix.
+Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" context menu item. Alternatively, you can open one of the project source files and use the "Load Directory" context menu item. In the command palette, type "Logtalk" to list all the available commands.
 
 #### Help command
 
@@ -218,7 +218,7 @@ The "Run Tests" and "Run Tests with Coverage" commands add failed tests to the "
 
 The "Generate Documentation" and "Scan Dead Code" commands add linter warnings to the "PROBLEMS" pane. Quick fixes are provided for some of the warnings.
 
-The output of the "Generate Documentation" and "Generate Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Logtalk: Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Doclet" command.
+The output of the "Generate Documentation" and "Generate Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Doclet" command.
 
 #### Jupyter commands
 
@@ -447,7 +447,7 @@ VSCode usability issues that affect debugging support:
 
 ![testing](images/testing.png)
 
-Support for the VSCode Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Logtalk: Run Tests" or "Logtalk: Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run.
+Support for the VSCode Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Run Tests" or "Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run.
 
 When available, code coverage information is also shown in the covered source files. Note that coverage data is per predicate and per predicate clause (or per non-terminal and per non-terminal rule), not per goal. Clauses used by the tests will be marked using a green color overlay in the editor gutter while clauses not used by the tests will be marked using a red color overlay. Use the editor window "Toggle Inline Coverage" button to toggle the coverage overlay. In the "Testing" pane, the "Test Coverage" sub-pane shows both statement (clauses) and function (predicates) coverage numbers and percentages (note that VSCode doesn't support renaming these terms). In the "Explorer" pane, the colored bar to the right of a file name indicates the combined percentage of covered clauses and predicates. Hovering over the bar shows the separate coverage details.
 
@@ -459,7 +459,7 @@ Note that collecting code coverage data depends solely on the tests driver file.
 
 ![profiling](images/profiling.png)
 
-Support for profiling is provided. This allows browsing and analyzing profiling data from the "Logtalk: Profiling" sub-menu in the explorer and editor context menus. After running the "Logtalk: Toggle Profiling" command, loaded code is recompiled in debug mode and profiling is enabled. The "Logtalk: Show Profiling Data" command can be used to show the profiling data in a webview. The webview allows navigating to the source file location of entities, predicates, and clauses. It also allows saving the profiling data as a CSV file. Collected profiling data can be reset using the "Logtalk: Reset Profiling Data" command. The profiling commands are also available from the command palette. See the documentation of the `ports_profiler` tool for details and hints on how to interpret profiling data.
+Support for profiling is provided. This allows browsing and analyzing profiling data from the "Profiling" sub-menu in the explorer and editor context menus. After running the "Toggle Profiling" command, loaded code is recompiled in debug mode and profiling is enabled. The "Show Profiling Data" command can be used to show the profiling data in a webview. The webview allows navigating to the source file location of entities, predicates, and clauses. It also allows saving the profiling data as a CSV file. Collected profiling data can be reset using the "Reset Profiling Data" command. The profiling commands are also available from the command palette. See the documentation of the `ports_profiler` tool for details and hints on how to interpret profiling data.
 
 When editing a Logtalk file, the status bar shows a `$(pulse) Profiling: on/off` item. Clicking on this item toggles profiling. This status bar item is hidden when editing a non-Logtalk file.
 
@@ -690,7 +690,7 @@ Load project on extension activation. Although the default value is `false` (for
 
     "logtalk.make.onSave": false
 
-Automatically call the "Logtalk: Make - Reload" command when saving a Logtalk source file. Although the default value is `false` (for backward compatibility), it's recommended to enable this feature for a better development experience.
+Automatically call the "Make - Reload" command when saving a Logtalk source file. Although the default value is `false` (for backward compatibility), it's recommended to enable this feature for a better development experience.
 
 #### Code metrics and test results code lens
 

@@ -91,83 +91,102 @@
         "commands": [
             {
                 "command": "logtalk.load.directory",
-                "title": "Logtalk: Load Directory"
+                "title": "Load Directory",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.load.file",
-                "title": "Logtalk: Load File"
+                "title": "Load File",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.make.reload",
-                "title": "Logtalk: Make - Reload"
+                "title": "Make - Reload",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.make.optimal",
-                "title": "Logtalk: Make - Optimal"
+                "title": "Make - Optimal",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.make.normal",
-                "title": "Logtalk: Make - Normal"
+                "title": "Make - Normal",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.make.debug",
-                "title": "Logtalk: Make - Debug"
+                "title": "Make - Debug",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.make.check",
-                "title": "Logtalk: Make - Check"
+                "title": "Make - Check",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.make.circular",
-                "title": "Logtalk: Make - Circular"
+                "title": "Make - Circular",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.make.clean",
-                "title": "Logtalk: Make - Clean"
+                "title": "Make - Clean",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.make.caches",
-                "title": "Logtalk: Make - Caches"
+                "title": "Make - Caches",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.run.tests",
-                "title": "Logtalk: Run Tests"
+                "title": "Run Tests",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.run.tests.coverage",
-                "title": "Logtalk: Run Tests with Coverage"
+                "title": "Run Tests with Coverage",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.scan.deadCode",
-                "title": "Logtalk: Scan Dead Code"
+                "title": "Scan Dead Code",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.run.doclet",
-                "title": "Logtalk: Run Doclet"
+                "title": "Run Doclet",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.generate.documentation",
-                "title": "Logtalk: Generate Documentation"
+                "title": "Generate Documentation",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.generate.diagrams",
-                "title": "Logtalk: Generate Diagrams"
+                "title": "Generate Diagrams",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.open.notebook",
-                "title": "Logtalk: Open as a Notebook"
+                "title": "Open as a Notebook",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.open.paired.notebook",
-                "title": "Logtalk: Open as a Paired Notebook"
+                "title": "Open as a Paired Notebook",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.sync.notebook",
-                "title": "Logtalk: Sync paired Notebook Representations"
+                "title": "Sync paired Notebook Representations",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.toggleDebugging",
-                "title": "Logtalk: Toggle Debugging",
+                "title": "Toggle Debugging",
                 "category": "Logtalk",
                 "icon": {
                     "light": "images/debug-light.svg",
@@ -177,83 +196,103 @@
             },
             {
                 "command": "logtalk.create.project",
-                "title": "Logtalk: Create Project"
+                "title": "Create Project",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.load.project",
-                "title": "Logtalk: Load Project"
+                "title": "Load Project",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.open",
-                "title": "Logtalk: Open Logtalk"
+                "title": "Open Logtalk",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.rscan.deadCode",
-                "title": "Logtalk: Scan Project Dead Code"
+                "title": "Scan Project Dead Code",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.rcompute.metrics",
-                "title": "Logtalk: Compute Project Metrics"
+                "title": "Compute Project Metrics",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.rgenerate.documentation",
-                "title": "Logtalk: Generate Project Documentation"
+                "title": "Generate Project Documentation",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.rgenerate.diagrams",
-                "title": "Logtalk: Generate Project Diagrams"
+                "title": "Generate Project Diagrams",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.run.testers",
-                "title": "Logtalk: Run Project Testers"
+                "title": "Run Project Testers",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.run.doclets",
-                "title": "Logtalk: Run Project Doclets"
+                "title": "Run Project Doclets",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.open.parentFile",
-                "title": "Logtalk: Open Parent File"
+                "title": "Open Parent File",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.toggle.codeLens",
-                "title": "Logtalk: Toggle CodeLens"
+                "title": "Toggle CodeLens",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.compute.metrics",
-                "title": "Logtalk: Compute Metrics"
+                "title": "Compute Metrics",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.profiling.toggle",
-                "title": "Logtalk: Toggle Profiling"
+                "title": "Toggle Profiling",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.profiling.showData",
-                "title": "Logtalk: Show Profiling Data"
+                "title": "Show Profiling Data",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.profiling.reset",
-                "title": "Logtalk: Reset Profiling Data"
+                "title": "Reset Profiling Data",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.test.documentation",
-                "title": "Logtalk: Test Documentation Cache"
+                "title": "Test Documentation Cache",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.logging.show",
-                "title": "Logtalk: Show Extension Log"
+                "title": "Show Extension Log",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.logging.setLevel",
-                "title": "Logtalk: Set Extension Logging Level"
+                "title": "Set Extension Logging Level",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.refresh.documentation",
-                "title": "Logtalk: Refresh Documentation Cache"
+                "title": "Refresh Documentation Cache",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.open.svg",
-                "title": "Logtalk: Open SVG in Viewer"
+                "title": "Open SVG in Viewer",
+                "category": "Logtalk"
             },
             {
                 "command": "logtalk.svgViewer.back",
@@ -663,15 +702,15 @@
         },
         "submenus": [
             {
-                "label": "Logtalk: Make",
+                "label": "Make",
                 "id": "makesubmenu"
             },
             {
-                "label": "Logtalk: Jupyter",
+                "label": "Jupyter",
                 "id": "jupytersubmenu"
             },
             {
-                "label": "Logtalk: Profiling",
+                "label": "Profiling",
                 "id": "profilingsubmenu"
             }
         ],
@@ -862,7 +901,7 @@
                     },
                     "logtalk.make.onSave": {
                         "type": "boolean",
-                        "description": "Automatically call the \"Logtalk: Make - Reload\" command when saving a Logtalk source file.",
+                        "description": "Automatically call the \"Make - Reload\" command when saving a Logtalk source file.",
                         "default": false,
                         "order": 15
                     },
@@ -958,7 +997,7 @@
                     {
                         "id": "load",
                         "title": "Compile and load the example",
-                        "description": "Next, compile and load the example by opening its loader file and selecting the \"Logtalk: Load File\" command from the context menu or by opening one of the example source files selecting the \"Logtalk: Load Directory\" command from the context menu.",
+                        "description": "Next, compile and load the example by opening its loader file and selecting the \"Load File\" command from the context menu or by opening one of the example source files selecting the \"Load Directory\" command from the context menu.",
                         "media": {
                             "image": "media/load_file.png",
                             "altText": "Context menu with the load file command selected."
@@ -971,7 +1010,7 @@
                     {
                         "id": "test",
                         "title": "Run the example tests.",
-                        "description": "Run the example tests by selecting the \"Logtalk: Run Tests\" command from the context menu.",
+                        "description": "Run the example tests by selecting the \"Run Tests\" or the \"Run Tests with Coverage\" command from the context menu.",
                         "media": {
                             "image": "media/run_tests.png",
                             "altText": "Context menu with the run tests command selected."
