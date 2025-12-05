@@ -1087,8 +1087,11 @@ export async function activate(context: ExtensionContext) {
                            document.fileName.endsWith('.lgt') ||
                            document.fileName.endsWith('.logtalk');
       if (isLogtalkFile) {
-        // Pass the document URI to load the project from the correct workspace folder
-        commands.executeCommand('logtalk.load.project', document.uri);
+        // Wait for the terminal to be ready before loading the project to prevent race conditions
+        LogtalkTerminal.waitForTerminalReady().then(() => {
+          // Pass the document URI to load the project from the correct workspace folder
+          commands.executeCommand('logtalk.load.project', document.uri);
+        });
       }
     }
   }

@@ -13,6 +13,7 @@
 * Improve performance of the tests and metrics CodeLens providers
 * Improve predicate call parsing performance when using the code navigation features
 * Fix error when calling the "Load File" and "Load Directory" commands from the command palette when no file is open or selected
+* Fix potential race condition when loading a project on activation
 
 ## [0.79.0]
 

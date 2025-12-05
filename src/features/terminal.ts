@@ -48,6 +48,10 @@ export default class LogtalkTerminal {
   private static _loadedDirectories: Set<string> = new Set();
   private static disposables: Disposable[] = [];
 
+  // Terminal readiness tracking
+  private static _terminalReadyPromise: Promise<void> | null = null;
+  private static _terminalReadyResolve: (() => void) | null = null;
+
   /**
    * Expands VS Code-style environment variables (${env:VAR}) to their actual values.
    * @param value The string containing environment variables to expand
@@ -211,6 +215,9 @@ export default class LogtalkTerminal {
 
         LogtalkTerminal._loadedDirectories.clear();
         LogtalkTerminal._terminal = null;
+        // Reset terminal readiness tracking
+        LogtalkTerminal._terminalReadyPromise = null;
+        LogtalkTerminal._terminalReadyResolve = null;
         terminal.dispose();
 
         // Clear all diagnostics when the terminal is closed
@@ -270,6 +277,22 @@ export default class LogtalkTerminal {
   // Flag to track if terminal creation is in progress (to prevent race conditions)
   private static _terminalCreationInProgress: boolean = false;
 
+  /**
+   * Wait for the Logtalk terminal to be ready (vscode.lgt loaded).
+   * Returns immediately if terminal is already ready.
+   */
+  public static async waitForTerminalReady(): Promise<void> {
+    if (LogtalkTerminal._terminalReadyPromise) {
+      return LogtalkTerminal._terminalReadyPromise;
+    }
+    // If there's a terminal but no ready promise, it's already ready
+    if (LogtalkTerminal._terminal) {
+      return Promise.resolve();
+    }
+    // No terminal yet, nothing to wait for
+    return Promise.resolve();
+  }
+
   public static createLogtalkTerm() {
     if (LogtalkTerminal._terminal || LogtalkTerminal._terminalCreationInProgress) {
       return;
@@ -285,6 +308,11 @@ export default class LogtalkTerminal {
 
     // Set flag to prevent concurrent calls from creating multiple terminals
     LogtalkTerminal._terminalCreationInProgress = true;
+
+    // Create the readiness promise
+    LogtalkTerminal._terminalReadyPromise = new Promise<void>((resolve) => {
+      LogtalkTerminal._terminalReadyResolve = resolve;
+    });
 
     try {
       let section = workspace.getConfiguration("logtalk");
@@ -481,12 +509,23 @@ export default class LogtalkTerminal {
       const normalizedCore = fs.realpathSync(path.join(logtalkHome, "core")).split(path.sep).join("/").toLowerCase();
       LogtalkTerminal._loadedDirectories.add(normalizedCore);
 
+      // Terminal is now ready (vscode.lgt load command has been sent)
+      // Resolve the readiness promise so callers can proceed
+      if (LogtalkTerminal._terminalReadyResolve) {
+        LogtalkTerminal._terminalReadyResolve();
+      }
+
       } else {
         throw new Error("configuration settings error: logtalk");
       }
     } catch (error) {
       // Reset the flag on error so terminal creation can be retried
       LogtalkTerminal._terminalCreationInProgress = false;
+      // Reject the readiness promise on error
+      if (LogtalkTerminal._terminalReadyResolve) {
+        LogtalkTerminal._terminalReadyPromise = null;
+        LogtalkTerminal._terminalReadyResolve = null;
+      }
       throw error;
     }
   }
