@@ -53,7 +53,8 @@ export class StatusBarManager {
     // Listen for configuration changes
     context.subscriptions.push(
       vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration("logtalk.enableCodeLens")) {
+        if (event.affectsConfiguration("logtalk.enableCodeLens") ||
+            event.affectsConfiguration("editor.codeLens")) {
           this.updateCodeLensStatus();
         }
       })
@@ -100,18 +101,31 @@ export class StatusBarManager {
       return;
     }
 
-    const config = vscode.workspace.getConfiguration("logtalk");
-    const enabled = config.get<boolean>("enableCodeLens", true);
+    const logtalkConfig = vscode.workspace.getConfiguration("logtalk");
+    const logtalkEnabled = logtalkConfig.get<boolean>("enableCodeLens", true);
+    const editorConfig = vscode.workspace.getConfiguration("editor");
+    const editorCodeLensEnabled = editorConfig.get<boolean>("codeLens", true);
 
-    if (enabled) {
+    if (!editorCodeLensEnabled) {
+      // Global editor.codeLens is disabled - clicking opens settings
+      this.codeLensStatusBarItem.text = "$(info) CodeLens: disabled globally";
+      this.codeLensStatusBarItem.tooltip = "VS Code's editor.codeLens setting is disabled. Click to open settings.";
+      this.codeLensStatusBarItem.command = {
+        command: "workbench.action.openSettings",
+        arguments: ["editor.codeLens"],
+        title: "Open CodeLens Settings"
+      };
+    } else if (logtalkEnabled) {
       this.codeLensStatusBarItem.text = "$(info) CodeLens: on";
       this.codeLensStatusBarItem.tooltip = "Logtalk CodeLens is enabled. Click to disable.";
+      this.codeLensStatusBarItem.command = "logtalk.toggle.codeLens";
     } else {
       this.codeLensStatusBarItem.text = "$(info) CodeLens: off";
       this.codeLensStatusBarItem.tooltip = "Logtalk CodeLens is disabled. Click to enable.";
+      this.codeLensStatusBarItem.command = "logtalk.toggle.codeLens";
     }
 
-    this.logger.debug(`CodeLens status bar updated: ${enabled ? "enabled" : "disabled"}`);
+    this.logger.debug(`CodeLens status bar updated: logtalk=${logtalkEnabled ? "enabled" : "disabled"}, editor=${editorCodeLensEnabled ? "enabled" : "disabled"}`);
   }
 
   /**
