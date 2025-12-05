@@ -684,7 +684,7 @@ The "logtalk.diagrams.arguments" setting is only used when the "logtalk.diagrams
 
     "logtalk.loadProject.onActivation": false
 
-Load project on extension activation. Although the default value is `false` (for backward compatibility), it's recommended to enable this feature for a better development experience as several extension features require the code to be loaded. In the case of multi-root workspaces, the project is loaded from the workspace folder containing the active editor's document.
+Load project on extension activation. Although the default value is `false` (for backward compatibility), it's recommended to enable this feature for a better development experience as several extension features require the code to be loaded. This assumes that a `loader.lgt` or `loader.logtalk` file exists in the workspace root folder. In the case of multi-root workspaces, the project is loaded from the workspace folder containing the active editor's document.
 
 #### Run Logtalk make on save
 
