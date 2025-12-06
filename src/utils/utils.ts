@@ -1045,6 +1045,22 @@ export class Utils {
   }
 
   /**
+   * Normalize a file path to use forward slashes and ensure uppercase drive letter on Windows.
+   * This is critical for consistent path comparison, as VSCode's uri.fsPath normalizes
+   * drive letters to lowercase, but the Logtalk backend uses uppercase.
+   * @param filePath The file path to normalize
+   * @returns The normalized path with forward slashes and uppercase drive letter
+   */
+  public static normalizeFilePath(filePath: string): string {
+    let normalized = path.resolve(filePath).split(path.sep).join("/");
+    // Ensure uppercase drive letter on Windows
+    if (process.platform === 'win32' && /^[a-z]:/.test(normalized)) {
+      normalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    }
+    return normalized;
+  }
+
+  /**
    * Clean up temporary files from a given directory.
    * Silently ignores errors if a file cannot be deleted.
    * @param directory The root directory path (can be undefined if no workspace is open)

@@ -687,7 +687,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     // Collect all test items that have results
     const testItemsWithResults: TestItem[] = [];
     for (const result of testResults) {
-      const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
+      const normalizedPath = Utils.normalizeFilePath(result.file);
       const fileUri = Uri.file(normalizedPath);
       const testId = this.generateTestItemId(fileUri, `${result.object}::${result.test}`);
       const testItem = this.testItems.get(testId);
@@ -726,7 +726,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     // Update test states based on results
     for (const result of testResults) {
-      const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
+      const normalizedPath = Utils.normalizeFilePath(result.file);
       const fileUri = Uri.file(normalizedPath);
       const testId = this.generateTestItemId(fileUri, `${result.object}::${result.test}`);
       const testItem = this.testItems.get(testId);
@@ -777,7 +777,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     // Group coverage data by file
     const coverageByFile = new Map<string, CoverageData[]>();
     for (const coverage of coverageResults) {
-      const normalizedPath = path.resolve(coverage.file).split(path.sep).join("/");
+      const normalizedPath = Utils.normalizeFilePath(coverage.file);
       if (!coverageByFile.has(normalizedPath)) {
         coverageByFile.set(normalizedPath, []);
       }
@@ -877,7 +877,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private async loadDetailedCoverage(fileCoverage: FileCoverage): Promise<StatementCoverage[]> {
     this.logger.debug(`Loading detailed coverage for ${fileCoverage.uri.fsPath}`);
 
-    const normalizedPath = path.resolve(fileCoverage.uri.fsPath).split(path.sep).join("/");
+    const normalizedPath = Utils.normalizeFilePath(fileCoverage.uri.fsPath);
     // Use workspace-aware key to retrieve coverage data
     const coverageKey = this.generateCoverageKey(normalizedPath);
     this.logger.debug(`Coverage key: ${coverageKey}`);
@@ -1081,7 +1081,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     // Group tests by file
     const testsByFile = new Map<string, TestResultData[]>();
     for (const result of testResults) {
-      const normalizedPath = path.resolve(result.file).split(path.sep).join("/");
+      const normalizedPath = Utils.normalizeFilePath(result.file);
       if (!testsByFile.has(normalizedPath)) {
         testsByFile.set(normalizedPath, []);
       }
@@ -1091,7 +1091,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     // Group summary results by file
     const summariesByFile = new Map<string, TestSummaryData[]>();
     for (const summary of summaryResults) {
-      const normalizedPath = path.resolve(summary.file).split(path.sep).join("/");
+      const normalizedPath = Utils.normalizeFilePath(summary.file);
       if (!summariesByFile.has(normalizedPath)) {
         summariesByFile.set(normalizedPath, []);
       }
@@ -1406,7 +1406,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * This marks all test items associated with the file as outdated
    */
   private invalidateTestResultsForFile(uri: Uri): void {
-    const normalizedPath = path.resolve(uri.fsPath).split(path.sep).join("/");
+    const normalizedPath = Utils.normalizeFilePath(uri.fsPath);
     const fileUri = Uri.file(normalizedPath);
     const fileId = this.generateTestItemId(fileUri);
 
