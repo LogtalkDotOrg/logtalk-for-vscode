@@ -1156,6 +1156,10 @@ export default class LogtalkLinter implements CodeActionProvider {
       textDocumentWillSaveEvent => {
         if (textDocumentWillSaveEvent.document.isDirty) {
           this.diagnosticCollection.delete(textDocumentWillSaveEvent.document.uri);
+          const filePath = textDocumentWillSaveEvent.document.uri.fsPath;
+          if (filePath in this.diagnostics) {
+            this.diagnostics[filePath] = [];
+          }
         }
       },
       this,

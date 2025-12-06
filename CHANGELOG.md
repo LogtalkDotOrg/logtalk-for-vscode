@@ -15,6 +15,7 @@
 * Fix error when calling the "Load File" and "Load Directory" commands from the command palette when no file is open or selected
 * Fix potential race condition when loading a project on activation
 * Fix displaying of inline code coverage data on Windows
+* Fix clearing diagnostics for failed tests when editing and saving the tests file
 
 ## [0.79.0]
 
