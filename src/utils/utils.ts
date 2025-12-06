@@ -27,7 +27,7 @@ import { PatternSets } from "./symbols";
 export class Utils {
   // Minimum required Logtalk version
   public static readonly LOGTALK_MIN_VERSION_MAJOR = 3;
-  public static readonly LOGTALK_MIN_VERSION_MINOR = 96;
+  public static readonly LOGTALK_MIN_VERSION_MINOR = 97;
   public static readonly LOGTALK_MIN_VERSION_PATCH = 0;
 
   private static logtalkHome: string;
