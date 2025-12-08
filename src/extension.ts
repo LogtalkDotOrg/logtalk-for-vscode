@@ -56,6 +56,7 @@ import { DiagnosticsUtils } from "./utils/diagnostics";
 import { SvgViewerProvider } from "./features/svgViewer";
 import { FileRenameHandler } from "./utils/fileRenameHandler";
 import { StatusBarManager } from "./features/statusBar";
+import { LogtalkDebugAdapterDescriptorFactory, LogtalkDebugConfigurationProvider } from "./features/debugAdapter";
 
 const DEBUG = 1;
 
@@ -376,11 +377,17 @@ export async function activate(context: ExtensionContext) {
 
   // Register debug session start/stop handlers
   context.subscriptions.push(
-    commands.registerCommand('workbench.action.debug.start', () => {
+    commands.registerCommand('workbench.action.debug.start', async () => {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', true);
       updateBreakpointStates(true);
-      LogtalkTerminal.createLogtalkTerm();
-      LogtalkTerminal.sendString('vscode::debug.\r');
+      // Start a proper debug session using the Logtalk debug adapter
+      // This enables the debug toolbar and Run menu items
+      const workspaceFolder = workspace.workspaceFolders?.[0];
+      await debug.startDebugging(workspaceFolder, {
+        type: 'logtalk',
+        request: 'launch',
+        name: 'Logtalk Debug'
+      });
     })
   );
 
@@ -398,12 +405,19 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.toggleDebugging", callback: () => {
       logtalkDebuggingEnabled = !logtalkDebuggingEnabled;
       updateBreakpointStates(logtalkDebuggingEnabled);
-      
+
       // Send appropriate Logtalk command
       LogtalkTerminal.createLogtalkTerm();
       LogtalkTerminal.sendString(logtalkDebuggingEnabled ? 'vscode::debug.\r' : 'vscode::nodebug.\r');
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', logtalkDebuggingEnabled);
     }},
+    // Debug toolbar commands
+    { command: "logtalk.debug.ignore",  callback: () => LogtalkTerminal.sendString('i\r') },
+    { command: "logtalk.debug.fail",    callback: () => LogtalkTerminal.sendString('f\r') },
+    { command: "logtalk.debug.retry",   callback: () => LogtalkTerminal.sendString('r\r') },
+    { command: "logtalk.debug.context", callback: () => LogtalkTerminal.sendString('x\r') },
+    { command: "logtalk.debug.file",    callback: () => LogtalkTerminal.sendString('.\r') },
+    { command: "logtalk.debug.help",    callback: () => LogtalkTerminal.sendString('h\r') },
     // Workspace commands
     { command: "logtalk.create.project",            callback: ()   => LogtalkTerminal.createProject()},
     { command: "logtalk.load.project",              callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
@@ -774,6 +788,17 @@ export async function activate(context: ExtensionContext) {
     debug.onDidChangeBreakpoints(session => {
       LogtalkTerminal.processBreakpoints(session);
     })
+  );
+
+  // Register debug adapter, factory, and configuration provider
+  const debugConfigProvider = new LogtalkDebugConfigurationProvider();
+  context.subscriptions.push(
+    debug.registerDebugConfigurationProvider('logtalk', debugConfigProvider)
+  );
+
+  const debugAdapterFactory = new LogtalkDebugAdapterDescriptorFactory();
+  context.subscriptions.push(
+    debug.registerDebugAdapterDescriptorFactory('logtalk', debugAdapterFactory)
   );
 
   // Track if debugging is currently enabled

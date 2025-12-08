@@ -426,9 +426,11 @@ Right-click on the predicate name in a `logtalk_load/1-2` call with a list of at
 
 ### Debugging support
 
-When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is shown in the active editor window. The `debugger` tool is automatically loaded when setting spy points using the "Run" menu breakpoint items or when running the "Make - Debug" command. See the documentation of the `debugger` tool for details.
+The `debugger` tool is automatically loaded when using the "Run > Start Debugging" and "Run > Run Without Debugging" commands, when setting spy points using the "Run" menu breakpoint items, and when using the "Make - Debug" command to recompile the code in debug mode.
 
-The standard "Run > Start Debugging" and "Run > Run Without Debugging" commands can be used to start and stop debugging. They are equivalent to sending the `debug/0` and `nodebug/0` messages to the `debugger` tool, also re-adding and removing the defined breakpoints and log points (that were set using the VSCode GUI).
+The "Run > Start Debugging" and "Run > Run Without Debugging" commands automatically send the `debug/0` and `nodebug/0` messages to the `debugger` tool, also re-adding and removing the defined breakpoints and log points (that were set using the VSCode GUI). But to trace execution you must send the `trace/0` and `notrace/0` messages to the `debugger` tool from the integrated terminal. See the documentation of the `debugger` tool for details.
+
+When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is shown in the active editor window. The VSCode debug toolbar buttons are supported and extended with additional buttons for common port commands. For other port commands, you must type the command in the integrated terminal.
 
 Breakpoints and log points can be added and removed using the "Run" menu breakpoint items. Clicking at the left of a line number in an editor window, in the same line as a clause head, creates a clause breakpoint represented by a red dot. Control-clicking in this red dot allows the breakpoint to be removed, edited, or disabled. But, although VSCode supports it, a Logtalk breakpoint cannot be a combination of log point and different types of breakpoints. If you edit a breakpoint, you must keep its singular type.
 
@@ -439,9 +441,10 @@ Changes to spy points via user-typed queries in the integrated terminal are not 
 VSCode usability issues that affect debugging support:
 
 - VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item doesn't make the data available to language extensions. See above for the workaround.
-- VScode "Toggle Activate Breakpoints" button in the "Run and Debug" pane doesn't generate an event that can be handled by extensions. Use instead the Logtalk icon in the top-right corner to toggle debugging.
+- VScode "Toggle Activate Breakpoints" button in the "Run and Debug" pane doesn't generate an event that can be handled by extensions.
 - VSCode doesn't support disabling menu items that are not supported by language extensions.
 - When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
+- The "Variables", "Watch", and "Call Stack" panes in the "Run and Debug" sidebar are currently not supported. VSCode doesn't allow extensions to hide these built-in debug views. Users can right-click on the sidebar header and uncheck these panes to hide them manually.
 
 ### Testing support
 

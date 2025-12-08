@@ -323,6 +323,60 @@
                 "command": "logtalk.help.handbook",
                 "title": "Logtalk Handbook",
                 "category": "Help"
+            },
+            {
+                "command": "logtalk.debug.ignore",
+                "title": "Debug: Ignore",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-ignore-light.svg",
+                    "dark": "images/debug-ignore-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.fail",
+                "title": "Debug: Fail",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-fail-light.svg",
+                    "dark": "images/debug-fail-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.retry",
+                "title": "Debug: Retry",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-retry-light.svg",
+                    "dark": "images/debug-retry-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.context",
+                "title": "Debug: Context",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-context-light.svg",
+                    "dark": "images/debug-context-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.file",
+                "title": "Debug: File",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-file-light.svg",
+                    "dark": "images/debug-file-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.help",
+                "title": "Debug: Help",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-help-light.svg",
+                    "dark": "images/debug-help-dark.svg"
+                }
             }
         ],
         "keybindings": [],
@@ -698,6 +752,38 @@
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "profiling_2@2"
                 }
+            ],
+            "debug/toolBar": [
+                {
+                    "command": "logtalk.debug.ignore",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@10"
+                },
+                {
+                    "command": "logtalk.debug.fail",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@11"
+                },
+                {
+                    "command": "logtalk.debug.retry",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@12"
+                },
+                {
+                    "command": "logtalk.debug.context",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@13"
+                },
+                {
+                    "command": "logtalk.debug.file",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@14"
+                },
+                {
+                    "command": "logtalk.debug.help",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@15"
+                }
             ]
         },
         "submenus": [
@@ -725,6 +811,32 @@
                 "label": "Logtalk Debug",
                 "languages": [
                     "logtalk"
+                ],
+                "configurationAttributes": {
+                    "launch": {
+                        "properties": {}
+                    },
+                    "attach": {
+                        "properties": {}
+                    }
+                },
+                "initialConfigurations": [
+                    {
+                        "type": "logtalk",
+                        "request": "launch",
+                        "name": "Logtalk Debug"
+                    }
+                ],
+                "configurationSnippets": [
+                    {
+                        "label": "Logtalk: Debug",
+                        "description": "Start Logtalk debugging session",
+                        "body": {
+                            "type": "logtalk",
+                            "request": "launch",
+                            "name": "Logtalk Debug"
+                        }
+                    }
                 ]
             }
         ],
