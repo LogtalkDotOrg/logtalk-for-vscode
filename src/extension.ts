@@ -1074,7 +1074,7 @@ export async function activate(context: ExtensionContext) {
       }
     })
   );
-  context.subscriptions.push(await LogtalkTerminal.init(context, linter, testsReporter, deadCodeScanner, documentationLinter));
+  context.subscriptions.push(await LogtalkTerminal.init(context, linter, testsReporter, deadCodeScanner, documentationLinter, profiling));
   updateBreakpointStates(logtalkDebuggingEnabled);
 
   // Load project on activation if setting is enabled and a Logtalk file is open

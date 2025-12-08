@@ -36,6 +36,30 @@ export class LogtalkProfiling {
   }
 
   /**
+   * Reset profiling state when terminal is closed
+   * This is called when the Logtalk terminal is closed/restarted
+   * because profiling state is lost when the terminal is restarted
+   */
+  public resetProfiling(): void {
+    if (this.profilingEnabled) {
+      this.logger.info("Resetting profiling state (terminal closed)");
+      this.profilingEnabled = false;
+
+      // Update context for UI
+      vscode.commands.executeCommand('setContext', 'logtalk.profilingEnabled', false);
+
+      // Update status bar
+      StatusBarManager.getInstance().updateProfilingStatus(false);
+
+      // Close the webview if it's open
+      if (this.webviewPanel) {
+        this.webviewPanel.dispose();
+        this.webviewPanel = undefined;
+      }
+    }
+  }
+
+  /**
    * Toggle profiling on/off
    */
   public async toggleProfiling(): Promise<void> {

@@ -27,6 +27,7 @@ import LogtalkDocumentationLinter from "./documentationLinterCodeActionProvider"
 import { LogtalkMetricsCodeLensProvider } from "./metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./testsCodeLensProvider"
 import { LogtalkTestsExplorerProvider } from "./testsExplorer";
+import { LogtalkProfiling } from "./profiling";
 import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
 import { getLogger } from "../utils/logger";
@@ -77,7 +78,8 @@ export default class LogtalkTerminal {
     linter?: LogtalkLinter,
     testsReporter?: LogtalkTestsReporter,
     deadCodeScanner?: LogtalkDeadCodeScanner,
-    documentationLinter?: LogtalkDocumentationLinter
+    documentationLinter?: LogtalkDocumentationLinter,
+    profiling?: LogtalkProfiling
   ): Promise<Disposable> {
 
     // Delete any temporary files from previous sessions in all workspace folders
@@ -240,6 +242,11 @@ export default class LogtalkTerminal {
           documentationLinter.diagnosticCollection.clear();
           documentationLinter.diagnostics = {};
           documentationLinter.diagnosticHash = [];
+        }
+        // Reset profiling state when terminal is closed
+        // Profiling is always disabled when the Logtalk process ends
+        if (profiling) {
+          profiling.resetProfiling();
         }
       }
     });
