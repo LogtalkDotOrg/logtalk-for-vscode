@@ -26,6 +26,13 @@ const logger = getLogger();
  * Implements vscode.DebugAdapter to handle DAP messages
  */
 export class LogtalkDebugSession implements vscode.DebugAdapter {
+
+    // Some backends don't support unbuffered input, so we need to send a newline after each port command
+    public static enterPortCommand: string = (() => {
+        const backend = (vscode.workspace.getConfiguration('logtalk').get<string>('backend') || '');
+        return backend === 'ciao' || backend === 'sicstus' || backend === 'tau' || backend === 'xsb' || backend === 'yap' ? '\r' : '';
+    })();
+
     private sendMessage = new vscode.EventEmitter<DebugProtocol.ProtocolMessage>();
     readonly onDidSendMessage: vscode.Event<DebugProtocol.ProtocolMessage> = this.sendMessage.event;
 
@@ -214,7 +221,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      * Leap continues execution until the next breakpoint
      */
     private handleContinue(request: DebugProtocol.Request): void {
-        LogtalkTerminal.sendString('l');
+        LogtalkTerminal.sendString('l' + LogtalkDebugSession.enterPortCommand);
 
         const response: DebugProtocol.ContinueResponse = {
             seq: this.sequence++,
@@ -238,7 +245,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      * Skip skips tracing for the current goal
      */
     private handleNext(request: DebugProtocol.Request): void {
-        LogtalkTerminal.sendString('s\r');
+        LogtalkTerminal.sendString('s' + LogtalkDebugSession.enterPortCommand);
         this.sendResponse(request);
 
         // Send a stopped event after the step completes
@@ -250,7 +257,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      * Creep moves to the next port (step into)
      */
     private handleStepIn(request: DebugProtocol.Request): void {
-        LogtalkTerminal.sendString('c\r');
+        LogtalkTerminal.sendString('c' + LogtalkDebugSession.enterPortCommand);
         this.sendResponse(request);
 
         // Send a stopped event after the step completes
@@ -264,7 +271,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
     private handleStepOut(request: DebugProtocol.Request): void {
         // Use 's' (skip) to skip the current goal
         // This is the closest equivalent to step out in the Logtalk debugger
-        LogtalkTerminal.sendString('s\r');
+        LogtalkTerminal.sendString('s' + LogtalkDebugSession.enterPortCommand);
         this.sendResponse(request);
 
         // Send a stopped event after the step completes
