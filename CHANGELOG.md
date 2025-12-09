@@ -2,6 +2,7 @@
 
 ## [0.80.0]
 
+* Automatically recompile code in debug/normal mode when starting/stopping debugging
 * Add support for the debug toolbar with additional buttons for common port commands
 * Add "Help: Logtalk Handbook" command to open the Logtalk Handbook using Live Preview if installed, or the default browser otherwise
 * Add multi-root workspace support for code navigation, refactoring, testing, documentation, and chat participant features
