@@ -421,6 +421,7 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.debug.fail",      callback: () => LogtalkTerminal.sendString('f' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.retry",     callback: () => LogtalkTerminal.sendString('r' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.creep",     callback: () => LogtalkTerminal.sendString('c' +  LogtalkDebugSession.enterPortCommand) },
+    { command: "logtalk.debug.next",      callback: () => LogtalkTerminal.sendString(';' +  LogtalkDebugSession.enterPortCommand) },
     // Workspace commands
     { command: "logtalk.create.project",            callback: ()   => LogtalkTerminal.createProject()},
     { command: "logtalk.load.project",              callback: async uri  => { await LogtalkTerminal.loadProject(uri, linter); updateBreakpointStates(logtalkDebuggingEnabled); }},

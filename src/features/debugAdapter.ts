@@ -29,7 +29,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
 
     // Some backends don't support unbuffered input, so we need to send a newline after each port command
     public static enterPortCommand: string = (() => {
-        const backend = (vscode.workspace.getConfiguration('logtalk').get<string>('backend') || '');
+        const backend = vscode.workspace.getConfiguration('logtalk').get<string>('backend');
         return backend === 'ciao' || backend === 'sicstus' || backend === 'tau' || backend === 'xsb' || backend === 'yap' ? '\r' : '';
     })();
 

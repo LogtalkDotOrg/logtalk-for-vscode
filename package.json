@@ -413,6 +413,15 @@
                     "light": "images/debug-retry-light.svg",
                     "dark": "images/debug-retry-dark.svg"
                 }
+            },
+            {
+                "command": "logtalk.debug.next",
+                "title": "Next Solution",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-next-light.svg",
+                    "dark": "images/debug-next-dark.svg"
+                }
             }
         ],
         "keybindings": [],
@@ -811,34 +820,39 @@
                     "group": "navigation@44"
                 },
                 {
-                    "command": "logtalk.debug.context",
+                    "command": "logtalk.debug.next",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@45"
                 },
                 {
-                    "command": "logtalk.debug.file",
+                    "command": "logtalk.debug.context",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@46"
                 },
                 {
-                    "command": "logtalk.debug.debugging",
+                    "command": "logtalk.debug.file",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@47"
                 },
                 {
-                    "command": "logtalk.debug.help",
+                    "command": "logtalk.debug.debugging",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@48"
                 },
                 {
-                    "command": "logtalk.debug.trace",
+                    "command": "logtalk.debug.help",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@49"
                 },
                 {
+                    "command": "logtalk.debug.trace",
+                    "when": "debugType == 'logtalk'",
+                    "group": "trace@1"
+                },
+                {
                     "command": "logtalk.debug.notrace",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@49"
+                    "group": "trace@2"
                 }
             ]
         },
