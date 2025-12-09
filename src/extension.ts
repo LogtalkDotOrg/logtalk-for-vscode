@@ -420,7 +420,7 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.debug.help",    callback: () => LogtalkTerminal.sendString('h\r') },
     // Workspace commands
     { command: "logtalk.create.project",            callback: ()   => LogtalkTerminal.createProject()},
-    { command: "logtalk.load.project",              callback: uri  => LogtalkTerminal.loadProject(uri, linter)},
+    { command: "logtalk.load.project",              callback: async uri  => { await LogtalkTerminal.loadProject(uri, linter); updateBreakpointStates(logtalkDebuggingEnabled); }},
     { command: "logtalk.open",                      callback: ()   => LogtalkTerminal.openLogtalk()},
     { command: "logtalk.rscan.deadCode",            callback: uri  => LogtalkTerminal.rscanForDeadCode(uri, deadCodeScanner)},
     { command: "logtalk.rcompute.metrics",          callback: uri  => LogtalkTerminal.rcomputeMetrics(uri)},
@@ -429,8 +429,8 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.run.testers",               callback: uri  => LogtalkTerminal.runTesters(uri, linter, testsReporter)},
     { command: "logtalk.run.doclets",               callback: uri  => LogtalkTerminal.runDoclets(uri, linter, documentationLinter)},
     // Directory and file commands
-    { command: "logtalk.load.directory",            callback: uri  => LogtalkTerminal.loadDirectory(uri, linter)},
-    { command: "logtalk.load.file",                 callback: uri  => LogtalkTerminal.loadFile(uri, linter)},
+    { command: "logtalk.load.directory",            callback: async uri  => { await LogtalkTerminal.loadDirectory(uri, linter); updateBreakpointStates(logtalkDebuggingEnabled); }},
+    { command: "logtalk.load.file",                 callback: async uri  => { await LogtalkTerminal.loadFile(uri, linter); updateBreakpointStates(logtalkDebuggingEnabled); }},
     { command: "logtalk.make.reload",               callback: uri  => LogtalkTerminal.makeReload(uri, linter)},
     { command: "logtalk.make.optimal",              callback: uri  => LogtalkTerminal.makeOptimal(uri, linter)},
     { command: "logtalk.make.normal",               callback: uri  => LogtalkTerminal.makeNormal(uri, linter)},
@@ -1100,7 +1100,6 @@ export async function activate(context: ExtensionContext) {
     })
   );
   context.subscriptions.push(await LogtalkTerminal.init(context, linter, testsReporter, deadCodeScanner, documentationLinter, profiling));
-  updateBreakpointStates(logtalkDebuggingEnabled);
 
   // Load project on activation if setting is enabled and a Logtalk file is open
   const loadProjectOnActivation = workspace.getConfiguration("logtalk").get<boolean>("loadProject.onActivation", false);
