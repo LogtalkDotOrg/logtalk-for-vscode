@@ -158,6 +158,11 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
         LogtalkTerminal.sendString('vscode::debug.\r');
 
         this.sendResponse(request);
+
+        // Focus the terminal after a short delay to override VS Code's default focus on debug console
+        setTimeout(() => {
+            LogtalkTerminal.focusTerminal();
+        }, 100);
     }
 
     /**
@@ -177,8 +182,9 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      */
     private handleDisconnect(request: DebugProtocol.Request): void {
         this.isDebugging = false;
-        LogtalkTerminal.sendString('vscode::nodebug.\r');
+        //LogtalkTerminal.sendString('vscode::nodebug.\r');
         this.sendResponse(request);
+        this.sendTerminatedEvent();
     }
 
     /**
@@ -188,6 +194,19 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
         this.isDebugging = false;
         LogtalkTerminal.sendString('vscode::nodebug.\r');
         this.sendResponse(request);
+        this.sendTerminatedEvent();
+    }
+
+    /**
+     * Send a terminated event to VS Code to end the debug session
+     */
+    private sendTerminatedEvent(): void {
+        const event: DebugProtocol.TerminatedEvent = {
+            seq: this.sequence++,
+            type: 'event',
+            event: 'terminated'
+        };
+        this.sendMessage.fire(event);
     }
 
     /**
@@ -195,7 +214,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      * Leap continues execution until the next breakpoint
      */
     private handleContinue(request: DebugProtocol.Request): void {
-        LogtalkTerminal.sendString('l\r');
+        LogtalkTerminal.sendString('l');
 
         const response: DebugProtocol.ContinueResponse = {
             seq: this.sequence++,
@@ -501,6 +520,13 @@ export class LogtalkDebugConfigurationProvider implements vscode.DebugConfigurat
         config: vscode.DebugConfiguration,
         _token?: vscode.CancellationToken
     ): vscode.ProviderResult<vscode.DebugConfiguration> {
+        // Check if there's already an active Logtalk debug session
+        // Logtalk only supports a single debugging session at a time
+        if (vscode.debug.activeDebugSession?.type === 'logtalk') {
+            // Return undefined to cancel the new session - existing session continues
+            return undefined;
+        }
+
         // If no launch.json or empty config, provide a default
         if (!config.type && !config.request && !config.name) {
             return {

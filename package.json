@@ -325,35 +325,26 @@
                 "category": "Help"
             },
             {
-                "command": "logtalk.debug.ignore",
-                "title": "Debug: Ignore",
+                "command": "logtalk.debug.trace",
+                "title": "debugger::trace",
                 "category": "Logtalk",
                 "icon": {
-                    "light": "images/debug-ignore-light.svg",
-                    "dark": "images/debug-ignore-dark.svg"
+                    "light": "images/debug-trace-light.svg",
+                    "dark": "images/debug-trace-dark.svg"
                 }
             },
             {
-                "command": "logtalk.debug.fail",
-                "title": "Debug: Fail",
+                "command": "logtalk.debug.notrace",
+                "title": "debugger::notrace",
                 "category": "Logtalk",
                 "icon": {
-                    "light": "images/debug-fail-light.svg",
-                    "dark": "images/debug-fail-dark.svg"
-                }
-            },
-            {
-                "command": "logtalk.debug.retry",
-                "title": "Debug: Retry",
-                "category": "Logtalk",
-                "icon": {
-                    "light": "images/debug-retry-light.svg",
-                    "dark": "images/debug-retry-dark.svg"
+                    "light": "images/debug-notrace-light.svg",
+                    "dark": "images/debug-notrace-dark.svg"
                 }
             },
             {
                 "command": "logtalk.debug.context",
-                "title": "Debug: Context",
+                "title": "Execution Context",
                 "category": "Logtalk",
                 "icon": {
                     "light": "images/debug-context-light.svg",
@@ -362,7 +353,7 @@
             },
             {
                 "command": "logtalk.debug.file",
-                "title": "Debug: File",
+                "title": "File Context",
                 "category": "Logtalk",
                 "icon": {
                     "light": "images/debug-file-light.svg",
@@ -370,12 +361,57 @@
                 }
             },
             {
+                "command": "logtalk.debug.debugging",
+                "title": "Debugging Information",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-debugging-light.svg",
+                    "dark": "images/debug-debugging-dark.svg"
+                }
+            },
+            {
                 "command": "logtalk.debug.help",
-                "title": "Debug: Help",
+                "title": "Help",
                 "category": "Logtalk",
                 "icon": {
                     "light": "images/debug-help-light.svg",
                     "dark": "images/debug-help-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.creep",
+                "title": "Creep",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-creep-light.svg",
+                    "dark": "images/debug-creep-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.ignore",
+                "title": "Ignore",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-ignore-light.svg",
+                    "dark": "images/debug-ignore-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.fail",
+                "title": "Fail",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-fail-light.svg",
+                    "dark": "images/debug-fail-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.retry",
+                "title": "Retry",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-retry-light.svg",
+                    "dark": "images/debug-retry-dark.svg"
                 }
             }
         ],
@@ -755,34 +791,54 @@
             ],
             "debug/toolBar": [
                 {
+                    "command": "logtalk.debug.creep",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@41"
+                },
+                {
                     "command": "logtalk.debug.ignore",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@10"
+                    "group": "navigation@42"
                 },
                 {
                     "command": "logtalk.debug.fail",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@11"
+                    "group": "navigation@43"
                 },
                 {
                     "command": "logtalk.debug.retry",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@12"
+                    "group": "navigation@44"
                 },
                 {
                     "command": "logtalk.debug.context",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@13"
+                    "group": "navigation@45"
                 },
                 {
                     "command": "logtalk.debug.file",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@14"
+                    "group": "navigation@46"
+                },
+                {
+                    "command": "logtalk.debug.debugging",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@47"
                 },
                 {
                     "command": "logtalk.debug.help",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@15"
+                    "group": "navigation@48"
+                },
+                {
+                    "command": "logtalk.debug.trace",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@49"
+                },
+                {
+                    "command": "logtalk.debug.notrace",
+                    "when": "debugType == 'logtalk'",
+                    "group": "navigation@49"
                 }
             ]
         },
@@ -824,7 +880,8 @@
                     {
                         "type": "logtalk",
                         "request": "launch",
-                        "name": "Logtalk Debug"
+                        "name": "Logtalk Debug",
+                        "internalConsoleOptions": "neverOpen"
                     }
                 ],
                 "configurationSnippets": [
@@ -834,7 +891,8 @@
                         "body": {
                             "type": "logtalk",
                             "request": "launch",
-                            "name": "Logtalk Debug"
+                            "name": "Logtalk Debug",
+                            "internalConsoleOptions": "neverOpen"
                         }
                     }
                 ]

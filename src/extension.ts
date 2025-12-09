@@ -392,11 +392,10 @@ export async function activate(context: ExtensionContext) {
   );
 
   context.subscriptions.push(
-    commands.registerCommand('workbench.action.debug.run', () => {
+    commands.registerCommand('workbench.action.debug.stop', () => {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', false);
       updateBreakpointStates(false);
-      LogtalkTerminal.createLogtalkTerm();
-      LogtalkTerminal.sendString('vscode::nodebug.\r');
+      debug.stopDebugging();
     })
   );
 
@@ -412,12 +411,16 @@ export async function activate(context: ExtensionContext) {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', logtalkDebuggingEnabled);
     }},
     // Debug toolbar commands
-    { command: "logtalk.debug.ignore",  callback: () => LogtalkTerminal.sendString('i\r') },
-    { command: "logtalk.debug.fail",    callback: () => LogtalkTerminal.sendString('f\r') },
-    { command: "logtalk.debug.retry",   callback: () => LogtalkTerminal.sendString('r\r') },
-    { command: "logtalk.debug.context", callback: () => LogtalkTerminal.sendString('x\r') },
-    { command: "logtalk.debug.file",    callback: () => LogtalkTerminal.sendString('.\r') },
-    { command: "logtalk.debug.help",    callback: () => LogtalkTerminal.sendString('h\r') },
+    { command: "logtalk.debug.trace",     callback: () => LogtalkTerminal.sendString('debugger::trace.\r') },
+    { command: "logtalk.debug.notrace",   callback: () => LogtalkTerminal.sendString('debugger::notrace.\r') },
+    { command: "logtalk.debug.context",   callback: () => LogtalkTerminal.sendString('x\r') },
+    { command: "logtalk.debug.file",      callback: () => LogtalkTerminal.sendString('.\r') },
+    { command: "logtalk.debug.debugging", callback: () => LogtalkTerminal.sendString('=\r') },
+    { command: "logtalk.debug.help",      callback: () => LogtalkTerminal.sendString('h\r') },
+    { command: "logtalk.debug.ignore",    callback: () => LogtalkTerminal.sendString('i\r') },
+    { command: "logtalk.debug.fail",      callback: () => LogtalkTerminal.sendString('f\r') },
+    { command: "logtalk.debug.retry",     callback: () => LogtalkTerminal.sendString('r\r') },
+    { command: "logtalk.debug.creep",     callback: () => LogtalkTerminal.sendString('c\r') },
     // Workspace commands
     { command: "logtalk.create.project",            callback: ()   => LogtalkTerminal.createProject()},
     { command: "logtalk.load.project",              callback: async uri  => { await LogtalkTerminal.loadProject(uri, linter); updateBreakpointStates(logtalkDebuggingEnabled); }},

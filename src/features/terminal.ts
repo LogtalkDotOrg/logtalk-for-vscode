@@ -550,6 +550,12 @@ export default class LogtalkTerminal {
     LogtalkTerminal._terminal.show(true);
   }
 
+  public static focusTerminal() {
+    if (LogtalkTerminal._terminal) {
+      LogtalkTerminal._terminal.show(true);
+    }
+  }
+
   public static async createProject() {
     // Declare Variables
     let logtalkHome: string = '';
