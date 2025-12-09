@@ -428,7 +428,15 @@ Right-click on the predicate name in a `logtalk_load/1-2` call with a list of at
 
 The `debugger` tool is automatically loaded when using the "Run > Start Debugging" and "Run > Run Without Debugging" commands, when setting spy points using the "Run" menu breakpoint items, and when using the "Make - Debug" command to recompile the code in debug mode.
 
-The "Run > Start Debugging" and "Run > Run Without Debugging" commands automatically send the `debug/0` and `nodebug/0` messages to the `debugger` tool, also re-adding and removing the defined breakpoints and log points (that were set using the VSCode GUI). But to trace execution you must either use the debug toolbar buttons or send the `trace/0` and `notrace/0` messages to the `debugger` tool from the integrated terminal. See the documentation of the `debugger` tool for details.
+The "Run > Start Debugging" command recompiles loaded code in debug mode, sends the `debug/0` message to the `debugger` tool, and re-adds the defined breakpoints and log points (that were set using the VSCode GUI).
+
+The "Run > Stop Debugging" command recompiles loaded code in normal mode, sends the `nodebug/0` message to the `debugger` tool, and removes the defined breakpoints and log points (that were set using the VSCode GUI).
+
+The "Run > Run Without Debugging" command sends the `nodebug/0` message to the `debugger` tool without affecting any defined breakpoints and log points.
+
+The "Run > Restart Debugging" command recompiles modified files, recompiles loaded code in debug mode, sends the `debug/0` message to the `debugger` tool, and re-adds the defined breakpoints and log points (that were set using the VSCode GUI). Note that breakpoints and log points may need to be redefined due the changes in modified files.
+
+To trace execution you must either use the debug toolbar buttons or send the `trace/0` and `notrace/0` messages to the `debugger` tool from the integrated terminal. See the documentation of the `debugger` tool for details.
 
 When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is shown in the active editor window. The VSCode debug toolbar buttons are supported and extended with additional buttons for common port commands. For other port commands, you must type the command in the integrated terminal.
 

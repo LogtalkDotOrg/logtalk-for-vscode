@@ -379,15 +379,6 @@
                 }
             },
             {
-                "command": "logtalk.debug.creep",
-                "title": "Creep",
-                "category": "Logtalk",
-                "icon": {
-                    "light": "images/debug-creep-light.svg",
-                    "dark": "images/debug-creep-dark.svg"
-                }
-            },
-            {
                 "command": "logtalk.debug.ignore",
                 "title": "Ignore",
                 "category": "Logtalk",
@@ -421,6 +412,15 @@
                 "icon": {
                     "light": "images/debug-next-light.svg",
                     "dark": "images/debug-next-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.commit",
+                "title": "Commit to This Solution",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-commit-light.svg",
+                    "dark": "images/debug-commit-dark.svg"
                 }
             }
         ],
@@ -800,27 +800,27 @@
             ],
             "debug/toolBar": [
                 {
-                    "command": "logtalk.debug.creep",
+                    "command": "logtalk.debug.ignore",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@41"
                 },
                 {
-                    "command": "logtalk.debug.ignore",
+                    "command": "logtalk.debug.fail",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@42"
                 },
                 {
-                    "command": "logtalk.debug.fail",
+                    "command": "logtalk.debug.retry",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@43"
                 },
                 {
-                    "command": "logtalk.debug.retry",
+                    "command": "logtalk.debug.next",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@44"
                 },
                 {
-                    "command": "logtalk.debug.next",
+                    "command": "logtalk.debug.commit",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@45"
                 },

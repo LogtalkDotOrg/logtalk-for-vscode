@@ -375,7 +375,7 @@ export async function activate(context: ExtensionContext) {
     debug.addBreakpoints(updatedBreakpoints);
   }
 
-  // Register debug session start/stop handlers
+  // Register handler for Start Debugging
   context.subscriptions.push(
     commands.registerCommand('workbench.action.debug.start', async () => {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', true);
@@ -391,11 +391,29 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  // Register handler for Stop Debugging
   context.subscriptions.push(
     commands.registerCommand('workbench.action.debug.stop', () => {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', false);
       updateBreakpointStates(false);
       debug.stopDebugging();
+    })
+  );
+
+  // Register handler for Run Without Debugging
+  context.subscriptions.push(
+    commands.registerCommand('workbench.action.debug.run', () => {
+      LogtalkTerminal.createLogtalkTerm();
+      LogtalkTerminal.sendString('vscode::nodebug.\r');
+    })
+  );
+
+  // Register handler for Restart Debugging
+  context.subscriptions.push(
+    commands.registerCommand('workbench.action.debug.restart', () => {
+      updateBreakpointStates(true);
+      LogtalkTerminal.createLogtalkTerm();
+      LogtalkTerminal.sendString('logtalk_make(all), logtalk_make(debug), vscode::debug.\r');
     })
   );
 
@@ -420,8 +438,8 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.debug.ignore",    callback: () => LogtalkTerminal.sendString('i' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.fail",      callback: () => LogtalkTerminal.sendString('f' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.retry",     callback: () => LogtalkTerminal.sendString('r' +  LogtalkDebugSession.enterPortCommand) },
-    { command: "logtalk.debug.creep",     callback: () => LogtalkTerminal.sendString('c' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.next",      callback: () => LogtalkTerminal.sendString(';' +  LogtalkDebugSession.enterPortCommand) },
+    { command: "logtalk.debug.commit",    callback: () => LogtalkTerminal.sendString('.' +  LogtalkDebugSession.enterPortCommand) },
     // Workspace commands
     { command: "logtalk.create.project",            callback: ()   => LogtalkTerminal.createProject()},
     { command: "logtalk.load.project",              callback: async uri  => { await LogtalkTerminal.loadProject(uri, linter); updateBreakpointStates(logtalkDebuggingEnabled); }},

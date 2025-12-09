@@ -162,7 +162,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
 
         // Ensure the Logtalk terminal exists and start debugging
         LogtalkTerminal.createLogtalkTerm();
-        LogtalkTerminal.sendString('vscode::debug.\r');
+        LogtalkTerminal.sendString('logtalk_make(debug), vscode::debug.\r');
 
         this.sendResponse(request);
 
@@ -199,7 +199,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      */
     private handleTerminate(request: DebugProtocol.Request): void {
         this.isDebugging = false;
-        LogtalkTerminal.sendString('vscode::nodebug.\r');
+        LogtalkTerminal.sendString('logtalk_make(normal), vscode::nodebug.\r');
         this.sendResponse(request);
         this.sendTerminatedEvent();
     }

@@ -1,5 +1,0 @@
-<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- creep icon: unfilled circle with arrow going right, matching default step icons blue -->
-  <circle cx="3" cy="8" r="1.5" stroke="#75BEFF" stroke-width="1" fill="none"/>
-  <path d="M7 8h8M13 5l3 3-3 3" stroke="#75BEFF" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
