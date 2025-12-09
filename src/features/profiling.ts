@@ -244,6 +244,11 @@ export class LogtalkProfiling {
     // Redirect output to file
     const normalizedPath = path.resolve(profilingDataFile).split(path.sep).join("/");
     LogtalkTerminal.sendString(`logtalk_load(ports_profiler(loader)), open('${normalizedPath}', write, Stream), set_output(Stream), ${goal}, close(Stream).\r`, false);
+    const backend = vscode.workspace.getConfiguration('logtalk').get<string>('backend');
+    // Workaround for SICStus Prolog, which requires a newline after a deterministic query when it contains variables
+    if (backend === 'sicstus') {
+      LogtalkTerminal.sendString(`\r`, false);
+    }
 
     // Wait for the file to be created
     await this.waitForFile(profilingDataFile, 5000);

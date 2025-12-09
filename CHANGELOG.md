@@ -18,6 +18,7 @@
 * Fix potential race condition when loading a project on activation
 * Fix displaying of inline code coverage data on Windows
 * Fix clearing diagnostics for failed tests when editing and saving the tests file
+* Workaround for SICStus Prolog requiring a newline after a deterministic query when it contains variables
 
 ## [0.79.0]
 
