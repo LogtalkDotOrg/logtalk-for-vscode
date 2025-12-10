@@ -15,6 +15,8 @@
  */
 
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import LogtalkTerminal from './terminal';
 import { getLogger } from '../utils/logger';
@@ -542,22 +544,48 @@ export class LogtalkDebugConfigurationProvider implements vscode.DebugConfigurat
         config: vscode.DebugConfiguration,
         _token?: vscode.CancellationToken
     ): vscode.ProviderResult<vscode.DebugConfiguration> {
-        // Check if there's already an active Logtalk debug session
-        // Logtalk only supports a single debugging session at a time
+        // If there's already an active Logtalk debug session, cancel a new one
         if (vscode.debug.activeDebugSession?.type === 'logtalk') {
-            // Return undefined to cancel the new session - existing session continues
             return undefined;
         }
 
-        // If no launch.json or empty config, provide a default
-        if (!config.type && !config.request && !config.name) {
-            return {
-                type: 'logtalk',
-                request: 'launch',
-                name: 'Logtalk Debug'
-            };
+        // Lazily create a workspace launch.json with the fixed Logtalk
+        // configuration if it does not exist. This ensures the Run & Debug
+        // dropdown shows "Logtalk Debug" when the user first starts debugging.
+        try {
+            const folders = vscode.workspace.workspaceFolders;
+            if (folders && folders.length > 0) {
+                const wsPath = folders[0].uri.fsPath;
+                const vscodeDir = path.join(wsPath, '.vscode');
+                const launchPath = path.join(vscodeDir, 'launch.json');
+                if (!fs.existsSync(launchPath)) {
+                    if (!fs.existsSync(vscodeDir)) {
+                        fs.mkdirSync(vscodeDir);
+                    }
+                    const launch = {
+                        version: '0.2.0',
+                        configurations: [
+                            {
+                                type: 'logtalk',
+                                request: 'launch',
+                                name: 'Logtalk Debug',
+                                internalConsoleOptions: 'neverOpen'
+                            }
+                        ]
+                    };
+                    fs.writeFileSync(launchPath, JSON.stringify(launch, null, 2), 'utf8');
+                }
+            }
+        } catch (e) {
+            // ignore errors
         }
-        return config;
+
+        // Always return the fixed, default Logtalk configuration.
+        return {
+            type: 'logtalk',
+            request: 'launch',
+            name: 'Logtalk Debug'
+        };
     }
 
     /**

@@ -10,6 +10,7 @@ import {
   workspace,
   debug,
   window,
+  DebugConfigurationProviderTriggerKind,
   SourceBreakpoint,
   FunctionBreakpoint,
   WorkspaceEdit,
@@ -819,13 +820,21 @@ export async function activate(context: ExtensionContext) {
   // Register debug adapter, factory, and configuration provider
   const debugConfigProvider = new LogtalkDebugConfigurationProvider();
   context.subscriptions.push(
-    debug.registerDebugConfigurationProvider('logtalk', debugConfigProvider)
+    // Register provider with Initial trigger so VS Code can show the default
+    // configuration in the Run and Debug dropdown even when no launch.json exists.
+    debug.registerDebugConfigurationProvider(
+      'logtalk',
+      debugConfigProvider,
+      DebugConfigurationProviderTriggerKind.Initial
+    )
   );
 
   const debugAdapterFactory = new LogtalkDebugAdapterDescriptorFactory();
   context.subscriptions.push(
     debug.registerDebugAdapterDescriptorFactory('logtalk', debugAdapterFactory)
   );
+
+  // Note: launch.json creation is handled lazily when the user starts debugging.
 
   // Track if debugging is currently enabled
   let debuggingEnabled = true;
