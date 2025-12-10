@@ -1,0 +1,7 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- exception icon scaled from 48->16, stroke 1px -->
+  <path d="M2.6667 6 L6.6667 10" stroke="#d48f2fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M6.6667 6 L2.6667 10" stroke="#d48f2fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M11.3333 2.6667 C13.0002 4.1203 14 5.9770 14 8 C14 10.0230 13.0002 11.8797 11.3333 13.3333" stroke="#d48f2fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M9 4.6667 C10.2502 5.5752 11 6.7356 11 8 C11 9.2644 10.2502 10.4248 9 11.3333" stroke="#d48f2fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

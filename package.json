@@ -433,6 +433,15 @@
                 }
             },
             {
+                "command": "logtalk.debug.exception",
+                "title": "Exception",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-exception-light.svg",
+                    "dark": "images/debug-exception-dark.svg"
+                }
+            },
+            {
                 "command": "logtalk.debug.next",
                 "title": "Next Solution",
                 "category": "Logtalk",
@@ -875,6 +884,11 @@
                     "command": "logtalk.debug.print",
                     "when": "debugType == 'logtalk'",
                     "group": "printing@3"
+                },
+                {
+                    "command": "logtalk.debug.exception",
+                    "when": "debugType == 'logtalk'",
+                    "group": "printing@4"
                 },
                 {
                     "command": "logtalk.debug.next",
