@@ -28,10 +28,25 @@ const logger = getLogger();
 export class LogtalkDebugSession implements vscode.DebugAdapter {
 
     // Some backends don't support unbuffered input, so we need to send a newline after each port command
-    public static enterPortCommand: string = (() => {
+    private static _enterPortCommand: string = LogtalkDebugSession.computeEnterPortCommand();
+    private static _configListener: vscode.Disposable | undefined = LogtalkDebugSession.registerConfigListener();
+
+    public static get enterPortCommand(): string {
+        return LogtalkDebugSession._enterPortCommand;
+    }
+
+    private static computeEnterPortCommand(): string {
         const backend = vscode.workspace.getConfiguration('logtalk').get<string>('backend');
         return backend === 'ciao' || backend === 'sicstus' || backend === 'tau' || backend === 'xsb' || backend === 'yap' ? '\r' : '';
-    })();
+    }
+
+    private static registerConfigListener(): vscode.Disposable {
+        return vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('logtalk.backend')) {
+                LogtalkDebugSession._enterPortCommand = LogtalkDebugSession.computeEnterPortCommand();
+            }
+        });
+    }
 
     private sendMessage = new vscode.EventEmitter<DebugProtocol.ProtocolMessage>();
     readonly onDidSendMessage: vscode.Event<DebugProtocol.ProtocolMessage> = this.sendMessage.event;
