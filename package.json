@@ -326,7 +326,7 @@
             },
             {
                 "command": "logtalk.debug.trace",
-                "title": "debugger::trace",
+                "title": "Enable Tracing",
                 "category": "Logtalk",
                 "icon": {
                     "light": "images/debug-trace-light.svg",
@@ -335,11 +335,20 @@
             },
             {
                 "command": "logtalk.debug.notrace",
-                "title": "debugger::notrace",
+                "title": "Disable Tracing",
                 "category": "Logtalk",
                 "icon": {
                     "light": "images/debug-notrace-light.svg",
                     "dark": "images/debug-notrace-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.nospyall",
+                "title": "Clear All Breakpoints and Log Points",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-nospyall-light.svg",
+                    "dark": "images/debug-nospyall-dark.svg"
                 }
             },
             {
@@ -853,6 +862,11 @@
                     "command": "logtalk.debug.notrace",
                     "when": "debugType == 'logtalk'",
                     "group": "trace@2"
+                },
+                {
+                    "command": "logtalk.debug.nospyall",
+                    "when": "debugType == 'logtalk'",
+                    "group": "trace@3"
                 }
             ]
         },

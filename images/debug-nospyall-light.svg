@@ -1,0 +1,13 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- clear-all icon: four lines and X -->
+  <rect x="1" y="2" width="14" height="12" fill="none"/>
+  <!-- Four horizontal lines, split to avoid cross area -->
+  <!-- Top two horizontal lines, half length, right part only -->
+  <line x1="10" y1="5" x2="13" y2="5" stroke="#d48f2fff" stroke-width="1" stroke-linecap="round"/>
+  <line x1="10" y1="8" x2="13" y2="8" stroke="#d48f2fff" stroke-width="1" stroke-linecap="round"/>
+  <line x1="4" y1="11" x2="13" y2="11" stroke="#d48f2fff" stroke-width="1" stroke-linecap="round"/>
+  <line x1="4" y1="14" x2="13" y2="14" stroke="#d48f2fff" stroke-width="1" stroke-linecap="round"/>
+  <!-- Bigger X in top-left quadrant, no background -->
+  <line x1="2" y1="2" x2="8" y2="8" stroke="#d48f2fff" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="8" y1="2" x2="2" y2="8" stroke="#d48f2fff" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

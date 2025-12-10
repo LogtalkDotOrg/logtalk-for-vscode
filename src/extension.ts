@@ -431,6 +431,7 @@ export async function activate(context: ExtensionContext) {
     // Debug toolbar commands
     { command: "logtalk.debug.trace",     callback: () => LogtalkTerminal.sendString('debugger::trace.\r') },
     { command: "logtalk.debug.notrace",   callback: () => LogtalkTerminal.sendString('debugger::notrace.\r') },
+    { command: "logtalk.debug.nospyall",  callback: () => LogtalkTerminal.sendString('debugger::nospyall.\r') },
     { command: "logtalk.debug.context",   callback: () => LogtalkTerminal.sendString('x' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.file",      callback: () => LogtalkTerminal.sendString('.' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.debugging", callback: () => LogtalkTerminal.sendString('=' +  LogtalkDebugSession.enterPortCommand) },
