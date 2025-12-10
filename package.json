@@ -406,6 +406,33 @@
                 }
             },
             {
+                "command": "logtalk.debug.write",
+                "title": "Write",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-write-light.svg",
+                    "dark": "images/debug-write-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.display",
+                "title": "Display",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-display-light.svg",
+                    "dark": "images/debug-display-dark.svg"
+                }
+            },
+            {
+                "command": "logtalk.debug.print",
+                "title": "Print",
+                "category": "Logtalk",
+                "icon": {
+                    "light": "images/debug-print-light.svg",
+                    "dark": "images/debug-print-dark.svg"
+                }
+            },
+            {
                 "command": "logtalk.debug.next",
                 "title": "Next Solution",
                 "category": "Logtalk",
@@ -833,6 +860,21 @@
                     "command": "logtalk.debug.help",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@47"
+                },
+                {
+                    "command": "logtalk.debug.write",
+                    "when": "debugType == 'logtalk'",
+                    "group": "printing@1"
+                },
+                {
+                    "command": "logtalk.debug.display",
+                    "when": "debugType == 'logtalk'",
+                    "group": "printing@2"
+                },
+                {
+                    "command": "logtalk.debug.print",
+                    "when": "debugType == 'logtalk'",
+                    "group": "printing@3"
                 },
                 {
                     "command": "logtalk.debug.next",

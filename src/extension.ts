@@ -438,6 +438,9 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.debug.ignore",    callback: () => LogtalkTerminal.sendString('i' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.fail",      callback: () => LogtalkTerminal.sendString('f' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.retry",     callback: () => LogtalkTerminal.sendString('r' +  LogtalkDebugSession.enterPortCommand) },
+    { command: "logtalk.debug.write",     callback: () => LogtalkTerminal.sendString('w' + LogtalkDebugSession.enterPortCommand) },
+    { command: "logtalk.debug.display",   callback: () => LogtalkTerminal.sendString('d' + LogtalkDebugSession.enterPortCommand) },
+    { command: "logtalk.debug.print",     callback: () => LogtalkTerminal.sendString('p' + LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.next",      callback: () => LogtalkTerminal.sendString(';' +  LogtalkDebugSession.enterPortCommand) },
     { command: "logtalk.debug.commit",    callback: () => LogtalkTerminal.sendString('\r' + LogtalkDebugSession.enterPortCommand) },
     // Workspace commands
