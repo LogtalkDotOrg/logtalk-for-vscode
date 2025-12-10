@@ -343,15 +343,6 @@
                 }
             },
             {
-                "command": "logtalk.debug.nospyall",
-                "title": "Clear All Breakpoints and Log Points",
-                "category": "Logtalk",
-                "icon": {
-                    "light": "images/debug-nospyall-light.svg",
-                    "dark": "images/debug-nospyall-dark.svg"
-                }
-            },
-            {
                 "command": "logtalk.debug.context",
                 "title": "Execution Context",
                 "category": "Logtalk",
@@ -862,11 +853,6 @@
                     "command": "logtalk.debug.notrace",
                     "when": "debugType == 'logtalk'",
                     "group": "trace@2"
-                },
-                {
-                    "command": "logtalk.debug.nospyall",
-                    "when": "debugType == 'logtalk'",
-                    "group": "trace@3"
                 }
             ]
         },
