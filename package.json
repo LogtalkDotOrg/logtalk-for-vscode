@@ -815,34 +815,34 @@
                     "group": "navigation@43"
                 },
                 {
-                    "command": "logtalk.debug.next",
+                    "command": "logtalk.debug.context",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@44"
                 },
                 {
-                    "command": "logtalk.debug.commit",
+                    "command": "logtalk.debug.file",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@45"
                 },
                 {
-                    "command": "logtalk.debug.context",
+                    "command": "logtalk.debug.debugging",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@46"
                 },
                 {
-                    "command": "logtalk.debug.file",
+                    "command": "logtalk.debug.help",
                     "when": "debugType == 'logtalk'",
                     "group": "navigation@47"
                 },
                 {
-                    "command": "logtalk.debug.debugging",
+                    "command": "logtalk.debug.next",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@48"
+                    "group": "solutions@1"
                 },
                 {
-                    "command": "logtalk.debug.help",
+                    "command": "logtalk.debug.commit",
                     "when": "debugType == 'logtalk'",
-                    "group": "navigation@49"
+                    "group": "solutions@2"
                 },
                 {
                     "command": "logtalk.debug.trace",
