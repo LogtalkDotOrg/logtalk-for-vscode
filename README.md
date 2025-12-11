@@ -587,18 +587,22 @@ Absolute path to the Logtalk executable or integration script and its arguments.
 
 On POSIX systems (e.g., macOS or Linux), the `logtalk` executable can be created by running the `logtalk_backend_select` script. In alternative, set the integration script you want to use.
 
-Example using the legacy array format (assuming a POSIX system, using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`):
+Example using the legacy array format (assuming a POSIX system, using SWI-Prolog as the backend, with the integration scripts installed at `/usr/local/bin`) for less verbose settings:
 
     "logtalk.executable.path": "/usr/local/bin/swilgt"
     "logtalk.executable.arguments": [ "-q" ]
 
-Example using the dictionary format for multiple backends (assuming a POSIX system with integration scripts installed at `/usr/local/bin`):
+Example using the dictionary format for multiple backends (assuming a POSIX system with integration scripts installed at `/usr/local/bin`) for less verbose settings:
 
     "logtalk.executable.path": ""
     "logtalk.executable.arguments": {
-        "swi": [ "-q" ],
+        "cx": [ "-q" ],
         "gnu": [ "--quiet" ],
-        "sicstus": [ "--nologo" ]
+        "sicstus": [ "--noinfo" ],
+        "swi": [ "-q" ],
+        "trealla": [ "-q" ],
+        "xvm": [ "-q" ],
+        "yap": [ "-q" ]
     }
 
 On Windows systems, use the absolute path to the PowerShell 7 executable and set the arguments to load the Logtalk integration script. For example (assuming the default Logtalk installation) and using SWI-Prolog as the backend:
