@@ -699,17 +699,29 @@ export class Utils {
   }
 
   public static async openFileAt(uri: Uri) {
-    if (fs.existsSync(uri.fsPath)) {
-      let out = fs.readFileSync(uri.fsPath).toString();
+    if (!fs.existsSync(uri.fsPath)) {
+      return;
+    }
+    try {
+      const out = fs.readFileSync(uri.fsPath, "utf8").toString();
+      // remove the temp file as before
       await fsp.rm(uri.fsPath, { force: true });
-      let match = out.match(/File:(.+);Line:(\d+)/);
-      if (match) {
-        let fileName: string = this.normalizeDoubleSlashPath(match[1]);
-        let lineNum: number = parseInt(match[2]);
-        workspace.openTextDocument(fileName).then(doc => {
-          window.showTextDocument(doc, {selection: new Range(new Position(lineNum - 1, 0), new Position(lineNum - 1, 0)), preserveFocus: true});
-        });
+      const match = out.match(/File:(.+);Line:(\d+)/);
+      if (!match) {
+        return;
       }
+      // Trim and normalize path; handle Windows double-slash forms
+      let fileName: string = match[1].trim();
+      fileName = this.normalizeDoubleSlashPath(fileName);
+
+      const lineNum: number = parseInt(match[2]);
+      const fileUri = Uri.file(fileName);
+
+      // Use await to ensure opening happens in the current VS Code window
+      const doc = await workspace.openTextDocument(fileUri);
+      await window.showTextDocument(doc, { selection: new Range(new Position(lineNum - 1, 0), new Position(lineNum - 1, 0)), preserveFocus: true });
+    } catch (err) {
+      this.logger.error(`openFileAt error: ${err}`);
     }
   }
 
