@@ -577,6 +577,14 @@ export async function activate(context: ExtensionContext) {
   );
 
   context.subscriptions.push(
+    commands.registerCommand('logtalk.refactor.useImplicitMessageSending', async (document, messageSendingInfo) => {
+      if (refactorProvider) {
+        await refactorProvider.useImplicitMessageSending(document, messageSendingInfo);
+      }
+    })
+  );
+
+  context.subscriptions.push(
     commands.registerCommand('logtalk.refactor.extractToEntity', async (document, selection) => {
       if (refactorProvider) {
         await refactorProvider.extractToEntity(document, selection);

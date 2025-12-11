@@ -563,6 +563,21 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       actions.push(splitDirectiveAction);
     }
 
+    // Use implicit message sending - for entity name in Entity::Message pattern
+    const messageSendingInfo = this.detectExplicitMessageSending(document, selection);
+    if (messageSendingInfo) {
+      const useImplicitAction = new CodeAction(
+        "Use implicit message sending",
+        CodeActionKind.RefactorRewrite
+      );
+      useImplicitAction.command = {
+        command: "logtalk.refactor.useImplicitMessageSending",
+        title: "Use implicit message sending",
+        arguments: [document, messageSendingInfo]
+      };
+      actions.push(useImplicitAction);
+    }
+
     return actions;
   }
 
@@ -820,6 +835,409 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       this.logger.error(`Error splitting directive: ${error}`);
       window.showErrorMessage(`Error splitting directive: ${error}`);
     }
+  }
+
+  /**
+   * Use implicit message sending refactoring
+   *
+   * Replaces explicit message sending (Entity::Message) with implicit message sending
+   * by adding a uses/2 directive and removing the Entity:: prefix.
+   *
+   * If the position is in a grammar rule, only grammar rules are refactored.
+   * If the position is in a clause, only clauses are refactored.
+   *
+   * @param document The text document
+   * @param messageSendingInfo Info about the explicit message sending
+   */
+  async useImplicitMessageSending(
+    document: TextDocument,
+    messageSendingInfo: {
+      entityName: string;
+      entityRange: Range;
+    }
+  ): Promise<void> {
+    try {
+      const { entityName, entityRange } = messageSendingInfo;
+      this.logger.info(`Use implicit message sending: entity=${entityName}`);
+
+      // Find all Entity:: occurrences in clause/rule bodies within the entity range
+      const occurrences = this.findExplicitMessageSendingOccurrences(
+        document,
+        entityName,
+        entityRange
+      );
+
+      if (occurrences.length === 0) {
+        window.showWarningMessage(`No ${entityName}::... occurrences found in clauses or grammar rules.`);
+        return;
+      }
+
+      this.logger.debug(`Found ${occurrences.length} occurrences of ${entityName}::`);
+
+      // Extract message indicators from occurrences (uses per-occurrence isInGrammarRule flag)
+      const indicators = this.extractMessageIndicators(occurrences);
+
+      if (indicators.length === 0) {
+        window.showWarningMessage(`Could not extract message indicators from occurrences.`);
+        return;
+      }
+
+      // Remove duplicates and sort
+      const uniqueIndicators = [...new Set(indicators)].sort();
+      this.logger.debug(`Unique indicators: ${uniqueIndicators.join(', ')}`);
+
+      // Find the entity opening directive line
+      const entityOpeningLine = entityRange.start.line;
+
+      // Check if there's already a uses/2 directive for this entity
+      const existingUsesDirective = this.findExistingUsesDirective(document, entityName, entityRange);
+
+      // Create workspace edit
+      const edit = new WorkspaceEdit();
+
+      // Sort occurrences by line number in descending order to apply from bottom to top
+      const sortedOccurrences = [...occurrences].sort((a, b) => {
+        if (a.line !== b.line) {
+          return b.line - a.line;
+        }
+        return b.startChar - a.startChar;
+      });
+
+      // Remove Entity:: prefixes from all occurrences (bottom to top)
+      for (const occurrence of sortedOccurrences) {
+        const prefixRange = new Range(
+          new Position(occurrence.line, occurrence.startChar),
+          new Position(occurrence.line, occurrence.startChar + entityName.length + 2) // +2 for ::
+        );
+        edit.delete(document.uri, prefixRange);
+      }
+
+      let directiveStartLine: number;
+      let directiveEndLine: number;
+
+      if (existingUsesDirective) {
+        // Merge new indicators with existing ones, removing duplicates
+        const allIndicators = [...new Set([...existingUsesDirective.indicators, ...uniqueIndicators])].sort();
+        const updatedDirective = this.formatUsesDirective(entityName, allIndicators);
+
+        // Replace the existing directive
+        const existingRange = new Range(
+          new Position(existingUsesDirective.startLine, 0),
+          new Position(existingUsesDirective.endLine, document.lineAt(existingUsesDirective.endLine).text.length)
+        );
+        edit.replace(document.uri, existingRange, updatedDirective);
+
+        directiveStartLine = existingUsesDirective.startLine;
+        directiveEndLine = existingUsesDirective.startLine + updatedDirective.split('\n').length - 1;
+
+        this.logger.debug(`Updated existing uses/2 directive with ${allIndicators.length} indicators`);
+      } else {
+        // Find insertion point after entity opening and all directives
+        const insertionLine = this.findInsertionPointAfterInfo(document, entityOpeningLine);
+
+        // Create the uses/2 directive
+        const usesDirective = this.formatUsesDirective(entityName, uniqueIndicators);
+
+        // Insert the uses/2 directive
+        const insertPosition = new Position(insertionLine, 0);
+        edit.insert(document.uri, insertPosition, usesDirective + '\n');
+
+        directiveStartLine = insertionLine;
+        directiveEndLine = insertionLine + usesDirective.split('\n').length - 1;
+
+        this.logger.debug(`Inserted new uses/2 directive with ${uniqueIndicators.length} indicators`);
+      }
+
+      const success = await workspace.applyEdit(edit);
+      if (success) {
+        // Format the uses/2 directive by selecting it and formatting
+        const editor = window.activeTextEditor;
+        if (editor && editor.document === document) {
+          const directiveRange = new Range(
+            new Position(directiveStartLine, 0),
+            new Position(directiveEndLine, document.lineAt(directiveEndLine).text.length)
+          );
+          editor.selection = new Selection(directiveRange.start, directiveRange.end);
+          await this.rangeFormatter.formatDocumentRangeWithIndentationConversion();
+        }
+
+        this.logger.info(`Successfully converted ${occurrences.length} explicit message sends to implicit`);
+        window.showInformationMessage(
+          `Converted ${occurrences.length} message sending goal${occurrences.length > 1 ? 's' : ''}.`
+        );
+      } else {
+        window.showErrorMessage("Failed to apply refactoring.");
+      }
+    } catch (error) {
+      this.logger.error(`Error in useImplicitMessageSending: ${error}`);
+      window.showErrorMessage(`Error in refactoring: ${error}`);
+    }
+  }
+
+  /**
+   * Find all occurrences of Entity:: in clause/rule bodies within the entity range.
+   *
+   * @param document The text document
+   * @param entityName The entity name to search for
+   * @param entityRange The range of the entity
+   * @returns Array of occurrence info (line, startChar, message text, and whether it's in a grammar rule)
+   */
+  private findExplicitMessageSendingOccurrences(
+    document: TextDocument,
+    entityName: string,
+    entityRange: Range
+  ): Array<{ line: number; startChar: number; messageText: string; isInGrammarRule: boolean }> {
+    const occurrences: Array<{ line: number; startChar: number; messageText: string; isInGrammarRule: boolean }> = [];
+
+    // Regex to match Entity::Message pattern - captures the message name and optional arguments
+    const entityPattern = new RegExp(
+      `\\b${entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}::(\\w+(?:\\([^)]*\\))?)`,
+      'g'
+    );
+
+    // Find all terms (clauses or grammar rules) in the entity range
+    let lineNum = entityRange.start.line;
+    while (lineNum <= entityRange.end.line) {
+      const lineText = document.lineAt(lineNum).text.trim();
+
+      // Skip empty lines, comments, and directives
+      if (lineText === '' || lineText.startsWith('%') || lineText.startsWith(':-')) {
+        lineNum++;
+        continue;
+      }
+
+      // Find the start of this term
+      const termStartLine = Utils.findTermStart(document, lineNum);
+      if (termStartLine === null || termStartLine < entityRange.start.line) {
+        lineNum++;
+        continue;
+      }
+
+      // Get the clause/rule range using the utility method
+      const clauseRange = PredicateUtils.getClauseRange(document, termStartLine);
+      const termEndLine = clauseRange.end;
+
+      // Get the full term text
+      const termText = this.collectTermText(document, termStartLine, termEndLine);
+
+      // Check if this term is a grammar rule (contains -->) or clause (contains :-)
+      const termIsGrammarRule = termText.includes('-->');
+      const termIsClause = termText.includes(':-') && !termIsGrammarRule;
+
+      // Skip if term is neither a clause nor a grammar rule (e.g., a fact)
+      if (!termIsGrammarRule && !termIsClause) {
+        lineNum = termEndLine + 1;
+        continue;
+      }
+
+      // Find the body start (after :- or -->)
+      const bodyOperator = termIsGrammarRule ? '-->' : ':-';
+      const bodyStartLine = this.findBodyStartLine(document, termStartLine, termEndLine, bodyOperator);
+      if (bodyStartLine === null) {
+        lineNum = termEndLine + 1;
+        continue;
+      }
+
+      // Search for Entity:: occurrences in the body
+      for (let bodyLine = bodyStartLine; bodyLine <= termEndLine; bodyLine++) {
+        const fullLineText = document.lineAt(bodyLine).text;
+
+        let match: RegExpExecArray | null;
+        entityPattern.lastIndex = 0;
+        while ((match = entityPattern.exec(fullLineText)) !== null) {
+          occurrences.push({
+            line: bodyLine,
+            startChar: match.index,
+            messageText: match[1],  // The message name with optional arguments
+            isInGrammarRule: termIsGrammarRule
+          });
+        }
+      }
+
+      // Move to next term
+      lineNum = termEndLine + 1;
+    }
+
+    return occurrences;
+  }
+
+  /**
+   * Extract message indicators from occurrences.
+   * Uses the isInGrammarRule flag from each occurrence to determine if it's a
+   * non-terminal indicator (//) or predicate indicator (/).
+   *
+   * @param occurrences The occurrences found
+   * @returns Array of indicators (e.g., ["foo/2", "bar//1"])
+   */
+  private extractMessageIndicators(
+    occurrences: Array<{ line: number; startChar: number; messageText: string; isInGrammarRule: boolean }>
+  ): string[] {
+    const indicators: string[] = [];
+
+    for (const occurrence of occurrences) {
+      const messageText = occurrence.messageText;
+
+      // Parse the message to extract name and arity
+      const match = messageText.match(/^(\w+)(?:\(([^)]*)\))?$/);
+      if (!match) {
+        continue;
+      }
+
+      const name = match[1];
+      const argsText = match[2] || '';
+
+      // Count arguments
+      let arity = 0;
+      if (argsText.trim()) {
+        const args = ArgumentUtils.parseArguments(argsText);
+        arity = args.length;
+      }
+
+      // Use // for non-terminals (in grammar rules), / for predicates (in clauses)
+      const separator = occurrence.isInGrammarRule ? '//' : '/';
+      indicators.push(`${name}${separator}${arity}`);
+    }
+
+    return indicators;
+  }
+
+  /**
+   * Format a uses/2 directive with the given entity name and indicators.
+   *
+   * @param entityName The entity name
+   * @param indicators The list of predicate/non-terminal indicators
+   * @returns The formatted uses/2 directive string
+   */
+  private formatUsesDirective(entityName: string, indicators: string[]): string {
+    // Format as: :- uses(entity, [indicator1, indicator2, ...]).
+    // For multiple indicators, put each on its own line
+    if (indicators.length === 1) {
+      return `\t:- uses(${entityName}, [${indicators[0]}]).`;
+    }
+
+    const lines: string[] = [];
+    lines.push(`\t:- uses(${entityName}, [`);
+    for (let i = 0; i < indicators.length; i++) {
+      const isLast = i === indicators.length - 1;
+      lines.push(`\t\t${indicators[i]}${isLast ? '' : ','}`);
+    }
+    lines.push(`\t]).`);
+    return lines.join('\n');
+  }
+
+  /**
+   * Find an existing uses/2 directive for the given entity within the entity range.
+   * Searches the entire entity range since uses/2 directives can appear anywhere.
+   *
+   * @param document The text document
+   * @param entityName The entity name to look for
+   * @param entityRange The range of the enclosing entity
+   * @returns Info about the existing directive (start/end lines and existing indicators), or null if not found
+   */
+  private findExistingUsesDirective(
+    document: TextDocument,
+    entityName: string,
+    entityRange: Range
+  ): { startLine: number; endLine: number; indicators: string[] } | null {
+    // Pattern to match the start of a uses/2 directive for this entity
+    const usesPattern = new RegExp(`^\\s*:-\\s*uses\\(\\s*${entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*,`);
+
+    let lineNum = entityRange.start.line + 1;
+    while (lineNum <= entityRange.end.line) {
+      const lineText = document.lineAt(lineNum).text;
+      const trimmedText = lineText.trim();
+
+      // Skip empty lines and comments
+      if (trimmedText === '' || trimmedText.startsWith('%')) {
+        lineNum++;
+        continue;
+      }
+
+      // Check if this is a uses/2 directive for our entity
+      if (usesPattern.test(lineText)) {
+        // Found it! Get the full directive range
+        const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+        const startLine = directiveRange.start;
+        const endLine = directiveRange.end;
+
+        // Extract existing indicators from the directive
+        const indicators = this.extractIndicatorsFromUsesDirective(document, startLine, endLine);
+
+        return { startLine, endLine, indicators };
+      }
+
+      // Skip to next line (or skip multi-line directives)
+      if (trimmedText.startsWith(':-')) {
+        const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+        lineNum = directiveRange.end + 1;
+      } else {
+        lineNum++;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract indicators from an existing uses/2 directive.
+   *
+   * @param document The text document
+   * @param startLine Start line of the directive
+   * @param endLine End line of the directive
+   * @returns Array of indicator strings (e.g., ["foo/2", "bar//1"])
+   */
+  private extractIndicatorsFromUsesDirective(
+    document: TextDocument,
+    startLine: number,
+    endLine: number
+  ): string[] {
+    const indicators: string[] = [];
+
+    // Collect all text from the directive
+    let directiveText = '';
+    for (let i = startLine; i <= endLine; i++) {
+      directiveText += document.lineAt(i).text + '\n';
+    }
+
+    // Find the list content between [ and ]
+    const listMatch = directiveText.match(/\[\s*([\s\S]*?)\s*\]/);
+    if (!listMatch) {
+      return indicators;
+    }
+
+    const listContent = listMatch[1];
+
+    // Split by comma, handling both / and // indicators
+    // Pattern matches: functor/arity or functor//arity
+    const indicatorPattern = /\b([a-z_][a-zA-Z0-9_]*)\/\/?\d+/g;
+    let match: RegExpExecArray | null;
+    while ((match = indicatorPattern.exec(listContent)) !== null) {
+      indicators.push(match[0]);
+    }
+
+    return indicators;
+  }
+
+  /**
+   * Find the line where the body of a clause/rule starts.
+   *
+   * @param document The text document
+   * @param termStartLine The start line of the term
+   * @param termEndLine The end line of the term
+   * @param operator The operator to look for (':-' or '-->')
+   * @returns The line number where the body starts, or null if not found
+   */
+  private findBodyStartLine(document: TextDocument, termStartLine: number, termEndLine: number, operator: string): number | null {
+    for (let lineNum = termStartLine; lineNum <= termEndLine; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      const operatorIndex = lineText.indexOf(operator);
+      if (operatorIndex !== -1) {
+        // Body starts on this line, after the operator
+        return lineNum;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -1129,7 +1547,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Find insertion point after entity opening directive and info/1 directive
+   * Find insertion point after entity opening directive and all subsequent directives.
+   * Skips all directives to find the first predicate clause or grammar rule.
    */
   private findInsertionPointAfterInfo(document: TextDocument, entityLine: number): number {
     let insertionLine = entityLine;
@@ -1138,7 +1557,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const entityRange = PredicateUtils.getDirectiveRange(document, entityLine);
     insertionLine = entityRange.end;
 
-    // Look for info/1 directive after entity opening
+    // Skip all directives after entity opening to find the first clause or rule
     for (let lineNum = insertionLine + 1; lineNum < document.lineCount; lineNum++) {
       const lineText = document.lineAt(lineNum).text.trim();
 
@@ -1147,13 +1566,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         continue;
       }
 
-      // Check if this is an info/1 directive
-      if (lineText.match(/^:-\s*info\(\s*\[/)) {
-        const infoRange = PredicateUtils.getDirectiveRange(document, lineNum);
-        insertionLine = infoRange.end;
-        break;
+      // Check if this is a directive (starts with :-)
+      if (lineText.startsWith(':-')) {
+        // Skip this directive (may be multi-line)
+        const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+        insertionLine = directiveRange.end;
+        // Continue from after the directive
+        lineNum = directiveRange.end;
+        continue;
       } else {
-        // Hit non-info directive or other content, stop looking
+        // Hit a clause or grammar rule - this is where we want to insert
         break;
       }
     }
@@ -4324,6 +4746,124 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     return null;
+  }
+
+  /**
+   * Detect if the selection is on an entity name in an explicit message sending goal (Entity::Message).
+   * The selection must be exactly on the entity name followed by ::.
+   * Returns entity name and the entity range.
+   *
+   * @param document The text document
+   * @param selection The current selection
+   * @returns Info about the explicit message sending, or null if not detected
+   */
+  private detectExplicitMessageSending(document: TextDocument, selection: Selection): {
+    entityName: string;
+    entityRange: Range;
+  } | null {
+    let entityName: string;
+
+    if (selection.isEmpty) {
+      // Cursor is positioned without selection - find the word at cursor
+      const position = selection.active;
+      const lineText = document.lineAt(position.line).text;
+
+      // Find the start of the word at cursor
+      let wordStart = position.character;
+      while (wordStart > 0 && /[a-zA-Z0-9_]/.test(lineText[wordStart - 1])) {
+        wordStart--;
+      }
+
+      // Find the end of the word at cursor
+      let wordEnd = position.character;
+      while (wordEnd < lineText.length && /[a-zA-Z0-9_]/.test(lineText[wordEnd])) {
+        wordEnd++;
+      }
+
+      // Extract the word
+      const word = lineText.substring(wordStart, wordEnd);
+
+      // Check if it's a valid atom (lowercase identifier)
+      if (!/^[a-z][a-zA-Z0-9_]*$/.test(word)) {
+        return null;
+      }
+
+      // Check if :: immediately follows the word
+      const textAfterWord = lineText.substring(wordEnd);
+      if (!textAfterWord.startsWith('::')) {
+        return null;
+      }
+
+      entityName = word;
+    } else {
+      // User has selected text - validate the selection
+      const selectedText = document.getText(selection);
+
+      // Check if the selected text is an atom (lowercase identifier)
+      if (!/^[a-z][a-zA-Z0-9_]*$/.test(selectedText)) {
+        return null;
+      }
+
+      // Get text after the selection to check for ::
+      const lineText = document.lineAt(selection.end.line).text;
+      const textAfterSelection = lineText.substring(selection.end.character);
+
+      // Check if :: immediately follows the selection
+      if (!textAfterSelection.startsWith('::')) {
+        return null;
+      }
+
+      entityName = selectedText;
+    }
+
+    // Get the entity range containing the position
+    const entityRange = Utils.getEntityRange(document, selection.start);
+    if (!entityRange) {
+      return null;
+    }
+
+    // Check if we're inside a directive (not in a clause or rule)
+    if (this.isSelectionInDirective(document, selection)) {
+      return null;
+    }
+
+    // Check that we're in a clause or grammar rule (not a fact)
+    const termStartLine = Utils.findTermStart(document, selection.start.line);
+    if (termStartLine === null) {
+      return null;
+    }
+
+    const termText = this.collectTermText(document, termStartLine);
+    if (!termText.includes(':-') && !termText.includes('-->')) {
+      // This is a fact, not a rule - no body to refactor
+      return null;
+    }
+
+    return {
+      entityName,
+      entityRange
+    };
+  }
+
+  /**
+   * Collect the complete text of a term starting from a given line
+   * Uses PredicateUtils.getClauseRange to determine term boundaries.
+   *
+   * @param document The text document
+   * @param startLine The start line of the term
+   * @param endLine Optional end line (if already computed via getClauseRange)
+   * @returns The complete term text
+   */
+  private collectTermText(document: TextDocument, startLine: number, endLine?: number): string {
+    // Use provided endLine or compute it via getClauseRange
+    const termEndLine = endLine ?? PredicateUtils.getClauseRange(document, startLine).end;
+
+    let termText = '';
+    for (let lineNum = startLine; lineNum <= termEndLine; lineNum++) {
+      termText += document.lineAt(lineNum).text + ' ';
+    }
+
+    return termText.trim();
   }
 
   /**

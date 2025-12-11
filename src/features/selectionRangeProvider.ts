@@ -9,7 +9,6 @@ import {
   TextDocument
 } from "vscode";
 import { PredicateUtils } from "../utils/predicateUtils";
-import { SymbolRegexes } from "../utils/symbols";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import LogtalkTerminal from "./terminal";
@@ -79,7 +78,7 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
       const predicateDefRange = await this.getPredicateDefinitionRange(document, position, blockRange);
 
       // Level 4: Entity
-      const entityRange = this.getEntityRange(document, position);
+      const entityRange = Utils.getEntityRange(document, position);
 
       // Level 5: File (entire document)
       const fileRange = this.getFileRange(document);
@@ -425,75 +424,6 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
     const lastRange = ranges[ranges.length - 1];
 
     return new Range(firstRange.start, lastRange.end);
-  }
-
-  /**
-   * Get the range of the entity (object/protocol/category) containing the position.
-   * @param document The text document
-   * @param position The position in the document
-   * @returns The range of the entity, or null if not in an entity
-   */
-  private getEntityRange(
-    document: TextDocument,
-    position: Position
-  ): Range | null {
-    // Search backwards to find the entity opening directive
-    let entityStartLine: number | null = null;
-    let entityType: string | null = null;
-
-    for (let lineNum = position.line; lineNum >= 0; lineNum--) {
-      const lineText = document.lineAt(lineNum).text.trim();
-
-      // Check for entity opening directives
-      if (SymbolRegexes.openingObject.test(lineText)) {
-        entityStartLine = lineNum;
-        entityType = 'object';
-        break;
-      } else if (SymbolRegexes.openingProtocol.test(lineText)) {
-        entityStartLine = lineNum;
-        entityType = 'protocol';
-        break;
-      } else if (SymbolRegexes.openingCategory.test(lineText)) {
-        entityStartLine = lineNum;
-        entityType = 'category';
-        break;
-      }
-
-      // If we hit an entity end directive, we're not inside an entity
-      if (SymbolRegexes.endObject.test(lineText) ||
-          SymbolRegexes.endProtocol.test(lineText) ||
-          SymbolRegexes.endCategory.test(lineText)) {
-        return null;
-      }
-    }
-
-    if (entityStartLine === null || entityType === null) {
-      return null;
-    }
-
-    // Search forwards to find the entity closing directive
-    let entityEndLine: number | null = null;
-    const endRegex = entityType === 'object' ? SymbolRegexes.endObject :
-                     entityType === 'protocol' ? SymbolRegexes.endProtocol :
-                     SymbolRegexes.endCategory;
-
-    for (let lineNum = entityStartLine + 1; lineNum < document.lineCount; lineNum++) {
-      const lineText = document.lineAt(lineNum).text.trim();
-      if (endRegex.test(lineText)) {
-        entityEndLine = lineNum;
-        break;
-      }
-    }
-
-    if (entityEndLine === null) {
-      // Entity not properly closed, return range to end of file
-      entityEndLine = document.lineCount - 1;
-    }
-
-    return new Range(
-      new Position(entityStartLine, 0),
-      new Position(entityEndLine, document.lineAt(entityEndLine).text.length)
-    );
   }
 
   /**

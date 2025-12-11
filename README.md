@@ -390,6 +390,10 @@ To add a new argument to a predicate (or non-terminal), right-click on the predi
 
 To add a declaration for a local predicate (or non-terminal), right-click on the predicate name in a clause head and select the "Add predicate/non-terminal declaration" context menu item. The declaration, consisting of scope, `mode/2`, and `info/2` directives, is added before the predicate definition.
 
+#### Replace explicit message sending goals with implicit message sending
+
+To replace explicit message sending goals with implicit message sending goals by adding a `uses/2` directive, right-click on the entity name in an explicit message sending goal (in a clause or grammar rule) and select the "Use implicit message sending" context menu item. All explicit message sending goals in the entity are replaced with a `uses/2` directive. If there's already a `uses/2` directive for the selected entity, the predicate/non-terminal indicators are added to the existing directive. Currently, only messages to non-parametric entities are supported. Note that this refactoring operation can introduce a compilation error if an explicit message sending goal is used to avoid a clash with a local predicate.
+
 #### Directive refactoring
 
 The "Split in individual directives" refactoring operation is available when the user right-clicks on the directive name in a predicate directive with a list argument. The directive is split into individual directives, one for each element in the list.

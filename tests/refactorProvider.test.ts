@@ -566,4 +566,141 @@ suite('LogtalkRefactorProvider Test Suite', () => {
     const edit = edits[0];
     assert.strictEqual(edit.newText, "(NewArg)");
   });
+
+  // Tests for "Use implicit message sending" refactoring
+
+  test('extractMessageIndicators - predicate in clause', () => {
+    const refactorProvider = new LogtalkRefactorProvider();
+
+    const occurrences = [
+      { line: 5, startChar: 10, messageText: 'member(X, L)', isInGrammarRule: false },
+      { line: 6, startChar: 10, messageText: 'append(A, B, C)', isInGrammarRule: false }
+    ];
+
+    const indicators = (refactorProvider as any).extractMessageIndicators(occurrences);
+
+    assert.strictEqual(indicators.length, 2);
+    assert.strictEqual(indicators[0], 'member/2');
+    assert.strictEqual(indicators[1], 'append/3');
+  });
+
+  test('extractMessageIndicators - non-terminal in grammar rule', () => {
+    const refactorProvider = new LogtalkRefactorProvider();
+
+    const occurrences = [
+      { line: 5, startChar: 10, messageText: 'digit(D)', isInGrammarRule: true },
+      { line: 6, startChar: 10, messageText: 'letter', isInGrammarRule: true }
+    ];
+
+    const indicators = (refactorProvider as any).extractMessageIndicators(occurrences);
+
+    assert.strictEqual(indicators.length, 2);
+    assert.strictEqual(indicators[0], 'digit//1');
+    assert.strictEqual(indicators[1], 'letter//0');
+  });
+
+  test('extractMessageIndicators - mixed predicates and non-terminals', () => {
+    const refactorProvider = new LogtalkRefactorProvider();
+
+    const occurrences = [
+      { line: 5, startChar: 10, messageText: 'member(X, L)', isInGrammarRule: false },
+      { line: 6, startChar: 10, messageText: 'digit(D)', isInGrammarRule: true },
+      { line: 7, startChar: 10, messageText: 'append(A, B, C)', isInGrammarRule: false },
+      { line: 8, startChar: 10, messageText: 'letter', isInGrammarRule: true }
+    ];
+
+    const indicators = (refactorProvider as any).extractMessageIndicators(occurrences);
+
+    assert.strictEqual(indicators.length, 4);
+    assert.strictEqual(indicators[0], 'member/2');
+    assert.strictEqual(indicators[1], 'digit//1');
+    assert.strictEqual(indicators[2], 'append/3');
+    assert.strictEqual(indicators[3], 'letter//0');
+  });
+
+  test('formatUsesDirective - single indicator', () => {
+    const refactorProvider = new LogtalkRefactorProvider();
+
+    const directive = (refactorProvider as any).formatUsesDirective('list', ['member/2']);
+
+    assert.strictEqual(directive, '\t:- uses(list, [member/2]).');
+  });
+
+  test('formatUsesDirective - multiple indicators', () => {
+    const refactorProvider = new LogtalkRefactorProvider();
+
+    const directive = (refactorProvider as any).formatUsesDirective('list', ['append/3', 'member/2', 'reverse/2']);
+
+    const expectedLines = [
+      '\t:- uses(list, [',
+      '\t\tappend/3,',
+      '\t\tmember/2,',
+      '\t\treverse/2',
+      '\t]).'
+    ];
+    assert.strictEqual(directive, expectedLines.join('\n'));
+  });
+
+  test('extractIndicatorsFromUsesDirective - single-line directive', () => {
+    const refactorProvider = new LogtalkRefactorProvider();
+
+    const mockDocument = {
+      lineAt: (line: number) => {
+        const lines = [
+          '\t:- uses(list, [member/2, append/3]).'
+        ];
+        return { text: lines[line] || '' };
+      }
+    } as vscode.TextDocument;
+
+    const indicators = (refactorProvider as any).extractIndicatorsFromUsesDirective(mockDocument, 0, 0);
+
+    assert.strictEqual(indicators.length, 2);
+    assert.ok(indicators.includes('member/2'));
+    assert.ok(indicators.includes('append/3'));
+  });
+
+  test('extractIndicatorsFromUsesDirective - multi-line directive', () => {
+    const refactorProvider = new LogtalkRefactorProvider();
+
+    const mockDocument = {
+      lineAt: (line: number) => {
+        const lines = [
+          '\t:- uses(list, [',
+          '\t\tmember/2,',
+          '\t\tappend/3,',
+          '\t\treverse/2',
+          '\t]).'
+        ];
+        return { text: lines[line] || '' };
+      }
+    } as vscode.TextDocument;
+
+    const indicators = (refactorProvider as any).extractIndicatorsFromUsesDirective(mockDocument, 0, 4);
+
+    assert.strictEqual(indicators.length, 3);
+    assert.ok(indicators.includes('member/2'));
+    assert.ok(indicators.includes('append/3'));
+    assert.ok(indicators.includes('reverse/2'));
+  });
+
+  test('extractIndicatorsFromUsesDirective - mixed predicate and non-terminal indicators', () => {
+    const refactorProvider = new LogtalkRefactorProvider();
+
+    const mockDocument = {
+      lineAt: (line: number) => {
+        const lines = [
+          '\t:- uses(parser, [digit//1, parse/2, letter//0]).'
+        ];
+        return { text: lines[line] || '' };
+      }
+    } as vscode.TextDocument;
+
+    const indicators = (refactorProvider as any).extractIndicatorsFromUsesDirective(mockDocument, 0, 0);
+
+    assert.strictEqual(indicators.length, 3);
+    assert.ok(indicators.includes('digit//1'));
+    assert.ok(indicators.includes('parse/2'));
+    assert.ok(indicators.includes('letter//0'));
+  });
 });
