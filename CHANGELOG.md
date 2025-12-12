@@ -2,6 +2,8 @@
 
 ## [0.80.0]
 
+* Add support for the ECLiPSe backend on Windows
+* Add `logtalk.tests.createAllureReport` boolean setting to generate Allure reports after running tests
 * Automatically recompile code in debug/normal mode when starting/stopping debugging
 * Add support for the debug toolbar with additional buttons for common port commands
 * Add "Help: Logtalk Handbook" command to open the Logtalk Handbook using Live Preview if installed, or the default browser otherwise
@@ -9,9 +11,8 @@
 * Add "Use implicit message sending" refactoring for replacing explicit message sending calls with a `uses/2` directive
 * Remove the "Logtalk: Toggle Debugging" button from the editor title bar (subsumed by the "Run" menu commands)
 * Remove the "Logtalk:" prefix from all context menu items
-* Add status bar indicators for profiling and CodeLens on/off state
+* Add actionable status bar indicators for profiling and CodeLens on/off state
 * Show an error message when the Logtalk terminal crashes with a button to restart the terminal
-* Support ECLiPSe file paths on Windows
 * Refresh active editor tests and metrics CodeLens when results files change without waiting for user interaction
 * Improve performance of the tests and metrics CodeLens providers
 * Improve predicate call parsing performance when using the code navigation features

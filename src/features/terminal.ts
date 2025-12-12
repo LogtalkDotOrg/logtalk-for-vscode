@@ -44,6 +44,7 @@ export default class LogtalkTerminal {
   private static _docArgs:        string[];
   private static _diaExec:        string;
   private static _diaArgs:        string[];
+  private static _allureExec:     string;
   private static _timeout:        number;
   private static _outputChannel:  OutputChannel;
   private static _loadedDirectories: Set<string> = new Set();
@@ -192,6 +193,14 @@ export default class LogtalkTerminal {
         LogtalkTerminal._diaExec = path.resolve(LogtalkTerminal._diaExec).split(path.sep).join("/");
         LogtalkTerminal._diaArgs = [];
       }
+    }
+
+    // Initialize Allure report script path
+    if (process.platform === 'win32') {
+      LogtalkTerminal._allureExec = LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/logtalk_allure_report.ps1");
+    } else {
+      LogtalkTerminal._allureExec = path.join(logtalkHome, "scripts", "logtalk_allure_report.sh");
+      LogtalkTerminal._allureExec = path.resolve(LogtalkTerminal._allureExec).split(path.sep).join("/");
     }
 
     // Create initial Logtalk terminal without showing it
@@ -909,6 +918,10 @@ export default class LogtalkTerminal {
     }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
+    // Load xUnit report support if Allure report generation is enabled
+    if (LogtalkTerminal.isAllureReportEnabled()) {
+      LogtalkTerminal.sendString(`logtalk_load(lgtunit(xunit_report)).\r`, true);
+    }
     LogtalkTerminal.sendString(`vscode::tests('${dir}','${tester}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_loading_done");
@@ -1457,6 +1470,7 @@ export default class LogtalkTerminal {
       return;
     }
     const outputFile = linter && testsReporter ? path.join(dir, '.vscode_tester_output') : undefined;
+    const shouldRunAllure = LogtalkTerminal.isAllureReportEnabled();
 
     LogtalkTerminal.spawnScriptWorkspace(
       dir,
@@ -1467,7 +1481,14 @@ export default class LogtalkTerminal {
       outputFile,
       linter && testsReporter ? async (file) => {
         await LogtalkTerminal.parseTesterOutput(file, linter, testsReporter);
-      } : undefined
+        // Run Allure report if enabled
+        if (shouldRunAllure) {
+          LogtalkTerminal.runAllureReport(dir);
+        }
+      } : (shouldRunAllure ? async () => {
+        // Run Allure report even if no linter/testsReporter
+        LogtalkTerminal.runAllureReport(dir);
+      } : undefined)
     );
   }
 
@@ -1528,6 +1549,44 @@ export default class LogtalkTerminal {
         await LogtalkTerminal.parseDocletOutput(file, linter, documentationLinter);
       } : undefined
     );
+  }
+
+  /**
+   * Run the Allure report script to generate an Allure report from test results.
+   * This is called after tests complete when the logtalk.tests.createAllureReport setting is enabled.
+   * @param dir - The directory where the tests were run
+   */
+  public static runAllureReport(dir: string) {
+    const logger = getLogger();
+    logger.info(`Running Allure report script in: ${dir}`);
+
+    let execPath: string;
+    let args: string[];
+
+    if (process.platform === 'win32') {
+      execPath = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
+      args = ["-file", LogtalkTerminal._allureExec];
+    } else {
+      execPath = LogtalkTerminal._allureExec;
+      args = [];
+    }
+
+    LogtalkTerminal.spawnScript(
+      dir,
+      ["logtalk_allure_report", "logtalk.tests.createAllureReport", execPath],
+      execPath,
+      args,
+      "Allure report generated."
+    );
+  }
+
+  /**
+   * Check if Allure report generation is enabled in settings
+   * @returns true if the logtalk.tests.createAllureReport setting is enabled
+   */
+  public static isAllureReportEnabled(): boolean {
+    const section = workspace.getConfiguration("logtalk");
+    return section.get<boolean>("tests.createAllureReport", false);
   }
 
   public static async getEntityDefinition(entity: string) {

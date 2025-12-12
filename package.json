@@ -1151,6 +1151,12 @@
                         "default": true,
                         "order": 16
                     },
+                    "logtalk.tests.createAllureReport": {
+                        "type": "boolean",
+                        "description": "Create an Allure report after running tests using the 'Run Tests', 'Run Tests with Coverage', or 'Run Project Testers' commands.",
+                        "default": false,
+                        "order": 17
+                    },
                     "logtalk.diagrams.format": {
                         "type": "string",
                         "description": "Diagrams format.",
@@ -1160,19 +1166,19 @@
                             "d2",
                             "mermaid"
                         ],
-                        "order": 17
+                        "order": 18
                     },
                     "logtalk.jupytext.path": {
                         "type": "string",
                         "description": "Absolute path to the jupytext executable. Can also be a Python interpreter call running the jupytext module. Optional.",
                         "default": "python3 -m jupytext",
-                        "order": 18
+                        "order": 19
                     },
                     "logtalk.scripts.timeout": {
                         "type": "number",
                         "description": "Timeout (in milliseconds) for waiting to run the scripts that convert documentation and diagram files to final formats when running the lgtdoc and diagrams tools. Also for waiting to populate the 'Problems' pane when compiling a file.",
                         "default": 480000,
-                        "order": 19
+                        "order": 20
                     },
                     "logtalk.logging.level": {
                         "type": "string",
@@ -1192,7 +1198,7 @@
                             "Error, warning, and informational messages",
                             "All messages including detailed debug information"
                         ],
-                        "order": 20
+                        "order": 21
                     }
                 }
             }

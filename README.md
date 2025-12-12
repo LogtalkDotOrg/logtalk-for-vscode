@@ -743,6 +743,12 @@ The number of milliseconds to wait before running the scripts that convert `.xml
 
 Controls the verbosity of logging output for the Logtalk extension. Available levels (from least to most verbose): `off`, `error`, `warn`, `info`, `debug`. The default value is `warn`.
 
+#### Create Allure report after running tests
+
+    "logtalk.tests.createAllureReport": false
+
+When set to `true`, the extension will automatically generate an Allure report after running tests using the "Run Tests", "Run Tests with Coverage", or "Run Project Testers" commands. The report can be found in the `allure-report` directory in the workspace folder where the tests were run. The report is generated using the `logtalk_allure_report.sh` script (on macOS and Linux) or the `logtalk_allure_report.ps1` script (on Windows). These scripts require Allure to be installed and available in the system path. The default value is `false`.
+
 ## Known issues
 
 Code issues detected when running the "Make - Check" or "Make - Circular" commands are displayed in the integrated terminal but not added to the "PROBLEMS" pane. But when an issue is reported in a source file, you can right-click (Ctrl+click on Windows and Linux, Cmd+click on macOS) in the file path to navigate to the issue location.

@@ -281,6 +281,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     );
     this.logger.debug('Created test run');
 
+    // Track directories where tests were run for Allure report generation
+    const testDirectories = new Set<string>();
+
     try {
       // If no specific tests are selected, run all tests via the tester file
       if (!request.include) {
@@ -295,12 +298,14 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           // Check if URI is a directory or file
           const stats = fs.statSync(uri.fsPath);
           const dir0 = stats.isDirectory() ? uri.fsPath : path.dirname(uri.fsPath);
+          testDirectories.add(dir0);
           const resultsFilePath = path.join(dir0, '.vscode_test_results');
           if (fs.existsSync(resultsFilePath)) {
             this.logger.debug(`Parsing results from: ${resultsFilePath}`);
             await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
           }
 
+          this.runAllureReportIfEnabled(testDirectories);
           testRun.end();
           return;
         }
@@ -316,6 +321,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           if (workspace.workspaceFolders) {
             for (const workspaceFolder of workspace.workspaceFolders) {
               const workspacePath = workspaceFolder.uri.fsPath;
+              testDirectories.add(workspacePath);
               this.logger.info(`Running all tests in workspace folder: ${workspacePath}`);
               await LogtalkTerminal.runAllTests(workspaceFolder.uri, this.linter, this.testsReporter);
 
@@ -329,6 +335,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               }
             }
           }
+          this.runAllureReportIfEnabled(testDirectories);
           testRun.end();
           return;
         }
@@ -345,6 +352,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             const dirPath = metadata.directoryUri!.fsPath;
             if (!directoriesProcessed.has(dirPath)) {
               directoriesProcessed.add(dirPath);
+              testDirectories.add(dirPath);
               this.logger.info(`Running all tests in directory: ${dirPath}`);
               await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter);
 
@@ -363,6 +371,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             const dirPath = path.dirname(filePath);
             if (!directoriesProcessed.has(dirPath)) {
               directoriesProcessed.add(dirPath);
+              testDirectories.add(dirPath);
               this.logger.info(`Running all tests in workspace root directory: ${dirPath}`);
               await LogtalkTerminal.runAllTests(Uri.file(dirPath), this.linter, this.testsReporter);
 
@@ -378,6 +387,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           }
         }
 
+        this.runAllureReportIfEnabled(testDirectories);
         testRun.end();
         return;
       }
@@ -401,12 +411,14 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
         try {
           const dir0 = path.dirname(metadata.fileUri.fsPath);
+          testDirectories.add(dir0);
           const resultsFilePath = path.join(dir0, '.vscode_test_results');
 
           switch (metadata.type) {
             case 'directory':
               // Run all tests in the directory
               this.logger.info(`Running all tests in directory: ${metadata.directoryUri!.fsPath}`);
+              testDirectories.add(metadata.directoryUri!.fsPath);
               await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter);
 
               // Parse results
@@ -461,10 +473,26 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         }
       }
 
+      this.runAllureReportIfEnabled(testDirectories);
       testRun.end();
     } catch (error) {
       this.logger.error('Error in runTests:', error);
+      this.runAllureReportIfEnabled(testDirectories);
       testRun.end();
+    }
+  }
+
+  /**
+   * Run Allure report script for all directories where tests were run if the setting is enabled
+   * @param directories - Set of directories where tests were run
+   */
+  private runAllureReportIfEnabled(directories: Set<string>): void {
+    if (!LogtalkTerminal.isAllureReportEnabled()) {
+      return;
+    }
+
+    for (const dir of directories) {
+      LogtalkTerminal.runAllureReport(dir);
     }
   }
 
