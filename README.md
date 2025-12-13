@@ -747,7 +747,9 @@ Controls the verbosity of logging output for the Logtalk extension. Available le
 
     "logtalk.tests.createAllureReport": false
 
-When set to `true`, the extension will automatically generate an Allure report after running tests using the "Run Tests", "Run Tests with Coverage", or "Run Project Testers" commands. The report can be found in the `allure-report` directory in the workspace folder where the tests were run. The report is generated using the `logtalk_allure_report.sh` script (on macOS and Linux) or the `logtalk_allure_report.ps1` script (on Windows). These scripts require Allure to be installed and available in the system path. The default value is `false`.
+When set to `true`, the extension will automatically generate an Allure report after running tests using the "Run Tests", "Run Tests with Coverage", or "Run Project Testers" commands. The report is generated using the `logtalk_allure_report.sh` script (on macOS and Linux) or the `logtalk_allure_report.ps1` script (on Windows). These scripts require Allure to be installed and available in the system path. The default value is `false`.
+
+The generated report can be found in the `allure-report` directory in the workspace folder where the tests were run. Open its `index.html` file to view the report (using e.g. the [Live Preview](https://marketplace.visualstudio.com/items?itemName=ms-vscode.live-server) extension context menu command "Show Preview").
 
 ## Known issues
 
