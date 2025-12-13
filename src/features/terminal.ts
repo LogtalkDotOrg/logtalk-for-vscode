@@ -1460,7 +1460,7 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static runTesters(uri: Uri, linter?: LogtalkLinter, testsReporter?: LogtalkTestsReporter) {
+  public static runTesters(uri: Uri, linter?: LogtalkLinter, testsReporter?: LogtalkTestsReporter, testsExplorerProvider?: LogtalkTestsExplorerProvider) {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._outputChannel.clear();
 
@@ -1485,11 +1485,138 @@ export default class LogtalkTerminal {
         if (shouldRunAllure) {
           LogtalkTerminal.runAllureReport(dir);
         }
+        // Update Test Explorer if provider is available
+        if (testsExplorerProvider) {
+          await testsExplorerProvider.updateFromProjectTesters(dir);
+        }
       } : (shouldRunAllure ? async () => {
         // Run Allure report even if no linter/testsReporter
         LogtalkTerminal.runAllureReport(dir);
-      } : undefined)
+        // Update Test Explorer if provider is available
+        if (testsExplorerProvider) {
+          await testsExplorerProvider.updateFromProjectTesters(dir);
+        }
+      } : (testsExplorerProvider ? async () => {
+        // Update Test Explorer even if no linter/testsReporter
+        await testsExplorerProvider.updateFromProjectTesters(dir);
+      } : undefined))
     );
+  }
+
+  /**
+   * Run project testers with a callback that is called when the testers complete.
+   * This is an async version that waits for the tester script to complete.
+   * @param uri - The URI of the workspace folder
+   * @param linter - The linter instance
+   * @param testsReporter - The tests reporter instance
+   * @param onComplete - Callback function called with the directory when testers complete
+   */
+  public static async runTestersWithCallback(
+    uri: Uri,
+    linter: LogtalkLinter,
+    testsReporter: LogtalkTestsReporter,
+    onComplete: (dir: string) => Promise<void>
+  ): Promise<void> {
+    LogtalkTerminal.createLogtalkTerm();
+    LogtalkTerminal._outputChannel.clear();
+
+    const dir = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!dir) {
+      vscode.window.showErrorMessage('No workspace folder open');
+      return;
+    }
+    const outputFile = path.join(dir, '.vscode_tester_output');
+    const shouldRunAllure = LogtalkTerminal.isAllureReportEnabled();
+
+    return new Promise<void>((resolve) => {
+      LogtalkTerminal.spawnScriptWithPromise(
+        dir,
+        ["logtalk_tester", "logtalk.run.tester", LogtalkTerminal._testerExec],
+        LogtalkTerminal._testerExec,
+        LogtalkTerminal._testerArgs,
+        "Testers completed.",
+        outputFile,
+        async (file) => {
+          await LogtalkTerminal.parseTesterOutput(file, linter, testsReporter);
+          // Run Allure report if enabled
+          if (shouldRunAllure) {
+            LogtalkTerminal.runAllureReport(dir);
+          }
+          // Call the completion callback
+          await onComplete(dir);
+          resolve();
+        }
+      );
+    });
+  }
+
+  /**
+   * Spawn a script and return a promise that resolves when the script completes
+   */
+  private static spawnScriptWithPromise(
+    dir: string,
+    type: string[],
+    scriptPath: string,
+    args: string[],
+    message: string,
+    outputFile?: string,
+    onComplete?: (outputFile: string) => Promise<void>
+  ): void {
+    let pp = spawn(scriptPath, args, { cwd: dir });
+    let outputBuffer = '';
+
+    pp.stdout.on('data', (data) => {
+      const dataStr = data.toString();
+      LogtalkTerminal._outputChannel.append(dataStr);
+      LogtalkTerminal._outputChannel.show(true);
+
+      // Accumulate output if we need to write to file
+      if (outputFile) {
+        outputBuffer += dataStr;
+      }
+    });
+
+    pp.stderr.on('data', (data) => {
+      const dataStr = data.toString();
+      LogtalkTerminal._outputChannel.append(dataStr);
+      LogtalkTerminal._outputChannel.show(true);
+
+      // Accumulate stderr output as well
+      if (outputFile) {
+        outputBuffer += dataStr;
+      }
+    });
+
+    pp.on('error', (err) => {
+      let errMessage: string;
+      if ((err as any).code === "ENOENT") {
+        errMessage = `Cannot run the ${type[0]} script: ${type[2]}. The script was not found. Use the '${type[1]}' setting to configure.`;
+      } else {
+        errMessage = err.message
+          ? err.message
+          : `Failed to run the script ${type[0]} using path: ${type[2]}. Reason is unknown.`;
+      }
+      LogtalkTerminal._outputChannel.append(errMessage);
+      LogtalkTerminal._outputChannel.show(true);
+    });
+
+    pp.on('close', async (code) => {
+      // Write output to file if specified
+      if (outputFile && outputBuffer) {
+        try {
+          await fsp.writeFile(outputFile, outputBuffer, 'utf8');
+
+          // Call the completion callback if provided
+          if (onComplete) {
+            await onComplete(outputFile);
+          }
+        } catch (err) {
+          LogtalkTerminal._outputChannel.appendLine(`Error writing output to file ${outputFile}: ${err}`);
+        }
+      }
+
+      window.showInformationMessage(message);
+    });
   }
 
   /**

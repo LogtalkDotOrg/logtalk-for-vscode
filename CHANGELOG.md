@@ -3,6 +3,7 @@
 ## [0.80.0]
 
 * Add support for the ECLiPSe backend on Windows
+* Add test results from running the "Logtalk: "Run Project Testers" command to the Test Explorer
 * Add `logtalk.tests.createAllureReport` boolean setting to generate Allure reports after running tests
 * Automatically recompile code in debug/normal mode when starting/stopping debugging
 * Add support for the debug toolbar with additional buttons for common port commands

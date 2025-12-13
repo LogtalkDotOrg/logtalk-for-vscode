@@ -97,6 +97,7 @@ interface CoverageData {
 export class LogtalkTestsExplorerProvider implements Disposable {
   public runProfile: TestRunProfile;
   public coverageProfile: TestRunProfile;
+  public testersProfile: TestRunProfile;
   private controller: TestController;
   private testItems: Map<string, TestItem> = new Map();
   private testItemMetadata: WeakMap<TestItem, TestItemMetadata> = new WeakMap();
@@ -107,6 +108,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   // Store coverage data by file path with workspace folder context for multi-root workspace support
   // Key format: "workspaceFolderName::normalizedFilePath" in multi-root, or just "normalizedFilePath" in single-root
   private coverageData: Map<string, CoverageData[]> = new Map();
+  // Track the last run mode for re-running tests
+  private lastRunMode: 'tests' | 'testers' = 'tests';
 
   /**
    * Check if we're in a multi-root workspace
@@ -172,6 +175,15 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     return this.testItems.get(testId);
   }
 
+  /**
+   * Get the last run mode used to run tests.
+   * This is used to determine which command to use when re-running tests.
+   * @returns 'tests' if the last run used the REPL-based test runner, 'testers' if it used the project testers script
+   */
+  public getLastRunMode(): 'tests' | 'testers' {
+    return this.lastRunMode;
+  }
+
   constructor(linter: any, testsReporter: any) {
     this.linter = linter;
     this.testsReporter = testsReporter;
@@ -192,7 +204,16 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         this.logger.debug('Run profile handler called (no coverage)');
         this.logger.debug(`request.include: ${request.include ? 'defined' : 'undefined'}`);
         this.logger.debug(`Number of controller items: ${this.controller.items.size}`);
-        await this.runTests(request, token, false); // false = no coverage
+        this.logger.debug(`lastRunMode: ${this.lastRunMode}`);
+
+        // If running all tests (no specific tests selected) and last run was with testers,
+        // use the testers profile to maintain consistency with the original run command
+        if (!request.include && this.lastRunMode === 'testers') {
+          this.logger.debug('Re-running all tests using testers (based on lastRunMode)');
+          await this.runTestsWithTesters(request, token);
+        } else {
+          await this.runTests(request, token, false); // false = no coverage
+        }
       },
       true // isDefault
     );
@@ -219,6 +240,21 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     };
 
     this.disposables.push(this.coverageProfile);
+
+    // Create a testers profile for running tests using the project testers (logtalk_tester script)
+    this.testersProfile = this.controller.createRunProfile(
+      'Project Testers',
+      TestRunProfileKind.Run,
+      async (request, token) => {
+        this.logger.debug('Testers profile handler called');
+        this.logger.debug(`request.include: ${request.include ? 'defined' : 'undefined'}`);
+        this.logger.debug(`Number of controller items: ${this.controller.items.size}`);
+        await this.runTestsWithTesters(request, token);
+      },
+      false // not default
+    );
+
+    this.disposables.push(this.testersProfile);
 
     // Delete any temporary files from previous sessions in all workspace folders
     const files = [
@@ -262,6 +298,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    */
   public async runTests(request: TestRunRequest, token?: CancellationToken, withCoverage: boolean = false, uri?: Uri): Promise<void> {
     this.logger.debug('runTests method called');
+    this.lastRunMode = 'tests';
     this.logger.debug(`request.include is ${request.include ? 'defined' : 'undefined'}`);
     if (request.include) {
       this.logger.debug(`request.include length: ${request.include.length}`);
@@ -480,6 +517,226 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       this.runAllureReportIfEnabled(testDirectories);
       testRun.end();
     }
+  }
+
+  /**
+   * Run tests using the project testers (logtalk_tester script)
+   * This runs the logtalk_tester script and parses the xUnit XML reports to update the Test Explorer
+   * @param request - The test run request
+   * @param token - Optional cancellation token
+   */
+  public async runTestsWithTesters(request: TestRunRequest, token?: CancellationToken): Promise<void> {
+    this.logger.debug('runTestsWithTesters method called');
+    this.lastRunMode = 'testers';
+
+    // Create a test run for this execution
+    const testRun = this.controller.createTestRun(
+      request,
+      'Logtalk Project Testers',
+      true // persist = true for "Rerun Last Run" functionality
+    );
+    this.logger.debug('Created test run for testers');
+
+    try {
+      // Get the workspace folder to run testers in
+      let workspaceDir: string | undefined;
+      if (workspace.workspaceFolders && workspace.workspaceFolders.length > 0) {
+        workspaceDir = workspace.workspaceFolders[0].uri.fsPath;
+      }
+
+      if (!workspaceDir) {
+        this.logger.error('No workspace folder found');
+        testRun.end();
+        return;
+      }
+
+      // Run the testers using the callback-based runTestersWithCallback
+      await LogtalkTerminal.runTestersWithCallback(
+        Uri.file(workspaceDir),
+        this.linter,
+        this.testsReporter,
+        async (dir: string) => {
+          // After testers complete, parse xUnit XML files and update test explorer
+          await this.parseXUnitReportsInDirectory(dir, testRun);
+        }
+      );
+
+      testRun.end();
+    } catch (error) {
+      this.logger.error('Error in runTestsWithTesters:', error);
+      testRun.end();
+    }
+  }
+
+  /**
+   * Update the Test Explorer from project testers results.
+   * This is called after the logtalk_tester script completes to parse xUnit XML reports
+   * and update the Test Explorer with the results.
+   * @param dir - The directory where testers were run
+   */
+  public async updateFromProjectTesters(dir: string): Promise<void> {
+    this.logger.debug(`Updating Test Explorer from project testers in: ${dir}`);
+    this.lastRunMode = 'testers';
+
+    // Create a test run for this update
+    const testRun = this.controller.createTestRun(
+      new TestRunRequest(undefined, undefined, this.testersProfile, false),
+      'Logtalk Project Testers',
+      true // persist = true for "Rerun Last Run" functionality
+    );
+
+    try {
+      await this.parseXUnitReportsInDirectory(dir, testRun);
+      testRun.end();
+    } catch (error) {
+      this.logger.error('Error updating from project testers:', error);
+      testRun.end();
+    }
+  }
+
+  /**
+   * Parse xUnit XML report files in a directory and update the test explorer
+   * @param dir - The directory to search for xunit_report.xml files
+   * @param testRun - Optional test run to update with results
+   */
+  private async parseXUnitReportsInDirectory(dir: string, testRun?: TestRun): Promise<void> {
+    this.logger.debug(`Parsing xUnit reports in directory: ${dir}`);
+
+    // Find all xunit_report.xml files recursively in the directory
+    const pattern = new RelativePattern(dir, '**/xunit_report.xml');
+    const files = await workspace.findFiles(pattern);
+
+    this.logger.debug(`Found ${files.length} xUnit report files`);
+
+    for (const file of files) {
+      await this.parseXUnitReportFile(file, testRun);
+    }
+  }
+
+  /**
+   * Parse a single xUnit XML report file and create/update test items
+   * @param uri - URI of the xunit_report.xml file
+   * @param testRun - Optional test run to update with results
+   */
+  private async parseXUnitReportFile(uri: Uri, testRun?: TestRun): Promise<void> {
+    if (!fs.existsSync(uri.fsPath)) {
+      return;
+    }
+
+    try {
+      const content = fs.readFileSync(uri.fsPath, 'utf8');
+      this.logger.debug(`Parsing xUnit report: ${uri.fsPath}`);
+
+      // Parse the XML content
+      const testResults = this.parseXUnitXml(content, uri);
+
+      if (testResults.length === 0) {
+        this.logger.debug('No test results found in xUnit report');
+        return;
+      }
+
+      // Get the directory containing the xunit_report.xml file
+      const resultsDir = path.dirname(uri.fsPath);
+
+      // Convert to .vscode_test_results format and write to file
+      const resultsFilePath = path.join(resultsDir, '.vscode_test_results');
+      const resultsContent = testResults.map(result => {
+        if (result.status === 'failed' && result.reason) {
+          return `File:${result.file};Line:${result.line};Object:${result.object};Test:${result.test};Status:${result.status};Reason:${result.reason}`;
+        }
+        return `File:${result.file};Line:${result.line};Object:${result.object};Test:${result.test};Status:${result.status}`;
+      }).join('\n');
+
+      await fsp.writeFile(resultsFilePath, resultsContent, 'utf8');
+      this.logger.debug(`Wrote test results to: ${resultsFilePath}`);
+
+      // Now parse the results file to update the test explorer
+      await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, false);
+    } catch (error) {
+      this.logger.error(`Error parsing xUnit report ${uri.fsPath}:`, error);
+    }
+  }
+
+  /**
+   * Parse xUnit XML content and extract test results
+   * @param xmlContent - The XML content of the xUnit report
+   * @param reportUri - The URI of the report file (for path resolution)
+   * @returns Array of test result data
+   */
+  private parseXUnitXml(xmlContent: string, reportUri: Uri): TestResultData[] {
+    const results: TestResultData[] = [];
+    const reportDir = path.dirname(reportUri.fsPath);
+
+    // Parse testcase elements
+    // Format: <testcase classname="tests" name="test_name" time="0.001">
+    //           <properties>
+    //             <property name="file" value="path/to/tests.lgt"/>
+    //             <property name="position" value="34-36"/>
+    //           </properties>
+    //           [<failure message="...">...</failure>]
+    //           [<skipped/>]
+    //         </testcase>
+    const testcaseRegex = /<testcase\s+classname="([^"]+)"\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/testcase>/g;
+    const propertyFileRegex = /<property\s+name="file"\s+value="([^"]+)"/;
+    const propertyPositionRegex = /<property\s+name="position"\s+value="(\d+)(?:-\d+)?"/;
+    // Match both self-closing <failure ... /> and <failure>...</failure> formats
+    const failureRegex = /<failure\s+(?:[^>]*\s+)?message="([^"]*)"[^>]*(?:\/>|>[\s\S]*?<\/failure>)/;
+    // Match both <skipped/> and <skipped message="..."/>
+    const skippedRegex = /<skipped\s*(?:message="[^"]*")?\s*\/>/;
+
+    let match: RegExpExecArray | null;
+    while ((match = testcaseRegex.exec(xmlContent)) !== null) {
+      const objectName = match[1];
+      const testName = match[2];
+      const testcaseContent = match[3];
+
+      // Extract file path from properties
+      const fileMatch = testcaseContent.match(propertyFileRegex);
+      let filePath = fileMatch ? fileMatch[1] : '';
+
+      // If the file path is relative, resolve it relative to the home directory or workspace
+      if (filePath && !path.isAbsolute(filePath)) {
+        // Try to resolve relative to home directory first (common in xUnit reports)
+        const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+        const resolvedPath = path.join(homeDir, filePath);
+        if (fs.existsSync(resolvedPath)) {
+          filePath = resolvedPath;
+        } else {
+          // Fall back to relative to report directory
+          filePath = path.join(reportDir, filePath);
+        }
+      }
+
+      // Normalize the file path
+      filePath = Utils.normalizeFilePath(filePath);
+
+      // Extract line number from position property
+      const positionMatch = testcaseContent.match(propertyPositionRegex);
+      const line = positionMatch ? parseInt(positionMatch[1]) : 1;
+
+      // Determine status
+      let status = 'passed';
+      let reason: string | undefined;
+
+      const failureMatch = testcaseContent.match(failureRegex);
+      if (failureMatch) {
+        status = 'failed';
+        reason = failureMatch[1]; // message attribute from <failure message="..."/>
+      } else if (skippedRegex.test(testcaseContent)) {
+        status = 'skipped';
+      }
+
+      results.push({
+        file: filePath,
+        line,
+        object: objectName,
+        test: testName,
+        status,
+        reason
+      });
+    }
+
+    return results;
   }
 
   /**
