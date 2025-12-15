@@ -511,6 +511,22 @@ export async function activate(context: ExtensionContext) {
     );
   });
 
+  // Register test skip/unskip commands
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.test.skip', async (testItem) => {
+      if (testsExplorerProvider && testItem) {
+        await testsExplorerProvider.skipTest(testItem);
+      }
+    })
+  );
+  context.subscriptions.push(
+    commands.registerCommand('logtalk.test.unskip', async (testItem) => {
+      if (testsExplorerProvider && testItem) {
+        await testsExplorerProvider.unskipTest(testItem);
+      }
+    })
+  );
+
 	context.subscriptions.push(commands.registerCommand('logtalk-for-vscode.openSettings', () => {
     commands.executeCommand('workbench.action.openSettings', 'Logtalk');
     return { openWalkthrough: 'logtalk-for-vscode#logtalk-walkthrough#configure' };

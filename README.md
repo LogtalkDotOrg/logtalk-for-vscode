@@ -185,7 +185,7 @@ The "Load Project" command looks for a `loader.lgt` or `loader.logtalk` file in 
 
 The "Scan Project Dead Code", "Compute Project Metrics", "Generate Project Documentation", and "Generate Project Diagrams" commands require that the project code is already loaded. Quick fixes are provided for some of the documentation and dead code linter warnings.
 
-The output of the "Run Project Testers" and "Run Project Doclets" commands is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel.
+The output of the "Run Project Testers" and "Run Project Doclets" commands is displayed in the "OUTPUT" pane "Logtalk Testers & Doclets" channel. The "Run Project Testers" command adds failed tests to the "PROBLEMS" pane.
 
 The output of the "Generate Project Documentation" and "Generate Project Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Project Doclets" command.
 
@@ -463,6 +463,8 @@ VSCode usability issues that affect debugging support:
 ![testing](images/testing.png)
 
 Support for the VSCode Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Run Project Testers", "Run Tests", or "Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run. Note that the "Testing" pane is not populated if you load the `tester.lgt` (or `tester.logtalk`) file using the "Load File" context menu item instead of using the "Run Project Testers", "Run Tests", or "Run Tests with Coverage" commands.
+
+The test item context menu provides additional commands for skipping and un-skipping tests. Skipped tests are prefixed with a minus sign (`-`) in the source file. Un-skipping a test removes the minus sign. These commands are only available for tests that don't have a condition option (i.e., tests that don't use the `test/3` predicate with a `condition/1` in the options argument).
 
 When available, code coverage information is also shown in the covered source files. Note that coverage data is per predicate and per predicate clause (or per non-terminal and per non-terminal rule), not per goal. Clauses used by the tests will be marked using a green color overlay in the editor gutter while clauses not used by the tests will be marked using a red color overlay. Use the editor window "Toggle Inline Coverage" button to toggle the coverage overlay. In the "Testing" pane, the "Test Coverage" sub-pane shows both statement (clauses) and function (predicates) coverage numbers and percentages (note that VSCode doesn't support renaming these terms). In the "Explorer" pane, the colored bar to the right of a file name indicates the combined percentage of covered clauses and predicates. Hovering over the bar shows the separate coverage details.
 

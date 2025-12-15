@@ -458,6 +458,16 @@
                     "light": "images/debug-commit-light.svg",
                     "dark": "images/debug-commit-dark.svg"
                 }
+            },
+            {
+                "command": "logtalk.test.skip",
+                "title": "Skip Test",
+                "category": "Logtalk"
+            },
+            {
+                "command": "logtalk.test.unskip",
+                "title": "Unskip Test",
+                "category": "Logtalk"
             }
         ],
         "keybindings": [],
@@ -589,6 +599,14 @@
                 },
                 {
                     "command": "logtalk.open.svg",
+                    "when": "false"
+                },
+                {
+                    "command": "logtalk.test.skip",
+                    "when": "false"
+                },
+                {
+                    "command": "logtalk.test.unskip",
                     "when": "false"
                 }
             ],
@@ -756,6 +774,30 @@
                     "command": "logtalk.open.svg",
                     "when": "resourceExtname == .svg && !virtualWorkspace",
                     "group": "navigation"
+                }
+            ],
+            "testing/item/context": [
+                {
+                    "command": "logtalk.test.skip",
+                    "when": "testId in logtalk.skippableTests",
+                    "group": "0_skip@1"
+                },
+                {
+                    "command": "logtalk.test.unskip",
+                    "when": "testId in logtalk.unskippableTests",
+                    "group": "0_skip@2"
+                }
+            ],
+            "testing/item/gutter": [
+                {
+                    "command": "logtalk.test.skip",
+                    "when": "testId in logtalk.skippableTests",
+                    "group": "0_skip@1"
+                },
+                {
+                    "command": "logtalk.test.unskip",
+                    "when": "testId in logtalk.unskippableTests",
+                    "group": "0_skip@2"
                 }
             ],
             "makesubmenu": [

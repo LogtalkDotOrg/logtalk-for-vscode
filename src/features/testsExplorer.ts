@@ -50,7 +50,9 @@ import {
   CancellationToken,
   FileCoverage,
   StatementCoverage,
-  TextDocument
+  TextDocument,
+  commands,
+  WorkspaceEdit
 } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
@@ -110,6 +112,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private coverageData: Map<string, CoverageData[]> = new Map();
   // Track the last run mode for re-running tests
   private lastRunMode: 'tests' | 'testers' = 'tests';
+  // Track test skip states for context menu visibility
+  private skippableTests: Set<string> = new Set();
+  private unskippableTests: Set<string> = new Set();
 
   /**
    * Check if we're in a multi-root workspace
@@ -915,7 +920,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
         // Update test results (this will end the test run)
         if (testResults.length > 0) {
-          this.updateTestRunFromResults(testResults, testRun);
+          await this.updateTestRunFromResults(testResults, testRun);
         }
       }
     } catch (error) {
@@ -966,7 +971,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * @param testResults - Array of test results to update
    * @param testRun - Optional test run to update. If not provided, a new test run will be created and ended.
    */
-  private updateTestRunFromResults(testResults: TestResultData[], testRun?: TestRun): void {
+  private async updateTestRunFromResults(testResults: TestResultData[], testRun?: TestRun): Promise<void> {
     this.logger.debug('Updating test run from results');
 
     // Collect all test items that have results
@@ -1022,10 +1027,29 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
         actualTestRun.started(testItem);
 
+        // Check if this test has a condition option (test/3 with condition in options)
+        // Tests with conditions should not be skippable/unskippable
+        let hasCondition = false;
+        const testLine = testItem.range?.start.line;
+        if (testLine !== undefined) {
+          try {
+            const document = await workspace.openTextDocument(fileUri);
+            const lineText = document.lineAt(testLine).text;
+            hasCondition = this.testHasCondition(lineText);
+          } catch {
+            // Ignore errors reading the file
+          }
+        }
+
         // Update test state based on status
         const status = result.status.toLowerCase();
         if (status.startsWith('passed')) {
           actualTestRun.passed(testItem);
+          // Passed tests can be skipped (unless they have a condition)
+          if (!hasCondition) {
+            this.skippableTests.add(testItem.id);
+          }
+          this.unskippableTests.delete(testItem.id);
         } else if (status.startsWith('failed')) {
           const message = new TestMessage(result.reason);
           message.location = new Location(
@@ -1033,11 +1057,24 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             new Position(result.line - 1, 0)
           );
           actualTestRun.failed(testItem, message);
+          // Failed tests can be skipped (unless they have a condition)
+          if (!hasCondition) {
+            this.skippableTests.add(testItem.id);
+          }
+          this.unskippableTests.delete(testItem.id);
         } else if (status.startsWith('skipped')) {
           actualTestRun.skipped(testItem);
+          // Skipped tests can be unskipped (unless they have a condition)
+          if (!hasCondition) {
+            this.unskippableTests.add(testItem.id);
+          }
+          this.skippableTests.delete(testItem.id);
         }
       }
     }
+
+    // Update context keys for skip/unskip menu visibility
+    this.updateSkipContextKeys();
 
     // Only end the test run if we created it ourselves
     if (shouldEndRun) {
@@ -1722,6 +1759,190 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     this.controller.invalidateTestResults(testItemsToInvalidate);
 
     this.logger.debug(`Invalidated ${testItemsToInvalidate.length} test item(s) for file: ${fileUri.fsPath}`);
+  }
+
+  /**
+   * Update context keys for skip/unskip menu visibility
+   * Note: Using objects with test IDs as keys because VS Code's `in` operator
+   * checks for key existence in objects (not array membership)
+   */
+  private updateSkipContextKeys(): void {
+    // Convert sets to objects with test IDs as keys for the `in` operator
+    const skippableTestsObj: Record<string, boolean> = {};
+    for (const id of this.skippableTests) {
+      skippableTestsObj[id] = true;
+    }
+
+    const unskippableTestsObj: Record<string, boolean> = {};
+    for (const id of this.unskippableTests) {
+      unskippableTestsObj[id] = true;
+    }
+
+    commands.executeCommand('setContext', 'logtalk.skippableTests', skippableTestsObj);
+    commands.executeCommand('setContext', 'logtalk.unskippableTests', unskippableTestsObj);
+  }
+
+  /**
+   * Skip a test by adding the "-" operator before the test head
+   * @param testItem - The test item to skip
+   */
+  public async skipTest(testItem: TestItem): Promise<void> {
+    const metadata = this.testItemMetadata.get(testItem);
+    if (!metadata || metadata.type !== 'test') {
+      this.logger.warn('Cannot skip: not a test item');
+      return;
+    }
+
+    const fileUri = metadata.fileUri;
+    const testLine = testItem.range?.start.line;
+    if (testLine === undefined) {
+      this.logger.warn('Cannot skip: test line not found');
+      return;
+    }
+
+    try {
+      // Read the file content
+      const document = await workspace.openTextDocument(fileUri);
+      const lineText = document.lineAt(testLine).text;
+
+      // Add "- " at the beginning of the line (after leading whitespace)
+      const newLineText = lineText.replace(/^(\s*)/, '$1- ');
+
+      // Apply the edit
+      const edit = new WorkspaceEdit();
+      edit.replace(fileUri, new Range(testLine, 0, testLine, lineText.length), newLineText);
+      await workspace.applyEdit(edit);
+
+      // Save the file
+      const doc = await workspace.openTextDocument(fileUri);
+      await doc.save();
+
+      // Mark the test as needing to be re-run (enqueued icon)
+      this.markTestAsNeedsRerun(testItem);
+
+      // Update context keys: test is now unskippable (can be unskipped)
+      this.skippableTests.delete(testItem.id);
+      this.unskippableTests.add(testItem.id);
+      this.updateSkipContextKeys();
+
+      this.logger.info(`Skipped test: ${testItem.label}`);
+    } catch (error) {
+      this.logger.error(`Failed to skip test: ${error}`);
+    }
+  }
+
+  /**
+   * Unskip a test by removing the "-" operator from before the test head
+   * @param testItem - The test item to unskip
+   */
+  public async unskipTest(testItem: TestItem): Promise<void> {
+    const metadata = this.testItemMetadata.get(testItem);
+    if (!metadata || metadata.type !== 'test') {
+      this.logger.warn('Cannot unskip: not a test item');
+      return;
+    }
+
+    const fileUri = metadata.fileUri;
+    const testLine = testItem.range?.start.line;
+    if (testLine === undefined) {
+      this.logger.warn('Cannot unskip: test line not found');
+      return;
+    }
+
+    try {
+      // Read the file content
+      const document = await workspace.openTextDocument(fileUri);
+      const lineText = document.lineAt(testLine).text;
+
+      // Check if the line starts with "- " (after optional whitespace)
+      if (!lineText.match(/^\s*-\s+/)) {
+        this.logger.warn(`Cannot unskip: line does not start with "- ": ${lineText}`);
+        return;
+      }
+
+      // Remove "- " from the beginning of the line (after leading whitespace)
+      const newLineText = lineText.replace(/^(\s*)-\s+/, '$1');
+
+      // Apply the edit
+      const edit = new WorkspaceEdit();
+      edit.replace(fileUri, new Range(testLine, 0, testLine, lineText.length), newLineText);
+      await workspace.applyEdit(edit);
+
+      // Save the file
+      const doc = await workspace.openTextDocument(fileUri);
+      await doc.save();
+
+      // Mark the test as needing to be re-run
+      this.markTestAsNeedsRerun(testItem);
+
+      // Update context keys: test is now skippable (can be skipped)
+      this.unskippableTests.delete(testItem.id);
+      this.skippableTests.add(testItem.id);
+      this.updateSkipContextKeys();
+
+      this.logger.info(`Unskipped test: ${testItem.label}`);
+    } catch (error) {
+      this.logger.error(`Failed to unskip test: ${error}`);
+    }
+  }
+
+  /**
+   * Mark a test as needing to be re-run by creating a brief test run
+   * and marking the test as enqueued.
+   * @param testItem - The test item to mark
+   */
+  private markTestAsNeedsRerun(testItem: TestItem): void {
+    const testRun = this.controller.createTestRun(
+      new TestRunRequest([testItem]),
+      'Test modified - needs re-run',
+      false
+    );
+    testRun.enqueued(testItem);
+    testRun.end();
+  }
+
+  /**
+   * Check if a test has a condition option that prevents skipping.
+   * Tests with test(Name, Body, Options) where Options includes condition(Goal)
+   * cannot be skipped because the condition controls when the test runs.
+   * @param lineText - The line text containing the test head
+   * @returns true if the test has a condition and should not be skippable
+   */
+  private testHasCondition(lineText: string): boolean {
+    // Match test( at the start of the line (possibly with "- " prefix for skipped tests)
+    const testMatch = lineText.match(/^\s*(-\s+)?test\s*\(/);
+    if (!testMatch) {
+      return false;
+    }
+
+    // Extract the test call from the line (strip leading whitespace and "- " if present)
+    const testCallStart = lineText.indexOf('test');
+    if (testCallStart === -1) {
+      return false;
+    }
+
+    // Find the end of the test call using ArgumentUtils
+    const openParenPos = lineText.indexOf('(', testCallStart);
+    if (openParenPos === -1) {
+      return false;
+    }
+
+    const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+    if (closeParenPos === -1) {
+      return false;
+    }
+
+    // Extract the complete test call and parse its arguments
+    const testCall = lineText.substring(testCallStart, closeParenPos + 1);
+    const args = ArgumentUtils.extractArgumentsFromCall(testCall);
+
+    // Check if there are exactly 3 arguments and the third contains "condition("
+    if (args.length === 3) {
+      const thirdArg = args[2];
+      return /condition\s*\(/.test(thirdArg);
+    }
+
+    return false;
   }
 
   /**
