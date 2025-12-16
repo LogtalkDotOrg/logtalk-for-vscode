@@ -378,6 +378,117 @@ export class LogtalkLoadCompletionProvider implements CompletionItemProvider {
 }
 
 /**
+ * Possible targets for logtalk_make/1
+ */
+const LOGTALK_MAKE_TARGETS = [
+  { name: 'all', description: 'Reload all modified source files' },
+  { name: 'caches', description: 'Delete dynamic binding caches' },
+  { name: 'clean', description: 'Delete intermediate files' },
+  { name: 'check', description: 'Check for missing predicates and other issues' },
+  { name: 'circular', description: 'Check for circular dependencies' },
+  { name: 'documentation', description: 'Generate documentation' },
+  { name: 'debug', description: 'Recompile in debug mode' },
+  { name: 'normal', description: 'Recompile in normal mode' },
+  { name: 'optimal', description: 'Recompile in optimal mode' }
+];
+
+/**
+ * CompletionItemProvider for logtalk_make/1 goals
+ * Provides target completions when typing "logtalk_make("
+ */
+export class LogtalkMakeCompletionProvider implements CompletionItemProvider {
+  private logger = getLogger();
+
+  public provideCompletionItems(
+    document: TextDocument,
+    position: Position,
+    _token: CancellationToken,
+    context: CompletionContext
+  ): ProviderResult<CompletionItem[] | CompletionList> {
+    this.logger.debug(`LogtalkMake completion triggered at position ${position.line}:${position.character}`);
+
+    if (context.triggerCharacter === '(') {
+      return this.handleOpenParen(document, position);
+    }
+
+    return this.handleTypingInsideParens(document, position);
+  }
+
+  private handleOpenParen(document: TextDocument, position: Position): CompletionItem[] | null {
+    try {
+      const line = document.lineAt(position.line);
+      const lineText = line.text;
+      const textBeforeParen = lineText.substring(0, position.character);
+
+      const match = textBeforeParen.match(/logtalk_make\($/);
+      if (!match) {
+        return null;
+      }
+
+      const charAfterCursor = lineText.substring(position.character, position.character + 1);
+      const closingParenHandling = charAfterCursor === ')' ? 'skip' : 'add';
+
+      return this.createTargetCompletionItems('', closingParenHandling);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error in handleOpenParen: ${errorMessage}`);
+      return null;
+    }
+  }
+
+  private handleTypingInsideParens(document: TextDocument, position: Position): CompletionItem[] | null {
+    try {
+      const line = document.lineAt(position.line);
+      const lineText = line.text;
+      const textBeforeCursor = lineText.substring(0, position.character);
+
+      const match = textBeforeCursor.match(/logtalk_make\(([a-z_]*)$/);
+      if (!match) {
+        return null;
+      }
+
+      const partialText = match[1] || '';
+      return this.createTargetCompletionItems(partialText, 'none');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error in handleTypingInsideParens: ${errorMessage}`);
+      return null;
+    }
+  }
+
+  private createTargetCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
+    const filteredTargets = partialText
+      ? LOGTALK_MAKE_TARGETS.filter(t => t.name.startsWith(partialText.toLowerCase()))
+      : LOGTALK_MAKE_TARGETS;
+
+    return filteredTargets.map((target, index) => {
+      const item = new CompletionItem(target.name, CompletionItemKind.EnumMember);
+      item.detail = target.description;
+      const documentation = new MarkdownString();
+      documentation.appendCodeblock(`logtalk_make(${target.name})`, 'logtalk');
+      item.documentation = documentation;
+
+      switch (closingParenHandling) {
+        case 'skip':
+          item.insertText = target.name;
+          item.command = { command: 'cursorRight', title: 'Move cursor past closing paren' };
+          break;
+        case 'add':
+          item.insertText = `${target.name})`;
+          break;
+        case 'none':
+        default:
+          item.insertText = target.name;
+          break;
+      }
+
+      item.sortText = String(index).padStart(3, '0');
+      return item;
+    });
+  }
+}
+
+/**
  * CompletionItemProvider for logtalk_load_context/2 goals
  * Provides first argument completions when typing "logtalk_load_context("
  */

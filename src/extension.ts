@@ -49,7 +49,7 @@ import { LogtalkChatParticipant } from "./features/chatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
-import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider } from "./features/completionItemProvider";
+import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkMakeCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider } from "./features/completionItemProvider";
 import { LogtalkSelectionRangeProvider } from "./features/selectionRangeProvider";
 import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
@@ -977,6 +977,14 @@ export async function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, loadCompletionProvider)
+  );
+
+  const makeCompletionProvider = new LogtalkMakeCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, makeCompletionProvider, '(')
+  );
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, makeCompletionProvider)
   );
 
   const loadContextCompletionProvider = new LogtalkLoadContextCompletionProvider();
