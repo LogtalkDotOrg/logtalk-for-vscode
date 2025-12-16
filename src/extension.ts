@@ -49,7 +49,7 @@ import { LogtalkChatParticipant } from "./features/chatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
-import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkLoadContextCompletionProvider } from "./features/completionItemProvider";
+import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider } from "./features/completionItemProvider";
 import { LogtalkSelectionRangeProvider } from "./features/selectionRangeProvider";
 import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
@@ -985,6 +985,24 @@ export async function activate(context: ExtensionContext) {
   );
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, loadContextCompletionProvider)
+  );
+
+  // Register completion providers for current_logtalk_flag/2 and set_logtalk_flag/2
+  // These providers trigger on '(' for the first argument and ',' for the second argument
+  const currentFlagCompletionProvider = new CurrentLogtalkFlagCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, currentFlagCompletionProvider, '(', ',')
+  );
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, currentFlagCompletionProvider)
+  );
+
+  const setFlagCompletionProvider = new SetLogtalkFlagCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, setFlagCompletionProvider, '(', ',')
+  );
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, setFlagCompletionProvider)
   );
 
   // Register chained formatting command (indentation conversion + Logtalk formatting)
