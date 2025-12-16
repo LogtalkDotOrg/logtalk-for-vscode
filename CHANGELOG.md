@@ -11,6 +11,8 @@
 * Add "Help: Logtalk Handbook" command to open the Logtalk Handbook using Live Preview if installed, or the default browser otherwise
 * Add multi-root workspace support for code navigation, refactoring, testing, documentation, and chat participant features
 * Add "Use implicit message sending" refactoring for replacing explicit message sending calls with a `uses/2` directive
+* Add completions for the first argument of the `logtalk_load/1-2` predicates based on the standard libraries
+* Add completions for the first argument of the `logtalk_load_context/2` predicate
 * Remove the "Logtalk: Toggle Debugging" button from the editor title bar (subsumed by the "Run" menu commands)
 * Remove the "Logtalk:" prefix from all context menu items
 * Add actionable status bar indicators for profiling and CodeLens on/off state

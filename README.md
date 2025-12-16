@@ -70,6 +70,8 @@ To also use the syntax highlighting support with Prolog source files, open the V
 
 - Built-in directive, method, and predicate template auto-completion
 - List tail variables after typing the `|` character based on the head variable name
+- Completions for the first argument of the `logtalk_load/1-2` predicates based on the standard libraries
+- Completions for the first argument of the `logtalk_load_context/2` predicate
 
 ### Snippets
 

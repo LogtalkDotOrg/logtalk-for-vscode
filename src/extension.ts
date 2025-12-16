@@ -49,7 +49,7 @@ import { LogtalkChatParticipant } from "./features/chatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
-import { LogtalkListCompletionProvider } from "./features/completionItemProvider";
+import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkLoadContextCompletionProvider } from "./features/completionItemProvider";
 import { LogtalkSelectionRangeProvider } from "./features/selectionRangeProvider";
 import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
@@ -965,6 +965,26 @@ export async function activate(context: ExtensionContext) {
   const listCompletionProvider = new LogtalkListCompletionProvider();
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, listCompletionProvider, '|')
+  );
+
+  // Register completion providers for logtalk_load and logtalk_load_context
+  // We register each provider twice:
+  // 1. With '(' as trigger - for when user types the opening paren
+  // 2. Without trigger - for when user types inside the parens (e.g., after using a snippet)
+  const loadCompletionProvider = new LogtalkLoadCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, loadCompletionProvider, '(')
+  );
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, loadCompletionProvider)
+  );
+
+  const loadContextCompletionProvider = new LogtalkLoadContextCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, loadContextCompletionProvider, '(')
+  );
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, loadContextCompletionProvider)
   );
 
   // Register chained formatting command (indentation conversion + Logtalk formatting)
