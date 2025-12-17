@@ -879,134 +879,209 @@ export class LogtalkLoadContextCompletionProvider implements CompletionItemProvi
 }
 
 /**
+ * Configuration for flag completion providers
+ */
+interface FlagCompletionConfig {
+  predicateName: string;
+  includeReadOnly: boolean;
+  flagInsertTemplate: (flag: LogtalkFlag, closingParenHandling: 'add' | 'skip' | 'none') => { insertText: string; command?: { command: string; title: string } };
+  flagDocumentation: (flag: LogtalkFlag) => MarkdownString;
+}
+
+/**
+ * Helper functions for flag completion providers
+ */
+function handleFlagOpenParen(
+  document: TextDocument,
+  position: Position,
+  config: FlagCompletionConfig,
+  logger: { error: (msg: string) => void }
+): CompletionItem[] | null {
+  try {
+    const line = document.lineAt(position.line);
+    const lineText = line.text;
+    const textBeforeParen = lineText.substring(0, position.character);
+
+    const pattern = new RegExp(`${config.predicateName}\\($`);
+    if (!pattern.test(textBeforeParen)) {
+      return null;
+    }
+
+    const charAfterCursor = lineText.substring(position.character, position.character + 1);
+    const closingParenHandling = charAfterCursor === ')' ? 'skip' : 'add';
+
+    return createFlagCompletionItems('', closingParenHandling, config);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in handleOpenParen: ${errorMessage}`);
+    return null;
+  }
+}
+
+function handleFlagComma(
+  document: TextDocument,
+  position: Position,
+  config: FlagCompletionConfig,
+  logger: { error: (msg: string) => void }
+): CompletionItem[] | null {
+  try {
+    const line = document.lineAt(position.line);
+    const lineText = line.text;
+    const textBeforeComma = lineText.substring(0, position.character);
+
+    const pattern = new RegExp(`${config.predicateName}\\(([a-z_]+),$`);
+    const match = textBeforeComma.match(pattern);
+    if (!match) {
+      return null;
+    }
+
+    const flagName = match[1];
+    const charAfterCursor = lineText.substring(position.character, position.character + 1);
+    const closingParenHandling: 'add' | 'skip' | 'none' = charAfterCursor === ')' ? 'skip' : 'add';
+
+    return createFlagValueCompletionItems(flagName, '', closingParenHandling, true, config.predicateName);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in handleComma: ${errorMessage}`);
+    return null;
+  }
+}
+
+function handleFlagTypingInside(
+  document: TextDocument,
+  position: Position,
+  config: FlagCompletionConfig,
+  logger: { error: (msg: string) => void }
+): CompletionItem[] | null {
+  try {
+    const line = document.lineAt(position.line);
+    const lineText = line.text;
+    const textBeforeCursor = lineText.substring(0, position.character);
+
+    // Check if typing first argument (flag name)
+    const flagPattern = new RegExp(`${config.predicateName}\\(([a-z_]*)$`);
+    const flagMatch = textBeforeCursor.match(flagPattern);
+    if (flagMatch) {
+      const partialText = flagMatch[1] || '';
+      if (partialText === '') {
+        return null;
+      }
+      return createFlagCompletionItems(partialText, 'none', config);
+    }
+
+    // Check if typing second argument (value)
+    const valuePattern = new RegExp(`${config.predicateName}\\(([a-z_]+),\\s*([a-z_]*)$`);
+    const valueMatch = textBeforeCursor.match(valuePattern);
+    if (valueMatch) {
+      const flagName = valueMatch[1];
+      const partialValue = valueMatch[2] || '';
+      if (partialValue === '' && textBeforeCursor.match(/,\s*$/)) {
+        return null;
+      }
+      return createFlagValueCompletionItems(flagName, partialValue, 'none', false, config.predicateName);
+    }
+
+    return null;
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in handleTypingInside: ${errorMessage}`);
+    return null;
+  }
+}
+
+function createFlagCompletionItems(
+  partialText: string,
+  closingParenHandling: 'add' | 'skip' | 'none',
+  config: FlagCompletionConfig
+): CompletionItem[] {
+  const availableFlags = config.includeReadOnly ? LOGTALK_FLAGS : LOGTALK_FLAGS.filter(f => !f.readOnly);
+  const filteredFlags = partialText
+    ? availableFlags.filter(f => f.name.startsWith(partialText.toLowerCase()))
+    : availableFlags;
+
+  return filteredFlags.map((flag, index) => {
+    const item = new CompletionItem(flag.name, CompletionItemKind.EnumMember);
+    item.detail = flag.description;
+    item.documentation = config.flagDocumentation(flag);
+
+    const insertConfig = config.flagInsertTemplate(flag, closingParenHandling);
+    item.insertText = insertConfig.insertText;
+    if (insertConfig.command) {
+      item.command = insertConfig.command;
+    }
+
+    item.sortText = String(index).padStart(3, '0');
+    return item;
+  });
+}
+
+function createFlagValueCompletionItems(
+  flagName: string,
+  partialValue: string,
+  closingParenHandling: 'add' | 'skip' | 'none',
+  addLeadingSpace: boolean,
+  predicateName: string
+): CompletionItem[] {
+  const flag = LOGTALK_FLAGS.find(f => f.name === flagName);
+  if (!flag || flag.values.length === 0) {
+    return [];
+  }
+
+  const filteredValues = partialValue
+    ? flag.values.filter(v => v.startsWith(partialValue.toLowerCase()))
+    : flag.values;
+
+  return filteredValues.map((value, index) => {
+    const item = new CompletionItem(value, CompletionItemKind.Value);
+    item.detail = `Value for ${flagName}`;
+    const documentation = new MarkdownString();
+    documentation.appendCodeblock(`${predicateName}(${flagName}, ${value})`, 'logtalk');
+    item.documentation = documentation;
+
+    const prefix = addLeadingSpace ? ' ' : '';
+
+    switch (closingParenHandling) {
+      case 'skip':
+        item.insertText = `${prefix}${value}`;
+        item.command = { command: 'cursorRight', title: 'Move cursor past closing paren' };
+        break;
+      case 'add':
+        item.insertText = `${prefix}${value})`;
+        break;
+      case 'none':
+      default:
+        item.insertText = value;
+        break;
+    }
+
+    item.sortText = String(index).padStart(3, '0');
+    return item;
+  });
+}
+
+/**
  * CompletionItemProvider for current_logtalk_flag/2 goals
  * Provides flag name completions for the first argument (all flags)
  * and value completions for the second argument
  */
 export class CurrentLogtalkFlagCompletionProvider implements CompletionItemProvider {
   private logger = getLogger();
-
-  provideCompletionItems(
-    document: TextDocument,
-    position: Position,
-    _token: CancellationToken,
-    context: CompletionContext
-  ): CompletionItem[] | null {
-    // Check if triggered by "("
-    if (context.triggerCharacter === '(') {
-      return this.handleOpenParen(document, position);
-    }
-
-    // Check if triggered by ","
-    if (context.triggerCharacter === ',') {
-      return this.handleComma(document, position);
-    }
-
-    // If triggered by any trigger character, don't also handle as typing inside
-    // (avoids duplicates from dual registration)
-    if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
-      return null;
-    }
-
-    // Otherwise, check if we're typing inside current_logtalk_flag(...)
-    return this.handleTypingInside(document, position);
-  }
-
-  private handleOpenParen(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeParen = lineText.substring(0, position.character);
-
-      const match = textBeforeParen.match(/current_logtalk_flag\($/);
-      if (!match) {
-        return null;
-      }
-
-      const charAfterCursor = lineText.substring(position.character, position.character + 1);
-      const closingParenHandling = charAfterCursor === ')' ? 'skip' : 'add';
-
-      return this.createFlagCompletionItems('', closingParenHandling);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleOpenParen: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private handleComma(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeComma = lineText.substring(0, position.character);
-
-      // Match current_logtalk_flag(flag_name,
-      const match = textBeforeComma.match(/current_logtalk_flag\(([a-z_]+),$/);
-      if (!match) {
-        return null;
-      }
-
-      const flagName = match[1];
-      const charAfterCursor = lineText.substring(position.character, position.character + 1);
-      const closingParenHandling: 'add' | 'skip' | 'none' = charAfterCursor === ')' ? 'skip' : 'add';
-
-      // Triggered by comma - add space before value
-      return this.createValueCompletionItems(flagName, '', closingParenHandling, true);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleComma: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private handleTypingInside(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeCursor = lineText.substring(0, position.character);
-
-      // Check if typing first argument (flag name)
-      const flagMatch = textBeforeCursor.match(/current_logtalk_flag\(([a-z_]*)$/);
-      if (flagMatch) {
-        const partialText = flagMatch[1] || '';
-        // If no partial text, let handleOpenParen handle it (avoids duplicates)
-        if (partialText === '') {
-          return null;
-        }
-        return this.createFlagCompletionItems(partialText, 'none');
-      }
-
-      // Check if typing second argument (value)
-      const valueMatch = textBeforeCursor.match(/current_logtalk_flag\(([a-z_]+),\s*([a-z_]*)$/);
-      if (valueMatch) {
-        const flagName = valueMatch[1];
-        const partialValue = valueMatch[2] || '';
-        // If no partial value, let handleComma handle it (avoids duplicates)
-        if (partialValue === '' && textBeforeCursor.match(/,\s*$/)) {
-          return null;
-        }
-        // Typing inside - don't add space (already there from comma), don't handle paren
-        return this.createValueCompletionItems(flagName, partialValue, 'none', false);
-      }
-
-      return null;
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleTypingInside: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private createFlagCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
-    // All flags are available for current_logtalk_flag/2
-    const filteredFlags = partialText
-      ? LOGTALK_FLAGS.filter(f => f.name.startsWith(partialText.toLowerCase()))
-      : LOGTALK_FLAGS;
-
-    return filteredFlags.map((flag, index) => {
+  private static readonly CONFIG: FlagCompletionConfig = {
+    predicateName: 'current_logtalk_flag',
+    includeReadOnly: true,
+    flagInsertTemplate: (flag, closingParenHandling) => {
       const variableName = keyToVariableName(flag.name);
-      const item = new CompletionItem(flag.name, CompletionItemKind.EnumMember);
-      item.detail = flag.description;
+      switch (closingParenHandling) {
+        case 'skip':
+          return { insertText: `${flag.name}, ${variableName}`, command: { command: 'cursorRight', title: 'Move cursor past closing paren' } };
+        case 'add':
+          return { insertText: `${flag.name}, ${variableName})` };
+        default:
+          return { insertText: flag.name };
+      }
+    },
+    flagDocumentation: (flag) => {
+      const variableName = keyToVariableName(flag.name);
       const documentation = new MarkdownString();
       documentation.appendCodeblock(`current_logtalk_flag(${flag.name}, ${variableName})`, 'logtalk');
       if (flag.values.length > 0) {
@@ -1015,68 +1090,29 @@ export class CurrentLogtalkFlagCompletionProvider implements CompletionItemProvi
       if (flag.readOnly) {
         documentation.appendText('\n(Read-only flag)');
       }
-      item.documentation = documentation;
+      return documentation;
+    }
+  };
 
-      switch (closingParenHandling) {
-        case 'skip':
-          item.insertText = `${flag.name}, ${variableName}`;
-          item.command = { command: 'cursorRight', title: 'Move cursor past closing paren' };
-          break;
-        case 'add':
-          item.insertText = `${flag.name}, ${variableName})`;
-          break;
-        case 'none':
-        default:
-          item.insertText = flag.name;
-          break;
-      }
-
-      item.sortText = String(index).padStart(3, '0');
-      return item;
-    });
-  }
-
-  private createValueCompletionItems(
-    flagName: string,
-    partialValue: string,
-    closingParenHandling: 'add' | 'skip' | 'none',
-    addLeadingSpace: boolean
-  ): CompletionItem[] {
-    const flag = LOGTALK_FLAGS.find(f => f.name === flagName);
-    if (!flag || flag.values.length === 0) {
-      return [];
+  provideCompletionItems(
+    document: TextDocument,
+    position: Position,
+    _token: CancellationToken,
+    context: CompletionContext
+  ): CompletionItem[] | null {
+    if (context.triggerCharacter === '(') {
+      return handleFlagOpenParen(document, position, CurrentLogtalkFlagCompletionProvider.CONFIG, this.logger);
     }
 
-    const filteredValues = partialValue
-      ? flag.values.filter(v => v.startsWith(partialValue.toLowerCase()))
-      : flag.values;
+    if (context.triggerCharacter === ',') {
+      return handleFlagComma(document, position, CurrentLogtalkFlagCompletionProvider.CONFIG, this.logger);
+    }
 
-    return filteredValues.map((value, index) => {
-      const item = new CompletionItem(value, CompletionItemKind.Value);
-      item.detail = `Value for ${flagName}`;
-      const documentation = new MarkdownString();
-      documentation.appendCodeblock(`current_logtalk_flag(${flagName}, ${value})`, 'logtalk');
-      item.documentation = documentation;
+    if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
+      return null;
+    }
 
-      const prefix = addLeadingSpace ? ' ' : '';
-
-      switch (closingParenHandling) {
-        case 'skip':
-          item.insertText = `${prefix}${value}`;
-          item.command = { command: 'cursorRight', title: 'Move cursor past closing paren' };
-          break;
-        case 'add':
-          item.insertText = `${prefix}${value})`;
-          break;
-        case 'none':
-        default:
-          item.insertText = value;
-          break;
-      }
-
-      item.sortText = String(index).padStart(3, '0');
-      return item;
-    });
+    return handleFlagTypingInside(document, position, CurrentLogtalkFlagCompletionProvider.CONFIG, this.logger);
   }
 }
 
@@ -1087,6 +1123,28 @@ export class CurrentLogtalkFlagCompletionProvider implements CompletionItemProvi
  */
 export class SetLogtalkFlagCompletionProvider implements CompletionItemProvider {
   private logger = getLogger();
+  private static readonly CONFIG: FlagCompletionConfig = {
+    predicateName: 'set_logtalk_flag',
+    includeReadOnly: false,
+    flagInsertTemplate: (flag, closingParenHandling) => {
+      switch (closingParenHandling) {
+        case 'skip':
+        case 'add':
+          return { insertText: `${flag.name}, ` };
+        default:
+          return { insertText: flag.name };
+      }
+    },
+    flagDocumentation: (flag) => {
+      const documentation = new MarkdownString();
+      if (flag.values.length > 0) {
+        documentation.appendText(`Possible values: ${flag.values.join(', ')}`);
+      } else {
+        documentation.appendText('Takes an arbitrary value');
+      }
+      return documentation;
+    }
+  };
 
   provideCompletionItems(
     document: TextDocument,
@@ -1094,189 +1152,19 @@ export class SetLogtalkFlagCompletionProvider implements CompletionItemProvider 
     _token: CancellationToken,
     context: CompletionContext
   ): CompletionItem[] | null {
-    // Check if triggered by "("
     if (context.triggerCharacter === '(') {
-      return this.handleOpenParen(document, position);
+      return handleFlagOpenParen(document, position, SetLogtalkFlagCompletionProvider.CONFIG, this.logger);
     }
 
-    // Check if triggered by ","
     if (context.triggerCharacter === ',') {
-      return this.handleComma(document, position);
+      return handleFlagComma(document, position, SetLogtalkFlagCompletionProvider.CONFIG, this.logger);
     }
 
-    // If triggered by any trigger character, don't also handle as typing inside
-    // (avoids duplicates from dual registration)
     if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
       return null;
     }
 
-    // Otherwise, check if we're typing inside set_logtalk_flag(...)
-    return this.handleTypingInside(document, position);
-  }
-
-  private handleOpenParen(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeParen = lineText.substring(0, position.character);
-
-      const match = textBeforeParen.match(/set_logtalk_flag\($/);
-      if (!match) {
-        return null;
-      }
-
-      const charAfterCursor = lineText.substring(position.character, position.character + 1);
-      const closingParenHandling = charAfterCursor === ')' ? 'skip' : 'add';
-
-      return this.createFlagCompletionItems('', closingParenHandling);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleOpenParen: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private handleComma(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeComma = lineText.substring(0, position.character);
-
-      // Match set_logtalk_flag(flag_name,
-      const match = textBeforeComma.match(/set_logtalk_flag\(([a-z_]+),$/);
-      if (!match) {
-        return null;
-      }
-
-      const flagName = match[1];
-      const charAfterCursor = lineText.substring(position.character, position.character + 1);
-      const closingParenHandling: 'add' | 'skip' | 'none' = charAfterCursor === ')' ? 'skip' : 'add';
-
-      // Triggered by comma - add space before value
-      return this.createValueCompletionItems(flagName, '', closingParenHandling, true);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleComma: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private handleTypingInside(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeCursor = lineText.substring(0, position.character);
-
-      // Check if typing first argument (flag name)
-      const flagMatch = textBeforeCursor.match(/set_logtalk_flag\(([a-z_]*)$/);
-      if (flagMatch) {
-        const partialText = flagMatch[1] || '';
-        // If no partial text, let handleOpenParen handle it (avoids duplicates)
-        if (partialText === '') {
-          return null;
-        }
-        return this.createFlagCompletionItems(partialText, 'none');
-      }
-
-      // Check if typing second argument (value)
-      const valueMatch = textBeforeCursor.match(/set_logtalk_flag\(([a-z_]+),\s*([a-z_]*)$/);
-      if (valueMatch) {
-        const flagName = valueMatch[1];
-        const partialValue = valueMatch[2] || '';
-        // If no partial value, let handleComma handle it (avoids duplicates)
-        if (partialValue === '' && textBeforeCursor.match(/,\s*$/)) {
-          return null;
-        }
-        // Typing inside - don't add space (already there from comma), don't handle paren
-        return this.createValueCompletionItems(flagName, partialValue, 'none', false);
-      }
-
-      return null;
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleTypingInside: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private createFlagCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
-    // Only writable flags are available for set_logtalk_flag/2
-    const writableFlags = LOGTALK_FLAGS.filter(f => !f.readOnly);
-    const filteredFlags = partialText
-      ? writableFlags.filter(f => f.name.startsWith(partialText.toLowerCase()))
-      : writableFlags;
-
-    return filteredFlags.map((flag, index) => {
-      const item = new CompletionItem(flag.name, CompletionItemKind.EnumMember);
-      item.detail = flag.description;
-      const documentation = new MarkdownString();
-      if (flag.values.length > 0) {
-        documentation.appendText(`Possible values: ${flag.values.join(', ')}`);
-      } else {
-        documentation.appendText('Takes an arbitrary value');
-      }
-      item.documentation = documentation;
-
-      switch (closingParenHandling) {
-        case 'skip':
-          item.insertText = `${flag.name}, `;
-          // Don't move cursor, let user type value
-          break;
-        case 'add':
-          item.insertText = `${flag.name}, `;
-          break;
-        case 'none':
-        default:
-          item.insertText = flag.name;
-          break;
-      }
-
-      item.sortText = String(index).padStart(3, '0');
-      return item;
-    });
-  }
-
-  private createValueCompletionItems(
-    flagName: string,
-    partialValue: string,
-    closingParenHandling: 'add' | 'skip' | 'none',
-    addLeadingSpace: boolean
-  ): CompletionItem[] {
-    const flag = LOGTALK_FLAGS.find(f => f.name === flagName);
-    if (!flag || flag.values.length === 0) {
-      return [];
-    }
-
-    const filteredValues = partialValue
-      ? flag.values.filter(v => v.startsWith(partialValue.toLowerCase()))
-      : flag.values;
-
-    return filteredValues.map((value, index) => {
-      const item = new CompletionItem(value, CompletionItemKind.Value);
-      item.detail = `Value for ${flagName}`;
-      const documentation = new MarkdownString();
-      documentation.appendCodeblock(`set_logtalk_flag(${flagName}, ${value})`, 'logtalk');
-      item.documentation = documentation;
-
-      const prefix = addLeadingSpace ? ' ' : '';
-
-      switch (closingParenHandling) {
-        case 'skip':
-          item.insertText = `${prefix}${value}`;
-          item.command = { command: 'cursorRight', title: 'Move cursor past closing paren' };
-          break;
-        case 'add':
-          item.insertText = `${prefix}${value})`;
-          break;
-        case 'none':
-        default:
-          item.insertText = value;
-          break;
-      }
-
-      item.sortText = String(index).padStart(3, '0');
-      return item;
-    });
+    return handleFlagTypingInside(document, position, SetLogtalkFlagCompletionProvider.CONFIG, this.logger);
   }
 }
 
