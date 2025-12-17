@@ -15,7 +15,7 @@
 * Add completions for the first argument of the `logtalk_load_context/2` predicate
 * Add completions for the arguments of the `current_logtalk_flag/2` and `set_logtalk_flag/2` predicates
 * Add completions for the argument of the `logtalk_make/1` predicate
-* Add completions for the first argument of the `logtalk::print_message/3` and `logtalk::message_prefix_stream/4` predicates
+* Add completions for the first argument of the `logtalk::print_message/3`, `logtalk::message_prefix_stream/4`, and `logtalk::question_prompt_stream/4` predicates
 * Remove the "Logtalk: Toggle Debugging" button from the editor title bar (subsumed by the "Run" menu commands)
 * Remove the "Logtalk:" prefix from all context menu items
 * Add actionable status bar indicators for profiling and CodeLens on/off state

@@ -11,6 +11,7 @@ import {
   MarkdownString,
   Position,
   ProviderResult,
+  SnippetString,
   TextDocument
 } from "vscode";
 import { getLogger } from "../utils/logger";
@@ -510,7 +511,7 @@ export class LogtalkMakeCompletionProvider implements CompletionItemProvider {
 }
 
 /**
- * Possible message kinds for print_message/3
+ * Possible message kinds for print_message/3 and related predicates
  */
 const PRINT_MESSAGE_KINDS = [
   { name: 'banner', description: 'Banner messages (startup, version info)' },
@@ -526,11 +527,96 @@ const PRINT_MESSAGE_KINDS = [
 ];
 
 /**
+ * Helper functions for message kind completion providers
+ */
+function handleMessageKindOpenParen(
+  document: TextDocument,
+  position: Position,
+  predicateName: string,
+  docTemplate: string,
+  logger: { error: (msg: string) => void }
+): CompletionItem[] | null {
+  try {
+    const line = document.lineAt(position.line);
+    const lineText = line.text;
+    const textBeforeParen = lineText.substring(0, position.character);
+
+    const pattern = new RegExp(`${predicateName}\\($`);
+    if (!pattern.test(textBeforeParen)) {
+      return null;
+    }
+
+    return createMessageKindCompletionItems('', docTemplate);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in handleOpenParen: ${errorMessage}`);
+    return null;
+  }
+}
+
+function handleMessageKindTypingInsideParens(
+  document: TextDocument,
+  position: Position,
+  predicateName: string,
+  docTemplate: string,
+  logger: { error: (msg: string) => void }
+): CompletionItem[] | null {
+  try {
+    const line = document.lineAt(position.line);
+    const lineText = line.text;
+    const textBeforeCursor = lineText.substring(0, position.character);
+
+    const pattern = new RegExp(`${predicateName}\\(([a-z_()]*)$`);
+    const match = textBeforeCursor.match(pattern);
+    if (!match) {
+      return null;
+    }
+
+    const partialText = match[1] || '';
+    // If no partial text, let handleOpenParen handle it (avoids duplicates)
+    if (partialText === '') {
+      return null;
+    }
+    return createMessageKindCompletionItems(partialText, docTemplate);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in handleTypingInsideParens: ${errorMessage}`);
+    return null;
+  }
+}
+
+function createMessageKindCompletionItems(partialText: string, docTemplate: string): CompletionItem[] {
+  const filteredKinds = partialText
+    ? PRINT_MESSAGE_KINDS.filter(k => k.name.toLowerCase().startsWith(partialText.toLowerCase()))
+    : PRINT_MESSAGE_KINDS;
+
+  return filteredKinds.map((kind, index) => {
+    const item = new CompletionItem(kind.name, CompletionItemKind.EnumMember);
+    item.detail = kind.description;
+    const documentation = new MarkdownString();
+    const displayName = kind.isSnippet ? kind.name.replace('${1:Topic}', 'Topic') : kind.name;
+    documentation.appendCodeblock(docTemplate.replace('KIND', displayName), 'logtalk');
+    item.documentation = documentation;
+
+    if (kind.isSnippet && kind.insertText) {
+      item.insertText = new SnippetString(kind.insertText);
+    } else {
+      item.insertText = kind.name;
+    }
+
+    item.sortText = String(index).padStart(3, '0');
+    return item;
+  });
+}
+
+/**
  * CompletionItemProvider for print_message/3 goals
  * Provides message kind completions when typing "print_message("
  */
 export class PrintMessageCompletionProvider implements CompletionItemProvider {
   private logger = getLogger();
+  private static readonly PREDICATE_NAME = 'print_message';
+  private static readonly DOC_TEMPLATE = 'print_message(KIND, Component, Message)';
 
   public provideCompletionItems(
     document: TextDocument,
@@ -541,108 +627,14 @@ export class PrintMessageCompletionProvider implements CompletionItemProvider {
     this.logger.debug(`PrintMessage completion triggered at position ${position.line}:${position.character}`);
 
     if (context.triggerCharacter === '(') {
-      return this.handleOpenParen(document, position);
+      return handleMessageKindOpenParen(document, position, PrintMessageCompletionProvider.PREDICATE_NAME, PrintMessageCompletionProvider.DOC_TEMPLATE, this.logger);
     }
 
-    // If triggered by any trigger character, don't also handle as typing inside
-    // (avoids duplicates from dual registration)
     if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
       return null;
     }
 
-    return this.handleTypingInsideParens(document, position);
-  }
-
-  private handleOpenParen(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeParen = lineText.substring(0, position.character);
-
-      const match = textBeforeParen.match(/print_message\($/);
-      if (!match) {
-        return null;
-      }
-
-      const charAfterCursor = lineText.substring(position.character, position.character + 1);
-      const hasClosingParen = charAfterCursor === ')';
-
-      return this.createKindCompletionItems('', hasClosingParen, true);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleOpenParen: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private handleTypingInsideParens(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeCursor = lineText.substring(0, position.character);
-
-      // Match print_message( followed by partial kind name (may include parenthesis for topic kinds)
-      const match = textBeforeCursor.match(/print_message\(([a-z_()]*)$/);
-      if (!match) {
-        return null;
-      }
-
-      const partialText = match[1] || '';
-      // If no partial text, let handleOpenParen handle it (avoids duplicates)
-      if (partialText === '') {
-        return null;
-      }
-      return this.createKindCompletionItems(partialText, false, false);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleTypingInsideParens: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private createKindCompletionItems(partialText: string, hasClosingParen: boolean, triggeredByParen: boolean): CompletionItem[] {
-    const filteredKinds = partialText
-      ? PRINT_MESSAGE_KINDS.filter(k => k.name.toLowerCase().startsWith(partialText.toLowerCase()))
-      : PRINT_MESSAGE_KINDS;
-
-    return filteredKinds.map((kind, index) => {
-      const item = new CompletionItem(kind.name, CompletionItemKind.EnumMember);
-      item.detail = kind.description;
-      const documentation = new MarkdownString();
-      const displayName = kind.isSnippet ? kind.name.replace('${1:Topic}', 'Topic') : kind.name;
-      documentation.appendCodeblock(`print_message(${displayName}, Component, Message)`, 'logtalk');
-      item.documentation = documentation;
-
-      if (kind.isSnippet && kind.insertText) {
-        // For snippet items (with Topic placeholder)
-        const { SnippetString } = require('vscode');
-        if (triggeredByParen) {
-          if (hasClosingParen) {
-            // Auto-close is ON, need to skip the existing closing paren
-            // But we also need a comma after the kind, so insert kind, and let user continue
-            item.insertText = new SnippetString(kind.insertText);
-          } else {
-            // Auto-close is OFF, no closing paren to worry about
-            item.insertText = new SnippetString(kind.insertText);
-          }
-        } else {
-          // Typing inside parens (from snippet)
-          item.insertText = new SnippetString(kind.insertText);
-        }
-      } else {
-        // For simple items (no Topic placeholder)
-        if (triggeredByParen && hasClosingParen) {
-          // Auto-close is ON, move cursor past closing paren after inserting
-          // But since this is first arg of 3, don't add closing paren
-          item.insertText = kind.name;
-        } else {
-          item.insertText = kind.name;
-        }
-      }
-
-      item.sortText = String(index).padStart(3, '0');
-      return item;
-    });
+    return handleMessageKindTypingInsideParens(document, position, PrintMessageCompletionProvider.PREDICATE_NAME, PrintMessageCompletionProvider.DOC_TEMPLATE, this.logger);
   }
 }
 
@@ -652,6 +644,8 @@ export class PrintMessageCompletionProvider implements CompletionItemProvider {
  */
 export class MessagePrefixStreamCompletionProvider implements CompletionItemProvider {
   private logger = getLogger();
+  private static readonly PREDICATE_NAME = 'message_prefix_stream';
+  private static readonly DOC_TEMPLATE = 'message_prefix_stream(KIND, Component, Prefix, Stream)';
 
   public provideCompletionItems(
     document: TextDocument,
@@ -662,101 +656,43 @@ export class MessagePrefixStreamCompletionProvider implements CompletionItemProv
     this.logger.debug(`MessagePrefixStream completion triggered at position ${position.line}:${position.character}`);
 
     if (context.triggerCharacter === '(') {
-      return this.handleOpenParen(document, position);
+      return handleMessageKindOpenParen(document, position, MessagePrefixStreamCompletionProvider.PREDICATE_NAME, MessagePrefixStreamCompletionProvider.DOC_TEMPLATE, this.logger);
     }
 
-    // If triggered by any trigger character, don't also handle as typing inside
-    // (avoids duplicates from dual registration)
     if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
       return null;
     }
 
-    return this.handleTypingInsideParens(document, position);
+    return handleMessageKindTypingInsideParens(document, position, MessagePrefixStreamCompletionProvider.PREDICATE_NAME, MessagePrefixStreamCompletionProvider.DOC_TEMPLATE, this.logger);
   }
+}
 
-  private handleOpenParen(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeParen = lineText.substring(0, position.character);
+/**
+ * CompletionItemProvider for question_prompt_stream/4 goals
+ * Provides message kind completions when typing "question_prompt_stream("
+ */
+export class QuestionPromptStreamCompletionProvider implements CompletionItemProvider {
+  private logger = getLogger();
+  private static readonly PREDICATE_NAME = 'question_prompt_stream';
+  private static readonly DOC_TEMPLATE = 'question_prompt_stream(KIND, Component, Prompt, Stream)';
 
-      const match = textBeforeParen.match(/message_prefix_stream\($/);
-      if (!match) {
-        return null;
-      }
+  public provideCompletionItems(
+    document: TextDocument,
+    position: Position,
+    _token: CancellationToken,
+    context: CompletionContext
+  ): ProviderResult<CompletionItem[] | CompletionList> {
+    this.logger.debug(`QuestionPromptStream completion triggered at position ${position.line}:${position.character}`);
 
-      const charAfterCursor = lineText.substring(position.character, position.character + 1);
-      const hasClosingParen = charAfterCursor === ')';
+    if (context.triggerCharacter === '(') {
+      return handleMessageKindOpenParen(document, position, QuestionPromptStreamCompletionProvider.PREDICATE_NAME, QuestionPromptStreamCompletionProvider.DOC_TEMPLATE, this.logger);
+    }
 
-      return this.createKindCompletionItems('', hasClosingParen, true);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleOpenParen: ${errorMessage}`);
+    if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
       return null;
     }
-  }
 
-  private handleTypingInsideParens(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeCursor = lineText.substring(0, position.character);
-
-      // Match message_prefix_stream( followed by partial kind name (may include parenthesis for topic kinds)
-      const match = textBeforeCursor.match(/message_prefix_stream\(([a-z_()]*)$/);
-      if (!match) {
-        return null;
-      }
-
-      const partialText = match[1] || '';
-      // If no partial text, let handleOpenParen handle it (avoids duplicates)
-      if (partialText === '') {
-        return null;
-      }
-      return this.createKindCompletionItems(partialText, false, false);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleTypingInsideParens: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private createKindCompletionItems(partialText: string, hasClosingParen: boolean, triggeredByParen: boolean): CompletionItem[] {
-    const filteredKinds = partialText
-      ? PRINT_MESSAGE_KINDS.filter(k => k.name.toLowerCase().startsWith(partialText.toLowerCase()))
-      : PRINT_MESSAGE_KINDS;
-
-    return filteredKinds.map((kind, index) => {
-      const item = new CompletionItem(kind.name, CompletionItemKind.EnumMember);
-      item.detail = kind.description;
-      const documentation = new MarkdownString();
-      const displayName = kind.isSnippet ? kind.name.replace('${1:Topic}', 'Topic') : kind.name;
-      documentation.appendCodeblock(`message_prefix_stream(${displayName}, Component, Prefix, Stream)`, 'logtalk');
-      item.documentation = documentation;
-
-      if (kind.isSnippet && kind.insertText) {
-        // For snippet items (with Topic placeholder)
-        const { SnippetString } = require('vscode');
-        if (triggeredByParen) {
-          if (hasClosingParen) {
-            item.insertText = new SnippetString(kind.insertText);
-          } else {
-            item.insertText = new SnippetString(kind.insertText);
-          }
-        } else {
-          item.insertText = new SnippetString(kind.insertText);
-        }
-      } else {
-        if (triggeredByParen && hasClosingParen) {
-          item.insertText = kind.name;
-        } else {
-          item.insertText = kind.name;
-        }
-      }
-
-      item.sortText = String(index).padStart(3, '0');
-      return item;
-    });
+    return handleMessageKindTypingInsideParens(document, position, QuestionPromptStreamCompletionProvider.PREDICATE_NAME, QuestionPromptStreamCompletionProvider.DOC_TEMPLATE, this.logger);
   }
 }
 
