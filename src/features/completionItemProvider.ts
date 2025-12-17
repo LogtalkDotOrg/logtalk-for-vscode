@@ -405,11 +405,86 @@ const LOGTALK_MAKE_TARGETS = [
 ];
 
 /**
+ * Configuration for single-argument predicate completion providers
+ */
+interface SingleArgCompletionConfig {
+  predicateName: string;
+  createCompletionItems: (partialText: string, closingParenHandling: 'add' | 'skip' | 'none') => CompletionItem[];
+}
+
+/**
+ * Helper function to handle open paren for single-argument predicates
+ */
+function handleSingleArgOpenParen(
+  document: TextDocument,
+  position: Position,
+  config: SingleArgCompletionConfig,
+  logger: { error: (msg: string) => void }
+): CompletionItem[] | null {
+  try {
+    const line = document.lineAt(position.line);
+    const lineText = line.text;
+    const textBeforeParen = lineText.substring(0, position.character);
+
+    const pattern = new RegExp(`${config.predicateName}\\($`);
+    if (!pattern.test(textBeforeParen)) {
+      return null;
+    }
+
+    const charAfterCursor = lineText.substring(position.character, position.character + 1);
+    const closingParenHandling = charAfterCursor === ')' ? 'skip' : 'add';
+
+    return config.createCompletionItems('', closingParenHandling);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in handleOpenParen: ${errorMessage}`);
+    return null;
+  }
+}
+
+/**
+ * Helper function to handle typing inside parens for single-argument predicates
+ */
+function handleSingleArgTypingInside(
+  document: TextDocument,
+  position: Position,
+  config: SingleArgCompletionConfig,
+  logger: { error: (msg: string) => void }
+): CompletionItem[] | null {
+  try {
+    const line = document.lineAt(position.line);
+    const lineText = line.text;
+    const textBeforeCursor = lineText.substring(0, position.character);
+
+    const pattern = new RegExp(`${config.predicateName}\\(([a-z_]*)$`);
+    const match = textBeforeCursor.match(pattern);
+    if (!match) {
+      return null;
+    }
+
+    const partialText = match[1] || '';
+    if (partialText === '') {
+      return null;
+    }
+
+    return config.createCompletionItems(partialText, 'none');
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error(`Error in handleTypingInside: ${errorMessage}`);
+    return null;
+  }
+}
+
+/**
  * CompletionItemProvider for logtalk_make/1 goals
  * Provides target completions when typing "logtalk_make("
  */
 export class LogtalkMakeCompletionProvider implements CompletionItemProvider {
   private logger = getLogger();
+  private config: SingleArgCompletionConfig = {
+    predicateName: 'logtalk_make',
+    createCompletionItems: (partialText, closingParenHandling) => this.createTargetCompletionItems(partialText, closingParenHandling)
+  };
 
   public provideCompletionItems(
     document: TextDocument,
@@ -417,65 +492,15 @@ export class LogtalkMakeCompletionProvider implements CompletionItemProvider {
     _token: CancellationToken,
     context: CompletionContext
   ): ProviderResult<CompletionItem[] | CompletionList> {
-    this.logger.debug(`LogtalkMake completion triggered at position ${position.line}:${position.character}`);
-
     if (context.triggerCharacter === '(') {
-      return this.handleOpenParen(document, position);
+      return handleSingleArgOpenParen(document, position, this.config, this.logger);
     }
 
-    // If triggered by any trigger character, don't also handle as typing inside
-    // (avoids duplicates from dual registration)
     if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
       return null;
     }
 
-    return this.handleTypingInsideParens(document, position);
-  }
-
-  private handleOpenParen(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeParen = lineText.substring(0, position.character);
-
-      const match = textBeforeParen.match(/logtalk_make\($/);
-      if (!match) {
-        return null;
-      }
-
-      const charAfterCursor = lineText.substring(position.character, position.character + 1);
-      const closingParenHandling = charAfterCursor === ')' ? 'skip' : 'add';
-
-      return this.createTargetCompletionItems('', closingParenHandling);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleOpenParen: ${errorMessage}`);
-      return null;
-    }
-  }
-
-  private handleTypingInsideParens(document: TextDocument, position: Position): CompletionItem[] | null {
-    try {
-      const line = document.lineAt(position.line);
-      const lineText = line.text;
-      const textBeforeCursor = lineText.substring(0, position.character);
-
-      const match = textBeforeCursor.match(/logtalk_make\(([a-z_]*)$/);
-      if (!match) {
-        return null;
-      }
-
-      const partialText = match[1] || '';
-      // If no partial text, let handleOpenParen handle it (avoids duplicates)
-      if (partialText === '') {
-        return null;
-      }
-      return this.createTargetCompletionItems(partialText, 'none');
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error in handleTypingInsideParens: ${errorMessage}`);
-      return null;
-    }
+    return handleSingleArgTypingInside(document, position, this.config, this.logger);
   }
 
   private createTargetCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
@@ -1165,6 +1190,82 @@ export class SetLogtalkFlagCompletionProvider implements CompletionItemProvider 
     }
 
     return handleFlagTypingInside(document, position, SetLogtalkFlagCompletionProvider.CONFIG, this.logger);
+  }
+}
+
+/**
+ * Error terms for throw/1 predicate
+ */
+const THROW_ERROR_TERMS = [
+  { name: 'instantiation_error', snippet: 'instantiation_error', description: 'An argument is not sufficiently instantiated' },
+  { name: 'uninstantiation_error(Culprit)', snippet: 'uninstantiation_error(${1:Culprit})', description: 'An argument should be uninstantiated but is not' },
+  { name: 'type_error(Type, Culprit)', snippet: 'type_error(${1:Type}, ${2:Culprit})', description: 'An argument has an incorrect type' },
+  { name: 'domain_error(Domain, Culprit)', snippet: 'domain_error(${1:Domain}, ${2:Culprit})', description: 'An argument has a value outside the expected domain' },
+  { name: 'consistency_error(Consistency, Argument1, Argument2)', snippet: 'consistency_error(${1:Consistency}, ${2:Argument1}, ${3:Argument2})', description: 'Two arguments are inconsistent' },
+  { name: 'existence_error(Thing, Culprit)', snippet: 'existence_error(${1:Thing}, ${2:Culprit})', description: 'A referenced object does not exist' },
+  { name: 'permission_error(Operation, PermissionType, Culprit)', snippet: 'permission_error(${1:Operation}, ${2:PermissionType}, ${3:Culprit})', description: 'An operation is not permitted' },
+  { name: 'representation_error(Flag)', snippet: 'representation_error(${1:Flag})', description: 'A representation limit has been exceeded' },
+  { name: 'evaluation_error(Error)', snippet: 'evaluation_error(${1:Error})', description: 'An arithmetic evaluation error occurred' },
+  { name: 'resource_error(Resource)', snippet: 'resource_error(${1:Resource})', description: 'A resource limit has been exceeded' },
+  { name: 'syntax_error(Description)', snippet: 'syntax_error(${1:Description})', description: 'A syntax error was encountered' },
+  { name: 'system_error', snippet: 'system_error', description: 'A system-level error occurred' }
+];
+
+/**
+ * CompletionItemProvider for throw/1 goals
+ * Provides error term completions for the argument
+ */
+export class ThrowCompletionProvider implements CompletionItemProvider {
+  private logger = getLogger();
+  private config: SingleArgCompletionConfig = {
+    predicateName: 'throw',
+    createCompletionItems: (partialText, closingParenHandling) => this.createErrorTermCompletionItems(partialText, closingParenHandling)
+  };
+
+  provideCompletionItems(
+    document: TextDocument,
+    position: Position,
+    _token: CancellationToken,
+    context: CompletionContext
+  ): CompletionItem[] | null {
+    if (context.triggerCharacter === '(') {
+      return handleSingleArgOpenParen(document, position, this.config, this.logger);
+    }
+
+    if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
+      return null;
+    }
+
+    return handleSingleArgTypingInside(document, position, this.config, this.logger);
+  }
+
+  private createErrorTermCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
+    const filteredTerms = partialText
+      ? THROW_ERROR_TERMS.filter(t => t.name.toLowerCase().startsWith(partialText.toLowerCase()))
+      : THROW_ERROR_TERMS;
+
+    return filteredTerms.map((term, index) => {
+      const item = new CompletionItem(term.name, CompletionItemKind.Value);
+      item.detail = term.description;
+
+      const documentation = new MarkdownString();
+      documentation.appendCodeblock(`throw(${term.name})`, 'logtalk');
+      item.documentation = documentation;
+
+      let snippetText = term.snippet;
+      if (closingParenHandling === 'add') {
+        snippetText += ')';
+      }
+
+      item.insertText = new SnippetString(snippetText);
+
+      if (closingParenHandling === 'skip') {
+        item.command = { command: 'cursorRight', title: 'Move cursor past closing paren' };
+      }
+
+      item.sortText = String(index).padStart(3, '0');
+      return item;
+    });
   }
 }
 
