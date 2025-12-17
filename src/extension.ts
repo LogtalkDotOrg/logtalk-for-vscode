@@ -49,7 +49,7 @@ import { LogtalkChatParticipant } from "./features/chatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
-import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkMakeCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider } from "./features/completionItemProvider";
+import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkMakeCompletionProvider, PrintMessageCompletionProvider, MessagePrefixStreamCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider } from "./features/completionItemProvider";
 import { LogtalkSelectionRangeProvider } from "./features/selectionRangeProvider";
 import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
@@ -975,24 +975,25 @@ export async function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, loadCompletionProvider, '(')
   );
-  context.subscriptions.push(
-    languages.registerCompletionItemProvider({ language: "logtalk" }, loadCompletionProvider)
-  );
 
   const makeCompletionProvider = new LogtalkMakeCompletionProvider();
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, makeCompletionProvider, '(')
   );
+
+  const printMessageCompletionProvider = new PrintMessageCompletionProvider();
   context.subscriptions.push(
-    languages.registerCompletionItemProvider({ language: "logtalk" }, makeCompletionProvider)
+    languages.registerCompletionItemProvider({ language: "logtalk" }, printMessageCompletionProvider, '(')
+  );
+
+  const messagePrefixStreamCompletionProvider = new MessagePrefixStreamCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, messagePrefixStreamCompletionProvider, '(')
   );
 
   const loadContextCompletionProvider = new LogtalkLoadContextCompletionProvider();
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, loadContextCompletionProvider, '(')
-  );
-  context.subscriptions.push(
-    languages.registerCompletionItemProvider({ language: "logtalk" }, loadContextCompletionProvider)
   );
 
   // Register completion providers for current_logtalk_flag/2 and set_logtalk_flag/2
@@ -1001,16 +1002,10 @@ export async function activate(context: ExtensionContext) {
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, currentFlagCompletionProvider, '(', ',')
   );
-  context.subscriptions.push(
-    languages.registerCompletionItemProvider({ language: "logtalk" }, currentFlagCompletionProvider)
-  );
 
   const setFlagCompletionProvider = new SetLogtalkFlagCompletionProvider();
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, setFlagCompletionProvider, '(', ',')
-  );
-  context.subscriptions.push(
-    languages.registerCompletionItemProvider({ language: "logtalk" }, setFlagCompletionProvider)
   );
 
   // Register chained formatting command (indentation conversion + Logtalk formatting)

@@ -74,6 +74,7 @@ To also use the syntax highlighting support with Prolog source files, open the V
 - Completions for the first argument of the `logtalk_load_context/2` predicate
 - Completions for the arguments of the `current_logtalk_flag/2` and `set_logtalk_flag/2` predicates
 - Completions for the argument of the `logtalk_make/1` predicate
+- Completions for the first argument of the `logtalk::print_message/3` and `logtalk::message_prefix_stream/4` predicates
 
 ### Snippets
 
