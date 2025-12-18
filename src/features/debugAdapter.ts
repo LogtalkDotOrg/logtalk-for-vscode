@@ -150,8 +150,21 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
     // Reference to the debug state manager for accessing current debug info
     private debugStateManager = DebugStateManager.getInstance();
 
+    // Subscription to state changes
+    private stateChangeSubscription: vscode.Disposable;
+
     // Scope reference IDs for variables
     private static readonly SCOPE_ARGUMENTS = 1;
+
+    constructor() {
+        // Subscribe to state changes to send invalidated events when state is cleared
+        this.stateChangeSubscription = this.debugStateManager.onStateChanged((state) => {
+            if (state === undefined && this.isDebugging) {
+                // State was cleared - send invalidated event to refresh UI
+                this.sendInvalidatedEvent();
+            }
+        });
+    }
 
     /**
      * Handle incoming DAP messages from VS Code
@@ -811,6 +824,22 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
     }
 
     /**
+     * Send an invalidated event to VS Code
+     * This tells VS Code to re-fetch stack trace, scopes, and variables
+     */
+    private sendInvalidatedEvent(): void {
+        const event: DebugProtocol.InvalidatedEvent = {
+            seq: this.sequence++,
+            type: 'event',
+            event: 'invalidated',
+            body: {
+                areas: ['stacks', 'variables']
+            }
+        };
+        this.sendMessage.fire(event);
+    }
+
+    /**
      * Send a simple success response
      */
     private sendResponse(request: DebugProtocol.Request): void {
@@ -843,6 +872,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      * Dispose of the debug session
      */
     dispose(): void {
+        this.stateChangeSubscription.dispose();
         this.sendMessage.dispose();
     }
 }
