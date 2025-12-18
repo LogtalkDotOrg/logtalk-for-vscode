@@ -456,13 +456,14 @@ Function breakpoints are interpreted as predicate (or non-terminal) spy points b
 
 Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints".
 
+The "Variables" and "Call Stack" panes in the "Run and Debug" sidebar are populated with data from unification ports. This is an incomplete implementation that is expected to be improved in the future. The "Watch" pane is currently not supported.
+
 VSCode usability issues that affect debugging support:
 
 - VSCode "Run" menu "New Breakpoint" > "Triggered Breakpoint..." item doesn't make the data available to language extensions. See above for the workaround.
 - VScode "Toggle Activate Breakpoints" button in the "Run and Debug" pane doesn't generate an event that can be handled by extensions.
 - VSCode doesn't support disabling menu items that are not supported by language extensions.
 - When the "Run and Debug" pane is closed, selecting the "Run" menu "New Breakpoint > Function Breakpoint..." item doesn't open the pane to show the new breakpoint text insertion box.
-- The "Variables", "Watch", and "Call Stack" panes in the "Run and Debug" sidebar are currently not supported. VSCode doesn't allow extensions to hide these built-in debug views. Users can right-click on the sidebar header and uncheck these panes to hide them manually.
 
 ### Testing support
 

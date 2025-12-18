@@ -20,8 +20,99 @@ import * as path from 'path';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import LogtalkTerminal from './terminal';
 import { getLogger } from '../utils/logger';
+import { SymbolUtils } from '../utils/symbols';
+import { ArgumentUtils } from '../utils/argumentUtils';
 
 const logger = getLogger();
+
+/**
+ * Interface representing the current debug state parsed from .debug_info file
+ */
+export interface DebugState {
+    file: string;
+    line: number;
+    head: string;
+}
+
+/**
+ * Singleton class to manage debug state across the extension
+ * This allows the file watcher to update the state and the debug adapter to read it
+ * Maintains a call stack of debug states
+ */
+export class DebugStateManager {
+    private static _instance: DebugStateManager | undefined;
+    private _stack: DebugState[] = [];
+    private _onStateChanged = new vscode.EventEmitter<DebugState | undefined>();
+
+    public readonly onStateChanged: vscode.Event<DebugState | undefined> = this._onStateChanged.event;
+
+    private constructor() {}
+
+    public static getInstance(): DebugStateManager {
+        if (!DebugStateManager._instance) {
+            DebugStateManager._instance = new DebugStateManager();
+        }
+        return DebugStateManager._instance;
+    }
+
+    /**
+     * Get the current (top of stack) debug state
+     */
+    public get state(): DebugState | undefined {
+        return this._stack.length > 0 ? this._stack[this._stack.length - 1] : undefined;
+    }
+
+    /**
+     * Get the full call stack
+     */
+    public get stack(): DebugState[] {
+        return this._stack;
+    }
+
+    /**
+     * Push a new state onto the call stack
+     */
+    public updateState(state: DebugState | undefined): void {
+        if (state) {
+            this._stack.push(state);
+            this._onStateChanged.fire(state);
+            logger.debug(`Debug state pushed: ${state.file}:${state.line} - ${state.head} (stack depth: ${this._stack.length})`);
+        }
+    }
+
+    /**
+     * Clear the entire call stack
+     */
+    public clearState(): void {
+        this._stack = [];
+        this._onStateChanged.fire(undefined);
+        logger.debug('Debug state stack cleared');
+    }
+
+    /**
+     * Parse debug info from file content
+     * Format: File:<path>;Line:<line>;Head:<head>
+     */
+    public static parseDebugInfo(content: string): DebugState | null {
+        const match = content.match(/File:(.+);Line:(\d+);Head:(.+)/);
+        if (!match) {
+            return null;
+        }
+
+        let fileName = match[1].trim();
+        // Handle Windows double-slash forms
+        fileName = fileName.replace(/\\\\/g, '/').replace(/\\/g, '/');
+        if (fileName.startsWith('//') && process.platform === 'win32') {
+            fileName = fileName.substring(1);
+        }
+
+        return {
+            file: fileName,
+            line: parseInt(match[2]),
+            head: match[3].trim()
+        };
+    }
+}
 
 /**
  * Logtalk Debug Session
@@ -55,6 +146,12 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
 
     private sequence = 1;
     private isDebugging = false;
+
+    // Reference to the debug state manager for accessing current debug info
+    private debugStateManager = DebugStateManager.getInstance();
+
+    // Scope reference IDs for variables
+    private static readonly SCOPE_ARGUMENTS = 1;
 
     /**
      * Handle incoming DAP messages from VS Code
@@ -326,9 +423,35 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
 
     /**
      * Handle stack trace request
-     * We don't have access to the actual stack, return minimal info
+     * Uses the full debug state stack to provide file, line, and clause head information
      */
     private handleStackTrace(request: DebugProtocol.Request): void {
+        const stack = this.debugStateManager.stack;
+
+        let stackFrames: DebugProtocol.StackFrame[];
+
+        if (stack.length > 0) {
+            // Build stack frames from the debug state stack (most recent first)
+            stackFrames = stack.slice().reverse().map((state, index) => ({
+                id: index + 1,
+                name: state.head,
+                line: state.line,
+                column: 1,
+                source: {
+                    name: path.basename(state.file),
+                    path: state.file
+                }
+            }));
+        } else {
+            // No debug state yet - return minimal info
+            stackFrames = [{
+                id: 1,
+                name: 'Logtalk Debugger',
+                line: 0,
+                column: 0
+            }];
+        }
+
         const response: DebugProtocol.StackTraceResponse = {
             seq: this.sequence++,
             type: 'response',
@@ -336,24 +459,31 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
             command: request.command,
             success: true,
             body: {
-                stackFrames: [
-                    {
-                        id: 1,
-                        name: 'Logtalk Debugger',
-                        line: 0,
-                        column: 0
-                    }
-                ],
-                totalFrames: 1
+                stackFrames: stackFrames,
+                totalFrames: stackFrames.length
             }
         };
         this.sendMessage.fire(response);
     }
 
     /**
-     * Handle scopes request - return empty scopes
+     * Handle scopes request - return scope with predicate/non-terminal indicator when we have debug state
      */
     private handleScopes(request: DebugProtocol.Request): void {
+        const state = this.debugStateManager.state;
+
+        let scopes: DebugProtocol.Scope[] = [];
+
+        if (state && state.head) {
+            // Compute the predicate/non-terminal indicator from the head
+            const indicator = this.computeIndicatorFromHead(state.head, state.file, state.line);
+            scopes = [{
+                name: indicator,
+                variablesReference: LogtalkDebugSession.SCOPE_ARGUMENTS,
+                expensive: false
+            }];
+        }
+
         const response: DebugProtocol.ScopesResponse = {
             seq: this.sequence++,
             type: 'response',
@@ -361,16 +491,92 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
             command: request.command,
             success: true,
             body: {
-                scopes: []
+                scopes: scopes
             }
         };
         this.sendMessage.fire(response);
     }
 
     /**
-     * Handle variables request - return empty variables
+     * Compute the predicate or non-terminal indicator from a clause head
+     * For predicates: foo/3, for non-terminals: bar//2
+     */
+    private computeIndicatorFromHead(head: string, filePath: string, lineNumber: number): string {
+        try {
+            // Read the source file to determine if it's a predicate or non-terminal
+            if (fs.existsSync(filePath)) {
+                const content = fs.readFileSync(filePath, 'utf8');
+                const lines = content.split(/\r?\n/);
+                if (lineNumber >= 1 && lineNumber <= lines.length) {
+                    const lineText = lines[lineNumber - 1];
+                    // Check if this line contains a DCG rule (non-terminal)
+                    if (lineText.includes('-->')) {
+                        // It's a non-terminal - use // notation
+                        const name = this.extractPredicateName(head);
+                        const arity = this.countArguments(head);
+                        return `${name}//${arity}`;
+                    }
+                }
+            }
+        } catch (error) {
+            logger.debug(`Error determining indicator type: ${error}`);
+        }
+
+        // Default to predicate indicator
+        const name = this.extractPredicateName(head);
+        const arity = this.countArguments(head);
+        return `${name}/${arity}`;
+    }
+
+    /**
+     * Extract the predicate/non-terminal name from a head
+     */
+    private extractPredicateName(head: string): string {
+        const openParen = head.indexOf('(');
+        if (openParen === -1) {
+            return head.trim();
+        }
+        return head.substring(0, openParen).trim();
+    }
+
+    /**
+     * Count the number of arguments in a head
+     */
+    private countArguments(head: string): number {
+        const openParen = head.indexOf('(');
+        if (openParen === -1) {
+            return 0;
+        }
+
+        const closeParen = ArgumentUtils.findMatchingCloseParen(head, openParen);
+        if (closeParen === -1) {
+            return 0;
+        }
+
+        const argsText = head.substring(openParen + 1, closeParen);
+        if (argsText.trim() === '') {
+            return 0;
+        }
+
+        const args = ArgumentUtils.parseArguments(argsText);
+        return args.length;
+    }
+
+    /**
+     * Handle variables request - return clause argument bindings
+     *
+     * This extracts argument names from the source code clause head and matches
+     * them with the bound values from the .debug_info head.
      */
     private handleVariables(request: DebugProtocol.Request): void {
+        const args = request.arguments as DebugProtocol.VariablesArguments;
+        let variables: DebugProtocol.Variable[] = [];
+
+        // Only process if this is the Arguments scope
+        if (args.variablesReference === LogtalkDebugSession.SCOPE_ARGUMENTS) {
+            variables = this.extractClauseVariables();
+        }
+
         const response: DebugProtocol.VariablesResponse = {
             seq: this.sequence++,
             type: 'response',
@@ -378,10 +584,151 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
             command: request.command,
             success: true,
             body: {
-                variables: []
+                variables: variables
             }
         };
         this.sendMessage.fire(response);
+    }
+
+    /**
+     * Extract clause variables by comparing source clause head with debug info head
+     *
+     * The source clause head contains argument names (e.g., "foo(X, Y, Z)")
+     * The debug info head contains bound values (e.g., "foo(1, 2, [a,b,c])")
+     */
+    private extractClauseVariables(): DebugProtocol.Variable[] {
+        const state = this.debugStateManager.state;
+        if (!state) {
+            return [];
+        }
+
+        try {
+            // Read the source file to get the clause head with argument names
+            const sourceHeadArgs = this.extractArgumentNamesFromSource(state.file, state.line);
+
+            // Parse the bound values from the debug info head
+            const boundValues = this.extractArgumentValues(state.head);
+
+            if (!sourceHeadArgs || !boundValues || sourceHeadArgs.length !== boundValues.length) {
+                // Fallback: just show the debug head arguments without names
+                return boundValues?.map((value, index) => ({
+                    name: `arg${index + 1}`,
+                    value: value,
+                    variablesReference: 0
+                })) || [];
+            }
+
+            // Match argument names with bound values
+            return sourceHeadArgs.map((name, index) => ({
+                name: name,
+                value: boundValues[index],
+                variablesReference: 0
+            }));
+        } catch (error) {
+            logger.error(`Error extracting clause variables: ${error}`);
+            return [];
+        }
+    }
+
+    /**
+     * Extract argument names from the source file clause head at the given line
+     */
+    private extractArgumentNamesFromSource(filePath: string, lineNumber: number): string[] | null {
+        try {
+            if (!fs.existsSync(filePath)) {
+                return null;
+            }
+
+            const content = fs.readFileSync(filePath, 'utf8');
+            const lines = content.split(/\r?\n/);
+
+            if (lineNumber < 1 || lineNumber > lines.length) {
+                return null;
+            }
+
+            // Get the line (1-based index)
+            const lineText = lines[lineNumber - 1];
+
+            // Try to extract the clause head
+            // First check if it's a predicate clause
+            let head = SymbolUtils.extractCompletePredicateHead(lineText);
+
+            // If not a predicate, check if it's a non-terminal (DCG rule)
+            if (!head) {
+                head = SymbolUtils.extractCompleteNonTerminalHead(lineText);
+            }
+
+            if (!head) {
+                return null;
+            }
+
+            // Extract argument names from the head
+            return this.extractArgumentNames(head);
+        } catch (error) {
+            logger.debug(`Error reading source file for argument names: ${error}`);
+            return null;
+        }
+    }
+
+    /**
+     * Extract argument names from a clause head (e.g., "foo(X, Y, Z)" -> ["X", "Y", "Z"])
+     */
+    private extractArgumentNames(head: string): string[] {
+        const openParen = head.indexOf('(');
+        if (openParen === -1) {
+            return []; // No arguments (zero-arity predicate)
+        }
+
+        const closeParen = ArgumentUtils.findMatchingCloseParen(head, openParen);
+        if (closeParen === -1) {
+            return [];
+        }
+
+        const argsText = head.substring(openParen + 1, closeParen);
+        const args = ArgumentUtils.parseArguments(argsText);
+
+        // Extract the variable name from each argument
+        // For simple variables, this is just the variable itself
+        // For compound terms, we extract the outermost variable or use the whole term
+        return args.map(arg => this.extractVariableName(arg));
+    }
+
+    /**
+     * Extract the variable name from an argument
+     * If the argument is a simple variable, return it
+     * If it's a compound term, return a descriptive name
+     */
+    private extractVariableName(arg: string): string {
+        const trimmed = arg.trim();
+
+        // Check if it's a simple variable (starts with uppercase or underscore)
+        if (/^[A-Z_][A-Za-z0-9_]*$/.test(trimmed)) {
+            return trimmed;
+        }
+
+        // For compound terms or lists, try to find the main variable
+        // e.g., "Foo-Bar" might have variable names, "[H|T]" has H and T
+        // Just return the argument as-is for display
+        return trimmed;
+    }
+
+    /**
+     * Extract argument values from the debug info head
+     * (e.g., "foo(1, 2, [a,b,c])" -> ["1", "2", "[a,b,c]"])
+     */
+    private extractArgumentValues(head: string): string[] | null {
+        const openParen = head.indexOf('(');
+        if (openParen === -1) {
+            return []; // No arguments
+        }
+
+        const closeParen = ArgumentUtils.findMatchingCloseParen(head, openParen);
+        if (closeParen === -1) {
+            return null;
+        }
+
+        const argsText = head.substring(openParen + 1, closeParen);
+        return ArgumentUtils.parseArguments(argsText);
     }
 
     /**

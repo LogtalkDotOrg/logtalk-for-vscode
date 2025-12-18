@@ -57,7 +57,7 @@ import { DiagnosticsUtils } from "./utils/diagnostics";
 import { SvgViewerProvider } from "./features/svgViewer";
 import { FileRenameHandler } from "./utils/fileRenameHandler";
 import { StatusBarManager } from "./features/statusBar";
-import { LogtalkDebugSession, LogtalkDebugAdapterDescriptorFactory, LogtalkDebugConfigurationProvider } from "./features/debugAdapter";
+import { LogtalkDebugSession, LogtalkDebugAdapterDescriptorFactory, LogtalkDebugConfigurationProvider, DebugStateManager } from "./features/debugAdapter";
 
 const DEBUG = 1;
 
@@ -101,13 +101,26 @@ function createDebugFileWatcher(): void {
 
     watcher = workspace.createFileSystemWatcher(new RelativePattern(logtalkUser, "scratch/.debug_info"), false, false, true);
 
-    watcher.onDidCreate((uri) => {
+    const handleDebugInfo = async (uri: Uri) => {
+      // Parse the debug info file and update the debug state manager
+      if (fs.existsSync(uri.fsPath)) {
+        try {
+          const content = fs.readFileSync(uri.fsPath, 'utf8');
+          const debugState = DebugStateManager.parseDebugInfo(content);
+          if (debugState) {
+            DebugStateManager.getInstance().updateState(debugState);
+          }
+        } catch (err) {
+          getLogger().debug(`Error parsing debug info: ${err}`);
+        }
+      }
+      // Continue to open the file at the specified location
       Utils.openFileAt(uri);
-    });
+    };
+
+    watcher.onDidCreate(handleDebugInfo);
     // Windows requires the onDidChange event
-    watcher.onDidChange((uri) => {
-      Utils.openFileAt(uri);
-    });
+    watcher.onDidChange(handleDebugInfo);
   }
 }
 
