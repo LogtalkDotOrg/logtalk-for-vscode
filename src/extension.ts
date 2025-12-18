@@ -394,6 +394,8 @@ export async function activate(context: ExtensionContext) {
     commands.registerCommand('workbench.action.debug.start', async () => {
       commands.executeCommand('setContext', 'logtalk.debuggingEnabled', true);
       updateBreakpointStates(true);
+      // Open the Run and Debug sidebar
+      commands.executeCommand('workbench.view.debug');
       // Start a proper debug session using the Logtalk debug adapter
       // This enables the debug toolbar and Run menu items
       const workspaceFolder = workspace.workspaceFolders?.[0];
@@ -412,6 +414,8 @@ export async function activate(context: ExtensionContext) {
       updateBreakpointStates(false);
       DebugStateManager.getInstance().clearState();
       debug.stopDebugging();
+      // Close the Run and Debug sidebar
+      commands.executeCommand('workbench.action.closeSidebar');
     })
   );
 
