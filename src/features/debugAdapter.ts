@@ -527,7 +527,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
                         // It's a non-terminal - use // notation
                         const name = this.extractPredicateName(head);
                         const arity = this.countArguments(head);
-                        return `${name}//${arity}`;
+                        return `${name}//${arity - 2}`;
                     }
                 }
             }
@@ -625,7 +625,7 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
             if (!sourceHeadArgs || !boundValues || sourceHeadArgs.length !== boundValues.length) {
                 // Fallback: just show the debug head arguments without names
                 return boundValues?.map((value, index) => ({
-                    name: `arg${index + 1}`,
+                    name: `Arg${index + 1}`,
                     value: value,
                     variablesReference: 0
                 })) || [];
