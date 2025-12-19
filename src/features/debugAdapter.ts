@@ -286,13 +286,12 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      */
     private handleLaunch(request: DebugProtocol.Request): void {
         this.isDebugging = true;
-
+        // Open the Run and Debug sidebar
+        vscode.commands.executeCommand('workbench.view.debug');
         // Ensure the Logtalk terminal exists and start debugging
         LogtalkTerminal.createLogtalkTerm();
         LogtalkTerminal.sendString('logtalk_make(debug), vscode::debug.\r');
-
         this.sendResponse(request);
-
         // Focus the terminal after a short delay to override VS Code's default focus on debug console
         setTimeout(() => {
             LogtalkTerminal.focusTerminal();
@@ -304,10 +303,10 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      */
     private handleAttach(request: DebugProtocol.Request): void {
         this.isDebugging = true;
-
+        // Open the Run and Debug sidebar
+        vscode.commands.executeCommand('workbench.view.debug');
         // Just ensure the terminal exists, assume debugging is already active
         LogtalkTerminal.createLogtalkTerm();
-
         this.sendResponse(request);
     }
 
@@ -319,6 +318,8 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
         //LogtalkTerminal.sendString('vscode::nodebug.\r');
         this.sendResponse(request);
         this.sendTerminatedEvent();
+        // Close the Run and Debug sidebar
+        vscode.commands.executeCommand('workbench.action.closeSidebar');
     }
 
     /**
@@ -329,6 +330,8 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
         LogtalkTerminal.sendString('logtalk_make(normal), vscode::nodebug.\r');
         this.sendResponse(request);
         this.sendTerminatedEvent();
+        // Close the Run and Debug sidebar
+        vscode.commands.executeCommand('workbench.action.closeSidebar');
     }
 
     /**
