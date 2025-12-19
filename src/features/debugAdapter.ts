@@ -22,6 +22,7 @@ import LogtalkTerminal from './terminal';
 import { getLogger } from '../utils/logger';
 import { SymbolUtils } from '../utils/symbols';
 import { ArgumentUtils } from '../utils/argumentUtils';
+import { Utils } from '../utils/utils';
 
 const logger = getLogger();
 
@@ -96,15 +97,20 @@ export class DebugStateManager {
     public static parseDebugInfo(content: string): DebugState | null {
         const match = content.match(/File:(.+);Line:(\d+);Head:(.+)/);
         if (!match) {
+            logger.debug(`parseDebugInfo: no match for content: ${content}`);
             return null;
         }
 
         let fileName = match[1].trim();
-        // Handle Windows double-slash forms
+        logger.debug(`parseDebugInfo: raw fileName: ${fileName}`);
+
+        // Handle Windows backslashes - convert to forward slashes
         fileName = fileName.replace(/\\\\/g, '/').replace(/\\/g, '/');
-        if (fileName.startsWith('//') && process.platform === 'win32') {
-            fileName = fileName.substring(1);
-        }
+
+        // Handle Windows double-slash forms (e.g., //C/path -> C:/path)
+        fileName = Utils.normalizeDoubleSlashPath(fileName);
+
+        logger.debug(`parseDebugInfo: normalized fileName: ${fileName}, line: ${match[2]}, head: ${match[3]}`);
 
         return {
             file: fileName,
@@ -651,7 +657,9 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
      */
     private extractArgumentNamesFromSource(filePath: string, lineNumber: number): string[] | null {
         try {
+            logger.debug(`extractArgumentNamesFromSource: filePath=${filePath}, lineNumber=${lineNumber}`);
             if (!fs.existsSync(filePath)) {
+                logger.debug(`extractArgumentNamesFromSource: file does not exist: ${filePath}`);
                 return null;
             }
 
@@ -659,11 +667,13 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
             const lines = content.split(/\r?\n/);
 
             if (lineNumber < 1 || lineNumber > lines.length) {
+                logger.debug(`extractArgumentNamesFromSource: lineNumber ${lineNumber} out of range (1-${lines.length})`);
                 return null;
             }
 
             // Get the line (1-based index)
             const lineText = lines[lineNumber - 1];
+            logger.debug(`extractArgumentNamesFromSource: lineText=${lineText}`);
 
             // Try to extract the clause head
             // First check if it's a predicate clause
@@ -675,9 +685,11 @@ export class LogtalkDebugSession implements vscode.DebugAdapter {
             }
 
             if (!head) {
+                logger.debug(`extractArgumentNamesFromSource: could not extract head from line`);
                 return null;
             }
 
+            logger.debug(`extractArgumentNamesFromSource: extracted head=${head}`);
             // Extract argument names from the head
             return this.extractArgumentNames(head);
         } catch (error) {
