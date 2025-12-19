@@ -1,8 +1,8 @@
 # Logtalk for VSCode
 
-A VSCode extension that provides language support for Logtalk. Forked from the [original plugin](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
+A VSCode extension that provides language support for Logtalk. Forked from the [original extension](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Requires Logtalk 3.97.0 or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
+Requires **Logtalk 3.97.0** or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
@@ -46,7 +46,7 @@ This extension provides a comprehensive set of features for Logtalk development:
 - [File renaming and deletion propagation](#file-renaming-and-deletion-propagation)
 - [Virtual workspaces support](#virtual-workspaces-support)
 
-Most of the features rely on a Logtalk session running in the integrated terminal with VSCode support loaded. This session is automatically created when the extension is activated (by opening a Logtalk source file). This Logtalk session is functionally equivalent to a **portable** Language Server Protocol (LSP) server. You can also use this section for your own Logtalk queries. Alternatively, you can create a new terminal running a shell and call the backend integration script that you want to use.
+Most of the features rely on a Logtalk session running in the integrated terminal with VSCode support loaded. This session is automatically created when the extension is activated (by opening a Logtalk source file). This Logtalk session is functionally equivalent to a **portable** Language Server Protocol (LSP) server. You can also use this section for your own Logtalk queries. Alternatively, you can create a new terminal running a shell and call the [backend integration script](https://github.com/LogtalkDotOrg/logtalk3/blob/master/QUICK_START.md) that you want to use.
 
 ### Syntax highlighting
 
@@ -154,21 +154,23 @@ You can verify the changes before saving them using the "File: Compare Active Fi
 - Errors/warnings when compiling source files are added to the "PROBLEMS" pane.
 - Errors/warnings when compiling source files can also be navigated to from the Logtalk terminal via Ctrl+click (Windows, Linux, ...) or Cmd+click (macOS).
 
-Quick fixes are provided for some errors and warnings. When applying quick fixes, notably those that delete and insert code, the _positions_ of the warnings and errors later in the file may not be updated, thus preventing further quick fixes to be applied or applied correctly. In this case, save your changes and re-run the linter by using the "Make - Reload" command (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting).
+Quick fixes are provided for some errors and warnings. After applying quick fixes, you can verify the changes by saving the modified files and re-running the linter by using the "Make - Reload" command (note that this command can be called automatically when saving a file using the `logtalk.make.onSave` setting).
 
 ### Commands
 
-Most commands, notably those that run the developer tools, **require** the code to be loaded, typically by opening the project loader file and selecting the "Load File" context menu item. Alternatively, you can open one of the project source files and use the "Load Directory" context menu item. In the command palette, type "Logtalk" to list all the available commands.
+Most commands **require** the code to be loaded, typically by opening the project loader file and using the "Load File" editor context menu item, by using the "Load Project" command from the command palette, or by using the "Load Project" command from the explorer context menu by right-clicking in a source file. Alternatively, when all the project source files are in the same directory, you can open one of the source files and use the "Load Directory" editor context menu item.
+
+To list all available commands, type "Logtalk" in the command palette input box.
 
 #### Help command
 
-The "Help: Logtalk Handbook" command opens the Logtalk Handbook (from the currently installed version) using [Live Preview](https://marketplace.visualstudio.com/items?itemName=ms-vscode.live-server) if installed, or the default browser otherwise. The Handbook includes a link to the APIs documentation.
+The "Help: Logtalk Handbook" command opens the Logtalk Handbook (from the currently installed version) using the [Live Preview](https://marketplace.visualstudio.com/items?itemName=ms-vscode.live-server) extension if installed, or the operating-system default browser otherwise. The Handbook includes a link to the APIs documentation.
 
 Due to Live Preview limitations, the command adds the Logtalk documentation folder to the workspace if it's not already there (it can be removed at any time without any consequence to the Logtalk installation using the explorer context menu "Remove Folder from Workspace" command).
 
 #### Project commands
 
-Project (workspace) commands can be triggered from the command palette by typing 'Logtalk' in the input box to pop up the list of all commands of this extension. In the case of [multi-root workspaces](https://code.visualstudio.com/docs/editor/workspaces), when triggered from the command palette these commands use the first workspace root folder; when triggered from the explorer/context menu they use the workspace folder containing the selected file.
+Project (workspace) commands can be triggered from the command palette by typing "Logtalk" in the input box to pop up the list of all commands of this extension. In the case of [multi-root workspaces](https://code.visualstudio.com/docs/editor/workspaces), when triggered from the command palette, these commands use the first workspace root folder; when triggered from the explorer/context menu, they use the workspace folder containing the selected file.
 
 |                         Command | Description                                                        |
 | ------------------------------: | :----------------------------------------------------------------- |
