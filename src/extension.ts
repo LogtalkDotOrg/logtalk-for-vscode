@@ -309,6 +309,24 @@ export async function activate(context: ExtensionContext) {
 
           if (!docsInWorkspace) {
             // Add docs folder to workspace so Live Preview serves from the correct root
+            // We need to wait for the workspace folder change event to ensure VS Code has
+            // fully processed the addition before launching Live Preview
+            const folderAddedPromise = new Promise<void>((resolve) => {
+              const disposable = workspace.onDidChangeWorkspaceFolders((event) => {
+                // Check if our docs folder was added
+                const wasAdded = event.added.some(folder => folder.uri.fsPath === docsUri.fsPath);
+                if (wasAdded) {
+                  disposable.dispose();
+                  resolve();
+                }
+              });
+              // Set a timeout in case the event never fires
+              setTimeout(() => {
+                disposable.dispose();
+                resolve();
+              }, 5000);
+            });
+
             const added = workspace.updateWorkspaceFolders(
               workspaceFolders.length,
               0,
@@ -316,8 +334,9 @@ export async function activate(context: ExtensionContext) {
             );
             if (added) {
               logger.info(`Added Logtalk Documentation folder to workspace: ${docsPath}`);
-              // Wait for the workspace update to take effect
-              await new Promise(resolve => setTimeout(resolve, 500));
+              // Wait for the workspace folder change event to confirm the addition
+              await folderAddedPromise;
+              logger.debug('Workspace folder addition confirmed');
             }
           }
 
