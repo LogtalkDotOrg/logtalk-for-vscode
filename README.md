@@ -317,7 +317,7 @@ Entities (objects, protocols, and categories) are interpreted as types. Right-cl
 
 Right-click on a predicate (or non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Go to References" or "Find All References" context menu items. References are interpreted here as messages, super calls, and predicate calls. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls, predicate declarations, and predicate definitions are not interpreted as references.
 
-Right-click on an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by right-clicking in an entity name and selecting the "Go to Type Definition" context menu item.
+Right-click on an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, `dynamic/1` directives, `multifile/1` directives, multifile predicate clauses, and multifile grammar rules. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by right-clicking in an entity name and selecting the "Go to Type Definition" context menu item.
 
 #### Go to Implementations
 
@@ -448,7 +448,7 @@ The "Run > Run Without Debugging" command sends the `nodebug/0` message to the `
 
 The "Run > Restart Debugging" command recompiles modified files, recompiles loaded code in debug mode, sends the `debug/0` message to the `debugger` tool, and re-adds the defined breakpoints and log points (that were set using the VSCode GUI). Note that breakpoints and log points may need to be redefined due the changes in modified files.
 
-To trace execution you must either use the debug toolbar buttons or send the `trace/0` and `notrace/0` messages to the `debugger` tool from the integrated terminal. See the documentation of the `debugger` tool for details.
+To trace execution (instead of using breakpoints) you must either use the debug toolbar buttons or send the `trace/0` and `notrace/0` messages to the `debugger` tool from the integrated terminal. See the documentation of the `debugger` tool for details.
 
 When debugging in the integrated terminal using the `debugger` tool, the current clause (at leashed unification ports) is shown in the active editor window. The VSCode debug toolbar buttons are supported and extended with additional buttons for common commands in four groups: port commands in the first group, term printing port commands in the second group, top-level solutions backtracking and commit commands in the third group, and `debugger` tool tracing messages in the fourth group. For other port commands and `debugger` tool messages, you must type the command or message in the integrated terminal.
 
