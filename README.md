@@ -197,7 +197,7 @@ The output of the "Run Project Testers" and "Run Project Doclets" commands is di
 
 The output of the "Generate Project Documentation" and "Generate Project Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Project Doclets" command.
 
-The "Open Logtalk" command starts a Logtalk session in the integrated terminal and loads the VSCode support. This command is meant to be used when the Logtalk session created when the extension is activated (by opening a Logtalk source file) is accidentally closed (e.g., by a crash of the backend Prolog process). If you need a separate Logtalk session, create a new terminal running a shell and call the backend integration script that you want to use.
+The "Open Logtalk" command starts a Logtalk session in the integrated terminal when none exists and loads the VSCode support. When the Logtalk session is already running, this command just opens the terminal view. This command is meant to be used when the Logtalk session created when the extension is activated (by opening a Logtalk source file) is accidentally closed (e.g., by a crash of the backend Prolog process). If you need a separate Logtalk session, create a new terminal running a shell and call the backend integration script that you want to use.
 
 #### Directory and source file commands
 
@@ -238,7 +238,7 @@ These commands are available from the "Jupyter" sub-menu and allow opening Logta
 |             Open as a Paired Notebook | Opens the selected source file or Markdown file as a paired notebook  |
 |  Sync paired Notebook Representations | Sync the paired notebook and its text representation                  |
 
-These commands are only available when [Jupytext](https://jupytext.readthedocs.io/en/latest/) 1.16.7 or a later version is installed. See also the "logtalk.jupytext.path" setting below. When selecting a Markdown file, the extension must be activated first by opening a Logtalk source file.
+These commands are only available when [Jupytext](https://jupytext.readthedocs.io/en/latest/) 1.16.7 or a later version is installed. See also the `logtalk.jupytext.path` setting below. When selecting a Markdown file, the extension must be activated first by opening a Logtalk source file.
 
 Paired notebooks allow synchronizing changes between the notebook and its text representation. The text representation is version control and code review friendly. The notebook representation is best for interactive development and testing. See the Jupytext documentation for more details.
 
@@ -315,7 +315,7 @@ Entities (objects, protocols, and categories) are interpreted as types. Right-cl
 
 #### Go to References
 
-Right-click on a predicate (or non-terminal) name in a scope directive, `alias/2` directive, `uses/2` directive, `synchronized/1` directive, fact, rule head, or goal and select the "Go to References" or "Find All References" context menu items. References are interpreted here as messages, super calls, and predicate calls. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls, predicate declarations, and predicate definitions are not interpreted as references.
+Right-click on a predicate (or non-terminal) name in a predicate directive, fact, rule head, or goal and select the "Go to References" or "Find All References" context menu items. References are interpreted here as messages, super calls, and predicate calls. For dynamic predicates, references include asserting or retracting clauses for them. Note that recursive calls, predicate declarations, and predicate definitions are not interpreted as references.
 
 Right-click on an entity name in an entity opening directive to find references to it in other entity opening directives (i.e., entities in an implementing, importing, complementing, extending, instantiating, or specializing relation with the selected entity), `alias/2` directives, `uses/1-2` directives, and multifile predicate clauses. In the case of an object, this also finds explicit messages to the object. Note that you can go to an entity opening directive by right-clicking in an entity name and selecting the "Go to Type Definition" context menu item.
 
@@ -458,7 +458,7 @@ Function breakpoints are interpreted as predicate (or non-terminal) spy points b
 
 Changes to spy points via user-typed queries in the integrated terminal are not reflected in the VSCode display of current breakpoints. A particular case is when, at a leashed port, you enter the `n` command to turn off debugging: a quick way to restore all the breakpoints still defined using the VSCode GUI is to select the "Run" menu "Disable All Breakpoints" followed by "Enable All Breakpoints".
 
-The "Variables" and "Call Stack" panes in the "Run and Debug" sidebar are populated with data from unification ports. This is an incomplete implementation that is expected to be improved in the future. The "Watch" pane is currently not supported.
+Currently the "Variables" and "Call Stack" panes in the "Run and Debug" sidebar are populated only with data from unification ports when traced. This is an preliminary implementation that is expected to be improved in the future. The "Watch" pane is currently not supported. Clicking in an item in the "Call Stack" pane opens the corresponding source file at the clause head.
 
 VSCode usability issues that affect debugging support:
 
@@ -471,13 +471,14 @@ VSCode usability issues that affect debugging support:
 
 ![testing](images/testing.png)
 
-Support for the VSCode Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Run Project Testers", "Run Tests", or "Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. You can also navigate to a test by clicking its name. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run. Note that the "Testing" pane is not populated if you load the `tester.lgt` (or `tester.logtalk`) file using the "Load File" context menu item instead of using the "Run Project Testers", "Run Tests", or "Run Tests with Coverage" commands.
+Support for the VSCode Testing API is provided. This allows browsing and running tests from the "Testing" pane. After running the "Run Project Testers", "Run Tests", or "Run Tests with Coverage" commands at least once, the "Testing" pane shows all the test results. Alternatively, you can also click in the "Run Tests" or "Run Tests with Coverage" buttons at the top of the "Testing" pane. You can then run individual tests or groups of tests from the "Testing" pane by clicking on the play button next to a test, a test object, or a test file. In the "Testing" and "Tests Results" panes, you can also use the "Rerun Last Run" button to re-run the last test run. In the "Testing" pane, a warning triangle emoji (⚠️) is shown after a test name when the test is declared as flaky.
+ Note that the "Testing" pane is not populated if you load the `tester.lgt` (or `tester.logtalk`) file using the "Load File" context menu item instead of using the "Run Project Testers", "Run Tests", or "Run Tests with Coverage" commands.
 
-The test item context menu provides additional commands for skipping and un-skipping tests. Skipped tests are prefixed with a minus sign (`-`) in the source file. Un-skipping a test removes the minus sign. These commands are only available for tests that don't have a condition option (i.e., tests that don't use the `test/3` predicate with a `condition/1` in the options argument).
+By default, a xUnit report is also generated when running the test commands. When the `logtalk.tests.createAllureReport` setting is enabled, an [Allure](https://allure.qatools.ru/) report is also generated. The generated report can be found in the `allure-report` directory in the workspace folder where the tests were run. Open its `index.html` file to view the report (using e.g. the [Live Preview](https://marketplace.visualstudio.com/items?itemName=ms-vscode.live-server) extension context menu command "Show Preview").
+
+You can navigate to a test by clicking its name or using the "Go to Test" context menu item. For directory, file, and object items, the "Go to Test" context menu item allows you to navigate to, respectively, the tests driver file, the tests file, and the object in the tests file. The test item context menu provides additional commands for skipping and un-skipping tests. Skipped tests are prefixed with a minus sign (`-`) in the source file. Un-skipping a test removes the minus sign. These commands are only available for tests that don't have a condition option (i.e., tests that don't use the `test/3` predicate with a `condition/1` in the options argument).
 
 When available, code coverage information is also shown in the covered source files. Note that coverage data is per predicate and per predicate clause (or per non-terminal and per non-terminal rule), not per goal. Clauses used by the tests will be marked using a green color overlay in the editor gutter while clauses not used by the tests will be marked using a red color overlay. Use the editor window "Toggle Inline Coverage" button to toggle the coverage overlay. In the "Testing" pane, the "Test Coverage" sub-pane shows both statement (clauses) and function (predicates) coverage numbers and percentages (note that VSCode doesn't support renaming these terms). In the "Explorer" pane, the colored bar to the right of a file name indicates the combined percentage of covered clauses and predicates. Hovering over the bar shows the separate coverage details.
-
-In the "Testing" pane, a warning triangle emoji (⚠️) is shown after the test name when the test is declared as flaky. You can navigate to the test by clicking its name or using the "Go to Test" context menu item. For directory, file, and object items, the "Go to Test" context menu item allows you to navigate to, respectively, the tests driver file, the tests file, and the object in the tests file.
 
 Note that collecting code coverage data depends solely on the tests driver file. The option between running tests with or without coverage is only used to decide if any collected coverage data should be displayed.
 
@@ -487,7 +488,7 @@ Note that collecting code coverage data depends solely on the tests driver file.
 
 Support for profiling is provided. This allows browsing and analyzing profiling data from the "Profiling" sub-menu in the explorer and editor context menus. After running the "Toggle Profiling" command, loaded code is recompiled in debug mode and profiling is enabled. The "Show Profiling Data" command can be used to show the profiling data in a webview. The webview allows navigating to the source file location of entities, predicates, and clauses. It also allows saving the profiling data as a CSV file. Collected profiling data can be reset using the "Reset Profiling Data" command. The profiling commands are also available from the command palette. See the documentation of the `ports_profiler` tool for details and hints on how to interpret profiling data.
 
-When editing a Logtalk file, the status bar shows a `$(pulse) Profiling: on/off` item. Clicking on this item toggles profiling. This status bar item is hidden when editing a non-Logtalk file.
+When editing a Logtalk file, the status bar shows a "Profiling: on/off" item. Clicking on this item toggles profiling. This status bar item is hidden when editing a non-Logtalk file.
 
 ### Hover contents
 
@@ -563,7 +564,7 @@ Virtual workspaces support is limited as the extension is fundamentally designed
 
 The user can configure settings via the VSCode menu `Settings`. Entering `Logtalk` in the input box will show the Logtalk settings. Follows a description of all the settings in this extension with their default values (if any). On Windows, PowerShell 7.3.x or later must also be installed.
 
-Settings are divided between _required_ and _optional_ settings. If you're migrating from an old version of this extension, you may need to delete the old settings (from the `settings.json` file) if you want to use only the defaults provided by the required settings.
+Settings are divided between _required_, _optional_, and _defaults_ settings. If you're migrating from an old version of this extension, you may need to delete any old settings (found in the `settings.json` file) if you want to use only the defaults provided by the required settings.
 
 ### Required settings
 
@@ -728,7 +729,7 @@ Automatically call the "Make - Reload" command when saving a Logtalk source file
 
 Enables displaying inline test results (including code coverage when collected) using code lens in both the test object and the tested entity source files opened in the editor. It also enables displaying inline entity cyclomatic complexity after computing code metrics. The tests and metrics data is persistent and can be updated by re-running tests and re-computing metrics (e.g., by simply clicking in the inline data). This setting can be toggled using the "Toggle CodeLens" command.
 
-When editing a Logtalk file, the status bar shows a `$(info) CodeLens: on/off` item. Clicking on this item toggles CodeLens. This status bar item is hidden when editing a non-Logtalk file.
+When editing a Logtalk file, the status bar shows a "CodeLens: on/off" item. Clicking on this item toggles CodeLens. This status bar item is hidden when editing a non-Logtalk file.
 
 #### Diagrams file format
 
@@ -759,8 +760,6 @@ Controls the verbosity of logging output for the Logtalk extension. Available le
     "logtalk.tests.createAllureReport": false
 
 When set to `true`, the extension will automatically generate an Allure report after running tests using the "Run Tests", "Run Tests with Coverage", or "Run Project Testers" commands. The report is generated using the `logtalk_allure_report.sh` script (on macOS and Linux) or the `logtalk_allure_report.ps1` script (on Windows). These scripts require Allure to be installed and available in the system path. The default value is `false`.
-
-The generated report can be found in the `allure-report` directory in the workspace folder where the tests were run. Open its `index.html` file to view the report (using e.g. the [Live Preview](https://marketplace.visualstudio.com/items?itemName=ms-vscode.live-server) extension context menu command "Show Preview").
 
 ## Known issues
 

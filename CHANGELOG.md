@@ -25,6 +25,7 @@
 * Refresh active editor tests and metrics CodeLens when results files change without waiting for user interaction
 * Improve performance of the tests and metrics CodeLens providers
 * Improve predicate call parsing performance when using the code navigation features
+* Improve extension documentation
 * Fix showing current source file positions when debugging sometimes opening the file in a different VSCode instance
 * Fix error when calling the "Load File" and "Load Directory" commands from the command palette when no file is open or selected
 * Fix potential race condition when loading a project on activation
