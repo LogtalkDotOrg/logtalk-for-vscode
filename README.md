@@ -8,7 +8,7 @@ Requires **Logtalk 3.97.0** or later and a supported [Prolog backend](https://lo
 
 ---
 
-[Installation](#installation) | [Features](#features) | [Configuration](#configuration) | [Known issues](#known-issues) | [Development](#development) | [Acknowledgements](#acknowledgements) | [Licence](#license)
+[Installation](#installation) | [Features](#features) | [Configuration](#configuration) | [Known issues](#known-issues) | [Development](#development) | [Acknowledgements](#acknowledgements) | [License](#license)
 
 ---
 
@@ -554,7 +554,7 @@ The chat participant automatically detects your Logtalk version from `$LOGTALKHO
 
 Renaming and deletion of Logtalk source files is propagated to `loader.lgt`, `loader.logtalk`, `tester.lgt`, and `tester.logtalk` files in the same directory. The propagation is done using a preview dialog to allow the user to review the changes before applying them.
 
-Note that if the user selects "Cancel" in the preview dialog, the file will still be renamed or deleted but the propagation changes will not be applied. This is due to a limitation in the VS Code API. But the uer can always focus on the "Explorer" pane and undo the rename or deletion operation.
+Note that if the user selects "Cancel" in the preview dialog, the file will still be renamed or deleted but the propagation changes will not be applied. This is due to a limitation in the VS Code API. But the user can always focus on the "Explorer" pane and undo the rename or deletion operation.
 
 ### Virtual workspaces support
 
