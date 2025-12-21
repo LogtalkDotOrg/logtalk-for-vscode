@@ -1405,6 +1405,16 @@
     "prefix":"logtalk_make",
     "scope":"source.logtalk"
   },
+  "predicates:logtalk_make_target_action/1": {
+    "body":"logtalk_make_target_action(${1:Target})$0",
+    "description": [
+        "Multifile and dynamic hook predicate that allows defining user actions for the logtalk_make/1 targets.\n",
+        "Template and modes",
+        "logtalk_make_target_action(+atom)"
+    ],
+    "prefix":"logtalk_make_target_action",
+    "scope":"source.logtalk"
+  },
   "predicates:object_property/2": {
     "body":"object_property(${1:Object}, ${2:Property})$0",
     "description": [
