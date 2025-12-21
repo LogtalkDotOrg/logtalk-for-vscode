@@ -261,7 +261,7 @@ These commands are available from the "Make" sub-menu. They can be triggered fro
 
 These commands are available from the "Profiling" sub-menu. They can be triggered from the explorer and editor context menus via right-click in the editor area or from the command palette.
 
-|          Command | Description                                      |
+|               Command | Description                                 |
 | --------------------: | :------------------------------------------ |
 |      Toggle Profiling | Toggles profiling on/off                    |
 |   Show Profiling Data | Show profiling data in a webview            |
