@@ -536,6 +536,66 @@ export class LogtalkMakeCompletionProvider implements CompletionItemProvider {
 }
 
 /**
+ * CompletionItemProvider for logtalk_make_target_action/1 goals
+ * Provides target completions when typing "logtalk_make_target_action("
+ */
+export class LogtalkMakeTargetActionCompletionProvider implements CompletionItemProvider {
+  private logger = getLogger();
+  private config: SingleArgCompletionConfig = {
+    predicateName: 'logtalk_make_target_action',
+    createCompletionItems: (partialText, closingParenHandling) => this.createTargetCompletionItems(partialText, closingParenHandling)
+  };
+
+  public provideCompletionItems(
+    document: TextDocument,
+    position: Position,
+    _token: CancellationToken,
+    context: CompletionContext
+  ): ProviderResult<CompletionItem[] | CompletionList> {
+    if (context.triggerCharacter === '(') {
+      return handleSingleArgOpenParen(document, position, this.config, this.logger);
+    }
+
+    if (context.triggerKind === CompletionTriggerKind.TriggerCharacter) {
+      return null;
+    }
+
+    return handleSingleArgTypingInside(document, position, this.config, this.logger);
+  }
+
+  private createTargetCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
+    const filteredTargets = partialText
+      ? LOGTALK_MAKE_TARGETS.filter(t => t.name.startsWith(partialText.toLowerCase()))
+      : LOGTALK_MAKE_TARGETS;
+
+    return filteredTargets.map((target, index) => {
+      const item = new CompletionItem(target.name, CompletionItemKind.EnumMember);
+      item.detail = target.description;
+      const documentation = new MarkdownString();
+      documentation.appendCodeblock(`logtalk_make_target_action(${target.name})`, 'logtalk');
+      item.documentation = documentation;
+
+      switch (closingParenHandling) {
+        case 'skip':
+          item.insertText = target.name;
+          item.command = { command: 'cursorRight', title: 'Move cursor past closing paren' };
+          break;
+        case 'add':
+          item.insertText = `${target.name})`;
+          break;
+        case 'none':
+        default:
+          item.insertText = target.name;
+          break;
+      }
+
+      item.sortText = String(index).padStart(3, '0');
+      return item;
+    });
+  }
+}
+
+/**
  * Possible message kinds for print_message/3 and related predicates
  */
 const PRINT_MESSAGE_KINDS = [
