@@ -387,7 +387,7 @@ export default class LogtalkTerminal {
         }
         if (process.platform === 'win32') {
           executable = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
-          args = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/" + script + ".ps1")]
+          args = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/" + script + ".ps1")].concat(args);
         } else {
           executable = path.join(logtalkHome, path.join("integration", script + ".sh"));
           executable = path.resolve(executable).split(path.sep).join("/");
