@@ -2,6 +2,7 @@
 
 ## [0.81.0]
 
+* Add support for the GNU Prolog native code backend
 * Fix the "logtalk.executable.arguments" setting being ignored on Windows when the "logtalk.executable.path" setting is set to the empty string (its default value)
 
 ## [0.80.0]

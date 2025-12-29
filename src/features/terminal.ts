@@ -358,6 +358,9 @@ export default class LogtalkTerminal {
           case "gnu":
             script = "gplgt"
             break;
+          case "gnunc":
+            script = "gplgtnc"
+            break;
           case "ji":
             script = "jiplgt"
             break;
@@ -385,13 +388,15 @@ export default class LogtalkTerminal {
           default:
             vscode.window.showErrorMessage("Configuration error: unknown logtalk.backend setting value!");
         }
-        if (process.platform === 'win32') {
+        if (logtalkBackend === "gnunc") {
+          executable = script;
+        } else if (process.platform === 'win32') {
           executable = LogtalkTerminal.expandEnvironmentVariables("${env:ProgramFiles}/PowerShell/7/pwsh.exe");
           args = ["-file", LogtalkTerminal.expandEnvironmentVariables("${env:SystemRoot}/" + script + ".ps1")].concat(args);
         } else {
           executable = path.join(logtalkHome, path.join("integration", script + ".sh"));
           executable = path.resolve(executable).split(path.sep).join("/");
-         }
+        }
       }
 
       LogtalkTerminal._terminal = (<any>window).createTerminal({

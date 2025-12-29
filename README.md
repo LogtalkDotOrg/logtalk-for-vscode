@@ -614,6 +614,7 @@ Example using the dictionary format for multiple backends (assuming a POSIX syst
     "logtalk.executable.arguments": {
         "cx": [ "-q" ],
         "gnu": [ "--quiet" ],
+        "gnunc": [ "--quiet" ],
         "sicstus": [ "--noinfo" ],
         "swi": [ "-q" ],
         "trealla": [ "-q" ],

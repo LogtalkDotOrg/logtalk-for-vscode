@@ -110,6 +110,9 @@ export class Utils {
         case "gnu":
           Utils.script = "gplgt"
           break;
+        case "gnunc":
+          Utils.script = "gplgtnc"
+          break;
         case "ji":
           Utils.script = "jiplgt"
           break;
@@ -137,13 +140,15 @@ export class Utils {
         default:
           vscode.window.showErrorMessage("Configuration error: unknown logtalk.backend setting value!");
       }
-      if (process.platform === 'win32') {
+      if (Utils.backend === "gnunc") {
+          Utils.RUNTIMEPATH = Utils.script;
+      } else if (process.platform === 'win32') {
         Utils.RUNTIMEPATH = path.join(process.env.PROGRAMFILES, "/PowerShell/7/pwsh.exe");
         Utils.RUNTIMEARGS = ["-file", path.join(process.env.SystemRoot, Utils.script + ".ps1")].concat(Utils.RUNTIMEARGS);
       } else {
         Utils.RUNTIMEPATH = path.join(Utils.logtalkHome, path.join("integration", Utils.script + ".sh"));
         Utils.RUNTIMEPATH = path.resolve(Utils.RUNTIMEPATH).split(path.sep).join("/");
-       }
+      }
     }
 
     Utils.logger.debug(`Runtime configuration updated: RUNTIMEPATH=${Utils.RUNTIMEPATH}, RUNTIMEARGS=${JSON.stringify(Utils.RUNTIMEARGS)}`);
