@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.82.0]
+
+* Fix running tests using the editor context menu when the tester file is in a parent directory
+
 ## [0.81.0]
 
 * Add support for the GNU Prolog native code backend

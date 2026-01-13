@@ -341,10 +341,16 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           const stats = fs.statSync(uri.fsPath);
           const dir0 = stats.isDirectory() ? uri.fsPath : path.dirname(uri.fsPath);
           testDirectories.add(dir0);
-          const resultsFilePath = path.join(dir0, '.vscode_test_results');
+
+          // Find the tester directory (where .vscode_test_results will be created)
+          const testerFile = LogtalkTerminal.findTesterFile(dir0, uri);
+          const testerDir = testerFile ? path.dirname(testerFile) : dir0;
+          const resultsFilePath = path.join(testerDir, '.vscode_test_results');
           if (fs.existsSync(resultsFilePath)) {
             this.logger.debug(`Parsing results from: ${resultsFilePath}`);
             await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
+          } else {
+            this.logger.warn(`Results file not found: ${resultsFilePath}`);
           }
 
           this.runAllureReportIfEnabled(testDirectories);
@@ -367,8 +373,10 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               this.logger.info(`Running all tests in workspace folder: ${workspacePath}`);
               await LogtalkTerminal.runAllTests(workspaceFolder.uri, this.linter, this.testsReporter);
 
-              // Parse results
-              const resultsFilePath = path.join(workspacePath, '.vscode_test_results');
+              // Parse results - look in tester directory
+              const testerFile = LogtalkTerminal.findTesterFile(workspacePath, workspaceFolder.uri);
+              const testerDir = testerFile ? path.dirname(testerFile) : workspacePath;
+              const resultsFilePath = path.join(testerDir, '.vscode_test_results');
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
                 await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
@@ -398,8 +406,10 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               this.logger.info(`Running all tests in directory: ${dirPath}`);
               await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter);
 
-              // Parse results
-              const dirResultsFilePath = path.join(dirPath, '.vscode_test_results');
+              // Parse results - look in tester directory
+              const testerFile = LogtalkTerminal.findTesterFile(dirPath, metadata.directoryUri!);
+              const testerDir = testerFile ? path.dirname(testerFile) : dirPath;
+              const dirResultsFilePath = path.join(testerDir, '.vscode_test_results');
               if (fs.existsSync(dirResultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
                 await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage);
@@ -417,8 +427,10 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               this.logger.info(`Running all tests in workspace root directory: ${dirPath}`);
               await LogtalkTerminal.runAllTests(Uri.file(dirPath), this.linter, this.testsReporter);
 
-              // Parse results
-              const dirResultsFilePath = path.join(dirPath, '.vscode_test_results');
+              // Parse results - look in tester directory
+              const testerFile = LogtalkTerminal.findTesterFile(dirPath, Uri.file(dirPath));
+              const testerDir = testerFile ? path.dirname(testerFile) : dirPath;
+              const dirResultsFilePath = path.join(testerDir, '.vscode_test_results');
               if (fs.existsSync(dirResultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
                 await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage);
@@ -454,7 +466,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         try {
           const dir0 = path.dirname(metadata.fileUri.fsPath);
           testDirectories.add(dir0);
-          const resultsFilePath = path.join(dir0, '.vscode_test_results');
+
+          // Find the tester directory for this file
+          const testerFile = LogtalkTerminal.findTesterFile(dir0, metadata.fileUri);
+          const testerDir = testerFile ? path.dirname(testerFile) : dir0;
+          const resultsFilePath = path.join(testerDir, '.vscode_test_results');
 
           switch (metadata.type) {
             case 'directory':
@@ -463,8 +479,10 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               testDirectories.add(metadata.directoryUri!.fsPath);
               await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter);
 
-              // Parse results
-              const dirResultsFilePath = path.join(metadata.directoryUri!.fsPath, '.vscode_test_results');
+              // Parse results - look in tester directory
+              const dirTesterFile = LogtalkTerminal.findTesterFile(metadata.directoryUri!.fsPath, metadata.directoryUri!);
+              const dirTesterDir = dirTesterFile ? path.dirname(dirTesterFile) : metadata.directoryUri!.fsPath;
+              const dirResultsFilePath = path.join(dirTesterDir, '.vscode_test_results');
               this.logger.debug(`Looking for results file: ${dirResultsFilePath}`);
               if (fs.existsSync(dirResultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
@@ -1900,6 +1918,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     testRun.enqueued(testItem);
     testRun.end();
   }
+
+
 
   /**
    * Check if a test has a condition option that prevents skipping.

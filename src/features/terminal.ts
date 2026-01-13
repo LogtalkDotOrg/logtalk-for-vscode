@@ -900,9 +900,16 @@ export default class LogtalkTerminal {
       await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     }
 
-    const tester0 = path.join(dir0, "tester");
-    const dir = Utils.normalizeFilePath(dir0);
-    const tester = Utils.normalizeFilePath(tester0);
+    // Find the tester file in the directory or parent directories
+    const testerPath = LogtalkTerminal.findTesterFile(dir0, uri);
+    if (!testerPath) {
+      window.showWarningMessage("Tester file not found.");
+      return;
+    }
+
+    const testerDir0 = path.dirname(testerPath);
+    const dir = Utils.normalizeFilePath(testerDir0);
+    const tester = Utils.normalizeFilePath(testerPath.replace(/\.(lgt|logtalk)$/, ''));
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
@@ -916,11 +923,6 @@ export default class LogtalkTerminal {
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
-    // Check that the tester file exists
-    if (!fs.existsSync(tester + ".lgt") && !fs.existsSync(tester + ".logtalk")) {
-      window.showWarningMessage("Tester file not found.");
-      return;
-    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     // Load xUnit report support if Allure report generation is enabled
@@ -929,7 +931,7 @@ export default class LogtalkTerminal {
     }
     LogtalkTerminal.sendString(`vscode::tests('${dir}','${tester}').\r`, true);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir0, ".vscode_loading_done");
+    const marker = path.join(testerDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
@@ -969,7 +971,16 @@ export default class LogtalkTerminal {
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
-    const dir = Utils.normalizeFilePath(dir0);
+
+    // Find the tester file in the directory or parent directories
+    const testerPath = LogtalkTerminal.findTesterFile(dir0, uri);
+    if (!testerPath) {
+      window.showWarningMessage("Tester file not found.");
+      return;
+    }
+
+    const testerDir0 = path.dirname(testerPath);
+    const dir = Utils.normalizeFilePath(testerDir0);
     const file = Utils.normalizeFilePath(uri.fsPath);
     let textDocument = null;
     let logtalkUser: string = '';
@@ -989,7 +1000,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::tests_file('${dir}','${file}').\r`, true);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir0, ".vscode_loading_done");
+    const marker = path.join(testerDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
@@ -1028,7 +1039,16 @@ export default class LogtalkTerminal {
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
-    const dir = Utils.normalizeFilePath(dir0);
+
+    // Find the tester file in the directory or parent directories
+    const testerPath = LogtalkTerminal.findTesterFile(dir0, uri);
+    if (!testerPath) {
+      window.showWarningMessage("Tester file not found.");
+      return;
+    }
+
+    const testerDir0 = path.dirname(testerPath);
+    const dir = Utils.normalizeFilePath(testerDir0);
     const file = Utils.normalizeFilePath(uri.fsPath);
     let textDocument = null;
     let logtalkUser: string = '';
@@ -1048,7 +1068,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::tests_object('${dir}','${object}').\r`, true);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir0, ".vscode_loading_done");
+    const marker = path.join(testerDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
@@ -1088,9 +1108,17 @@ export default class LogtalkTerminal {
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
-    const tester0 = path.join(dir0, "tester");
-    const dir = Utils.normalizeFilePath(dir0);
-    const tester = Utils.normalizeFilePath(tester0);
+
+    // Find the tester file in the directory or parent directories
+    const testerPath = LogtalkTerminal.findTesterFile(dir0, uri);
+    if (!testerPath) {
+      window.showWarningMessage("Tester file not found.");
+      return;
+    }
+
+    const testerDir0 = path.dirname(testerPath);
+    const dir = Utils.normalizeFilePath(testerDir0);
+    const tester = Utils.normalizeFilePath(testerPath.replace(/\.(lgt|logtalk)$/, ''));
     let textDocument = null;
     let logtalkHome: string = '';
     let logtalkUser: string = '';
@@ -1107,16 +1135,11 @@ export default class LogtalkTerminal {
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
     await fsp.rm(`${compilerMessagesFile}`, { force: true });
-    // Check that the tester file exists
-    if (!fs.existsSync(tester + ".lgt") && !fs.existsSync(tester + ".logtalk")) {
-      window.showWarningMessage("Tester file not found.");
-      return;
-    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::test('${dir}',${object}, ${test}).\r`, true);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir0, ".vscode_loading_done");
+    const marker = path.join(testerDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await fsp.rm(marker, { force: true });
     if(fs.existsSync(`${compilerMessagesFile}`)) {
@@ -2236,6 +2259,55 @@ export default class LogtalkTerminal {
     }
     // Last resort: return first workspace folder
     return LogtalkTerminal.getFirstWorkspaceFolder();
+  }
+
+  /**
+   * Finds the tester file (tester.lgt or tester.logtalk) by searching in the given directory
+   * and all parent directories up to the workspace root.
+   * @param startDir The directory to start searching from
+   * @param uri The URI to determine the workspace root
+   * @returns The full path to the tester file if found, or undefined if not found
+   */
+  public static findTesterFile(startDir: string, uri: Uri): string | undefined {
+    const workspaceRoot = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!workspaceRoot) {
+      return undefined;
+    }
+
+    let currentDir = path.resolve(startDir);
+    const normalizedWorkspaceRoot = path.resolve(workspaceRoot);
+
+    // Search from the current directory up to the workspace root
+    while (true) {
+      // Check for tester.lgt
+      const testerLgt = path.join(currentDir, "tester.lgt");
+      if (fs.existsSync(testerLgt)) {
+        return testerLgt;
+      }
+
+      // Check for tester.logtalk
+      const testerLogtalk = path.join(currentDir, "tester.logtalk");
+      if (fs.existsSync(testerLogtalk)) {
+        return testerLogtalk;
+      }
+
+      // Stop if we've reached the workspace root
+      if (currentDir === normalizedWorkspaceRoot) {
+        break;
+      }
+
+      // Move to parent directory
+      const parentDir = path.dirname(currentDir);
+
+      // Stop if we can't go up anymore (reached filesystem root)
+      if (parentDir === currentDir) {
+        break;
+      }
+
+      currentDir = parentDir;
+    }
+
+    return undefined;
   }
 
   private static findWorkspaceFolderByPathPrefix(uri: Uri): string | undefined {
