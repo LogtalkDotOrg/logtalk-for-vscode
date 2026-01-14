@@ -17,7 +17,6 @@ interface ISnippet {
   };
 }
 import * as fs from "fs";
-import * as fsp from "fs/promises";
 import * as jsesc from "jsesc";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -704,13 +703,11 @@ export class Utils {
   }
 
   public static async openFileAt(uri: Uri) {
-    if (!fs.existsSync(uri.fsPath)) {
-      return;
-    }
     try {
-      const out = fs.readFileSync(uri.fsPath, "utf8").toString();
+      const content = await workspace.fs.readFile(uri);
+      const out = content.toString();
       // remove the temp file as before
-      await fsp.rm(uri.fsPath, { force: true });
+      await workspace.fs.delete(uri, { useTrash: false });
       const match = out.match(/File:(.+);Line:(\d+)/);
       if (!match) {
         return;
@@ -1165,7 +1162,8 @@ export class Utils {
       const files = await workspace.findFiles(pattern);
       for (const file of files) {
         try {
-          await fsp.rm(file.fsPath, { force: true });
+        // Use VSCode's file system API instead of Node.js fs to ensure VSCode's file explorer is updated
+          await workspace.fs.delete(file, { recursive: false, useTrash: false });
           this.logger.debug(`Deleted old temporary file: ${file.fsPath}`);
         } catch (error) {
           this.logger.error(`Error deleting old temporary file ${file.fsPath}:`, error);

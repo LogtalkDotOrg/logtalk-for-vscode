@@ -14,8 +14,6 @@ import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
-import * as fs from "fs";
-import * as fsp from "fs/promises";
 
 export class LogtalkDeclarationProvider implements DeclarationProvider {
   private logger = getLogger();
@@ -74,16 +72,17 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
     }
     const dcl = path.join(dir, ".vscode_declaration");
 
-    if (fs.existsSync(dcl)) {
-      const out = fs.readFileSync(dcl).toString();
-      await fsp.rm(dcl, { force: true });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(dcl));
+      const out = content.toString();
+      await workspace.fs.delete(Uri.file(dcl), { useTrash: false });
       const match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
         let fileName = Utils.normalizeDoubleSlashPath(match[1]);
         const lineNum: number = parseInt(match[2]);
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }
-    } else {
+    } catch (err) {
       this.logger.error('.vscode_declaration file not found');
     }
 

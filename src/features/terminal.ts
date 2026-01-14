@@ -28,7 +28,6 @@ import { LogtalkMetricsCodeLensProvider } from "./metricsCodeLensProvider";
 import { LogtalkTestsCodeLensProvider } from "./testsCodeLensProvider"
 import { LogtalkTestsExplorerProvider } from "./testsExplorer";
 import { LogtalkProfiling } from "./profiling";
-import * as fsp from "fs/promises";
 import * as timers from "timers/promises";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
@@ -589,20 +588,65 @@ export default class LogtalkTerminal {
     });
 
     if (folders != null && folders.length > 0) {
-      fs.copyFile(logtalkHome + "/coding/editorconfig/editorconfig", folders[0].fsPath + "/.editorconfig", (err) => {});
-      fs.copyFile(logtalkHome + "/coding/git/Logtalk.gitignore", folders[0].fsPath + "/.gitignore", (err) => {});
+      const targetFolder = folders[0];
+
+      // Copy files using workspace.fs API
+      await workspace.fs.copy(
+        Uri.file(logtalkHome + "/coding/editorconfig/editorconfig"),
+        Uri.joinPath(targetFolder, ".editorconfig"),
+        { overwrite: true }
+      );
+      await workspace.fs.copy(
+        Uri.file(logtalkHome + "/coding/git/Logtalk.gitignore"),
+        Uri.joinPath(targetFolder, ".gitignore"),
+        { overwrite: true }
+      );
+
       if (fs.existsSync(logtalkUser + "/samples")) {
-        fs.copyFile(logtalkUser + "/samples/loader-sample.lgt", folders[0].fsPath + "/loader.lgt", (err) => {});
-        fs.copyFile(logtalkUser + "/samples/settings-sample.lgt", folders[0].fsPath + "/settings.lgt", (err) => {});
-        fs.copyFile(logtalkUser + "/samples/tester-sample.lgt", folders[0].fsPath + "/tester.lgt", (err) => {});
-        fs.copyFile(logtalkUser + "/samples/tests-sample.lgt", folders[0].fsPath + "/tests.lgt", (err) => {});
+        await workspace.fs.copy(
+          Uri.file(logtalkUser + "/samples/loader-sample.lgt"),
+          Uri.joinPath(targetFolder, "loader.lgt"),
+          { overwrite: true }
+        );
+        await workspace.fs.copy(
+          Uri.file(logtalkUser + "/samples/settings-sample.lgt"),
+          Uri.joinPath(targetFolder, "settings.lgt"),
+          { overwrite: true }
+        );
+        await workspace.fs.copy(
+          Uri.file(logtalkUser + "/samples/tester-sample.lgt"),
+          Uri.joinPath(targetFolder, "tester.lgt"),
+          { overwrite: true }
+        );
+        await workspace.fs.copy(
+          Uri.file(logtalkUser + "/samples/tests-sample.lgt"),
+          Uri.joinPath(targetFolder, "tests.lgt"),
+          { overwrite: true }
+        );
       } else {
-        fs.copyFile(logtalkUser + "/loader-sample.lgt", folders[0].fsPath + "/loader.lgt", (err) => {});
-        fs.copyFile(logtalkUser + "/settings-sample.lgt", folders[0].fsPath + "/settings.lgt", (err) => {});
-        fs.copyFile(logtalkUser + "/tester-sample.lgt", folders[0].fsPath + "/tester.lgt", (err) => {});
-        fs.copyFile(logtalkUser + "/tests-sample.lgt", folders[0].fsPath + "/tests.lgt", (err) => {});
+        await workspace.fs.copy(
+          Uri.file(logtalkUser + "/loader-sample.lgt"),
+          Uri.joinPath(targetFolder, "loader.lgt"),
+          { overwrite: true }
+        );
+        await workspace.fs.copy(
+          Uri.file(logtalkUser + "/settings-sample.lgt"),
+          Uri.joinPath(targetFolder, "settings.lgt"),
+          { overwrite: true }
+        );
+        await workspace.fs.copy(
+          Uri.file(logtalkUser + "/tester-sample.lgt"),
+          Uri.joinPath(targetFolder, "tester.lgt"),
+          { overwrite: true }
+        );
+        await workspace.fs.copy(
+          Uri.file(logtalkUser + "/tests-sample.lgt"),
+          Uri.joinPath(targetFolder, "tests.lgt"),
+          { overwrite: true }
+        );
       }
-      commands.executeCommand("vscode.openFolder", folders[0]);
+
+      commands.executeCommand("vscode.openFolder", targetFolder);
     }
   }
 
@@ -635,7 +679,11 @@ export default class LogtalkTerminal {
     }
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Check that the loader file exists
     if (!fs.existsSync(loader + ".lgt") && !fs.existsSync(loader + ".logtalk")) {
       window.showWarningMessage("Loader file not found.");
@@ -647,9 +695,10 @@ export default class LogtalkTerminal {
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
@@ -670,6 +719,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     window.showInformationMessage("Project loading completed.");
   }
@@ -699,7 +750,11 @@ export default class LogtalkTerminal {
     }
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Check that the loader file exists
     if (!fs.existsSync(loader + ".lgt") && !fs.existsSync(loader + ".logtalk")) {
       window.showWarningMessage("Loader file not found.");
@@ -711,9 +766,10 @@ export default class LogtalkTerminal {
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
@@ -734,6 +790,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     window.showInformationMessage("Directory loading completed.");
   }
@@ -764,16 +822,21 @@ export default class LogtalkTerminal {
     }
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::load('${dir}','${file}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
@@ -794,6 +857,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     window.showInformationMessage("File loading completed.");
   }
@@ -853,15 +918,20 @@ export default class LogtalkTerminal {
     }
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Call the make tool
     LogtalkTerminal.sendString(`vscode::make('${dir}','${target}').\r`, showTerminal);
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_make_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if (fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
@@ -874,6 +944,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     if (info != "") {
       window.showInformationMessage(info);
@@ -889,8 +961,8 @@ export default class LogtalkTerminal {
     // Check if URI is a directory or file
     let dir0: string;
     let textDocument = null;
-    const stats = fs.statSync(uri.fsPath);
-    if (stats.isDirectory()) {
+    const stats = await workspace.fs.stat(uri);
+    if (stats.type === vscode.FileType.Directory) {
       // URI is a directory (e.g., workspace folder)
       dir0 = uri.fsPath;
     } else {
@@ -922,7 +994,11 @@ export default class LogtalkTerminal {
     }
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     // Load xUnit report support if Allure report generation is enabled
@@ -933,9 +1009,10 @@ export default class LogtalkTerminal {
     // Parse any compiler errors or warnings
     const marker = path.join(testerDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       let test = false;
       for (let line of lines) {
@@ -958,6 +1035,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Tests completed.");
@@ -995,16 +1074,21 @@ export default class LogtalkTerminal {
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::tests_file('${dir}','${file}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(testerDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       let test = false;
       for (let line of lines) {
@@ -1027,6 +1111,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     window.showInformationMessage("Tests from file completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
@@ -1063,16 +1149,21 @@ export default class LogtalkTerminal {
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::tests_object('${dir}','${object}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(testerDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       let test = false;
       for (let line of lines) {
@@ -1095,6 +1186,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
 
     window.showInformationMessage("Tests from object completed.");
@@ -1134,16 +1227,21 @@ export default class LogtalkTerminal {
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::test('${dir}',${object}, ${test}).\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(testerDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       let test = false;
       for (let line of lines) {
@@ -1166,6 +1264,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     window.showInformationMessage("Test completed.");
     LogtalkTestsCodeLensProvider.outdated = false;
@@ -1180,7 +1280,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals, true);
     const marker = path.join(dir0, ".vscode_metrics_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     window.showInformationMessage("Metrics completed.");
     LogtalkMetricsCodeLensProvider.outdated = false;
   }
@@ -1194,7 +1294,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals, true);
     const marker = path.join(dir0, ".vscode_metrics_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     window.showInformationMessage("Metrics completed.");
     LogtalkMetricsCodeLensProvider.outdated = false;
   }
@@ -1223,7 +1323,11 @@ export default class LogtalkTerminal {
     await workspace.openTextDocument(uri).then((document: TextDocument) => { textDocument = document });
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Check that the doclet file exists
     if (!fs.existsSync(doclet + ".lgt") && !fs.existsSync(doclet + ".logtalk")) {
       window.showWarningMessage("Doclet file not found.");
@@ -1235,9 +1339,10 @@ export default class LogtalkTerminal {
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
@@ -1250,6 +1355,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     LogtalkTerminal.recordCodeLoadedFromDirectory(dir);
     window.showInformationMessage("Doclet completed.");
@@ -1296,7 +1403,11 @@ export default class LogtalkTerminal {
     documentationLinter.clearAll();
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     const dir = Utils.normalizeFilePath(dir0);
@@ -1306,9 +1417,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(`vscode::${predicate}('${dir}').\r`, true);
     const marker = path.join(dir0, ".vscode_xml_files_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
@@ -1321,6 +1433,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     LogtalkTerminal.spawnScript(
       xmlDir0,
@@ -1364,7 +1478,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(`vscode::${predicate}('${project}','${dir}', '${format}').\r`, true);
     const marker = path.join(dir0, ".vscode_dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     LogtalkTerminal.spawnScript(
       path.join(dir0, "dot_dias"),
       ["diagrams", "logtalk.diagrams.script", LogtalkTerminal._diaExec],
@@ -1415,7 +1529,11 @@ export default class LogtalkTerminal {
     deadCodeScanner.clearAll();
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
-    await fsp.rm(`${compilerMessagesFile}`, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     const dir = Utils.normalizeFilePath(dir0);
@@ -1425,9 +1543,10 @@ export default class LogtalkTerminal {
     // Parse any compiler errors or warnings
     const marker = path.join(dir0, ".vscode_dead_code_scanning_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
-    if(fs.existsSync(`${compilerMessagesFile}`)) {
-      let lines = fs.readFileSync(`${compilerMessagesFile}`).toString().split(/\r?\n/);
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
       let message = '';
       for (let line of lines) {
         if (line.startsWith('% [ compiling ')) {
@@ -1440,6 +1559,8 @@ export default class LogtalkTerminal {
           }
         }
       }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
     }
     window.showInformationMessage("Dead code scanning completed.");
   }
@@ -1449,11 +1570,8 @@ export default class LogtalkTerminal {
    */
   private static async parseTesterOutput(outputFile: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter): Promise<void> {
     try {
-      if (!fs.existsSync(outputFile)) {
-        return;
-      }
-
-      const content = await fsp.readFile(outputFile, 'utf8');
+      const fileContent = await workspace.fs.readFile(Uri.file(outputFile));
+      const content = fileContent.toString();
       const lines = content.split(/\r?\n/);
       let message = '';
       let test = false;
@@ -1482,7 +1600,11 @@ export default class LogtalkTerminal {
       }
 
       // Clean up the output file
-      await fsp.rm(outputFile, { force: true });
+      try {
+        await workspace.fs.delete(Uri.file(outputFile), { useTrash: false });
+      } catch (err) {
+        // Ignore if file doesn't exist
+      }
     } catch (err) {
       LogtalkTerminal._outputChannel.appendLine(`Error parsing tester output: ${err}`);
     }
@@ -1632,7 +1754,7 @@ export default class LogtalkTerminal {
       // Write output to file if specified
       if (outputFile && outputBuffer) {
         try {
-          await fsp.writeFile(outputFile, outputBuffer, 'utf8');
+          await workspace.fs.writeFile(Uri.file(outputFile), Buffer.from(outputBuffer, 'utf8'));
 
           // Call the completion callback if provided
           if (onComplete) {
@@ -1652,11 +1774,8 @@ export default class LogtalkTerminal {
    */
   private static async parseDocletOutput(outputFile: string, linter: LogtalkLinter, documentationLinter: LogtalkDocumentationLinter): Promise<void> {
     try {
-      if (!fs.existsSync(outputFile)) {
-        return;
-      }
-
-      const content = await fsp.readFile(outputFile, 'utf8');
+      const fileContent = await workspace.fs.readFile(Uri.file(outputFile));
+      const content = fileContent.toString();
       const lines = content.split(/\r?\n/);
       let message = '';
 
@@ -1676,7 +1795,11 @@ export default class LogtalkTerminal {
       }
 
       // Clean up the output file
-      await fsp.rm(outputFile, { force: true });
+      try {
+        await workspace.fs.delete(Uri.file(outputFile), { useTrash: false });
+      } catch (err) {
+        // Ignore if file doesn't exist
+      }
     } catch (err) {
       LogtalkTerminal._outputChannel.appendLine(`Error parsing doclet output: ${err}`);
     }
@@ -1754,7 +1877,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_entity_definition_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getPredicateDefinition(entity: string, predicate: string) {
@@ -1767,7 +1890,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_predicate_definition_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getDeclaration(doc: TextDocument, position: Position, call: string) {
@@ -1784,7 +1907,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_declaration_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getDefinition(doc: TextDocument, position: Position, call: string) {
@@ -1801,7 +1924,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_definition_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getTypeDefinition(doc: TextDocument, position: Position, entity: string) {
@@ -1818,7 +1941,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_type_definition_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getReferences(doc: TextDocument, position: Position, call: string) {
@@ -1835,7 +1958,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_references_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getImplementations(doc: TextDocument, position: Position, predicate: string) {
@@ -1852,7 +1975,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_implementations_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getCallers(file: string, position: Position, predicate: string, fileUri: Uri) {
@@ -1868,7 +1991,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_callers_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getCallees(file: string, position: Position, predicate: string, fileUri: Uri) {
@@ -1884,7 +2007,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_callees_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getAncestors(file: string, entity: string, fileUri: Uri) {
@@ -1899,7 +2022,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_ancestors_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getDescendants(file: string, entity: string, fileUri: Uri) {
@@ -1914,7 +2037,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_descendants_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async getType(file: string, entity: string, fileUri: Uri): Promise<string> {
@@ -1929,10 +2052,11 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_type_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     const result = path.join(wdir, ".vscode_type");
-    let type = fs.readFileSync(result).toString();
-    await fsp.rm(result, { force: true });
+    const content = await workspace.fs.readFile(Uri.file(result));
+    let type = content.toString();
+    await workspace.fs.delete(Uri.file(result), { useTrash: false });
     return type;
   }
 
@@ -1946,7 +2070,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_infer_public_predicates_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async sortFilesByDependencies(workspaceDir: string, loaderDir: string, files: string[]) {
@@ -1956,7 +2080,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(workspaceDir, ".vscode_files_topological_sort_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
   }
 
   public static async openParentFile(uri: Uri) {
@@ -1976,10 +2100,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(goals);
     const marker = path.join(wdir, ".vscode_find_parent_done");
     await LogtalkTerminal.waitForFile(marker);
-    await fsp.rm(marker, { force: true });
+    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     const result = path.join(wdir, ".vscode_find_parent");
     let loader = fs.readFileSync(result).toString();
-    await fsp.rm(result, { force: true });
+    await workspace.fs.delete(Uri.file(result), { useTrash: false });
     if (loader.trim() === '') {
       window.showInformationMessage("No parent file found for the current file.");
       return;
@@ -2152,7 +2276,7 @@ export default class LogtalkTerminal {
       // Write output to file if specified
       if (outputFile && outputBuffer) {
         try {
-          await fsp.writeFile(outputFile, outputBuffer, 'utf8');
+          await workspace.fs.writeFile(Uri.file(outputFile), Buffer.from(outputBuffer, 'utf8'));
 
           // Call the completion callback if provided
           if (onComplete) {
@@ -2221,7 +2345,7 @@ export default class LogtalkTerminal {
 
     for (;;) {
       try {
-        await fsp.stat(filePath);
+        await workspace.fs.stat(Uri.file(filePath));
         clearTimeout(tid);
         return;
       }

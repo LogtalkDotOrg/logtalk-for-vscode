@@ -14,8 +14,6 @@ import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
-import * as fs from "fs";
-import * as fsp from "fs/promises";
 
 export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
   private logger = getLogger();
@@ -66,16 +64,17 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
     }
     const tdef = path.join(dir, ".vscode_type_definition");
 
-    if (fs.existsSync(tdef)) {
-      const out = fs.readFileSync(tdef).toString();
-      await fsp.rm(tdef, { force: true });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(tdef));
+      const out = content.toString();
+      await workspace.fs.delete(Uri.file(tdef), { useTrash: false });
       const match = out.match(/File:(.+);Line:(\d+)/);
       if (match) {
         let fileName = Utils.normalizeDoubleSlashPath(match[1]);
         const lineNum: number = parseInt(match[2]);
         location = new Location(Uri.file(fileName), new Position(lineNum - 1, 0));
       }
-    } else {
+    } catch (err) {
       this.logger.error('.vscode_type_definition file not found');
     }
 

@@ -931,11 +931,11 @@ export class LogtalkDebugConfigurationProvider implements vscode.DebugConfigurat
      * Resolve a debug configuration before starting
      * This allows starting debugging without a launch.json
      */
-    resolveDebugConfiguration(
+    async resolveDebugConfiguration(
         _folder: vscode.WorkspaceFolder | undefined,
         config: vscode.DebugConfiguration,
         _token?: vscode.CancellationToken
-    ): vscode.ProviderResult<vscode.DebugConfiguration> {
+    ): Promise<vscode.DebugConfiguration | undefined> {
         // If there's already an active Logtalk debug session, cancel a new one
         if (vscode.debug.activeDebugSession?.type === 'logtalk') {
             return undefined;
@@ -947,13 +947,22 @@ export class LogtalkDebugConfigurationProvider implements vscode.DebugConfigurat
         try {
             const folders = vscode.workspace.workspaceFolders;
             if (folders && folders.length > 0) {
-                const wsPath = folders[0].uri.fsPath;
-                const vscodeDir = path.join(wsPath, '.vscode');
-                const launchPath = path.join(vscodeDir, 'launch.json');
-                if (!fs.existsSync(launchPath)) {
-                    if (!fs.existsSync(vscodeDir)) {
-                        fs.mkdirSync(vscodeDir);
+                const vscodeUri = vscode.Uri.joinPath(folders[0].uri, '.vscode');
+                const launchUri = vscode.Uri.joinPath(vscodeUri, 'launch.json');
+
+                try {
+                    await vscode.workspace.fs.stat(launchUri);
+                    // File exists, do nothing
+                } catch {
+                    // File doesn't exist, create it
+                    try {
+                        await vscode.workspace.fs.stat(vscodeUri);
+                        // Directory exists
+                    } catch {
+                        // Directory doesn't exist, create it
+                        await vscode.workspace.fs.createDirectory(vscodeUri);
                     }
+
                     const launch = {
                         version: '0.2.0',
                         configurations: [
@@ -965,7 +974,8 @@ export class LogtalkDebugConfigurationProvider implements vscode.DebugConfigurat
                             }
                         ]
                     };
-                    fs.writeFileSync(launchPath, JSON.stringify(launch, null, 2), 'utf8');
+                    const content = JSON.stringify(launch, null, 2);
+                    await vscode.workspace.fs.writeFile(launchUri, Buffer.from(content, 'utf8'));
                 }
             }
         } catch (e) {

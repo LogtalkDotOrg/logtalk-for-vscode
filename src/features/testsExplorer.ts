@@ -54,9 +54,9 @@ import {
   commands,
   WorkspaceEdit
 } from "vscode";
+import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import * as fsp from "fs/promises";
 import { getLogger } from "../utils/logger";
 import LogtalkTerminal from "./terminal";
 import { Utils } from "../utils/utils";
@@ -338,8 +338,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
           // Parse results
           // Check if URI is a directory or file
-          const stats = fs.statSync(uri.fsPath);
-          const dir0 = stats.isDirectory() ? uri.fsPath : path.dirname(uri.fsPath);
+          const stats = await workspace.fs.stat(uri);
+          const dir0 = stats.type === vscode.FileType.Directory ? uri.fsPath : path.dirname(uri.fsPath);
           testDirectories.add(dir0);
 
           // Find the tester directory (where .vscode_test_results will be created)
@@ -670,7 +670,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         return `File:${result.file};Line:${result.line};Object:${result.object};Test:${result.test};Status:${result.status}`;
       }).join('\n');
 
-      await fsp.writeFile(resultsFilePath, resultsContent, 'utf8');
+      const resultsUri = Uri.file(resultsFilePath);
+      await workspace.fs.writeFile(resultsUri, Buffer.from(resultsContent, 'utf8'));
       this.logger.debug(`Wrote test results to: ${resultsFilePath}`);
 
       // Now parse the results file to update the test explorer
@@ -793,7 +794,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       for (const file of files) {
         try {
-          await fsp.rm(file.fsPath, { force: true });
+          await workspace.fs.delete(file, { useTrash: false });
           this.logger.debug(`Deleted old test results file: ${file.fsPath}`);
         } catch (error) {
           this.logger.error(`Error deleting test results file ${file.fsPath}:`, error);

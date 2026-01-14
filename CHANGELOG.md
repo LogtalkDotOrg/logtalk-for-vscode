@@ -2,6 +2,7 @@
 
 ## [0.82.0]
 
+* Changed file system calls to use the VSCode API instead of the Node API
 * Fix running tests using the editor context menu when the tester file is in a parent directory
 
 ## [0.81.0]

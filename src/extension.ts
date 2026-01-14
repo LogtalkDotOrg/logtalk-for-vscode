@@ -103,16 +103,14 @@ function createDebugFileWatcher(): void {
 
     const handleDebugInfo = async (uri: Uri) => {
       // Parse the debug info file and update the debug state manager
-      if (fs.existsSync(uri.fsPath)) {
-        try {
-          const content = fs.readFileSync(uri.fsPath, 'utf8');
-          const debugState = DebugStateManager.parseDebugInfo(content);
-          if (debugState) {
-            DebugStateManager.getInstance().updateState(debugState);
-          }
-        } catch (err) {
-          getLogger().debug(`Error parsing debug info: ${err}`);
+      try {
+        const content = await workspace.fs.readFile(uri);
+        const debugState = DebugStateManager.parseDebugInfo(content.toString());
+        if (debugState) {
+          DebugStateManager.getInstance().updateState(debugState);
         }
+      } catch (err) {
+        getLogger().debug(`Error parsing debug info: ${err}`);
       }
       // Continue to open the file at the specified location
       Utils.openFileAt(uri);

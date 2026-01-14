@@ -19,8 +19,6 @@ import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
-import * as fs from "fs";
-import * as fsp from "fs/promises";
 
 export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
   private logger = getLogger();
@@ -91,7 +89,8 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
 
     try {
       // Read the file to get the actual line content
-      const fileContent = await fsp.readFile(filePath, 'utf8');
+      const content = await workspace.fs.readFile(Uri.file(filePath));
+      const fileContent = content.toString();
       const lines = fileContent.split(/\r?\n/);
 
       if (zeroBasedLine >= 0 && zeroBasedLine < lines.length) {
@@ -131,7 +130,8 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
 
     try {
       // Read the file to get the actual line content
-      const fileContent = await fsp.readFile(filePath, 'utf8');
+      const content = await workspace.fs.readFile(Uri.file(filePath));
+      const fileContent = content.toString();
       const lines = fileContent.split(/\r?\n/);
 
       if (zeroBasedLine >= 0 && zeroBasedLine < lines.length) {
@@ -208,9 +208,10 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     }
     const refs = path.join(dir, ".vscode_callers");
 
-    if (fs.existsSync(refs)) {
-      const out = fs.readFileSync(refs).toString();
-      await fsp.rm(refs, { force: true });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(refs));
+      const out = content.toString();
+      await workspace.fs.delete(Uri.file(refs), { useTrash: false });
       let matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {
@@ -238,7 +239,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
           )
         );
       }
-    } else {
+    } catch (err) {
       this.logger.error('.vscode_callers file not found');
     }
 
@@ -263,9 +264,10 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
     }
     const refs = path.join(dir, ".vscode_callees");
 
-    if (fs.existsSync(refs)) {
-      const out = fs.readFileSync(refs).toString();
-      await fsp.rm(refs, { force: true });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(refs));
+      const out = content.toString();
+      await workspace.fs.delete(Uri.file(refs), { useTrash: false });
       const matches = out.matchAll(/Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {
@@ -293,7 +295,7 @@ export class LogtalkCallHierarchyProvider implements CallHierarchyProvider {
           )
         );
       }
-    } else {
+    } catch (err) {
       this.logger.error('.vscode_callees file not found');
     }
 

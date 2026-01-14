@@ -1,6 +1,7 @@
 "use strict";
 
 import * as vscode from "vscode";
+import { workspace, Uri } from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 import * as fsp from "fs/promises";
@@ -223,7 +224,11 @@ export class LogtalkProfiling {
     const profilingDataFile = path.join(wdir, ".vscode_profiling_data");
 
     // Remove old file if it exists
-    await fsp.rm(profilingDataFile, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(profilingDataFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
 
     // Build the appropriate goal based on parameters
     let goal: string;
@@ -254,10 +259,15 @@ export class LogtalkProfiling {
     await this.waitForFile(profilingDataFile, 5000);
 
     // Read the file
-    const data = await fsp.readFile(profilingDataFile, 'utf-8');
+    const content = await workspace.fs.readFile(Uri.file(profilingDataFile));
+    const data = content.toString();
 
     // Clean up
-    await fsp.rm(profilingDataFile, { force: true });
+    try {
+      await workspace.fs.delete(Uri.file(profilingDataFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
 
     return data;
   }
@@ -903,12 +913,12 @@ export class LogtalkProfiling {
       const resultFile = path.join(wdir, ".vscode_entity_definition");
 
       this.logger.info(`Looking for result file at: ${resultFile}`);
-      this.logger.info(`File exists: ${fs.existsSync(resultFile)}`);
 
-      if (fs.existsSync(resultFile)) {
-        const out = fs.readFileSync(resultFile).toString();
+      try {
+        const content = await workspace.fs.readFile(Uri.file(resultFile));
+        const out = content.toString();
         this.logger.info(`Result file content: ${out}`);
-        await fsp.rm(resultFile, { force: true });
+        await workspace.fs.delete(Uri.file(resultFile), { useTrash: false });
 
         const match = out.match(/File:(.+);Line:(\d+)/);
         if (match) {
@@ -927,7 +937,7 @@ export class LogtalkProfiling {
           this.logger.warn(`No match found in result file content: ${out}`);
           vscode.window.showWarningMessage(`Could not find definition for entity ${entity}`);
         }
-      } else {
+      } catch (err) {
         this.logger.warn(`Result file not found at: ${resultFile}`);
         vscode.window.showWarningMessage(`Could not find definition for entity ${entity}`);
       }
@@ -956,12 +966,12 @@ export class LogtalkProfiling {
       const resultFile = path.join(wdir, ".vscode_predicate_definition");
 
       this.logger.info(`Looking for result file at: ${resultFile}`);
-      this.logger.info(`File exists: ${fs.existsSync(resultFile)}`);
 
-      if (fs.existsSync(resultFile)) {
-        const out = fs.readFileSync(resultFile).toString();
+      try {
+        const content = await workspace.fs.readFile(Uri.file(resultFile));
+        const out = content.toString();
         this.logger.info(`Result file content: ${out}`);
-        await fsp.rm(resultFile, { force: true });
+        await workspace.fs.delete(Uri.file(resultFile), { useTrash: false });
 
         const match = out.match(/File:(.+);Line:(\d+)/);
         if (match) {
@@ -980,7 +990,7 @@ export class LogtalkProfiling {
           this.logger.warn(`No match found in result file content: ${out}`);
           vscode.window.showWarningMessage(`Could not find definition for ${entity}::${predicateIndicator}`);
         }
-      } else {
+      } catch (err) {
         this.logger.warn(`Result file not found at: ${resultFile}`);
         vscode.window.showWarningMessage(`Could not find definition for ${entity}::${predicateIndicator}`);
       }
@@ -1035,12 +1045,14 @@ export class LogtalkProfiling {
       }
       const resultFile = path.join(wdir, ".vscode_predicate_definition");
 
-      if (!fs.existsSync(resultFile)) {
+      let out: string;
+      try {
+        const content = await workspace.fs.readFile(Uri.file(resultFile));
+        out = content.toString();
+        await workspace.fs.delete(Uri.file(resultFile), { useTrash: false });
+      } catch (err) {
         return [];
       }
-
-      const out = fs.readFileSync(resultFile).toString();
-      await fsp.rm(resultFile, { force: true });
 
       const match = out.match(/File:(.+);Line:(\d+)/);
       if (!match) {

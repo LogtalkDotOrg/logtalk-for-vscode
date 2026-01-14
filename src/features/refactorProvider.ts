@@ -669,13 +669,15 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
 
       const tdef = path.join(wdir, ".vscode_entity_definition");
-      if (!fs.existsSync(tdef)) {
+      let out: string;
+      try {
+        const content = await workspace.fs.readFile(Uri.file(tdef));
+        out = content.toString();
+        await workspace.fs.delete(Uri.file(tdef), { useTrash: false });
+      } catch (err) {
         window.showErrorMessage(`Could not find definition for entity ${entityName}`);
         return;
       }
-
-      const out = fs.readFileSync(tdef).toString();
-      await fs.promises.rm(tdef, { force: true });
 
       const match = out.match(/File:(.+);Line:(\d+)/);
       if (!match) {
@@ -5099,19 +5101,14 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    */
   private async readIncludedFile(filePath: string): Promise<string | null> {
     try {
-      // Check if file exists
-      if (!fs.existsSync(filePath)) {
-        this.logger.warn(`Include file does not exist: ${filePath}`);
-        return null;
-      }
-
-      // Read file contents
-      const fileContents = fs.readFileSync(filePath, 'utf8');
+      // Read file contents using workspace.fs API
+      const content = await workspace.fs.readFile(Uri.file(filePath));
+      const fileContents = content.toString();
       this.logger.debug(`Successfully read include file: ${filePath} (${fileContents.length} characters)`);
 
       return fileContents;
     } catch (error) {
-      this.logger.error(`Error reading include file ${filePath}: ${error}`);
+      this.logger.warn(`Include file does not exist or cannot be read: ${filePath}`);
       return null;
     }
   }
@@ -5289,7 +5286,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
    */
   private async writeExtractedFile(filePath: string, content: string): Promise<void> {
     try {
-      await fs.promises.writeFile(filePath, content, 'utf8');
+      await workspace.fs.writeFile(Uri.file(filePath), Buffer.from(content, 'utf8'));
     } catch (error) {
       throw new Error(`Failed to write file: ${error instanceof Error ? error.message : String(error)}`);
     }

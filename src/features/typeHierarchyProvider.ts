@@ -16,8 +16,6 @@ import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
-import * as fs from "fs";
-import * as fsp from "fs/promises";
 
 export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
   private logger = getLogger();
@@ -99,7 +97,8 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
 
     try {
       // Read the file to get the actual line content
-      const fileContent = await fsp.readFile(filePath, 'utf8');
+      const content = await workspace.fs.readFile(Uri.file(filePath));
+      const fileContent = content.toString();
       const lines = fileContent.split(/\r?\n/);
 
       if (zeroBasedLine >= 0 && zeroBasedLine < lines.length) {
@@ -167,9 +166,10 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     }
     const refs = path.join(dir, ".vscode_ancestors");
 
-    if (fs.existsSync(refs)) {
-      const out = fs.readFileSync(refs).toString();
-      await fsp.rm(refs, { force: true });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(refs));
+      const out = content.toString();
+      await workspace.fs.delete(Uri.file(refs), { useTrash: false });
       let matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       var symbol = null;
@@ -195,7 +195,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
           )
         );
       }
-    } else {
+    } catch (err) {
       this.logger.error('.vscode_ancestors file not found');
     }
 
@@ -219,9 +219,10 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
     }
     const refs = path.join(dir, ".vscode_descendants");
 
-    if (fs.existsSync(refs)) {
-      const out = fs.readFileSync(refs).toString();
-      await fsp.rm(refs, { force: true });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(refs));
+      const out = content.toString();
+      await workspace.fs.delete(Uri.file(refs), { useTrash: false });
       const matches = out.matchAll(/Type:(\w+);Name:(.+);File:(.+);Line:(\d+)/g);
       var match = null;
       var symbol = null;
@@ -248,7 +249,7 @@ export class LogtalkTypeHierarchyProvider implements TypeHierarchyProvider {
           )
         );
       }
-    } else {
+    } catch (err) {
       this.logger.error('.vscode_descendants file not found');
     }
 

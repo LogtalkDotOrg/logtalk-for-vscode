@@ -6,15 +6,15 @@ import {
   Range,
   SelectionRange,
   SelectionRangeProvider,
-  TextDocument
+  TextDocument,
+  workspace,
+  Uri
 } from "vscode";
 import { PredicateUtils } from "../utils/predicateUtils";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import LogtalkTerminal from "./terminal";
 import * as path from "path";
-import * as fs from "fs";
-import * as fsp from "fs/promises";
 
 /**
  * Provides smart selection ranges for Logtalk code.
@@ -383,12 +383,14 @@ export class LogtalkSelectionRangeProvider implements SelectionRangeProvider {
     }
 
     const defFile = path.join(dir, ".vscode_definition");
-    if (!fs.existsSync(defFile)) {
+    let out: string;
+    try {
+      const content = await workspace.fs.readFile(Uri.file(defFile));
+      out = content.toString();
+      await workspace.fs.delete(Uri.file(defFile), { useTrash: false });
+    } catch (err) {
       return null;
     }
-
-    const out = fs.readFileSync(defFile).toString();
-    await fsp.rm(defFile, { force: true });
 
     const match = out.match(/File:(.+);Line:(\d+)/);
     if (!match) {

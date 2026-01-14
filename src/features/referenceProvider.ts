@@ -15,8 +15,6 @@ import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
-import * as fs from "fs";
-import * as fsp from "fs/promises";
 
 export class LogtalkReferenceProvider implements ReferenceProvider {
   private logger = getLogger();
@@ -80,16 +78,17 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
     }
     const refs = path.join(dir, ".vscode_references");
 
-    if (fs.existsSync(refs)) {
-      const out = fs.readFileSync(refs).toString();
-      await fsp.rm(refs, { force: true });
+    try {
+      const content = await workspace.fs.readFile(Uri.file(refs));
+      const out = content.toString();
+      await workspace.fs.delete(Uri.file(refs), { useTrash: false });
       const matches = out.matchAll(/File:(.+);Line:(\d+)/g);
       var match = null;
       for (match of matches) {
         let fileName = Utils.normalizeDoubleSlashPath(match[1]);
         locations.push(new Location(Uri.file(fileName), new Position(parseInt(match[2]) - 1, 0)));
       }
-    } else {
+    } catch (err) {
       this.logger.error('.vscode_references file not found');
     }
 
