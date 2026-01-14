@@ -4,6 +4,7 @@
 
 * Changed file system calls to use the VSCode API instead of the Node API
 * Fix running tests using the editor context menu when the tester file is in a parent directory
+* Fix the "Sort files by dependencies" refactoring to properly handle `logtalk_load/2` calls
 
 ## [0.81.0]
 

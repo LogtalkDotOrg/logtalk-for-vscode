@@ -2123,7 +2123,7 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return null;
     }
 
-    this.logger.debug(`Cursor is on logtalk_load([ at line ${position.line + 1}, searching for ])...`);
+    this.logger.debug(`Cursor is on logtalk_load([ at line ${position.line + 1}, searching for matching ]...`);
 
     // Find the position of the opening [ in the matched range
     const matchedText = document.getText(wordRange);
@@ -2135,11 +2135,13 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     let listEndChar = -1;
     let fullListContent = '';
 
-    // Search for the closing ]) - start from the line with [
+    // Search for the closing ] - start from the line with [
+    // We need to properly match brackets to handle logtalk_load/2 calls
     let currentLine = wordRange.start.line;
     let currentChar = wordRange.start.character + openBracketIndex + 1;
+    let bracketDepth = 1; // We've already seen the opening [
 
-    while (currentLine < document.lineCount) {
+    while (currentLine < document.lineCount && bracketDepth > 0) {
       let lineText = document.lineAt(currentLine).text;
       const startChar = (currentLine === wordRange.start.line) ? currentChar : 0;
 
@@ -2149,30 +2151,40 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         lineText = lineText.substring(0, commentPos);
       }
 
-      // Search for ])
-      const searchText = lineText.substring(startChar);
-      const closingPos = searchText.indexOf('])');
+      // Search character by character for matching ]
+      for (let i = startChar; i < lineText.length; i++) {
+        const char = lineText[i];
 
-      if (closingPos !== -1) {
-        // Found ])
-        const actualPos = startChar + closingPos;
-        listEndLine = currentLine;
-        listEndChar = actualPos + 1; // Position after ]
+        if (char === '[') {
+          bracketDepth++;
+          fullListContent += char;
+        } else if (char === ']') {
+          bracketDepth--;
+          if (bracketDepth === 0) {
+            // Found the matching ]
+            listEndLine = currentLine;
+            listEndChar = i + 1; // Position after ]
+            this.logger.debug(`Found matching ] at line ${currentLine + 1}, char ${i + 1}`);
+            break;
+          }
+          fullListContent += char;
+        } else {
+          fullListContent += char;
+        }
+      }
 
-        // Extract content from [ to ]
-        fullListContent += lineText.substring(startChar, actualPos);
-        this.logger.debug(`Found ]) at line ${currentLine + 1}, char ${actualPos + 1}`);
+      if (bracketDepth === 0) {
         break;
       }
 
-      // Not found on this line, add the content and continue
-      fullListContent += lineText.substring(startChar) + ' ';
+      // Not found on this line, add newline and continue
+      fullListContent += ' ';
       currentLine++;
       currentChar = 0;
     }
 
-    if (listEndLine === -1) {
-      this.logger.debug(`Could not find matching ]) for the list`);
+    if (listEndLine === -1 || bracketDepth !== 0) {
+      this.logger.debug(`Could not find matching ] for the list`);
       return null;
     }
 
