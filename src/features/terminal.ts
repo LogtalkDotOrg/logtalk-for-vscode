@@ -671,11 +671,11 @@ export default class LogtalkTerminal {
     let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
+    if (section) {
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
     }
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
@@ -735,18 +735,29 @@ export default class LogtalkTerminal {
     }
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
-    const loader0 = path.join(dir0, "loader");
-    const dir = Utils.normalizeFilePath(dir0);
-    const loader = Utils.normalizeFilePath(loader0);
+
+    // Find the loader file by searching up the directory tree
+    const loaderFile = LogtalkTerminal.findLoaderFile(dir0, uri);
+    if (!loaderFile) {
+      window.showWarningMessage("Loader file not found.");
+      return;
+    }
+
+    // Get the directory containing the loader file
+    const loaderDir0 = path.dirname(loaderFile);
+    const dir = Utils.normalizeFilePath(loaderDir0);
+    // Remove the extension from the loader file path
+    const loader = Utils.normalizeFilePath(loaderFile.replace(/\.(lgt|logtalk)$/, ''));
+
     let logtalkHome: string = '';
     let logtalkUser: string = '';
     // Check for Configurations
     let section = workspace.getConfiguration("logtalk");
-    if (section) { 
-      logtalkHome = jsesc(section.get<string>("home.path", "logtalk")); 
-      logtalkUser = jsesc(section.get<string>("user.path", "logtalk")); 
-    } else { 
-      throw new Error("configuration settings error: logtalk"); 
+    if (section) {
+      logtalkHome = jsesc(section.get<string>("home.path", "logtalk"));
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
     }
     // Clear the Scratch Message File
     let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
@@ -755,16 +766,11 @@ export default class LogtalkTerminal {
     } catch (err) {
       // Ignore if file doesn't exist
     }
-    // Check that the loader file exists
-    if (!fs.existsSync(loader + ".lgt") && !fs.existsSync(loader + ".logtalk")) {
-      window.showWarningMessage("Loader file not found.");
-      return;
-    }
     // Create the Terminal
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal.sendString(`vscode::load('${dir}','${loader}').\r`, true);
     // Parse any compiler errors or warnings
-    const marker = path.join(dir0, ".vscode_loading_done");
+    const marker = path.join(loaderDir0, ".vscode_loading_done");
     await LogtalkTerminal.waitForFile(marker);
     await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     try {
@@ -2413,6 +2419,56 @@ export default class LogtalkTerminal {
       const testerLogtalk = path.join(currentDir, "tester.logtalk");
       if (fs.existsSync(testerLogtalk)) {
         return testerLogtalk;
+      }
+
+      // Stop if we've reached the workspace root
+      if (currentDir === normalizedWorkspaceRoot) {
+        break;
+      }
+
+      // Move to parent directory
+      const parentDir = path.dirname(currentDir);
+
+      // Stop if we can't go up anymore (reached filesystem root)
+      if (parentDir === currentDir) {
+        break;
+      }
+
+      currentDir = parentDir;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Find the loader file by searching up the directory tree from startDir to the workspace root.
+   * Returns the full path to the loader file if found, or undefined if not found.
+   *
+   * @param startDir - The directory to start searching from
+   * @param uri - The URI to determine the workspace folder
+   * @returns The full path to the loader file if found, or undefined if not found
+   */
+  public static findLoaderFile(startDir: string, uri: Uri): string | undefined {
+    const workspaceRoot = LogtalkTerminal.getWorkspaceFolderForUri(uri);
+    if (!workspaceRoot) {
+      return undefined;
+    }
+
+    let currentDir = path.resolve(startDir);
+    const normalizedWorkspaceRoot = path.resolve(workspaceRoot);
+
+    // Search from the current directory up to the workspace root
+    while (true) {
+      // Check for loader.lgt
+      const loaderLgt = path.join(currentDir, "loader.lgt");
+      if (fs.existsSync(loaderLgt)) {
+        return loaderLgt;
+      }
+
+      // Check for loader.logtalk
+      const loaderLogtalk = path.join(currentDir, "loader.logtalk");
+      if (fs.existsSync(loaderLogtalk)) {
+        return loaderLogtalk;
       }
 
       // Stop if we've reached the workspace root
