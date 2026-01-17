@@ -6,6 +6,7 @@
 * Fix running tests using the editor context menu when the tester file is in a parent directory
 * Fix loading a directory when the loader file is in a parent directory
 * Fix the "Sort files by dependencies" refactoring to properly handle `logtalk_load/2` calls
+* Fix reporting of scripts errors in the output channel missing a newline at the end
 
 ## [0.81.0]
 

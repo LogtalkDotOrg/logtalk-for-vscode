@@ -1752,7 +1752,7 @@ export default class LogtalkTerminal {
           ? err.message
           : `Failed to run the script ${type[0]} using path: ${type[2]}. Reason is unknown.`;
       }
-      LogtalkTerminal._outputChannel.append(errMessage);
+      LogtalkTerminal._outputChannel.appendLine(errMessage);
       LogtalkTerminal._outputChannel.show(true);
     });
 
@@ -2274,7 +2274,7 @@ export default class LogtalkTerminal {
           ? err.message
           : `Failed to run the script ${type[0]} using path: ${type[2]}. Reason is unknown.`;
       }
-      this._outputChannel.append(message);
+      this._outputChannel.appendLine(message);
       this._outputChannel.show(true);
     });
 
