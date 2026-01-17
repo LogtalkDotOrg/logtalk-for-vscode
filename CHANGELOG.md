@@ -3,6 +3,7 @@
 ## [0.82.0]
 
 * Changed file system calls to use the VSCode API instead of the Node API
+* Add support for hot-reloading of all changed optional and default settings
 * Fix running tests using the editor context menu when the tester file is in a parent directory
 * Fix loading a directory when the loader file is in a parent directory
 * Fix the "Sort files by dependencies" refactoring to properly handle `logtalk_load/2` calls

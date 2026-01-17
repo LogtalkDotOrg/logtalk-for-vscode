@@ -22,15 +22,33 @@ export default class LogtalkJupyter {
   private static outputChannel: OutputChannel;
   private static logger = getLogger();
 
+  /**
+   * Updates Jupytext configuration from workspace settings.
+   * This method is called both during initialization and when configuration changes.
+   */
+  private static async updateJupytextConfiguration(): Promise<void> {
+    const section = workspace.getConfiguration("logtalk");
+    LogtalkJupyter.jupytextPath = section.get<string>("jupytext.path", "python3 -m jupytext");
+
+    LogtalkJupyter.jupytextAvailable = await LogtalkJupyter.checkJupytextAvailability();
+    commands.executeCommand('setContext', 'logtalk.jupytext.available', LogtalkJupyter.jupytextAvailable);
+  }
+
   public static async init(context: ExtensionContext): Promise<void> {
     LogtalkJupyter.outputChannel = window.createOutputChannel("Logtalk Jupytext");
     context.subscriptions.push(LogtalkJupyter.outputChannel);
 
-    const section = workspace.getConfiguration("logtalk");
-    LogtalkJupyter.jupytextPath = section.get<string>("jupytext.path", "python3 -m jupytext");
-    
-    LogtalkJupyter.jupytextAvailable = await LogtalkJupyter.checkJupytextAvailability();
-    commands.executeCommand('setContext', 'logtalk.jupytext.available', LogtalkJupyter.jupytextAvailable);
+    // Load Jupytext configuration
+    await LogtalkJupyter.updateJupytextConfiguration();
+
+    // Listen for configuration changes and update Jupytext configuration
+    context.subscriptions.push(
+      workspace.onDidChangeConfiguration(async (event) => {
+        if (event.affectsConfiguration("logtalk.jupytext.path")) {
+          await LogtalkJupyter.updateJupytextConfiguration();
+        }
+      })
+    );
   }
 
   public static async openAsNotebook(uri?: Uri): Promise<void> {
