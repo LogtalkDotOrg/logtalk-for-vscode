@@ -290,6 +290,16 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       }
     });
     this.disposables.push(saveDocumentListener);
+
+    // Watch for source file modifications to invalidate test results
+    // This marks tests as needing re-run when the file is edited
+    const changeDocumentListener = workspace.onDidChangeTextDocument(event => {
+      // Only process Logtalk files with actual content changes
+      if (event.document.languageId === 'logtalk' && event.contentChanges.length > 0) {
+        this.invalidateTestResultsForFile(event.document.uri);
+      }
+    });
+    this.disposables.push(changeDocumentListener);
   }
 
   /**
@@ -1744,7 +1754,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
   /**
    * Invalidate test results for a specific source file
-   * This marks all test items associated with the file as outdated
+   * This marks all test items associated with the file as needing re-run
+   * while preserving the counter for tests in other files
    */
   private invalidateTestResultsForFile(uri: Uri): void {
     const normalizedPath = Utils.normalizeFilePath(uri.fsPath);
@@ -1761,23 +1772,23 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       return;
     }
 
-    // Collect all test items for this file (file, objects, and individual tests)
-    const testItemsToInvalidate: TestItem[] = [fileItem];
+    // Collect individual test items for this file
+    const individualTestItems: TestItem[] = [];
 
-    // Add all object-level items
+    // Add all individual test items from each object
     fileItem.children.forEach(objectItem => {
-      testItemsToInvalidate.push(objectItem);
-
-      // Add all individual test items
       objectItem.children.forEach(testItem => {
-        testItemsToInvalidate.push(testItem);
+        individualTestItems.push(testItem);
       });
     });
 
-    // Invalidate all collected test items
-    this.controller.invalidateTestResults(testItemsToInvalidate);
+    // Mark individual tests as needing re-run (shows enqueued icon)
+    // Use individual test runs to avoid resetting the counter for other files
+    for (const testItem of individualTestItems) {
+      this.markTestAsNeedsRerun(testItem);
+    }
 
-    this.logger.debug(`Invalidated ${testItemsToInvalidate.length} test item(s) for file: ${fileUri.fsPath}`);
+    this.logger.debug(`Marked ${individualTestItems.length} test(s) as needing re-run for file: ${fileUri.fsPath}`);
   }
 
   /**

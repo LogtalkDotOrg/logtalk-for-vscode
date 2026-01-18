@@ -274,6 +274,12 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
     DiagnosticsUtils.updateDiagnostics(this.diagnosticCollection, uri, diagnosticToRemove);
   }
 
+  public clearAll() {
+    this.diagnosticCollection.clear();
+    this.diagnostics = {};
+    this.diagnosticHash = [];
+  }
+
   private removeDuplicateDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
     return DiagnosticsUtils.removeDuplicateDiagnostics(diagnostics);
   }
@@ -306,6 +312,21 @@ export default class LogtalkTestsReporter implements CodeActionProvider {
           this.diagnosticCollection.delete(textDocumentWillSaveEvent.document.uri);
           const filePath = textDocumentWillSaveEvent.document.uri.fsPath;
           if (filePath in this.diagnostics) {
+            this.diagnostics[filePath] = [];
+          }
+        }
+      },
+      this,
+      subscriptions
+    );
+
+    // Clear diagnostics when a test file is modified
+    workspace.onDidChangeTextDocument(
+      textDocumentChangeEvent => {
+        if (textDocumentChangeEvent.contentChanges.length > 0) {
+          const filePath = textDocumentChangeEvent.document.uri.fsPath;
+          if (filePath in this.diagnostics) {
+            this.diagnosticCollection.delete(textDocumentChangeEvent.document.uri);
             this.diagnostics[filePath] = [];
           }
         }

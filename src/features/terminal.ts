@@ -997,6 +997,9 @@ export default class LogtalkTerminal {
       uri = window.activeTextEditor.document.uri;
     }
 
+    // Clear all existing test diagnostics before running tests
+    testsReporter.clearAll();
+
     // Declare Variables
     // Check if URI is a directory or file
     let dir0: string;
@@ -1088,6 +1091,9 @@ export default class LogtalkTerminal {
       uri = window.activeTextEditor.document.uri;
     }
 
+    // Clear all existing test diagnostics before running tests
+    testsReporter.clearAll();
+
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
 
@@ -1162,6 +1168,9 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+
+    // Clear all existing test diagnostics before running tests
+    testsReporter.clearAll();
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
@@ -1238,6 +1247,9 @@ export default class LogtalkTerminal {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
+
+    // Clear all existing test diagnostics before running tests
+    testsReporter.clearAll();
 
     // Declare Variables
     const dir0 = path.dirname(uri.fsPath);
@@ -1654,6 +1666,11 @@ export default class LogtalkTerminal {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._outputChannel.clear();
 
+    // Clear all existing test diagnostics before running tests
+    if (testsReporter) {
+      testsReporter.clearAll();
+    }
+
     const dir = LogtalkTerminal.getWorkspaceFolderForUri(uri);
     if (!dir) {
       vscode.window.showErrorMessage('No workspace folder open');
@@ -1709,6 +1726,9 @@ export default class LogtalkTerminal {
   ): Promise<void> {
     LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._outputChannel.clear();
+
+    // Clear all existing test diagnostics before running tests
+    testsReporter.clearAll();
 
     const dir = LogtalkTerminal.getWorkspaceFolderForUri(uri);
     if (!dir) {

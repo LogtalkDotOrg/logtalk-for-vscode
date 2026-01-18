@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.83.0]
+
+* Show tests as needing re-run when the tests file is modified
+* Fix the "Problems" pane not being cleared when the tests file is modified
+* Fix the "Problems" pane not updating when re-running tests when the test files were not modified
+
 ## [0.82.0]
 
 * Changed file system calls to use the VSCode API instead of the Node API
