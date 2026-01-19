@@ -56,7 +56,8 @@ export class LogtalkRenameProvider implements RenameProvider {
    */
   private detectVariableContext(document: TextDocument, position: Position): { name: string; range: Range } | null {
     // Get the word at the cursor position
-    const wordRange = document.getWordRangeAtPosition(position, /[A-Z_][A-Za-z0-9_]*/);
+    // Use \b word boundary to prevent matching "_world" in "hello_world"
+    const wordRange = document.getWordRangeAtPosition(position, /\b[A-Z_][A-Za-z0-9_]*/);
     if (!wordRange) {
       return null;
     }
@@ -119,7 +120,7 @@ export class LogtalkRenameProvider implements RenameProvider {
       this.logger.debug(`Found entity: ${entityContext.indicator} (${entityContext.type})`);
 
       // Get the word range for the entity name
-      const wordRange = document.getWordRangeAtPosition(position, /\w+/);
+      const wordRange = document.getWordRangeAtPosition(position);
       if (wordRange) {
         return wordRange;
       }

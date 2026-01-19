@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.83.1]
+
+* Fix renaming entities and predicates when the entity or predicate name includes an underscore and the user right-clicks to the right of the underscore
+
 ## [0.83.0]
 
 * Show tests as needing re-run when the tests file is modified
