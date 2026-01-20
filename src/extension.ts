@@ -335,6 +335,9 @@ export async function activate(context: ExtensionContext) {
               // Wait for the workspace folder change event to confirm the addition
               await folderAddedPromise;
               logger.debug('Workspace folder addition confirmed');
+              // Give Live Preview extension additional time to recognize the new workspace folder
+              // Without this delay, Live Preview may not serve files from the newly added folder
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
           }
 
