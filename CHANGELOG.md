@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.84.0]
+
+* Improve the "Convert module to object" refactoring to handle multi-line module export lists with interspersed comments
+
 ## [0.83.1]
 
 * Fix renaming entities and predicates when the entity or predicate name includes an underscore and the user right-clicks to the right of the underscore

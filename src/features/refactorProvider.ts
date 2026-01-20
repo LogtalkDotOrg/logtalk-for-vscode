@@ -11071,12 +11071,10 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
 
       if (entityTypeInfo.args.length >= 2) {
         // module/2 directive - second argument contains exported predicates
-        const exportList = entityTypeInfo.args[1];
+        // Parse the export list with comment handling to properly preserve comments
+        const exportsWithComments = this.parseExportListWithComments(document, entityTypeInfo.directiveRange);
 
-        // Parse the export list to extract individual predicates
-        const exports = ArgumentUtils.parseArguments(exportList.replace(/^\[|\]$/g, ''));
-
-        if (exports.length > 0) {
+        if (exportsWithComments.length > 0) {
           // Remove the second argument from the directive (export list)
           // We need to convert module(name, [exports]) to object(name)
           const moduleName = entityTypeInfo.args[0];
@@ -11085,11 +11083,19 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
             `:- object(${moduleName})`
           );
 
-          // Create public/1 directives for each exported predicate
-          for (const exp of exports) {
-            const trimmedExp = exp.trim();
-            if (trimmedExp) {
-              publicDirectives.push(`\t:- public(${trimmedExp}).`);
+          // Create public/1 directives for each exported predicate, preserving comments
+          for (const item of exportsWithComments) {
+            if (item.type === 'comment') {
+              // Standalone comment - add as a blank line followed by the comment
+              publicDirectives.push('');
+              publicDirectives.push(`\t${item.text}`);
+            } else if (item.type === 'export') {
+              // Export with optional trailing comment
+              if (item.trailingComment) {
+                publicDirectives.push(`\t:- public(${item.indicator}). ${item.trailingComment}`);
+              } else {
+                publicDirectives.push(`\t:- public(${item.indicator}).`);
+              }
             }
           }
         }
@@ -11504,6 +11510,263 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     }
 
     return false;
+  }
+
+  /**
+   * Parse the export list from a module directive, preserving comments.
+   * Returns an array of items that are either standalone comments or exports with optional trailing comments.
+   * @param document The text document
+   * @param directiveRange The range of the module directive
+   * @returns Array of export items with comment information
+   */
+  private parseExportListWithComments(document: TextDocument, directiveRange: { start: number; end: number }): Array<
+    { type: 'comment'; text: string } |
+    { type: 'export'; indicator: string; trailingComment?: string }
+  > {
+    const result: Array<
+      { type: 'comment'; text: string } |
+      { type: 'export'; indicator: string; trailingComment?: string }
+    > = [];
+
+    // Find the line containing the opening '[' of the export list
+    let listStartLine = -1;
+    let listStartChar = -1;
+    let listEndLine = -1;
+    let listEndChar = -1;
+
+    // Search for the opening '[' of the export list
+    for (let lineNum = directiveRange.start; lineNum <= directiveRange.end; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      const bracketIndex = lineText.indexOf('[');
+      if (bracketIndex !== -1) {
+        listStartLine = lineNum;
+        listStartChar = bracketIndex;
+        break;
+      }
+    }
+
+    if (listStartLine === -1) {
+      return result; // No export list found
+    }
+
+    // Find the closing ']' of the export list
+    let bracketDepth = 1;
+    let inQuotes = false;
+    let inSingleQuotes = false;
+
+    for (let lineNum = listStartLine; lineNum <= directiveRange.end; lineNum++) {
+      const lineText = document.lineAt(lineNum).text;
+      const startPos = lineNum === listStartLine ? listStartChar + 1 : 0;
+
+      for (let i = startPos; i < lineText.length && bracketDepth > 0; i++) {
+        const char = lineText[i];
+
+        if (char === '"' && !inSingleQuotes) {
+          inQuotes = !inQuotes;
+        } else if (char === "'" && !inQuotes) {
+          inSingleQuotes = !inSingleQuotes;
+        } else if (!inQuotes && !inSingleQuotes) {
+          if (char === '[') {
+            bracketDepth++;
+          } else if (char === ']') {
+            bracketDepth--;
+            if (bracketDepth === 0) {
+              listEndLine = lineNum;
+              listEndChar = i;
+              break;
+            }
+          }
+        }
+      }
+
+      if (listEndLine !== -1) {
+        break;
+      }
+    }
+
+    if (listEndLine === -1) {
+      return result; // No closing bracket found
+    }
+
+    // Now process the export list line by line, preserving comments
+    // Accumulator for multi-part exports (though rare for simple indicators)
+    let currentExport = '';
+
+    for (let lineNum = listStartLine; lineNum <= listEndLine; lineNum++) {
+      let lineText = document.lineAt(lineNum).text;
+
+      // Determine the portion of this line that's part of the export list
+      let startPos = 0;
+      let endPos = lineText.length;
+
+      if (lineNum === listStartLine) {
+        startPos = listStartChar + 1; // Skip the '['
+      }
+      if (lineNum === listEndLine) {
+        endPos = listEndChar; // Stop before the ']'
+      }
+
+      let content = lineText.substring(startPos, endPos);
+
+      // Check for line comment
+      let commentStart = -1;
+      let inQ = false;
+      let inSQ = false;
+
+      for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+        if (char === '"' && !inSQ) {
+          inQ = !inQ;
+        } else if (char === "'" && !inQ) {
+          inSQ = !inSQ;
+        } else if (char === '%' && !inQ && !inSQ) {
+          commentStart = i;
+          break;
+        }
+      }
+
+      let codeContent = content;
+      let comment = '';
+
+      if (commentStart !== -1) {
+        codeContent = content.substring(0, commentStart);
+        comment = content.substring(commentStart).trim();
+      }
+
+      // Check if the line is only a comment (no code content except whitespace and possible trailing comma)
+      const trimmedCode = codeContent.trim().replace(/^,|,$/g, '').trim();
+
+      if (trimmedCode === '' && comment !== '') {
+        // This is a standalone comment line
+        result.push({ type: 'comment', text: comment });
+        continue;
+      }
+
+      // Parse exports from the code content
+      // Handle comma-separated exports on the same line
+      const codeWithPendingExport = currentExport + codeContent;
+      currentExport = '';
+
+      // Split by comma, respecting quoted atoms
+      const exports = this.splitExportIndicators(codeWithPendingExport);
+
+      for (let i = 0; i < exports.length; i++) {
+        const exp = exports[i].trim();
+        if (!exp) {
+          continue;
+        }
+
+        // Check if this export might be incomplete (ends in the middle of a term)
+        // For simple predicate indicators like foo/2, this shouldn't happen
+        if (i === exports.length - 1 && lineNum < listEndLine) {
+          // Check if we're in the middle of a term (unbalanced parens/brackets)
+          if (this.hasUnbalancedBrackets(exp)) {
+            currentExport = exp + ',';
+            continue;
+          }
+        }
+
+        // Add the export, with trailing comment only for the last export on this line
+        if (i === exports.length - 1 && comment !== '') {
+          result.push({ type: 'export', indicator: exp, trailingComment: comment });
+        } else {
+          result.push({ type: 'export', indicator: exp });
+        }
+      }
+    }
+
+    // Handle any remaining pending export
+    if (currentExport.trim()) {
+      const exp = currentExport.trim().replace(/,$/, '').trim();
+      if (exp) {
+        result.push({ type: 'export', indicator: exp });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Split export indicators by comma, respecting quoted atoms
+   */
+  private splitExportIndicators(text: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let parenDepth = 0;
+    let bracketDepth = 0;
+    let inQuotes = false;
+    let inSingleQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      if (char === '"' && !inSingleQuotes) {
+        inQuotes = !inQuotes;
+        current += char;
+      } else if (char === "'" && !inQuotes) {
+        inSingleQuotes = !inSingleQuotes;
+        current += char;
+      } else if (inQuotes || inSingleQuotes) {
+        current += char;
+      } else if (char === '(') {
+        parenDepth++;
+        current += char;
+      } else if (char === ')') {
+        parenDepth--;
+        current += char;
+      } else if (char === '[') {
+        bracketDepth++;
+        current += char;
+      } else if (char === ']') {
+        bracketDepth--;
+        current += char;
+      } else if (char === ',' && parenDepth === 0 && bracketDepth === 0) {
+        if (current.trim()) {
+          result.push(current.trim());
+        }
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    if (current.trim()) {
+      result.push(current.trim());
+    }
+
+    return result;
+  }
+
+  /**
+   * Check if a string has unbalanced brackets/parentheses
+   */
+  private hasUnbalancedBrackets(text: string): boolean {
+    let parenDepth = 0;
+    let bracketDepth = 0;
+    let inQuotes = false;
+    let inSingleQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+
+      if (char === '"' && !inSingleQuotes) {
+        inQuotes = !inQuotes;
+      } else if (char === "'" && !inQuotes) {
+        inSingleQuotes = !inSingleQuotes;
+      } else if (!inQuotes && !inSingleQuotes) {
+        if (char === '(') {
+          parenDepth++;
+        } else if (char === ')') {
+          parenDepth--;
+        } else if (char === '[') {
+          bracketDepth++;
+        } else if (char === ']') {
+          bracketDepth--;
+        }
+      }
+    }
+
+    return parenDepth !== 0 || bracketDepth !== 0;
   }
 
   /**
