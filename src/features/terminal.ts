@@ -2135,7 +2135,7 @@ export default class LogtalkTerminal {
 
   public static async sortFilesByDependencies(workspaceDir: string, loaderDir: string, files: string[]) {
     LogtalkTerminal.createLogtalkTerm();
-    const filesListStr = '[' + files.join(', ') + ']';
+    const filesListStr = '[' + files.map(f => `'${f}'`).join(', ') + ']';
     let goals = `vscode::files_topological_sort('${workspaceDir}', '${loaderDir}', ${filesListStr}).\r`;
     LogtalkTerminal.sendString(goals);
     const marker = path.join(workspaceDir, ".vscode_files_topological_sort_done");

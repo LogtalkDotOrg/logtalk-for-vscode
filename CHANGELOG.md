@@ -5,6 +5,7 @@
 * Add "Create Loader File" command to create a `loader.lgt` file from selected files or directory
 * Improve the "Convert module to object" refactoring to handle multi-line module export lists with interspersed comments
 * Workaround a timing issue when using the "Help: Logtalk Handbook" command for the first time that may cause the Handbook to not open
+* Fix the "Sort files by dependencies" refactoring to properly handle file relative paths in `logtalk_load/1-2` calls
 
 ## [0.83.1]
 
