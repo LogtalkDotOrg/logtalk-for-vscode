@@ -2673,4 +2673,134 @@ export default class LogtalkTerminal {
     await testsExplorerProvider.runTests(request);
   }
 
+  /**
+   * Creates a loader.lgt file from selected Logtalk files or from all Logtalk files in a selected directory.
+   * @param uri - The primary URI from the explorer context (first selected item)
+   * @param uris - All selected URIs when multiple items are selected in the explorer
+   */
+  public static async createLoaderFile(uri: Uri, uris?: Uri[]) {
+    const logger = getLogger();
+    let targetDir: string;
+    let fileBaseNames: string[] = [];
+
+    // Determine if we have multiple selections or a single selection
+    const selectedUris = uris && uris.length > 0 ? uris : (uri ? [uri] : []);
+
+    if (selectedUris.length === 0) {
+      // No selection - try to use active editor's directory
+      if (!window.activeTextEditor) {
+        window.showErrorMessage('No file or directory selected');
+        return;
+      }
+      const activeUri = window.activeTextEditor.document.uri;
+      targetDir = path.dirname(activeUri.fsPath);
+      // Get all Logtalk files in the active file's directory and subdirectory loaders
+      const { files, subdirLoaders } = await LogtalkTerminal.getLogtalkFilesAndSubdirLoaders(targetDir);
+      fileBaseNames = files.map(f => path.basename(f, path.extname(f)));
+      // Add subdirectory loaders as quoted relative paths (e.g., 'subdir/loader')
+      for (const subdir of subdirLoaders) {
+        fileBaseNames.push(`'${subdir}/loader'`);
+      }
+    } else {
+      // Check if the first selected item is a directory
+      const firstUri = selectedUris[0];
+      const stat = await vscode.workspace.fs.stat(firstUri);
+
+      if (stat.type === vscode.FileType.Directory) {
+        // Directory selected - get all Logtalk files in it and subdirectory loaders
+        targetDir = firstUri.fsPath;
+        const { files, subdirLoaders } = await LogtalkTerminal.getLogtalkFilesAndSubdirLoaders(targetDir);
+        fileBaseNames = files.map(f => path.basename(f, path.extname(f)));
+        // Add subdirectory loaders as quoted relative paths (e.g., 'subdir/loader')
+        for (const subdir of subdirLoaders) {
+          fileBaseNames.push(`'${subdir}/loader'`);
+        }
+      } else {
+        // Files selected - use the directory of the first file
+        targetDir = path.dirname(firstUri.fsPath);
+        // Filter for Logtalk files and get their base names
+        for (const selectedUri of selectedUris) {
+          const fileName = selectedUri.fsPath;
+          const ext = path.extname(fileName).toLowerCase();
+          if (ext === '.lgt' || ext === '.logtalk') {
+            fileBaseNames.push(path.basename(fileName, ext));
+          }
+        }
+      }
+    }
+
+    if (fileBaseNames.length === 0) {
+      window.showWarningMessage('No Logtalk files found to include in loader file.');
+      return;
+    }
+
+    // Remove duplicates and sort
+    fileBaseNames = [...new Set(fileBaseNames)].sort();
+
+    // Check if loader.lgt already exists
+    const loaderPath = path.join(targetDir, 'loader.lgt');
+    if (fs.existsSync(loaderPath)) {
+      const overwrite = await window.showWarningMessage(
+        'A loader.lgt file already exists in this directory. Do you want to overwrite it?',
+        'Yes', 'No'
+      );
+      if (overwrite !== 'Yes') {
+        return;
+      }
+    }
+
+    // Generate the loader file content
+    const filesListContent = fileBaseNames.map(name => `\t\t${name}`).join(',\n');
+    const loaderContent = `:- initialization((\n\tlogtalk_load([\n${filesListContent}\n\t])\n)).\n`;
+
+    // Write the loader file
+    try {
+      await fs.promises.writeFile(loaderPath, loaderContent, 'utf8');
+      window.showInformationMessage(`Created loader.lgt with ${fileBaseNames.length} file(s).`);
+      logger.info(`Created loader file at ${loaderPath} with ${fileBaseNames.length} files`);
+
+      // Open the created file
+      const doc = await vscode.workspace.openTextDocument(loaderPath);
+      await vscode.window.showTextDocument(doc);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      window.showErrorMessage(`Failed to create loader.lgt: ${errorMessage}`);
+      logger.error(`Failed to create loader file: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Gets all Logtalk files (.lgt and .logtalk) in a directory and finds immediate subdirectories with loader files.
+   * Only checks immediate subdirectories for loader.lgt files (no recursion).
+   * @param dirPath - The directory path to search
+   * @returns Object with files (Logtalk files in the directory) and subdirLoaders (names of subdirectories containing loader.lgt)
+   */
+  private static async getLogtalkFilesAndSubdirLoaders(dirPath: string): Promise<{ files: string[], subdirLoaders: string[] }> {
+    const files: string[] = [];
+    const subdirLoaders: string[] = [];
+
+    try {
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const entryPath = path.join(dirPath, entry.name);
+        if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (ext === '.lgt' || ext === '.logtalk') {
+            files.push(entryPath);
+          }
+        } else if (entry.isDirectory()) {
+          // Check if this immediate subdirectory contains a loader.lgt file
+          const loaderPath = path.join(entryPath, 'loader.lgt');
+          if (fs.existsSync(loaderPath)) {
+            // Found a loader - add the subdirectory name
+            subdirLoaders.push(entry.name);
+          }
+        }
+      }
+    } catch (err) {
+      getLogger().error(`Error reading directory ${dirPath}: ${err}`);
+    }
+    return { files, subdirLoaders };
+  }
+
 }

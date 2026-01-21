@@ -468,6 +468,11 @@
                 "command": "logtalk.test.unskip",
                 "title": "Unskip Test",
                 "category": "Logtalk"
+            },
+            {
+                "command": "logtalk.create.loader",
+                "title": "Create Loader File",
+                "category": "Logtalk"
             }
         ],
         "keybindings": [],
@@ -721,14 +726,19 @@
                     "group": "project_1@2"
                 },
                 {
+                    "command": "logtalk.create.loader",
+                    "when": "(resourceLangId == logtalk || explorerResourceIsFolder) && !virtualWorkspace",
+                    "group": "project_1@3"
+                },
+                {
                     "command": "logtalk.open",
                     "when": "resourceLangId == logtalk",
-                    "group": "project_1@3"
+                    "group": "project_1@4"
                 },
                 {
                     "submenu": "makesubmenu",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
-                    "group": "project_1@4"
+                    "group": "project_1@5"
                 },
                 {
                     "command": "logtalk.rscan.deadCode",

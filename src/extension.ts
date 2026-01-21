@@ -530,6 +530,8 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.svgViewer.zoomIn",          callback: ()   => SvgViewerProvider.zoomIn()},
     { command: "logtalk.svgViewer.zoomOut",         callback: ()   => SvgViewerProvider.zoomOut()},
     { command: "logtalk.svgViewer.zoomReset",       callback: ()   => SvgViewerProvider.zoomReset()},
+    // Loader file command
+    { command: "logtalk.create.loader",             callback: (uri, uris)  => LogtalkTerminal.createLoaderFile(uri, uris)},
     // Diagnostic commands
     { command: "logtalk.update.diagnostics", callback: (uri, diagnostic) => {
       // Route to appropriate diagnostic collection based on the diagnostic source

@@ -176,6 +176,7 @@ Project (workspace) commands can be triggered from the command palette by typing
 | ------------------------------: | :----------------------------------------------------------------- |
 |                  Create Project | Creates a new project with renamed copies of the sample files      |
 |                    Load Project | Loads the loader file found in the workspace root folder           |
+|              Create Loader File | Creates a loader file from selected Logtalk files or directory     |
 |                    Open Logtalk | Opens Logtalk in an integrated terminal                            |
 |                            Make | Sub-menu with available make targets                               |
 |          Scan Project Dead Code | Recursively scans the workspace root folder for dead code          |
@@ -190,6 +191,8 @@ Project (workspace) commands can be triggered from the command palette by typing
 The "Create Project" command is usually called from the command palette. It asks for the folder where to copy the renamed sample files.
 
 The "Load Project" command looks for a `loader.lgt` or `loader.logtalk` file in the workspace root folder, printing a warning if no loader file is found.
+
+The "Create Loader File" command creates a `loader.lgt` file from selected Logtalk files or from all Logtalk files in a selected directory. When multiple Logtalk files are selected in the explorer, it creates a loader file containing all selected files. When a directory is selected, it finds all `.lgt` and `.logtalk` files in that directory and also includes any `loader.lgt` files found in immediate subdirectories. The command filters only Logtalk files, removes duplicates, sorts them alphabetically, and prompts for confirmation before overwriting an existing `loader.lgt` file. The created file is automatically opened after creation.
 
 The "Scan Project Dead Code", "Compute Project Metrics", "Generate Project Documentation", and "Generate Project Diagrams" commands require that the project code is already loaded. Quick fixes are provided for some of the documentation and dead code linter warnings.
 
