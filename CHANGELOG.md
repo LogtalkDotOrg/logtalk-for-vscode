@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.85.0]
+
+* Fix a regression where code navigation features could hang due to the migration to the VSCode API for file system operations
+
 ## [0.84.0]
 
 * Add "Create Loader File" command to create a `loader.lgt` file from selected files or directory

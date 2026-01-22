@@ -2162,7 +2162,8 @@ export default class LogtalkTerminal {
     await LogtalkTerminal.waitForFile(marker);
     await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     const result = path.join(wdir, ".vscode_find_parent");
-    let loader = fs.readFileSync(result).toString();
+    const content = await workspace.fs.readFile(Uri.file(result));
+    let loader = content.toString();
     await workspace.fs.delete(Uri.file(result), { useTrash: false });
     if (loader.trim() === '') {
       window.showInformationMessage("No parent file found for the current file.");
@@ -2397,22 +2398,22 @@ export default class LogtalkTerminal {
   private static waitForFile = async (
     filePath,
     {timeout = LogtalkTerminal._timeout, delay = 200} = {}
-  ) => {
-    const tid = setTimeout(() => {
-      const msg = `Timeout of ${timeout} ms exceeded waiting for ${filePath}`;
-      throw Error(msg);
-    }, timeout);
+  ): Promise<void> => {
+    const startTime = Date.now();
 
-    for (;;) {
+    while (Date.now() - startTime < timeout) {
       try {
         await workspace.fs.stat(Uri.file(filePath));
-        clearTimeout(tid);
         return;
       }
-      catch (err) {}
+      catch (err) {
+        // File doesn't exist yet, wait and try again
+      }
 
       await timers.setTimeout(delay);
     }
+
+    throw new Error(`Timeout of ${timeout} ms exceeded waiting for ${filePath}`);
   };
 
   public static getFirstWorkspaceFolder(): string | undefined {
