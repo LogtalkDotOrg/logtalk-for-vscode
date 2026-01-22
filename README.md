@@ -312,6 +312,8 @@ Right-click on a predicate (or non-terminal) name and select the "Go to Declarat
 
 Right-click on a predicate (or non-terminal) name in a goal or predicate directive and select the "Go to Definition" context menu item to go to the first clause defining the predicate. Note that some definitions may only be resolved at runtime (e.g., in a message to _self_ goal or when dynamic predicates are used). When a definition is not found, try in alternative to go to the declaration and then to the implementations.
 
+Right-click on a file path in a `logtalk_load/1-2` call and select the "Go to Definition" context menu item to open the corresponding file. This works for file paths that don't use library notation.
+
 #### Go to Type Definition
 
 Entities (objects, protocols, and categories) are interpreted as types. Right-click on an entity name and select the "Go to Type Definition" context menu item to go to the entity opening directive.

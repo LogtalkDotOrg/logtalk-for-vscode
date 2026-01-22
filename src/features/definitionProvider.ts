@@ -15,10 +15,14 @@ import LogtalkTerminal from "./terminal";
 import { getLogger } from "../utils/logger";
 import { Utils } from "../utils/utils";
 import * as path from "path";
+import * as fs from "fs";
 
 export class LogtalkDefinitionProvider implements DefinitionProvider {
   private logger = getLogger();
   private disposables: Disposable[] = [];
+
+  // Extensions to try when resolving file paths (in order of priority)
+  private static readonly FILE_EXTENSIONS = ['.lgt', '.logtalk', '.pl', '.prolog', ''];
 
   constructor() {
     // Delete any temporary files from previous sessions in all workspace folders
@@ -44,6 +48,164 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     this.disposables.push(workspaceFoldersListener);
   }
 
+  /**
+   * Detect if the cursor is on an atom (file path) inside the first argument of logtalk_load/1-2.
+   * Only handles atoms (possibly quoted), not compound terms like library(name).
+   * @param doc The text document
+   * @param position The cursor position
+   * @returns The file path atom (without quotes) if detected, null otherwise
+   */
+  private getLogtalkLoadFilePath(doc: TextDocument, position: Position): string | null {
+    // Get surrounding context to check if we're in a logtalk_load call
+    const lineText = doc.lineAt(position.line).text;
+
+    // Search backwards to find the logtalk_load call context
+    const searchStart = Math.max(0, position.line - 20);
+
+    // Build the text from searchStart to current position to check context
+    let contextText = '';
+    for (let i = searchStart; i <= position.line; i++) {
+      contextText += doc.lineAt(i).text + '\n';
+    }
+
+    // Check if we're inside a logtalk_load call
+    // Look for logtalk_load( that hasn't been closed yet
+    const logtalkLoadMatch = contextText.match(/logtalk_load\s*\(/g);
+    if (!logtalkLoadMatch) {
+      return null;
+    }
+
+    // Find the last logtalk_load( in the context
+    let lastLogtalkLoadPos = contextText.lastIndexOf('logtalk_load');
+    if (lastLogtalkLoadPos === -1) {
+      return null;
+    }
+
+    // Check if the logtalk_load call is still open (not closed with matching parenthesis)
+    let afterLogtalkLoad = contextText.substring(lastLogtalkLoadPos);
+    let openParenPos = afterLogtalkLoad.indexOf('(');
+    if (openParenPos === -1) {
+      return null;
+    }
+
+    // Count parentheses to see if we're still inside the first argument of the call
+    let parenDepth = 0;
+    let bracketDepth = 0;
+    let inFirstArg = false;
+    let inQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = openParenPos; i < afterLogtalkLoad.length; i++) {
+      const char = afterLogtalkLoad[i];
+
+      // Handle quotes
+      if (char === "'" && !inDoubleQuote) {
+        inQuote = !inQuote;
+        continue;
+      }
+      if (char === '"' && !inQuote) {
+        inDoubleQuote = !inDoubleQuote;
+        continue;
+      }
+      if (inQuote || inDoubleQuote) {
+        continue;
+      }
+
+      if (char === '(') {
+        parenDepth++;
+        if (parenDepth === 1) {
+          inFirstArg = true;
+        }
+      } else if (char === ')') {
+        parenDepth--;
+        if (parenDepth === 0) {
+          // End of logtalk_load call
+          break;
+        }
+      } else if (char === '[') {
+        bracketDepth++;
+      } else if (char === ']') {
+        bracketDepth--;
+      } else if (char === ',' && parenDepth === 1 && bracketDepth === 0) {
+        // End of first argument (start of second argument for logtalk_load/2)
+        break;
+      }
+    }
+
+    if (!inFirstArg) {
+      return null;
+    }
+
+    // Now get the word/atom under the cursor
+    // Handle quoted atoms: 'file_name' or "file_name"
+    // Handle unquoted atoms: file_name
+    let wordRange = doc.getWordRangeAtPosition(position, /'[^']*'|"[^"]*"|\w+/);
+    if (!wordRange) {
+      return null;
+    }
+
+    let word = doc.getText(wordRange);
+    this.logger.debug(`Word under cursor: ${word}`);
+
+    // Check if this is a compound term (has parenthesis immediately after)
+    // e.g., library(name) - we should NOT handle these
+    const afterWord = lineText.substring(wordRange.end.character);
+    if (/^\s*\(/.test(afterWord)) {
+      this.logger.debug(`Skipping compound term: ${word}(...)`);
+      return null;
+    }
+
+    // Remove quotes if present
+    if ((word.startsWith("'") && word.endsWith("'")) ||
+        (word.startsWith('"') && word.endsWith('"'))) {
+      word = word.substring(1, word.length - 1);
+    }
+
+    // Validate it's a valid atom (starts with lowercase or is quoted)
+    if (!word || word.length === 0) {
+      return null;
+    }
+
+    this.logger.debug(`Detected logtalk_load file path: ${word}`);
+    return word;
+  }
+
+  /**
+   * Try to resolve a file path, trying various extensions if the file doesn't exist.
+   * @param basePath The base directory (directory of the document containing the logtalk_load call)
+   * @param filePath The file path from the logtalk_load call (may be relative, may omit extension)
+   * @returns The resolved absolute file path if found, null otherwise
+   */
+  private resolveFilePath(basePath: string, filePath: string): string | null {
+    // If the path already has an extension we recognize, try it first
+    const hasKnownExtension = LogtalkDefinitionProvider.FILE_EXTENSIONS.some(
+      ext => ext && filePath.endsWith(ext)
+    );
+
+    if (hasKnownExtension) {
+      const fullPath = path.isAbsolute(filePath) ? filePath : path.join(basePath, filePath);
+      if (fs.existsSync(fullPath)) {
+        this.logger.debug(`Resolved file path (with extension): ${fullPath}`);
+        return fullPath;
+      }
+    }
+
+    // Try each extension
+    for (const ext of LogtalkDefinitionProvider.FILE_EXTENSIONS) {
+      const testPath = path.isAbsolute(filePath)
+        ? filePath + ext
+        : path.join(basePath, filePath + ext);
+
+      if (fs.existsSync(testPath)) {
+        this.logger.debug(`Resolved file path: ${testPath}`);
+        return testPath;
+      }
+    }
+
+    this.logger.debug(`Could not resolve file path: ${filePath} from ${basePath}`);
+    return null;
+  }
+
   public async provideDefinition(
     doc: TextDocument,
     position: Position,
@@ -56,6 +218,22 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
     const lineText = doc.lineAt(position.line).text.trim();
     if (lineText.startsWith("%")) {
       return null;
+    }
+
+    // First, check if the cursor is on a file path in logtalk_load/1-2
+    const logtalkLoadFilePath = this.getLogtalkLoadFilePath(doc, position);
+    if (logtalkLoadFilePath) {
+      // Try to resolve the file path relative to the document's directory
+      const docDir = path.dirname(doc.uri.fsPath);
+      const resolvedPath = this.resolveFilePath(docDir, logtalkLoadFilePath);
+
+      if (resolvedPath) {
+        this.logger.debug(`Opening file from logtalk_load: ${resolvedPath}`);
+        return new Location(Uri.file(resolvedPath), new Position(0, 0));
+      } else {
+        this.logger.debug(`Could not resolve logtalk_load file path: ${logtalkLoadFilePath}`);
+        // Fall through to regular definition lookup
+      }
     }
 
     let call = Utils.getCallUnderCursor(doc, position);

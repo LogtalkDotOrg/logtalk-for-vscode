@@ -2,6 +2,7 @@
 
 ## [0.85.0]
 
+* Add "Go to Definition" support for file paths in `logtalk_load/1-2` calls that don't use library notation
 * Fix a regression where code navigation features could hang due to the migration to the VSCode API for file system operations
 
 ## [0.84.0]
