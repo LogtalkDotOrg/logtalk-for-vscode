@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.85.1]
+
+* Fix updating the `loader.lgt` and `tester.lgt` files when moving a file to a subdirectory
+
 ## [0.85.0]
 
 * Add "Go to Definition" support for file paths in `logtalk_load/1-2` calls that don't use library notation

@@ -38,40 +38,50 @@ export class FileRenameHandler {
   private static async propagateFileRenameInternal(oldUri: Uri, newUri: Uri): Promise<WorkspaceEdit | null> {
     const oldPath = oldUri.fsPath;
     const newPath = newUri.fsPath;
-    
+
     // Get file names without extensions
     const oldBaseName = path.basename(oldPath, path.extname(oldPath));
     const newBaseName = path.basename(newPath, path.extname(newPath));
-    
+
     // Skip if renaming loader.lgt or tester.lgt themselves
     const oldFileName = path.basename(oldPath);
-    if (oldFileName === 'loader.lgt' || oldFileName === 'loader.logtalk' || 
+    if (oldFileName === 'loader.lgt' || oldFileName === 'loader.logtalk' ||
         oldFileName === 'tester.lgt' || oldFileName === 'tester.logtalk') {
       this.logger.debug(`Skipping rename propagation for ${oldFileName}`);
       return null;
     }
-    
+
     // Get the directory containing the renamed file
     const directory = path.dirname(oldPath);
-    
+
     // Check if the new file is in a different directory
     const newDirectory = path.dirname(newPath);
     const isSameDirectory = directory === newDirectory;
-    
-    this.logger.debug(`Propagating rename from ${oldBaseName} to ${newBaseName} in directory ${directory}`);
-    
+
+    // Compute the relative path from old directory to new file (without extension)
+    // This is used when updating references in the old directory's loader/tester files
+    let newRelativePath = newBaseName;
+    if (!isSameDirectory) {
+      // Get the relative path from the old directory to the new directory
+      // Always use forward slashes for Logtalk path notation
+      const relativeDir = path.relative(directory, newDirectory).replace(/\\/g, '/');
+      newRelativePath = relativeDir + '/' + newBaseName;
+    }
+
+    this.logger.debug(`Propagating rename from ${oldBaseName} to ${newRelativePath} in directory ${directory}`);
+
     const workspaceEdit = new WorkspaceEdit();
     let hasChanges = false;
-    
+
     // Find and update loader.lgt and tester.lgt files
     const loaderFiles = ['loader.lgt', 'loader.logtalk'];
     const testerFiles = ['tester.lgt', 'tester.logtalk'];
-    
+
     // Update loader files in the old directory
     for (const loaderFile of loaderFiles) {
       const loaderPath = path.join(directory, loaderFile);
       if (fs.existsSync(loaderPath)) {
-        const edits = await this.updateFileReferences(loaderPath, oldBaseName, newBaseName, isSameDirectory);
+        const edits = await this.updateFileReferences(loaderPath, oldBaseName, newRelativePath, isSameDirectory);
         if (edits.length > 0) {
           workspaceEdit.set(Uri.file(loaderPath), edits);
           hasChanges = true;
@@ -79,12 +89,12 @@ export class FileRenameHandler {
         }
       }
     }
-    
+
     // Update tester files in the old directory
     for (const testerFile of testerFiles) {
       const testerPath = path.join(directory, testerFile);
       if (fs.existsSync(testerPath)) {
-        const edits = await this.updateFileReferences(testerPath, oldBaseName, newBaseName, isSameDirectory);
+        const edits = await this.updateFileReferences(testerPath, oldBaseName, newRelativePath, isSameDirectory);
         if (edits.length > 0) {
           workspaceEdit.set(Uri.file(testerPath), edits);
           hasChanges = true;
@@ -92,7 +102,7 @@ export class FileRenameHandler {
         }
       }
     }
-    
+
     // If file was moved to a different directory, also update loader/tester in new directory
     if (!isSameDirectory) {
       // Update loader files in the new directory
@@ -108,7 +118,7 @@ export class FileRenameHandler {
           }
         }
       }
-      
+
       // Update tester files in the new directory
       for (const testerFile of testerFiles) {
         const testerPath = path.join(newDirectory, testerFile);
@@ -123,7 +133,7 @@ export class FileRenameHandler {
         }
       }
     }
-    
+
     return hasChanges ? workspaceEdit : null;
   }
 
@@ -310,12 +320,16 @@ export class FileRenameHandler {
         const hasExtension = match[2] !== undefined; // Group 2 captures the extension
         const extension = hasExtension ? match[2] : 'lgt';
 
-        if (quoteStyle === 'single') {
+        // If the new path contains a slash (file moved to subdirectory), it must be quoted
+        const needsQuotes = newBaseName.includes('/');
+
+        if (quoteStyle === 'single' || (quoteStyle === 'none' && needsQuotes)) {
+          // Use single quotes for paths with slashes, or if original was single-quoted
           replacement = hasExtension ? `'${newBaseName}.${extension}'` : `'${newBaseName}'`;
         } else if (quoteStyle === 'double') {
           replacement = hasExtension ? `"${newBaseName}.${extension}"` : `"${newBaseName}"`;
         } else {
-          // Unquoted
+          // Unquoted (only when no slashes in path)
           replacement = hasExtension ? `${newBaseName}.${extension}` : newBaseName;
         }
 
