@@ -282,24 +282,14 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     this.disposables.push(workspaceFoldersListener);
 
     // Watch for source file saves to invalidate test results
-    // Use onWillSaveTextDocument to check if document is dirty before save
+    // Use onWillSaveTextDocument to invalidate tests when a file is saved
     const saveDocumentListener = workspace.onWillSaveTextDocument(event => {
-      // Only process Logtalk files that have unsaved changes
-      if (event.document.languageId === 'logtalk' && event.document.isDirty) {
+      // Only process Logtalk files
+      if (event.document.languageId === 'logtalk') {
         this.invalidateTestResultsForFile(event.document.uri);
       }
     });
     this.disposables.push(saveDocumentListener);
-
-    // Watch for source file modifications to invalidate test results
-    // This marks tests as needing re-run when the file is edited
-    const changeDocumentListener = workspace.onDidChangeTextDocument(event => {
-      // Only process Logtalk files with actual content changes
-      if (event.document.languageId === 'logtalk' && event.contentChanges.length > 0) {
-        this.invalidateTestResultsForFile(event.document.uri);
-      }
-    });
-    this.disposables.push(changeDocumentListener);
   }
 
   /**

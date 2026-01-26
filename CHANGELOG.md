@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.85.2]
+
+* Fix performance regression updating the Testing pane when editing test files
+
 ## [0.85.1]
 
 * Fix updating the `loader.lgt` and `tester.lgt` files when moving a file to a subdirectory
