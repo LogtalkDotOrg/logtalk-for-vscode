@@ -307,4 +307,60 @@ suite('LogtalkRenameProvider Test Suite', () => {
     // Should NOT find 'member(+term, ?list)' because it's looking for indicator format
     assert.strictEqual(ranges.length, 0);
   });
+
+  // Tests for character code notation handling (0'Char)
+  test('countSingleQuotesExcludingCharCodes - no quotes', () => {
+    const count = (renameProvider as any).countSingleQuotesExcludingCharCodes('hello world');
+    assert.strictEqual(count, 0);
+  });
+
+  test('countSingleQuotesExcludingCharCodes - regular quoted atom', () => {
+    const count = (renameProvider as any).countSingleQuotesExcludingCharCodes("'hello'");
+    assert.strictEqual(count, 2);
+  });
+
+  test('countSingleQuotesExcludingCharCodes - character code notation 0\'0', () => {
+    // Character code notation should not count the quote
+    const count = (renameProvider as any).countSingleQuotesExcludingCharCodes("Code >= 0'0, Code =< 0'9");
+    assert.strictEqual(count, 0);
+  });
+
+  test('countSingleQuotesExcludingCharCodes - character code with escape sequence', () => {
+    // Character code with escape like 0'\n should not count the quote
+    const count = (renameProvider as any).countSingleQuotesExcludingCharCodes("Code = 0'\\n");
+    assert.strictEqual(count, 0);
+  });
+
+  test('countSingleQuotesExcludingCharCodes - mixed quotes and char codes', () => {
+    // Mix of quoted atoms and character codes
+    const count = (renameProvider as any).countSingleQuotesExcludingCharCodes("'atom', 0'x, 'another'");
+    assert.strictEqual(count, 4); // 2 for 'atom' + 2 for 'another', 0 for 0'x
+  });
+
+  test('isValidVariableContextInLine - variable after character code notation', () => {
+    // Variable Code after 0'0 should be in valid context (not inside quotes)
+    const isValid = (renameProvider as any).isValidVariableContextInLine(
+      "hex_digit(Code, Value) :- Code >= 0'0, Code =< 0'9, !, Value is Code - 0'0.",
+      61, 65 // Position of the last "Code" before "- 0'0"
+    );
+    assert.strictEqual(isValid, true);
+  });
+
+  test('isValidVariableContextInLine - variable between character codes', () => {
+    // Variable Code between 0'0 and 0'9 should be in valid context
+    const isValid = (renameProvider as any).isValidVariableContextInLine(
+      "hex_digit(Code, Value) :- Code >= 0'0, Code =< 0'9, !, Value is Code - 0'0.",
+      39, 43 // Position of "Code" in "Code =< 0'9"
+    );
+    assert.strictEqual(isValid, true);
+  });
+
+  test('isValidVariableContextInLine - variable inside actual quoted atom should be invalid', () => {
+    // Variable inside a quoted atom should not be valid
+    const isValid = (renameProvider as any).isValidVariableContextInLine(
+      "test('Code is here', Code).",
+      6, 10 // Position of "Code" inside the quoted atom
+    );
+    assert.strictEqual(isValid, false);
+  });
 });

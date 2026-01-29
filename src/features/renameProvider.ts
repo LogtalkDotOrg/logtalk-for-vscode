@@ -71,8 +71,9 @@ export class LogtalkRenameProvider implements RenameProvider {
     }
 
     // Check if we're in a string literal
+    // Use the helper method that properly handles character code notation (0'Char)
     const beforeCursor = lineText.substring(0, position.character);
-    const singleQuotes = (beforeCursor.match(/'/g) || []).length;
+    const singleQuotes = this.countSingleQuotesExcludingCharCodes(beforeCursor);
     const doubleQuotes = (beforeCursor.match(/"/g) || []).length;
     if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
       return null;
@@ -933,6 +934,35 @@ export class LogtalkRenameProvider implements RenameProvider {
   }
 
   /**
+   * Counts single quotes in a string, excluding those that are part of character code notation (0'Char)
+   * @param text The text to count quotes in
+   * @returns The count of single quotes that are not part of character code notation
+   */
+  private countSingleQuotesExcludingCharCodes(text: string): number {
+    let count = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "'") {
+        // Check if this quote is part of character code notation (preceded by '0')
+        if (i > 0 && text[i - 1] === '0') {
+          // This is character code notation like 0'x, skip this quote
+          // Also skip the next character (the char being represented)
+          if (i + 1 < text.length) {
+            // Handle escape sequences like 0'\n, 0'\\, etc.
+            if (text[i + 1] === '\\' && i + 2 < text.length) {
+              i += 2; // Skip the backslash and the escaped character
+            } else {
+              i += 1; // Skip the single character
+            }
+          }
+        } else {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  /**
    * Validates if a variable occurrence is in a valid context (not in string)
    * Note: We DO want to rename variables in comments to keep them accurate
    * @param lineText The line text
@@ -943,7 +973,7 @@ export class LogtalkRenameProvider implements RenameProvider {
   private isValidVariableContextInLine(lineText: string, startPos: number, endPos: number): boolean {
     // Check if this is in a string literal
     const beforeMatch = lineText.substring(0, startPos);
-    const singleQuotes = (beforeMatch.match(/'/g) || []).length;
+    const singleQuotes = this.countSingleQuotesExcludingCharCodes(beforeMatch);
     const doubleQuotes = (beforeMatch.match(/"/g) || []).length;
     if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
       return false;

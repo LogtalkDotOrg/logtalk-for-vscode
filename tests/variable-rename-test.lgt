@@ -96,5 +96,27 @@
         % Value is a test variable
         write(Value). % Print Value
 
+    % Test 16: Variable with character code notation (0'Char)
+    % All occurrences of Code should be renamed, not just the first two
+    % The single quotes in 0'0 and 0'9 are character code notation, not quoted atoms
+    hex_digit(Code, Value) :-
+        Code >= 0'0,
+        Code =< 0'9,
+        !,
+        Value is Code - 0'0.
+
+    % Test 17: Multiple character codes in same clause
+    is_ascii_letter(Code) :-
+        (   Code >= 0'a, Code =< 0'z
+        ;   Code >= 0'A, Code =< 0'Z
+        ).
+
+    % Test 18: Character code with escape sequences
+    is_whitespace(Code) :-
+        (   Code = 0'
+        ;   Code = 0'\t
+        ;   Code = 0'\n
+        ).
+
 :- end_object.
 

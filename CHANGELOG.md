@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.85.4]
+
+* Fix bug where variable renaming would fail to update all occurrences of the variable in the presence of character code notation (0'Char)
+
 ## [0.85.3]
 
 * Fix bug where predicate/non-terminal argument refactoring would fail to update all clauses/rules
