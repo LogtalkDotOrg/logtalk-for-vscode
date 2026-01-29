@@ -281,14 +281,19 @@ export class ArgumentUtils {
    * @returns The number of arguments, or 0 if no parentheses found
    */
   static countArgumentsAtPosition(text: string, nameEndPos: number): number {
-    const afterName = text.substring(nameEndPos);
-    const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
-    
-    if (!argsMatch) {
+    // In Logtalk/Prolog, there cannot be whitespace between predicate name and opening parenthesis
+    if (nameEndPos >= text.length || text[nameEndPos] !== '(') {
       return 0; // No parentheses, so no arguments
     }
 
-    const argsText = argsMatch[1];
+    // Find matching close parenthesis using proper nesting handling
+    const closeParenPos = this.findMatchingCloseParen(text, nameEndPos);
+
+    if (closeParenPos === -1) {
+      return 0; // No matching close paren
+    }
+
+    const argsText = text.substring(nameEndPos + 1, closeParenPos);
     if (!argsText || argsText.trim() === '') {
       return 0; // Empty parentheses
     }
@@ -304,14 +309,19 @@ export class ArgumentUtils {
    * @returns Array of argument strings, or empty array if no arguments
    */
   static extractArgumentsAtPosition(text: string, nameEndPos: number): string[] {
-    const afterName = text.substring(nameEndPos);
-    const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
-
-    if (!argsMatch) {
+    // In Logtalk/Prolog, there cannot be whitespace between predicate name and opening parenthesis
+    if (nameEndPos >= text.length || text[nameEndPos] !== '(') {
       return []; // No parentheses, so no arguments
     }
 
-    const argsText = argsMatch[1];
+    // Find matching close parenthesis using proper nesting handling
+    const closeParenPos = this.findMatchingCloseParen(text, nameEndPos);
+
+    if (closeParenPos === -1) {
+      return []; // No matching close paren
+    }
+
+    const argsText = text.substring(nameEndPos + 1, closeParenPos);
     if (!argsText || argsText.trim() === '') {
       return []; // Empty parentheses
     }

@@ -991,9 +991,9 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   ): Array<{ line: number; startChar: number; messageText: string; isInGrammarRule: boolean }> {
     const occurrences: Array<{ line: number; startChar: number; messageText: string; isInGrammarRule: boolean }> = [];
 
-    // Regex to match Entity::Message pattern - captures the message name and optional arguments
+    // Regex to match Entity::Message pattern - captures the message name (we'll find args separately)
     const entityPattern = new RegExp(
-      `\\b${entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}::(\\w+(?:\\([^)]*\\))?)`,
+      `\\b${entityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}::(\\w+)`,
       'g'
     );
 
@@ -1047,10 +1047,23 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         let match: RegExpExecArray | null;
         entityPattern.lastIndex = 0;
         while ((match = entityPattern.exec(fullLineText)) !== null) {
+          const messageName = match[1];
+          const messageNameEndPos = match.index + match[0].length;
+
+          // Check if there are arguments after the message name
+          let messageText = messageName;
+          if (messageNameEndPos < fullLineText.length && fullLineText[messageNameEndPos] === '(') {
+            const closeParenPos = ArgumentUtils.findMatchingCloseParen(fullLineText, messageNameEndPos);
+            if (closeParenPos !== -1) {
+              // Include the full message with arguments
+              messageText = fullLineText.substring(match.index + match[0].length - messageName.length, closeParenPos + 1);
+            }
+          }
+
           occurrences.push({
             line: bodyLine,
             startChar: match.index,
-            messageText: match[1],  // The message name with optional arguments
+            messageText: messageText,  // The message name with optional arguments
             isInGrammarRule: termIsGrammarRule
           });
         }
@@ -1080,19 +1093,26 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       const messageText = occurrence.messageText;
 
       // Parse the message to extract name and arity
-      const match = messageText.match(/^(\w+)(?:\(([^)]*)\))?$/);
-      if (!match) {
+      // First, extract the name (word characters at the start)
+      const nameMatch = messageText.match(/^(\w+)/);
+      if (!nameMatch) {
         continue;
       }
 
-      const name = match[1];
-      const argsText = match[2] || '';
-
-      // Count arguments
+      const name = nameMatch[1];
       let arity = 0;
-      if (argsText.trim()) {
-        const args = ArgumentUtils.parseArguments(argsText);
-        arity = args.length;
+
+      // Check if there are arguments after the name
+      const afterName = messageText.substring(name.length);
+      if (afterName.startsWith('(')) {
+        const closeParenPos = ArgumentUtils.findMatchingCloseParen(messageText, name.length);
+        if (closeParenPos !== -1) {
+          const argsText = messageText.substring(name.length + 1, closeParenPos);
+          if (argsText.trim()) {
+            const args = ArgumentUtils.parseArguments(argsText);
+            arity = args.length;
+          }
+        }
       }
 
       // Use // for non-terminals (in grammar rules), / for predicates (in clauses)
@@ -6316,12 +6336,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
           } else {
             // Handle predicate call/definition - reorder the arguments
             const firstLineText = doc.lineAt(startLine).text;
+            this.logger.debug(`Checking if line ${startLine + 1} is a clause head: "${firstLineText.trim().substring(0, 80)}..."`);
             const clauseHeadMatch = this.findClauseHead(firstLineText, predicateName, isNonTerminal, currentArity);
+            this.logger.debug(`findClauseHead result for line ${startLine + 1}: ${clauseHeadMatch ? 'MATCHED' : 'NO MATCH'} (predicate=${predicateName}, arity=${currentArity}, isNonTerminal=${isNonTerminal})`);
 
             let clauseRange: { start: number; end: number };
             if (clauseHeadMatch) {
               // This is a definition location - find all consecutive clauses of the same predicate/non-terminal
+              this.logger.debug(`Finding consecutive clauses for ${predicateName}/${currentArity} in file ${uri.fsPath}`);
               const endLine = this.findEndOfConsecutiveClauses(doc, startLine, predicateName, currentArity, isNonTerminal);
+              this.logger.debug(`Found end of consecutive clauses at range ${startLine + 1}-${endLine + 1} for ${predicateName}/${currentArity} in file ${uri.fsPath}`);
               clauseRange = { start: startLine, end: endLine };
             } else {
               // This is a call location - find the end of the current clause that contains the calls
@@ -6904,6 +6928,42 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
+   * Find all callable forms in a line with proper nesting handling
+   * Returns array of { name, args, startIndex, endIndex }
+   */
+  private findCallableFormsInLine(lineText: string): Array<{ name: string; args: string[]; startIndex: number; endIndex: number }> {
+    const results: Array<{ name: string; args: string[]; startIndex: number; endIndex: number }> = [];
+
+    // Find predicate names followed by opening parenthesis
+    const namePattern = /\b(\w+)\s*\(/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = namePattern.exec(lineText)) !== null) {
+      const name = match[1];
+      const nameStart = match.index;
+      const openParenPos = match.index + match[0].length - 1; // Position of '('
+
+      // Find matching close parenthesis using proper nesting handling
+      const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
+      if (closeParenPos === -1) {
+        continue; // No matching close paren, skip
+      }
+
+      const argsText = lineText.substring(openParenPos + 1, closeParenPos);
+      const args = argsText.trim() === '' ? [] : ArgumentUtils.parseArguments(argsText);
+
+      results.push({
+        name,
+        args,
+        startIndex: nameStart,
+        endIndex: closeParenPos + 1
+      });
+    }
+
+    return results;
+  }
+
+  /**
    * Update an example line by adding an argument to callable forms
    */
   private updateExampleLineForAdding(lineText: string, predicateName: string, currentArity: number, argumentName: string, argumentPosition: number): string {
@@ -6911,43 +6971,33 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // process_file(File, Options)
     // analyze_data(Dataset, Parameters, Output)
 
-    // Find all callable forms in the line (predicate_name followed by parentheses)
-    const callablePattern = /(\w+)\(([^)]*)\)/g;
+    // Find all callable forms in the line with proper nesting handling
+    const callableForms = this.findCallableFormsInLine(lineText);
     let updatedLine = lineText;
-    let match: RegExpExecArray | null;
     let offset = 0;
 
     // Process all matches from left to right
-    while ((match = callablePattern.exec(lineText)) !== null) {
-      const fullMatch = match[0];
-      const foundPredicateName = match[1];
-      const currentArgs = match[2].trim();
-
-      // Parse the current arguments
-      let args: string[] = [];
-      if (currentArgs) {
-        args = ArgumentUtils.parseArguments(currentArgs);
-      }
-
+    for (const form of callableForms) {
       // Only update if this matches the predicate being refactored (same name and arity)
-      if (foundPredicateName === predicateName && args.length === currentArity) {
+      if (form.name === predicateName && form.args.length === currentArity) {
         // Insert the new argument at the specified position
-        const newArgs = [...args];
+        const newArgs = [...form.args];
         const insertIndex = Math.min(argumentPosition - 1, newArgs.length);
         newArgs.splice(insertIndex, 0, argumentName);
 
         // Reconstruct the callable form
         const newCallableForm = `${predicateName}(${newArgs.join(', ')})`;
+        const originalForm = lineText.substring(form.startIndex, form.endIndex);
 
         // Replace in the updated line (accounting for previous replacements)
-        const matchStart = match.index + offset;
-        const matchEnd = matchStart + fullMatch.length;
+        const matchStart = form.startIndex + offset;
+        const matchEnd = form.endIndex + offset;
         updatedLine = updatedLine.substring(0, matchStart) + newCallableForm + updatedLine.substring(matchEnd);
 
         // Update offset for next replacement
-        offset += newCallableForm.length - fullMatch.length;
+        offset += newCallableForm.length - (form.endIndex - form.startIndex);
 
-        this.logger.debug(`Updated callable form: ${fullMatch} → ${newCallableForm}`);
+        this.logger.debug(`Updated callable form: ${originalForm} → ${newCallableForm}`);
       }
     }
 
@@ -6962,44 +7012,34 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // process_file(File, Options)
     // analyze_data(Dataset, Parameters, Output)
 
-    // Find all callable forms in the line (predicate_name followed by parentheses)
-    const callablePattern = /(\w+)\(([^)]*)\)/g;
+    // Find all callable forms in the line with proper nesting handling
+    const callableForms = this.findCallableFormsInLine(lineText);
     let updatedLine = lineText;
-    let match: RegExpExecArray | null;
     let offset = 0;
 
     // Process all matches from left to right
-    while ((match = callablePattern.exec(lineText)) !== null) {
-      const fullMatch = match[0];
-      const foundPredicateName = match[1];
-      const currentArgs = match[2].trim();
-
-      // Parse the current arguments
-      let args: string[] = [];
-      if (currentArgs) {
-        args = ArgumentUtils.parseArguments(currentArgs);
-      }
-
+    for (const form of callableForms) {
       // Only update if this matches the predicate being refactored (same name and arity)
-      if (foundPredicateName === predicateName && args.length === currentArity) {
+      if (form.name === predicateName && form.args.length === currentArity) {
         // Remove the argument at the specified position
-        const newArgs = [...args];
+        const newArgs = [...form.args];
         if (argumentPosition > 0 && argumentPosition <= newArgs.length) {
           newArgs.splice(argumentPosition - 1, 1);
         }
 
         // Reconstruct the callable form
         const newCallableForm = `${predicateName}(${newArgs.join(', ')})`;
+        const originalForm = lineText.substring(form.startIndex, form.endIndex);
 
         // Replace in the updated line (accounting for previous replacements)
-        const matchStart = match.index + offset;
-        const matchEnd = matchStart + fullMatch.length;
+        const matchStart = form.startIndex + offset;
+        const matchEnd = form.endIndex + offset;
         updatedLine = updatedLine.substring(0, matchStart) + newCallableForm + updatedLine.substring(matchEnd);
 
         // Update offset for next replacement
-        offset += newCallableForm.length - fullMatch.length;
+        offset += newCallableForm.length - (form.endIndex - form.startIndex);
 
-        this.logger.debug(`Updated callable form: ${fullMatch} → ${newCallableForm}`);
+        this.logger.debug(`Updated callable form: ${originalForm} → ${newCallableForm}`);
       }
     }
 
@@ -7014,47 +7054,37 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // process_file(File, Options)
     // analyze_data(Dataset, Parameters, Output)
 
-    // Find all callable forms in the line (predicate_name followed by parentheses)
-    const callablePattern = /(\w+)\(([^)]*)\)/g;
+    // Find all callable forms in the line with proper nesting handling
+    const callableForms = this.findCallableFormsInLine(lineText);
     let updatedLine = lineText;
-    let match: RegExpExecArray | null;
     let offset = 0;
 
     // Process all matches from left to right
-    while ((match = callablePattern.exec(lineText)) !== null) {
-      const fullMatch = match[0];
-      const foundPredicateName = match[1];
-      const currentArgs = match[2].trim();
-
-      // Parse the current arguments
-      let args: string[] = [];
-      if (currentArgs) {
-        args = ArgumentUtils.parseArguments(currentArgs);
-      }
-
+    for (const form of callableForms) {
       // Only update if this matches the predicate being refactored (same name and arity)
-      if (foundPredicateName === predicateName && args.length === currentArity) {
+      if (form.name === predicateName && form.args.length === currentArity) {
         // Reorder the arguments
         const reorderedArgs: string[] = [];
         for (let i = 0; i < newOrder.length; i++) {
           const sourceIndex = newOrder[i] - 1; // Convert to 0-based
-          if (sourceIndex >= 0 && sourceIndex < args.length) {
-            reorderedArgs.push(args[sourceIndex]);
+          if (sourceIndex >= 0 && sourceIndex < form.args.length) {
+            reorderedArgs.push(form.args[sourceIndex]);
           }
         }
 
         // Reconstruct the callable form
         const newCallableForm = `${predicateName}(${reorderedArgs.join(', ')})`;
+        const originalForm = lineText.substring(form.startIndex, form.endIndex);
 
         // Replace in the updated line (accounting for previous replacements)
-        const matchStart = match.index + offset;
-        const matchEnd = matchStart + fullMatch.length;
+        const matchStart = form.startIndex + offset;
+        const matchEnd = form.endIndex + offset;
         updatedLine = updatedLine.substring(0, matchStart) + newCallableForm + updatedLine.substring(matchEnd);
 
         // Update offset for next replacement
-        offset += newCallableForm.length - fullMatch.length;
+        offset += newCallableForm.length - (form.endIndex - form.startIndex);
 
-        this.logger.debug(`Updated callable form: ${fullMatch} → ${newCallableForm}`);
+        this.logger.debug(`Updated callable form: ${originalForm} → ${newCallableForm}`);
       }
     }
 
@@ -7729,7 +7759,8 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
   }
 
   /**
-   * Find clause head in a line with specific arity
+   * Find clause head in a line with specific arity.
+   * Handles nested parentheses in arguments.
    */
   private findClauseHead(lineText: string, predicateName: string, isNonTerminal: boolean, expectedArity: number): { fullMatch: string; arguments: string; startIndex: number; endIndex: number } | null {
     const trimmedLine = lineText.trim();
@@ -7739,52 +7770,98 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       return null;
     }
 
-    // Handle both zero-arity (no parentheses) and non-zero arity (with parentheses) predicates/non-terminals
-    let clausePattern: RegExp;
-    let match: RegExpExecArray | null;
-    let result: { fullMatch: string; arguments: string; terminator?: string; startIndex: number; endIndex: number } | null = null;
+    // Find the predicate name at the start of the line (after optional whitespace)
+    const escapedName = predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const namePattern = new RegExp(`^(\\s*)${escapedName}(?:\\s*\\(|\\s*(?::-|-->|\\.))`);
+    const nameMatch = lineText.match(namePattern);
 
-    if (expectedArity === 0) {
-      // Zero arity: look for predicate_name :- or predicate_name. or predicate_name -->
-      clausePattern = isNonTerminal
-        ? new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*((?:-->|:-))`, 'g')
-        : new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*((?::-|\\.))`, 'g');
-
-      match = clausePattern.exec(lineText);
-      if (match) {
-        result = {
-          fullMatch: match[0],
-          arguments: '', // No arguments for zero arity
-          terminator: match[1], // :- or --> or .
-          startIndex: match.index,
-          endIndex: match.index + match[0].length
-        };
-      }
-    } else {
-      // Non-zero arity: look for predicate_name(...) :- or predicate_name(...). or predicate_name(...) -->
-      clausePattern = isNonTerminal
-        ? new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]*)\\)\\s*((?:-->|:-))`, 'g')
-        : new RegExp(`^\\s*${predicateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(([^)]*)\\)\\s*((?::-|\\.))`, 'g');
-
-      match = clausePattern.exec(lineText);
-      if (match) {
-        result = {
-          fullMatch: match[0],
-          arguments: match[1],
-          terminator: match[2], // :- or --> or .
-          startIndex: match.index,
-          endIndex: match.index + match[0].length
-        };
-
-        // Check if the arity matches
-        const actualArity = this.countArguments(result.arguments);
-        if (actualArity !== expectedArity) {
-          return null; // Arity doesn't match
-        }
-      }
+    if (!nameMatch) {
+      return null;
     }
 
-    return result;
+    const leadingWhitespace = nameMatch[1];
+    const startIndex = leadingWhitespace.length;
+    const afterNameIndex = startIndex + predicateName.length;
+
+    // Check what follows the predicate name
+    let charAfterName = '';
+    let i = afterNameIndex;
+    // Skip whitespace
+    while (i < lineText.length && (lineText[i] === ' ' || lineText[i] === '\t')) {
+      i++;
+    }
+    if (i < lineText.length) {
+      charAfterName = lineText[i];
+    }
+
+    if (expectedArity === 0) {
+      // Zero arity: expect :- or --> or . directly after name (with optional whitespace)
+      if (charAfterName === ':' || charAfterName === '-' || charAfterName === '.') {
+        // Check for :- or --> or .
+        const rest = lineText.substring(i);
+        const terminator = isNonTerminal
+          ? (rest.startsWith('-->') ? '-->' : (rest.startsWith(':-') ? ':-' : null))
+          : (rest.startsWith(':-') ? ':-' : (rest.startsWith('.') ? '.' : null));
+
+        if (terminator) {
+          const endIndex = i + terminator.length;
+          return {
+            fullMatch: lineText.substring(startIndex, endIndex),
+            arguments: '',
+            startIndex,
+            endIndex
+          };
+        }
+      }
+      return null;
+    }
+
+    // Non-zero arity: expect ( after name
+    if (charAfterName !== '(') {
+      return null;
+    }
+
+    const openParenIndex = i;
+
+    // Find matching closing parenthesis, handling nested structures
+    const closeParenIndex = ArgumentUtils.findMatchingCloseParen(lineText, openParenIndex);
+    if (closeParenIndex === -1) {
+      return null; // No matching close paren on this line
+    }
+
+    // Extract arguments
+    const argumentsText = lineText.substring(openParenIndex + 1, closeParenIndex);
+
+    // Check what follows the closing parenthesis
+    let j = closeParenIndex + 1;
+    // Skip whitespace
+    while (j < lineText.length && (lineText[j] === ' ' || lineText[j] === '\t')) {
+      j++;
+    }
+
+    // Check for terminator
+    const restAfterParen = lineText.substring(j);
+    const terminator = isNonTerminal
+      ? (restAfterParen.startsWith('-->') ? '-->' : (restAfterParen.startsWith(':-') ? ':-' : null))
+      : (restAfterParen.startsWith(':-') ? ':-' : (restAfterParen.startsWith('.') ? '.' : null));
+
+    if (!terminator) {
+      return null; // No valid terminator found
+    }
+
+    // Check arity
+    const actualArity = this.countArguments(argumentsText);
+    if (actualArity !== expectedArity) {
+      return null; // Arity doesn't match
+    }
+
+    const endIndex = j + terminator.length;
+    return {
+      fullMatch: lineText.substring(startIndex, endIndex),
+      arguments: argumentsText,
+      startIndex,
+      endIndex
+    };
   }
 
   /**
@@ -7835,13 +7912,25 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
       }
     } else {
       // Non-zero arity -> adding argument: predicate_name(args). -> predicate_name(newArgs).
-      const nonZeroArityMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
-      if (nonZeroArityMatch) {
-        const [/* fullMatch */, leadingSpace, predName, openParen, /* arguments */, closingAndRest] = nonZeroArityMatch;
-        newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
-      } else {
-        return edits; // Failed to parse non-zero-arity clause head
+      // Use position-based parsing to handle nested parentheses
+      const openParenIdx = clauseHead.fullMatch.indexOf('(');
+      if (openParenIdx === -1) {
+        this.logger.debug(`updateClauseHeadForArgumentAdding: No open paren found in "${clauseHead.fullMatch}"`);
+        return edits;
       }
+
+      // Find the matching close parenthesis using proper nesting handling
+      const closeParenIdx = ArgumentUtils.findMatchingCloseParen(clauseHead.fullMatch, openParenIdx);
+      if (closeParenIdx === -1) {
+        this.logger.debug(`updateClauseHeadForArgumentAdding: Could not find matching close paren in "${clauseHead.fullMatch}"`);
+        return edits;
+      }
+
+      // Extract parts: before open paren (includes "("), after close paren (includes ")" and terminator)
+      const beforeArgs = clauseHead.fullMatch.substring(0, openParenIdx + 1); // includes "("
+      const afterArgs = clauseHead.fullMatch.substring(closeParenIdx); // includes ")" and terminator
+
+      newClauseHead = `${beforeArgs}${newArgs.join(', ')}${afterArgs}`;
     }
 
     const edit = TextEdit.replace(
@@ -7924,16 +8013,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         const nameEndPos = match.index + predicateName.length;
 
         // Check if it has arguments: predicateName(args)
-        const afterName = lineText.substring(nameEndPos);
-        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+        // In Logtalk/Prolog, there cannot be whitespace between predicate name and opening parenthesis
+        const hasOpenParen = nameEndPos < lineText.length && lineText[nameEndPos] === '(';
 
-        if (argsMatch) {
+        if (hasOpenParen) {
           // Already has arguments: predicateName(arg1, arg2)
-          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const openParenPos = nameEndPos;
           const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
           if (closeParenPos !== -1) {
             const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
+            const args = argsText.trim() === '' ? [] : ArgumentUtils.parseArguments(argsText);
             const currentArity = args.length;
 
             // Only update if current arity matches expected arity (since we're adding one argument)
@@ -8088,16 +8177,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         const nameEndPos = startPos + predicateName.length;
 
         // Check if it has arguments: predicateName(args)
-        const afterName = lineText.substring(nameEndPos);
-        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+        // In Logtalk/Prolog, there cannot be whitespace between predicate name and opening parenthesis
+        const hasOpenParen = nameEndPos < lineText.length && lineText[nameEndPos] === '(';
 
-        if (argsMatch) {
+        if (hasOpenParen) {
           // Already has arguments: predicateName(arg1, arg2)
-          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const openParenPos = nameEndPos;
           const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
           if (closeParenPos !== -1) {
             const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
+            const args = argsText.trim() === '' ? [] : ArgumentUtils.parseArguments(argsText);
             const currentArity = args.length;
 
             // Only update if current arity matches target arity
@@ -8206,16 +8295,16 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
         const nameEndPos = startPos + predicateName.length;
 
         // Check if it has arguments: predicateName(args)
-        const afterName = lineText.substring(nameEndPos);
-        const argsMatch = afterName.match(/^\s*\(([^)]*)\)/);
+        // In Logtalk/Prolog, there cannot be whitespace between predicate name and opening parenthesis
+        const hasOpenParen = nameEndPos < lineText.length && lineText[nameEndPos] === '(';
 
-        if (argsMatch) {
+        if (hasOpenParen) {
           // Already has arguments: predicateName(arg1, arg2)
-          const openParenPos = nameEndPos + afterName.indexOf('(');
+          const openParenPos = nameEndPos;
           const closeParenPos = ArgumentUtils.findMatchingCloseParen(lineText, openParenPos);
           if (closeParenPos !== -1) {
             const argsText = lineText.substring(openParenPos + 1, closeParenPos);
-            const args = ArgumentUtils.parseArguments(argsText);
+            const args = argsText.trim() === '' ? [] : ArgumentUtils.parseArguments(argsText);
             const currentArity = args.length;
 
             // Only update if current arity is one more than target arity (for removal)
@@ -8336,21 +8425,36 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     // Reorder arguments according to newOrder
     const reorderedArgs = this.reorderArray(existingArgs, newOrder);
 
-    // Create the updated clause head
-    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
-    if (predicateNameMatch) {
-      const [/* fullMatch */, leadingSpace, predName, openParen, /* arguments */, closingAndRest] = predicateNameMatch;
-      const newClauseHead = `${leadingSpace}${predName}${openParen}${reorderedArgs.join(', ')}${closingAndRest}`;
-
-      const edit = TextEdit.replace(
-        new Range(
-          new Position(lineNum, clauseHead.startIndex),
-          new Position(lineNum, clauseHead.endIndex)
-        ),
-        newClauseHead
-      );
-      edits.push(edit);
+    // Extract components from fullMatch using position-based parsing
+    // Find the open parenthesis position in fullMatch
+    const openParenIdx = clauseHead.fullMatch.indexOf('(');
+    if (openParenIdx === -1) {
+      // No parentheses (zero arity), nothing to reorder
+      return edits;
     }
+
+    // Find the matching close parenthesis using proper nesting handling
+    const closeParenIdx = ArgumentUtils.findMatchingCloseParen(clauseHead.fullMatch, openParenIdx);
+    if (closeParenIdx === -1) {
+      this.logger.debug(`updateClauseHeadForArgumentsReorder: Could not find matching close paren in "${clauseHead.fullMatch}"`);
+      return edits;
+    }
+
+    // Extract parts: before open paren, after close paren
+    const beforeArgs = clauseHead.fullMatch.substring(0, openParenIdx + 1); // includes "("
+    const afterArgs = clauseHead.fullMatch.substring(closeParenIdx); // includes ")" and terminator
+
+    // Build new clause head
+    const newClauseHead = `${beforeArgs}${reorderedArgs.join(', ')}${afterArgs}`;
+
+    const edit = TextEdit.replace(
+      new Range(
+        new Position(lineNum, clauseHead.startIndex),
+        new Position(lineNum, clauseHead.endIndex)
+      ),
+      newClauseHead
+    );
+    edits.push(edit);
 
     return edits;
   }
@@ -8375,31 +8479,43 @@ export class LogtalkRefactorProvider implements CodeActionProvider {
     const newArgs = [...existingArgs];
     newArgs.splice(argumentPosition - 1, 1);
 
-    // Create the updated clause head
-    const predicateNameMatch = clauseHead.fullMatch.match(/^(\s*)(\w+)(\()([^)]*)(\)\s*(?:-->|:-|\.).*)$/);
-    if (predicateNameMatch) {
-      const [/* fullMatch */, leadingSpace, predName, openParen, /* arguments */, closingAndRest] = predicateNameMatch;
-
-      // If no arguments remain, remove parentheses entirely
-      let newClauseHead: string;
-      if (newArgs.length === 0) {
-        // Extract the part after the closing parenthesis (e.g., " :- body" or " --> body" or ".")
-        const afterParenMatch = closingAndRest.match(/^\)\s*((?:-->|:-|\.).*)$/);
-        const afterParen = afterParenMatch ? afterParenMatch[1] : closingAndRest.replace(/^\)\s*/, '');
-        newClauseHead = `${leadingSpace}${predName}${afterParen.startsWith('.') ? afterParen : ' ' + afterParen}`;
-      } else {
-        newClauseHead = `${leadingSpace}${predName}${openParen}${newArgs.join(', ')}${closingAndRest}`;
-      }
-
-      const edit = TextEdit.replace(
-        new Range(
-          new Position(lineNum, clauseHead.startIndex),
-          new Position(lineNum, clauseHead.endIndex)
-        ),
-        newClauseHead
-      );
-      edits.push(edit);
+    // Extract components from fullMatch using position-based parsing
+    // Find the open parenthesis position in fullMatch
+    const openParenIdx = clauseHead.fullMatch.indexOf('(');
+    if (openParenIdx === -1) {
+      // No parentheses (zero arity), nothing to remove
+      return edits;
     }
+
+    // Find the matching close parenthesis using proper nesting handling
+    const closeParenIdx = ArgumentUtils.findMatchingCloseParen(clauseHead.fullMatch, openParenIdx);
+    if (closeParenIdx === -1) {
+      this.logger.debug(`updateClauseHeadForArgumentRemoval: Could not find matching close paren in "${clauseHead.fullMatch}"`);
+      return edits;
+    }
+
+    // Extract parts: before open paren, after close paren
+    const beforeArgs = clauseHead.fullMatch.substring(0, openParenIdx); // predicate name (without "(")
+    const afterArgs = clauseHead.fullMatch.substring(closeParenIdx + 1); // terminator (without ")")
+
+    // Build new clause head
+    let newClauseHead: string;
+    if (newArgs.length === 0) {
+      // No arguments remain, remove parentheses entirely
+      const trimmedAfter = afterArgs.trimStart();
+      newClauseHead = `${beforeArgs}${trimmedAfter.startsWith('.') ? trimmedAfter : ' ' + trimmedAfter}`;
+    } else {
+      newClauseHead = `${beforeArgs}(${newArgs.join(', ')})${afterArgs}`;
+    }
+
+    const edit = TextEdit.replace(
+      new Range(
+        new Position(lineNum, clauseHead.startIndex),
+        new Position(lineNum, clauseHead.endIndex)
+      ),
+      newClauseHead
+    );
+    edits.push(edit);
 
     return edits;
   }

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.85.3]
+
+* Fix bug where predicate/non-terminal argument refactoring would fail to update all clauses/rules
+
 ## [0.85.2]
 
 * Fix performance regression updating the Testing pane when editing test files
