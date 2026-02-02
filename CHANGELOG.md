@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.86.0]
+
+* Automatically open the "Testing" pane when running tests depending on the `testing.automaticallyOpenTestResults` setting
+
 ## [0.85.4]
 
 * Fix bug where variable renaming would fail to update all occurrences of the variable in the presence of character code notation (0'Char)

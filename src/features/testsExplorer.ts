@@ -323,8 +323,17 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     );
     this.logger.debug('Created test run');
 
+    // Open the Testing pane if configured to do so
+    const testingSettings = workspace.getConfiguration('testing');
+    const autoOpenSetting = testingSettings.get<string>('automaticallyOpenTestResults', 'neverOpen');
+    if (autoOpenSetting === 'openOnTestStart' || autoOpenSetting === 'openExplorerOnTestStart') {
+      await commands.executeCommand('workbench.view.extension.test');
+    }
+
     // Track directories where tests were run for Allure report generation
     const testDirectories = new Set<string>();
+    // Track whether any tests failed for openOnTestFailure setting
+    let hasFailures = false;
 
     try {
       // If no specific tests are selected, run all tests via the tester file
@@ -348,13 +357,18 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           const resultsFilePath = path.join(testerDir, '.vscode_test_results');
           if (fs.existsSync(resultsFilePath)) {
             this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-            await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
+            hasFailures = await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage) || hasFailures;
           } else {
             this.logger.warn(`Results file not found: ${resultsFilePath}`);
           }
 
           this.runAllureReportIfEnabled(testDirectories);
           testRun.end();
+
+          // Open the Testing pane if there were failures and setting is configured to do so
+          if (hasFailures && autoOpenSetting === 'openOnTestFailure') {
+            await commands.executeCommand('workbench.view.extension.test');
+          }
           return;
         }
 
@@ -379,7 +393,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               const resultsFilePath = path.join(testerDir, '.vscode_test_results');
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
+                hasFailures = await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage) || hasFailures;
               } else {
                 this.logger.warn(`Results file not found: ${resultsFilePath}`);
               }
@@ -387,6 +401,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           }
           this.runAllureReportIfEnabled(testDirectories);
           testRun.end();
+
+          // Open the Testing pane if there were failures and setting is configured to do so
+          if (hasFailures && autoOpenSetting === 'openOnTestFailure') {
+            await commands.executeCommand('workbench.view.extension.test');
+          }
           return;
         }
 
@@ -412,7 +431,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               const dirResultsFilePath = path.join(testerDir, '.vscode_test_results');
               if (fs.existsSync(dirResultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage);
+                hasFailures = await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage) || hasFailures;
               } else {
                 this.logger.warn(`Results file not found: ${dirResultsFilePath}`);
               }
@@ -433,7 +452,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               const dirResultsFilePath = path.join(testerDir, '.vscode_test_results');
               if (fs.existsSync(dirResultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage);
+                hasFailures = await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage) || hasFailures;
               } else {
                 this.logger.warn(`Results file not found: ${dirResultsFilePath}`);
               }
@@ -443,6 +462,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
         this.runAllureReportIfEnabled(testDirectories);
         testRun.end();
+
+        // Open the Testing pane if there were failures and setting is configured to do so
+        if (hasFailures && autoOpenSetting === 'openOnTestFailure') {
+          await commands.executeCommand('workbench.view.extension.test');
+        }
         return;
       }
 
@@ -486,7 +510,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               this.logger.debug(`Looking for results file: ${dirResultsFilePath}`);
               if (fs.existsSync(dirResultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${dirResultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage);
+                hasFailures = await this.parseTestResultFile(Uri.file(dirResultsFilePath), testRun, withCoverage) || hasFailures;
               } else {
                 this.logger.warn(`Results file not found: ${dirResultsFilePath}`);
               }
@@ -500,7 +524,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
+                hasFailures = await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage) || hasFailures;
               }
               break;
 
@@ -512,7 +536,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
+                hasFailures = await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage) || hasFailures;
               }
               break;
 
@@ -524,7 +548,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
                 this.logger.debug(`Parsing results from: ${resultsFilePath}`);
-                await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage);
+                hasFailures = await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, withCoverage) || hasFailures;
               }
               break;
           }
@@ -535,8 +559,17 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       this.runAllureReportIfEnabled(testDirectories);
       testRun.end();
+
+      // Open the Testing pane if there were failures and setting is configured to do so
+      if (hasFailures && autoOpenSetting === 'openOnTestFailure') {
+        await commands.executeCommand('workbench.view.extension.test');
+      }
     } catch (error) {
       this.logger.error('Error in runTests:', error);
+      // Open the Testing pane if there were failures and setting is configured to do so
+      if (hasFailures && autoOpenSetting === 'openOnTestFailure') {
+        await commands.executeCommand('workbench.view.extension.test');
+      }
       this.runAllureReportIfEnabled(testDirectories);
       testRun.end();
     }
@@ -560,6 +593,16 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     );
     this.logger.debug('Created test run for testers');
 
+    // Open the Testing pane if configured to do so
+    const testingSettings = workspace.getConfiguration('testing');
+    const autoOpenSetting = testingSettings.get<string>('automaticallyOpenTestResults', 'neverOpen');
+    if (autoOpenSetting === 'openOnTestStart' || autoOpenSetting === 'openExplorerOnTestStart') {
+      await commands.executeCommand('workbench.view.extension.test');
+    }
+
+    // Track whether any tests failed for openOnTestFailure setting
+    let hasFailures = false;
+
     try {
       // Get the workspace folder to run testers in
       let workspaceDir: string | undefined;
@@ -580,13 +623,25 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         this.testsReporter,
         async (dir: string) => {
           // After testers complete, parse xUnit XML files and update test explorer
-          await this.parseXUnitReportsInDirectory(dir, testRun);
+          const failures = await this.parseXUnitReportsInDirectory(dir, testRun);
+          if (failures) {
+            hasFailures = true;
+          }
         }
       );
 
       testRun.end();
+
+      // Open the Testing pane if there were failures and setting is configured to do so
+      if (hasFailures && autoOpenSetting === 'openOnTestFailure') {
+        await commands.executeCommand('workbench.view.extension.test');
+      }
     } catch (error) {
       this.logger.error('Error in runTestsWithTesters:', error);
+      // Open the Testing pane if there were failures and setting is configured to do so
+      if (hasFailures && autoOpenSetting === 'openOnTestFailure') {
+        await commands.executeCommand('workbench.view.extension.test');
+      }
       testRun.end();
     }
   }
@@ -608,9 +663,21 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       true // persist = true for "Rerun Last Run" functionality
     );
 
+    // Open the Testing pane if configured to do so
+    const testingSettings = workspace.getConfiguration('testing');
+    const autoOpenSetting = testingSettings.get<string>('automaticallyOpenTestResults', 'neverOpen');
+    if (autoOpenSetting === 'openOnTestStart' || autoOpenSetting === 'openExplorerOnTestStart') {
+      await commands.executeCommand('workbench.view.extension.test');
+    }
+
     try {
-      await this.parseXUnitReportsInDirectory(dir, testRun);
+      const hasFailures = await this.parseXUnitReportsInDirectory(dir, testRun);
       testRun.end();
+
+      // Open the Testing pane if there were failures and setting is configured to do so
+      if (hasFailures && autoOpenSetting === 'openOnTestFailure') {
+        await commands.executeCommand('workbench.view.extension.test');
+      }
     } catch (error) {
       this.logger.error('Error updating from project testers:', error);
       testRun.end();
@@ -622,7 +689,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * @param dir - The directory to search for xunit_report.xml files
    * @param testRun - Optional test run to update with results
    */
-  private async parseXUnitReportsInDirectory(dir: string, testRun?: TestRun): Promise<void> {
+  private async parseXUnitReportsInDirectory(dir: string, testRun?: TestRun): Promise<boolean> {
     this.logger.debug(`Parsing xUnit reports in directory: ${dir}`);
 
     // Find all xunit_report.xml files recursively in the directory
@@ -631,19 +698,22 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
     this.logger.debug(`Found ${files.length} xUnit report files`);
 
+    let hasFailures = false;
     for (const file of files) {
-      await this.parseXUnitReportFile(file, testRun);
+      hasFailures = await this.parseXUnitReportFile(file, testRun) || hasFailures;
     }
+    return hasFailures;
   }
 
   /**
    * Parse a single xUnit XML report file and create/update test items
    * @param uri - URI of the xunit_report.xml file
    * @param testRun - Optional test run to update with results
+   * @returns true if there were any failed tests, false otherwise
    */
-  private async parseXUnitReportFile(uri: Uri, testRun?: TestRun): Promise<void> {
+  private async parseXUnitReportFile(uri: Uri, testRun?: TestRun): Promise<boolean> {
     if (!fs.existsSync(uri.fsPath)) {
-      return;
+      return false;
     }
 
     try {
@@ -655,7 +725,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       if (testResults.length === 0) {
         this.logger.debug('No test results found in xUnit report');
-        return;
+        return false;
       }
 
       // Get the directory containing the xunit_report.xml file
@@ -675,9 +745,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       this.logger.debug(`Wrote test results to: ${resultsFilePath}`);
 
       // Now parse the results file to update the test explorer
-      await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, false);
+      const failures = await this.parseTestResultFile(Uri.file(resultsFilePath), testRun, false);
+      return failures;
     } catch (error) {
       this.logger.error(`Error parsing xUnit report ${uri.fsPath}:`, error);
+      return false;
     }
   }
 
@@ -833,7 +905,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * @param testRun - Optional test run to update with results. If not provided, a new test run will be created.
    * @param withCoverage - Whether to process and report coverage data (default: false)
    */
-  private async parseTestResultFile(uri: Uri, testRun?: TestRun, withCoverage: boolean = false): Promise<void> {
+  private async parseTestResultFile(uri: Uri, testRun?: TestRun, withCoverage: boolean = false): Promise<boolean> {
     if (!fs.existsSync(uri.fsPath)) {
       return;
     }
@@ -942,8 +1014,13 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           await this.updateTestRunFromResults(testResults, testRun);
         }
       }
+
+      // Check if there were any failures
+      const hasFailures = testResults.some(result => result.status.toLowerCase().startsWith('failed'));
+      return hasFailures;
     } catch (error) {
       this.logger.error(`Error parsing test results file ${uri.fsPath}:`, error);
+      return false;
     }
   }
 
