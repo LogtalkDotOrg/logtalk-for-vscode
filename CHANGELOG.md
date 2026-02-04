@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.86.1]
+
+* Fix missing `logtalk.json` snippets file in the package
+
 ## [0.86.0]
 
 * Automatically open the "Testing" pane when running tests depending on the `testing.automaticallyOpenTestResults` setting
