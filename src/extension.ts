@@ -49,7 +49,7 @@ import { LogtalkChatParticipant } from "./features/chatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
-import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkMakeCompletionProvider, LogtalkMakeTargetActionCompletionProvider, PrintMessageCompletionProvider, MessagePrefixStreamCompletionProvider, QuestionPromptStreamCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider, ThrowCompletionProvider } from "./features/completionItemProvider";
+import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkMakeCompletionProvider, LogtalkMakeTargetActionCompletionProvider, PrintMessageCompletionProvider, MessagePrefixStreamCompletionProvider, QuestionPromptStreamCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider, ThrowCompletionProvider, LogtalkSnippetCompletionProvider } from "./features/completionItemProvider";
 import { LogtalkSelectionRangeProvider } from "./features/selectionRangeProvider";
 import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
@@ -1063,6 +1063,12 @@ export async function activate(context: ExtensionContext) {
   const throwCompletionProvider = new ThrowCompletionProvider();
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, throwCompletionProvider, '(')
+  );
+
+  // Register snippet completion provider
+  const snippetCompletionProvider = new LogtalkSnippetCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, snippetCompletionProvider)
   );
 
   // Register chained formatting command (indentation conversion + Logtalk formatting)

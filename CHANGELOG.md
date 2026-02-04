@@ -3,6 +3,7 @@
 ## [0.86.0]
 
 * Automatically open the "Testing" pane when running tests depending on the `testing.automaticallyOpenTestResults` setting
+* Improve snippet completions preventing offering directive snippets in non-directive contexts and vice-versa
 
 ## [0.85.4]
 
