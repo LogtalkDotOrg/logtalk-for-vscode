@@ -3,6 +3,7 @@
 ## [0.87.0]
 
 * Display per entity and per predicate coverage data in the Test Explorer coverage sub-view (requires Logtalk 3.98.0 or later)
+* Refactor the use of snippets data by both completion and hover services
 
 ## [0.86.1]
 

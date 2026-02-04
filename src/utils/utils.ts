@@ -9,13 +9,7 @@ import {
   workspace,
   window
 } from "vscode";
-interface ISnippet {
-  [predIndicator: string]: {
-    prefix: string;
-    body: string[];
-    description: string[];
-  };
-}
+import { LOGTALK_SNIPPETS, ISnippetDictionary } from "../data/snippetsData";
 import * as fs from "fs";
 import * as jsesc from "jsesc";
 import * as path from "path";
@@ -32,7 +26,8 @@ export class Utils {
   private static logtalkHome: string;
   private static backend: string;
   private static script: string;
-  private static snippets: ISnippet = null;
+  // Snippets are now imported from the centralized snippetsData module
+  private static snippets: ISnippetDictionary = LOGTALK_SNIPPETS;
   public static CONTEXT: ExtensionContext | null = null;
   public static RUNTIMEPATH: string = "logtalk";
   public static RUNTIMEARGS: string[] = [];
@@ -155,7 +150,6 @@ export class Utils {
 
   public static init(context: ExtensionContext) {
     Utils.CONTEXT = context;
-    Utils.loadSnippets(context);
     Utils.updateRuntimeConfiguration();
 
     // Listen for configuration changes and update runtime configuration
@@ -283,17 +277,6 @@ export class Utils {
     return isVersionSufficient;
   }
 
-  private static loadSnippets(context: ExtensionContext) {
-    if (Utils.snippets) {
-      return;
-    }
-    let snippetsPath = path.join(
-      context.extensionPath,
-      "/snippets/logtalk.json"
-    );
-    let snippets = fs.readFileSync(snippetsPath, "utf8").toString();
-    Utils.snippets = JSON.parse(snippets);
-  }
   public static getSnippetKeys(doc: TextDocument, pred: string): string[] {
     const docTxt = doc.getText();
     let keys: string[] = [];
@@ -315,7 +298,11 @@ export class Utils {
     const re = new RegExp("^(directives|predicates|methods):" + pred);
     for (let key in Utils.snippets) {
       if (re.test(key)) {
-        const contents = Utils.snippets[key].description.join('\n').split("Template and modes");
+        const snippet = Utils.snippets[key];
+        const descriptionText = Array.isArray(snippet.description) 
+          ? snippet.description.join('\n') 
+          : (snippet.description || '');
+        const contents = descriptionText.split("Template and modes");
         desc.appendCodeblock(contents[1], "logtalk");
         desc.appendMarkdown(contents[0]);
       }
