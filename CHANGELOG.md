@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.87.0]
+
+* Display per entity and per predicate coverage data in the Test Explorer coverage sub-view (requires Logtalk 3.98.0 or later)
+
 ## [0.86.1]
 
 * Fix missing `logtalk.json` snippets file in the package

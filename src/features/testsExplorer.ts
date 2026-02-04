@@ -50,6 +50,7 @@ import {
   CancellationToken,
   FileCoverage,
   StatementCoverage,
+  DeclarationCoverage,
   TextDocument,
   commands,
   WorkspaceEdit
@@ -94,6 +95,29 @@ interface CoverageData {
   covered: number;
   total: number;
   coveredIndexes: number[]; // List of covered clause indexes (1-based)
+  // New fields for enhanced coverage (from coverageRegexNew - Logtalk 3.98.0 or later)
+  entity?: string;
+  predicate?: string;
+}
+
+/**
+ * Aggregated coverage data for an entity
+ */
+interface EntityCoverageData {
+  entity: string;
+  predicates: CoverageData[];
+  totalCovered: number;
+  totalClauses: number;
+}
+
+/**
+ * Aggregated coverage data for a file (hierarchical structure)
+ */
+interface FileCoverageData {
+  file: string;
+  entities: Map<string, EntityCoverageData>;
+  // For backward compatibility with old format (no entity/predicate info)
+  legacyCoverage: CoverageData[];
 }
 
 export class LogtalkTestsExplorerProvider implements Disposable {
@@ -110,6 +134,8 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   // Store coverage data by file path with workspace folder context for multi-root workspace support
   // Key format: "workspaceFolderName::normalizedFilePath" in multi-root, or just "normalizedFilePath" in single-root
   private coverageData: Map<string, CoverageData[]> = new Map();
+  // Store structured coverage data for resolveFileCoverage (hierarchical: file -> entity -> predicate)
+  private fileCoverageDataMap: Map<string, FileCoverageData> = new Map();
   // Track the last run mode for re-running tests
   private lastRunMode: 'tests' | 'testers' = 'tests';
   // Track test skip states for context menu visibility
@@ -923,9 +949,13 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       // Format: File:<path>;Line:<line>;Object:<object>;Status:<status>
       const summaryRegex = /File:(.+);Line:(\d+);Object:(.+);Status:(.+)/i;
 
-      // Parse coverage data
+      // Parse coverage data (old format)
       // Format: File:<path>;Line:<line>;Status:Tests coverage: <covered>/<total> clause(s) - (all) or [1,2,3]
-      const coverageRegex = /File:(.+?);Line:(\d+);Status:Tests coverage: (\d+)\/(\d+) clause(?:s)? - (.+)/i;
+      const coverageRegexOld = /File:(.+?);Line:(\d+);Status:Tests coverage: (\d+)\/(\d+) clause(?:s)? - (.+)/i;
+
+      // Parse coverage data (new format; Logtalk 3.98.0 or later)
+      // Format: File:<path>;Line:<line>;Entity:<entity>;Predicate:<predicate>;Status:Tests coverage: <covered>/<total> clause(s) - (all) or [1,2,3]
+      const coverageRegexNew = /File:(.+?);Line:(\d+);Entity:(.+?);Predicate:(.+?);Status:Tests coverage: (\d+)\/(\d+) clause(?:s)? - (.+)/i;
 
       const testResults: TestResultData[] = [];
       const summaryResults: TestSummaryData[] = [];
@@ -966,11 +996,11 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           continue;
         }
 
-        const coverageMatch = line.match(coverageRegex);
-        if (coverageMatch) {
-          const covered = parseInt(coverageMatch[3]);
-          const total = parseInt(coverageMatch[4]);
-          const clauseInfo = coverageMatch[5]; // "(all)" or "[1,2,3]" or undefined
+        const coverageMatchOld = line.match(coverageRegexOld);
+        if (coverageMatchOld) {
+          const covered = parseInt(coverageMatchOld[3]);
+          const total = parseInt(coverageMatchOld[4]);
+          const clauseInfo = coverageMatchOld[5]; // "(all)" or "[1,2,3]" or undefined
 
           let coveredIndexes: number[] = [];
 
@@ -988,8 +1018,42 @@ export class LogtalkTestsExplorerProvider implements Disposable {
           }
 
           coverageResults.push({
-            file: Utils.normalizeDoubleSlashPath(coverageMatch[1]),
-            line: parseInt(coverageMatch[2]),
+            file: Utils.normalizeDoubleSlashPath(coverageMatchOld[1]),
+            line: parseInt(coverageMatchOld[2]),
+            covered,
+            total,
+            coveredIndexes
+          });
+        }
+
+        const coverageMatchNew = line.match(coverageRegexNew);
+        if (coverageMatchNew) {
+          const entity = coverageMatchNew[3];
+          const predicate = coverageMatchNew[4];
+          const covered = parseInt(coverageMatchNew[5]);
+          const total = parseInt(coverageMatchNew[6]);
+          const clauseInfo = coverageMatchNew[7]; // "(all)" or "[1,2,3]" or undefined
+
+          let coveredIndexes: number[] = [];
+
+          if (clauseInfo) {
+            if (clauseInfo.trim() === '(all)') {
+              // All clauses are covered - generate array [1, 2, ..., total]
+              coveredIndexes = Array.from({ length: total }, (_, i) => i + 1);
+            } else {
+              // Parse the array of covered indexes: [1,2,3]
+              const match = clauseInfo.match(/\[([0-9,\s]+)\]/);
+              if (match) {
+                coveredIndexes = match[1].split(',').map(s => parseInt(s.trim()));
+              }
+            }
+          }
+
+          coverageResults.push({
+            file: Utils.normalizeDoubleSlashPath(coverageMatchNew[1]),
+            line: parseInt(coverageMatchNew[2]),
+            entity,
+            predicate,
             covered,
             total,
             coveredIndexes
@@ -1189,6 +1253,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
   private updateCoverageFromResults(coverageResults: CoverageData[], testRun: TestRun): void {
     this.logger.debug('Updating coverage from results');
 
+    // Clear previous hierarchical coverage data
+    this.fileCoverageDataMap.clear();
+
     // Track which coverage keys are being updated in this run
     const updatedCoverageKeys = new Set<string>();
 
@@ -1210,6 +1277,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       this.coverageData.set(coverageKey, coverages);
       updatedCoverageKeys.add(coverageKey);
 
+      // Build hierarchical coverage data for resolveFileCoverage
+      this.organizeCoverageDataForFile(coverageKey, filePath, coverages);
+
       this.addFileCoverageToTestRun(filePath, coverages, testRun);
     }
 
@@ -1219,12 +1289,56 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       if (!updatedCoverageKeys.has(coverageKey)) {
         // Extract file path from coverage key (remove workspace folder prefix if present)
         const filePath = this.extractFilePathFromCoverageKey(coverageKey);
+
+        // Also organize hierarchical data for previously stored coverage
+        this.organizeCoverageDataForFile(coverageKey, filePath, coverages);
+
         this.addFileCoverageToTestRun(filePath, coverages, testRun);
         this.logger.debug(`Re-added previous coverage for ${filePath}`);
       }
     }
 
     this.logger.debug('Coverage update completed');
+  }
+
+  /**
+   * Organize coverage data into hierarchical structure for a single file
+   * @param coverageKey - The coverage key for the file
+   * @param filePath - The normalized file path
+   * @param coverages - Array of coverage data for the file
+   */
+  private organizeCoverageDataForFile(coverageKey: string, filePath: string, coverages: CoverageData[]): void {
+    if (!this.fileCoverageDataMap.has(coverageKey)) {
+      this.fileCoverageDataMap.set(coverageKey, {
+        file: filePath,
+        entities: new Map(),
+        legacyCoverage: []
+      });
+    }
+
+    const fileData = this.fileCoverageDataMap.get(coverageKey)!;
+
+    for (const coverage of coverages) {
+      if (coverage.entity && coverage.predicate) {
+        // New format with entity and predicate info
+        if (!fileData.entities.has(coverage.entity)) {
+          fileData.entities.set(coverage.entity, {
+            entity: coverage.entity,
+            predicates: [],
+            totalCovered: 0,
+            totalClauses: 0
+          });
+        }
+
+        const entityData = fileData.entities.get(coverage.entity)!;
+        entityData.predicates.push(coverage);
+        entityData.totalCovered += coverage.covered;
+        entityData.totalClauses += coverage.total;
+      } else {
+        // Legacy format without entity/predicate info
+        fileData.legacyCoverage.push(coverage);
+      }
+    }
   }
 
   /**
@@ -1289,11 +1403,146 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
   /**
    * Load detailed coverage for a file
+   * Returns DeclarationCoverage for predicates (functions) and StatementCoverage for clauses (statements)
+   * When hierarchical data is available (new format), creates nested DeclarationCoverage with StatementCoverage
+   * When only legacy data is available, falls back to StatementCoverage only
    * @param fileCoverage - The file coverage to load details for
-   * @returns Array of statement coverage details (one per clause)
+   * @returns Array of coverage details (DeclarationCoverage for predicates, StatementCoverage for clauses)
    */
-  private async loadDetailedCoverage(fileCoverage: FileCoverage): Promise<StatementCoverage[]> {
+  private async loadDetailedCoverage(fileCoverage: FileCoverage): Promise<(DeclarationCoverage | StatementCoverage)[]> {
     this.logger.debug(`Loading detailed coverage for ${fileCoverage.uri.fsPath}`);
+
+    const normalizedPath = Utils.normalizeFilePath(fileCoverage.uri.fsPath);
+    const coverageKey = this.generateCoverageKey(normalizedPath);
+    this.logger.debug(`Coverage key: ${coverageKey}`);
+
+    // Check if we have hierarchical coverage data (new format)
+    const fileData = this.fileCoverageDataMap.get(coverageKey);
+
+    if (fileData && fileData.entities.size > 0) {
+      // Use new hierarchical format: DeclarationCoverage for predicates with nested StatementCoverage for clauses
+      return await this.loadHierarchicalDetailedCoverage(fileCoverage, fileData);
+    }
+
+    // Fall back to legacy format: StatementCoverage only
+    return await this.loadLegacyDetailedCoverage(fileCoverage);
+  }
+
+  /**
+   * Load hierarchical detailed coverage using the new format with entities and predicates
+   * Creates DeclarationCoverage for each predicate and StatementCoverage for each clause
+   * Both are returned as a flat array; VS Code displays them in order
+   * @param fileCoverage - The file coverage to load details for
+   * @param fileData - The hierarchical file coverage data
+   * @returns Array of coverage items (DeclarationCoverage for predicates, StatementCoverage for clauses)
+   */
+  private async loadHierarchicalDetailedCoverage(
+    fileCoverage: FileCoverage,
+    fileData: FileCoverageData
+  ): Promise<(DeclarationCoverage | StatementCoverage)[]> {
+    this.logger.debug(`Loading hierarchical detailed coverage for ${fileCoverage.uri.fsPath}`);
+
+    // Open the document
+    let document: TextDocument;
+    try {
+      document = await workspace.openTextDocument(fileCoverage.uri);
+    } catch (error) {
+      this.logger.error(`Failed to open document for hierarchical coverage: ${fileCoverage.uri.fsPath}`, error);
+      return [];
+    }
+
+    const coverageItems: (DeclarationCoverage | StatementCoverage)[] = [];
+
+    // Process each entity
+    for (const [entityName, entityData] of fileData.entities) {
+      this.logger.debug(`Processing entity: ${entityName} with ${entityData.predicates.length} predicates`);
+
+      // Process each predicate in the entity
+      for (const predicateCoverage of entityData.predicates) {
+        const predicateName = predicateCoverage.predicate!;
+        const lineNumber = predicateCoverage.line - 1; // Convert to 0-based
+
+        // Validate line number
+        if (lineNumber < 0 || lineNumber >= document.lineCount) {
+          this.logger.warn(`Invalid line number ${predicateCoverage.line} for predicate ${predicateName}`);
+          continue;
+        }
+
+        // Skip if total is 0 (dynamic predicates with no clauses)
+        if (predicateCoverage.total === 0) {
+          this.logger.debug(`Skipping predicate ${predicateName}: total clauses is 0 (dynamic predicate)`);
+          continue;
+        }
+
+        this.logger.debug(`Processing predicate ${entityName}::${predicateName} at line ${predicateCoverage.line}: covered=${predicateCoverage.covered}, total=${predicateCoverage.total}`);
+
+        // Find clause ranges for this predicate
+        const clauseRanges = PredicateUtils.findConsecutivePredicateClauseRanges(
+          document,
+          predicateName,
+          lineNumber
+        );
+
+        // Create position for the predicate declaration
+        const predicatePosition = new Position(lineNumber, 0);
+
+        // Build the coverage info string to include in the name
+        const coverageInfo = this.formatClauseCoverageInfo(predicateCoverage);
+
+        // Create DeclarationCoverage for the predicate
+        // Include entity, predicate, and coverage info in the name
+        const declarationCoverage = new DeclarationCoverage(
+          `${entityName}::${predicateName} - ${coverageInfo}`,
+          predicateCoverage.covered > 0 ? 1 : 0, // executed: 1 if at least one clause was covered
+          predicatePosition
+        );
+
+        coverageItems.push(declarationCoverage);
+
+        // Create StatementCoverage for each clause (following the declaration)
+        for (let i = 0; i < clauseRanges.length; i++) {
+          const clauseIndex = i + 1; // 1-based index
+          const isClauseCovered = predicateCoverage.coveredIndexes.includes(clauseIndex);
+          const executionCount = isClauseCovered ? 1 : 0;
+
+          this.logger.debug(`Clause ${clauseIndex} at lines ${clauseRanges[i].start.line + 1}-${clauseRanges[i].end.line + 1}: ${isClauseCovered ? 'covered' : 'not covered'}`);
+
+          coverageItems.push(new StatementCoverage(executionCount, clauseRanges[i]));
+        }
+      }
+    }
+
+    this.logger.debug(`Loaded ${coverageItems.length} coverage items (declarations + statements)`);
+    return coverageItems;
+  }
+
+  /**
+   * Format clause coverage information for display in the predicate name
+   * @param coverage - The coverage data for a predicate
+   * @returns Formatted string like "4/5 clauses [1,2,3,4]" or "all clauses covered"
+   */
+  private formatClauseCoverageInfo(coverage: CoverageData): string {
+    const { covered, total, coveredIndexes } = coverage;
+
+    if (covered === total) {
+      // All clauses covered
+      return 'all clauses covered';
+    }
+
+    // Partial coverage - show which clauses are covered
+    const clauseWord = total === 1 ? 'clause' : 'clauses';
+    const coveredList = coveredIndexes.length > 0 ? ` [${coveredIndexes.join(',')}]` : '';
+    return `${covered}/${total} ${clauseWord} covered${coveredList}`;
+  }
+
+  /**
+   * Load legacy detailed coverage (old format without entity/predicate info)
+   * Returns StatementCoverage items only
+   * @param fileCoverage - The file coverage to load details for
+   * @returns Array of StatementCoverage items (one per clause)
+   */
+  private async loadLegacyDetailedCoverage(fileCoverage: FileCoverage): Promise<StatementCoverage[]> {
+    this.logger.debug(`Loading legacy detailed coverage for ${fileCoverage.uri.fsPath}`);
 
     const normalizedPath = Utils.normalizeFilePath(fileCoverage.uri.fsPath);
     // Use workspace-aware key to retrieve coverage data
