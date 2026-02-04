@@ -1487,7 +1487,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         const predicatePosition = new Position(lineNumber, 0);
 
         // Build the coverage info string to include in the name
-        const coverageInfo = this.formatClauseCoverageInfo(predicateCoverage);
+        const coverageInfo = this.formatClauseCoverageInfo(predicateName, predicateCoverage);
 
         // Create DeclarationCoverage for the predicate
         // Include entity, predicate, and coverage info in the name
@@ -1521,16 +1521,25 @@ export class LogtalkTestsExplorerProvider implements Disposable {
    * @param coverage - The coverage data for a predicate
    * @returns Formatted string like "4/5 clauses [1,2,3,4]" or "all clauses covered"
    */
-  private formatClauseCoverageInfo(coverage: CoverageData): string {
+  private formatClauseCoverageInfo(predicateName: string, coverage: CoverageData): string {
     const { covered, total, coveredIndexes } = coverage;
 
     if (covered === total) {
-      // All clauses covered
-      return 'all clauses covered';
+      // All clauses or rules covered
+    if (predicateName.includes('//')) {
+        return 'all rules covered';
+      } else {
+        return 'all clauses covered';
+      }
     }
 
     // Partial coverage - show which clauses are covered
-    const clauseWord = total === 1 ? 'clause' : 'clauses';
+    let clauseWord: string;
+    if (predicateName.includes('//')) {
+      clauseWord = total === 1 ? 'rule' : 'rules';
+    } else {
+      clauseWord = total === 1 ? 'clause' : 'clauses';
+    } 
     const coveredList = coveredIndexes.length > 0 ? ` [${coveredIndexes.join(',')}]` : '';
     return `${covered}/${total} ${clauseWord} covered${coveredList}`;
   }
