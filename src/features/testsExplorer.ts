@@ -2107,11 +2107,13 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       });
     });
 
-    // Mark individual tests as needing re-run (shows enqueued icon)
-    // Use individual test runs to avoid resetting the counter for other files
-    for (const testItem of individualTestItems) {
-      this.markTestAsNeedsRerun(testItem);
+    if (individualTestItems.length === 0) {
+      return;
     }
+
+    // Mark all tests as needing re-run in a single batched test run
+    // This is much more efficient than creating individual test runs for each test
+    this.markTestsAsNeedsRerunBatched(individualTestItems);
 
     this.logger.debug(`Marked ${individualTestItems.length} test(s) as needing re-run for file: ${fileUri.fsPath}`);
   }
@@ -2256,7 +2258,32 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     testRun.end();
   }
 
+  /**
+   * Mark multiple tests as needing to be re-run using a single batched test run.
+   * This is much more efficient than creating individual test runs for each test,
+   * especially when invalidating test results for files with many tests.
+   * @param testItems - Array of test items to mark as needing re-run
+   */
+  private markTestsAsNeedsRerunBatched(testItems: TestItem[]): void {
+    if (testItems.length === 0) {
+      return;
+    }
 
+    // Create a single test run for all items - this triggers only one UI update cycle
+    const testRun = this.controller.createTestRun(
+      new TestRunRequest(testItems),
+      'Tests modified - need re-run',
+      false
+    );
+
+    // Enqueue all test items in the same test run
+    for (const testItem of testItems) {
+      testRun.enqueued(testItem);
+    }
+
+    // End the test run once after all items are enqueued
+    testRun.end();
+  }
 
   /**
    * Check if a test has a condition option that prevents skipping.
