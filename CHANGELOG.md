@@ -4,6 +4,7 @@
 
 * Display per entity and per predicate coverage data in the Test Explorer coverage sub-view (requires Logtalk 3.98.0 or later)
 * Refactor the use of snippets data by both completion and hover services
+* Workaround a bug where test results are wrongly routed to the linter possibly due to a race condition when cleaning up the scratch messages file
 
 ## [0.86.1]
 

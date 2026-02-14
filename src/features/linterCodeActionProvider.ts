@@ -1090,6 +1090,12 @@ export default class LogtalkLinter implements CodeActionProvider {
   }
 
   public lint(message: string) {
+    // Skip test result messages - they should be handled only by the tests reporter
+    // This is a workaround for a bug elsewhere where tests results are wrongly routed to the linter
+    // The bug may be a timing issue cleaning up the scratch messages file
+    if (message.includes('cpu/wall seconds')) {
+      return;
+    }
     this.parseIssue(message);
     for (let doc in this.diagnostics) {
       let index = this.diagnostics[doc]
