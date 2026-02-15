@@ -1533,35 +1533,62 @@ export class LogtalkSnippetCompletionProvider implements CompletionItemProvider 
   provideCompletionItems(
     document: TextDocument,
     position: Position,
-    token: CancellationToken,
-    context: CompletionContext
+    _token: CancellationToken,
+    _context: CompletionContext
   ): ProviderResult<CompletionItem[] | CompletionList> {
     try {
       const lineText = document.lineAt(position.line).text;
       const textBeforeCursor = lineText.substring(0, position.character);
-      
+
       // Check if we're in a context suitable for directive snippets
       const isDirectiveContext = /^\s*$/.test(textBeforeCursor) || /^\s*:-/.test(textBeforeCursor);
-      
+
+      // Extract the word being typed at the cursor position for case-sensitive filtering
+      // For directive snippets, extract text after ":-"
+      // For regular snippets, extract the current word
+      let typedPrefix = '';
+      if (isDirectiveContext && /^\s*:-/.test(textBeforeCursor)) {
+        // Extract text after ":-" for directive context
+        const directiveMatch = textBeforeCursor.match(/:-\s*(.*)$/);
+        typedPrefix = directiveMatch ? directiveMatch[1] : '';
+      } else {
+        // Extract the current word being typed (alphanumeric and underscore characters)
+        const wordMatch = textBeforeCursor.match(/([a-zA-Z_][a-zA-Z0-9_]*)$/);
+        typedPrefix = wordMatch ? wordMatch[1] : '';
+      }
+
       const completionItems: CompletionItem[] = [];
-      
+
       for (const [key, snippet] of Object.entries(this.snippets)) {
-        // Directive snippets (prefix starts with ":-") should only be offered 
+        // Directive snippets (prefix starts with ":-") should only be offered
         // when there's only whitespace before the cursor or before ":-"
         if (snippet.prefix.startsWith(':-')) {
           if (!isDirectiveContext) {
             continue; // Skip directive snippets in non-directive contexts
+          }
+          // For directive snippets, get the prefix part after ":-" for matching
+          const snippetPrefixAfterDirective = snippet.prefix.substring(2).trimStart();
+          // Case-sensitive filtering for directive snippets
+          if (typedPrefix && !snippetPrefixAfterDirective.startsWith(typedPrefix)) {
+            continue;
           }
         } else {
           // Non-directive snippets should NOT be offered in directive contexts
           if (isDirectiveContext && /^\s*:-/.test(textBeforeCursor)) {
             continue; // Skip non-directive snippets when user has typed ":-"
           }
+          // Case-sensitive filtering for regular snippets
+          if (typedPrefix && !snippet.prefix.startsWith(typedPrefix)) {
+            continue;
+          }
         }
-        
+
         const item = new CompletionItem(snippet.prefix, CompletionItemKind.Snippet);
         item.insertText = new SnippetString(snippet.body);
-        
+
+        // Set filterText to ensure case-sensitive matching by VS Code
+        item.filterText = snippet.prefix;
+
         // For directive snippets, replace any ":-" text (and any following text) that the user has already typed
         if (snippet.prefix.startsWith(':-')) {
           const directiveMatch = textBeforeCursor.match(/:-.*$/);
@@ -1573,7 +1600,7 @@ export class LogtalkSnippetCompletionProvider implements CompletionItemProvider 
             };
           }
         }
-        
+
         // Handle description
         if (snippet.description) {
           if (Array.isArray(snippet.description)) {
@@ -1586,10 +1613,10 @@ export class LogtalkSnippetCompletionProvider implements CompletionItemProvider 
         } else {
           item.detail = key;
         }
-        
+
         completionItems.push(item);
       }
-      
+
       return completionItems;
     } catch (error: any) {
       this.logger.error(`Error in LogtalkSnippetCompletionProvider: ${error.message}`);

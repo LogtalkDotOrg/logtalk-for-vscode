@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.87.1]
+
+* Fix snippet completions to be case sensitive
+
 ## [0.87.0]
 
 * Display per entity and per predicate coverage data in the Test Explorer coverage sub-view (requires Logtalk 3.98.0 or later)
