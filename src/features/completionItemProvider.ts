@@ -13,10 +13,268 @@ import {
   ProviderResult,
   Range,
   SnippetString,
-  TextDocument
+  TextDocument,
+  workspace
 } from "vscode";
 import { getLogger } from "../utils/logger";
-import { LOGTALK_SNIPPETS, ISnippet, ISnippetDictionary } from "../data/snippetsData";
+import { LOGTALK_SNIPPETS, ISnippetDictionary } from "../data/snippetsData";
+
+/**
+ * Logtalk keywords extracted from the syntax highlight tmLanguage file.
+ * These are organized by category matching the tmLanguage scope names.
+ */
+interface LogtalkKeyword {
+  name: string;
+  category: string;
+  description: string;
+  hasParens: boolean;  // Whether this keyword requires parentheses
+}
+
+const LOGTALK_KEYWORDS: LogtalkKeyword[] = [
+  // Control constructs (support.function.control.logtalk)
+  { name: 'true', category: 'control', description: 'Always succeeds', hasParens: false },
+  { name: 'fail', category: 'control', description: 'Always fails', hasParens: false },
+  { name: 'false', category: 'control', description: 'Always fails (alias for fail)', hasParens: false },
+  { name: 'repeat', category: 'control', description: 'Provides an infinite sequence of choice points', hasParens: false },
+  { name: 'call', category: 'control', description: 'Meta-call predicate', hasParens: true },
+  { name: 'catch', category: 'control', description: 'Catches exceptions thrown by throw/1', hasParens: true },
+  { name: 'ignore', category: 'control', description: 'Calls goal once but always succeeds', hasParens: true },
+  { name: 'throw', category: 'control', description: 'Throws an exception', hasParens: true },
+  { name: 'once', category: 'control', description: 'Calls goal at most once', hasParens: true },
+  { name: 'instantiation_error', category: 'control', description: 'Instantiation error term', hasParens: false },
+  { name: 'system_error', category: 'control', description: 'System error term', hasParens: false },
+  { name: 'type_error', category: 'control', description: 'Type error term', hasParens: true },
+  { name: 'domain_error', category: 'control', description: 'Domain error term', hasParens: true },
+  { name: 'consistency_error', category: 'control', description: 'Consistency error term', hasParens: true },
+  { name: 'existence_error', category: 'control', description: 'Existence error term', hasParens: true },
+  { name: 'permission_error', category: 'control', description: 'Permission error term', hasParens: true },
+  { name: 'representation_error', category: 'control', description: 'Representation error term', hasParens: true },
+  { name: 'evaluation_error', category: 'control', description: 'Evaluation error term', hasParens: true },
+  { name: 'resource_error', category: 'control', description: 'Resource error term', hasParens: true },
+  { name: 'syntax_error', category: 'control', description: 'Syntax error term', hasParens: true },
+  { name: 'uninstantiation_error', category: 'control', description: 'Uninstantiation error term', hasParens: true },
+
+  // Evaluable functors (support.function.evaluable.logtalk)
+  { name: 'abs', category: 'arithmetic', description: 'Absolute value', hasParens: true },
+  { name: 'acos', category: 'arithmetic', description: 'Arc cosine', hasParens: true },
+  { name: 'asin', category: 'arithmetic', description: 'Arc sine', hasParens: true },
+  { name: 'atan', category: 'arithmetic', description: 'Arc tangent', hasParens: true },
+  { name: 'atan2', category: 'arithmetic', description: 'Arc tangent of Y/X', hasParens: true },
+  { name: 'ceiling', category: 'arithmetic', description: 'Ceiling function', hasParens: true },
+  { name: 'cos', category: 'arithmetic', description: 'Cosine', hasParens: true },
+  { name: 'div', category: 'arithmetic', description: 'Integer division', hasParens: true },
+  { name: 'exp', category: 'arithmetic', description: 'Exponential', hasParens: true },
+  { name: 'float', category: 'arithmetic', description: 'Float conversion', hasParens: true },
+  { name: 'float_integer_part', category: 'arithmetic', description: 'Integer part of float', hasParens: true },
+  { name: 'float_fractional_part', category: 'arithmetic', description: 'Fractional part of float', hasParens: true },
+  { name: 'floor', category: 'arithmetic', description: 'Floor function', hasParens: true },
+  { name: 'log', category: 'arithmetic', description: 'Natural logarithm', hasParens: true },
+  { name: 'max', category: 'arithmetic', description: 'Maximum of two numbers', hasParens: true },
+  { name: 'min', category: 'arithmetic', description: 'Minimum of two numbers', hasParens: true },
+  { name: 'mod', category: 'arithmetic', description: 'Modulo operation', hasParens: true },
+  { name: 'rem', category: 'arithmetic', description: 'Remainder operation', hasParens: true },
+  { name: 'round', category: 'arithmetic', description: 'Round to nearest integer', hasParens: true },
+  { name: 'sign', category: 'arithmetic', description: 'Sign of a number', hasParens: true },
+  { name: 'sin', category: 'arithmetic', description: 'Sine', hasParens: true },
+  { name: 'sqrt', category: 'arithmetic', description: 'Square root', hasParens: true },
+  { name: 'tan', category: 'arithmetic', description: 'Tangent', hasParens: true },
+  { name: 'truncate', category: 'arithmetic', description: 'Truncate to integer', hasParens: true },
+  { name: 'xor', category: 'arithmetic', description: 'Bitwise exclusive or', hasParens: true },
+  { name: 'e', category: 'arithmetic', description: 'Euler\'s number', hasParens: false },
+  { name: 'pi', category: 'arithmetic', description: 'Mathematical constant pi', hasParens: false },
+
+  // Chars and bytes I/O (support.function.chars-and-bytes-io.logtalk)
+  { name: 'get_char', category: 'io', description: 'Read a character', hasParens: true },
+  { name: 'get_code', category: 'io', description: 'Read a character code', hasParens: true },
+  { name: 'get_byte', category: 'io', description: 'Read a byte', hasParens: true },
+  { name: 'peek_char', category: 'io', description: 'Peek at next character', hasParens: true },
+  { name: 'peek_code', category: 'io', description: 'Peek at next character code', hasParens: true },
+  { name: 'peek_byte', category: 'io', description: 'Peek at next byte', hasParens: true },
+  { name: 'put_char', category: 'io', description: 'Write a character', hasParens: true },
+  { name: 'put_code', category: 'io', description: 'Write a character code', hasParens: true },
+  { name: 'put_byte', category: 'io', description: 'Write a byte', hasParens: true },
+  { name: 'nl', category: 'io', description: 'Write a newline', hasParens: false },
+
+  // Atom and term processing (support.function.atom-term-processing.logtalk)
+  { name: 'atom_length', category: 'atom', description: 'Get length of an atom', hasParens: true },
+  { name: 'atom_chars', category: 'atom', description: 'Convert atom to/from character list', hasParens: true },
+  { name: 'atom_concat', category: 'atom', description: 'Concatenate atoms', hasParens: true },
+  { name: 'atom_codes', category: 'atom', description: 'Convert atom to/from code list', hasParens: true },
+  { name: 'sub_atom', category: 'atom', description: 'Extract sub-atom', hasParens: true },
+  { name: 'char_code', category: 'atom', description: 'Convert character to/from code', hasParens: true },
+  { name: 'number_chars', category: 'atom', description: 'Convert number to/from character list', hasParens: true },
+  { name: 'number_codes', category: 'atom', description: 'Convert number to/from code list', hasParens: true },
+
+  // Term testing (support.function.term-testing.logtalk)
+  { name: 'var', category: 'term-testing', description: 'Test if term is a variable', hasParens: true },
+  { name: 'atom', category: 'term-testing', description: 'Test if term is an atom', hasParens: true },
+  { name: 'atomic', category: 'term-testing', description: 'Test if term is atomic', hasParens: true },
+  { name: 'integer', category: 'term-testing', description: 'Test if term is an integer', hasParens: true },
+  { name: 'float', category: 'term-testing', description: 'Test if term is a float', hasParens: true },
+  { name: 'callable', category: 'term-testing', description: 'Test if term is callable', hasParens: true },
+  { name: 'compound', category: 'term-testing', description: 'Test if term is compound', hasParens: true },
+  { name: 'nonvar', category: 'term-testing', description: 'Test if term is not a variable', hasParens: true },
+  { name: 'number', category: 'term-testing', description: 'Test if term is a number', hasParens: true },
+  { name: 'ground', category: 'term-testing', description: 'Test if term is ground', hasParens: true },
+  { name: 'acyclic_term', category: 'term-testing', description: 'Test if term is acyclic', hasParens: true },
+
+  // Term comparison (support.function.term-comparison.logtalk)
+  { name: 'compare', category: 'term-comparison', description: 'Compare two terms', hasParens: true },
+
+  // Term I/O (support.function.term-io.logtalk)
+  { name: 'read', category: 'term-io', description: 'Read a term', hasParens: true },
+  { name: 'read_term', category: 'term-io', description: 'Read a term with options', hasParens: true },
+  { name: 'write', category: 'term-io', description: 'Write a term', hasParens: true },
+  { name: 'writeq', category: 'term-io', description: 'Write a term quoted', hasParens: true },
+  { name: 'write_canonical', category: 'term-io', description: 'Write a term in canonical form', hasParens: true },
+  { name: 'write_term', category: 'term-io', description: 'Write a term with options', hasParens: true },
+  { name: 'current_char_conversion', category: 'term-io', description: 'Query character conversion', hasParens: true },
+  { name: 'char_conversion', category: 'term-io', description: 'Define character conversion', hasParens: true },
+  { name: 'current_op', category: 'term-io', description: 'Query current operator', hasParens: true },
+  { name: 'op', category: 'term-io', description: 'Define an operator', hasParens: true },
+
+  // Term creation and decomposition (support.function.term-creation-and-decomposition.logtalk)
+  { name: 'arg', category: 'term', description: 'Access argument of compound term', hasParens: true },
+  { name: 'copy_term', category: 'term', description: 'Copy a term', hasParens: true },
+  { name: 'functor', category: 'term', description: 'Get/construct functor', hasParens: true },
+  { name: 'numbervars', category: 'term', description: 'Number variables in a term', hasParens: true },
+  { name: 'term_variables', category: 'term', description: 'Get variables in a term', hasParens: true },
+
+  // Term unification (support.function.term-unification.logtalk)
+  { name: 'subsumes_term', category: 'unification', description: 'Test if term subsumes another', hasParens: true },
+  { name: 'unify_with_occurs_check', category: 'unification', description: 'Unify with occurs check', hasParens: true },
+
+  // Stream selection and control (support.function.stream-selection-and-control.logtalk)
+  { name: 'set_input', category: 'stream', description: 'Set current input stream', hasParens: true },
+  { name: 'set_output', category: 'stream', description: 'Set current output stream', hasParens: true },
+  { name: 'current_input', category: 'stream', description: 'Get current input stream', hasParens: true },
+  { name: 'current_output', category: 'stream', description: 'Get current output stream', hasParens: true },
+  { name: 'open', category: 'stream', description: 'Open a stream', hasParens: true },
+  { name: 'close', category: 'stream', description: 'Close a stream', hasParens: true },
+  { name: 'flush_output', category: 'stream', description: 'Flush output stream', hasParens: false },
+  { name: 'stream_property', category: 'stream', description: 'Query stream property', hasParens: true },
+  { name: 'at_end_of_stream', category: 'stream', description: 'Test if at end of stream', hasParens: false },
+  { name: 'set_stream_position', category: 'stream', description: 'Set stream position', hasParens: true },
+
+  // Prolog flags (support.function.prolog-flags.logtalk)
+  { name: 'set_prolog_flag', category: 'flag', description: 'Set Prolog flag value', hasParens: true },
+  { name: 'current_prolog_flag', category: 'flag', description: 'Query Prolog flag value', hasParens: true },
+
+  // Compiling and loading (support.function.compiling-and-loading.logtalk)
+  { name: 'logtalk_compile', category: 'loading', description: 'Compile Logtalk source files', hasParens: true },
+  { name: 'logtalk_library_path', category: 'loading', description: 'Library alias path', hasParens: true },
+  { name: 'logtalk_load', category: 'loading', description: 'Load Logtalk source files', hasParens: true },
+  { name: 'logtalk_load_context', category: 'loading', description: 'Access compilation context', hasParens: true },
+  { name: 'logtalk_make', category: 'loading', description: 'Make target', hasParens: false },
+  { name: 'logtalk_make_target_action', category: 'loading', description: 'Make target action', hasParens: true },
+
+  // Event handling (support.function.event-handling.logtalk)
+  { name: 'abolish_events', category: 'events', description: 'Abolish matching events', hasParens: true },
+  { name: 'define_events', category: 'events', description: 'Define events', hasParens: true },
+  { name: 'current_event', category: 'events', description: 'Query current events', hasParens: true },
+
+  // Implementation-defined hooks (support.function.implementation-defined-hooks.logtalk)
+  { name: 'create_logtalk_flag', category: 'hook', description: 'Create a new Logtalk flag', hasParens: true },
+  { name: 'current_logtalk_flag', category: 'hook', description: 'Query Logtalk flag value', hasParens: true },
+  { name: 'set_logtalk_flag', category: 'hook', description: 'Set Logtalk flag value', hasParens: true },
+  { name: 'halt', category: 'hook', description: 'Halt Prolog execution', hasParens: false },
+
+  // Sorting (support.function.sorting.logtalk)
+  { name: 'sort', category: 'sorting', description: 'Sort a list removing duplicates', hasParens: true },
+  { name: 'keysort', category: 'sorting', description: 'Sort key-value pairs by key', hasParens: true },
+
+  // Entity creation and abolishing (support.function.entity-creation-and-abolishing.logtalk)
+  { name: 'create_object', category: 'entity', description: 'Create a dynamic object', hasParens: true },
+  { name: 'create_protocol', category: 'entity', description: 'Create a dynamic protocol', hasParens: true },
+  { name: 'create_category', category: 'entity', description: 'Create a dynamic category', hasParens: true },
+  { name: 'current_object', category: 'entity', description: 'Enumerate/check objects', hasParens: true },
+  { name: 'current_protocol', category: 'entity', description: 'Enumerate/check protocols', hasParens: true },
+  { name: 'current_category', category: 'entity', description: 'Enumerate/check categories', hasParens: true },
+  { name: 'abolish_object', category: 'entity', description: 'Abolish a dynamic object', hasParens: true },
+  { name: 'abolish_protocol', category: 'entity', description: 'Abolish a dynamic protocol', hasParens: true },
+  { name: 'abolish_category', category: 'entity', description: 'Abolish a dynamic category', hasParens: true },
+
+  // Reflection (support.function.reflection.logtalk)
+  { name: 'object_property', category: 'reflection', description: 'Query object property', hasParens: true },
+  { name: 'protocol_property', category: 'reflection', description: 'Query protocol property', hasParens: true },
+  { name: 'category_property', category: 'reflection', description: 'Query category property', hasParens: true },
+  { name: 'complements_object', category: 'reflection', description: 'Query complementing category', hasParens: true },
+  { name: 'conforms_to_protocol', category: 'reflection', description: 'Query protocol conformance', hasParens: true },
+  { name: 'extends_object', category: 'reflection', description: 'Query object extension', hasParens: true },
+  { name: 'extends_protocol', category: 'reflection', description: 'Query protocol extension', hasParens: true },
+  { name: 'extends_category', category: 'reflection', description: 'Query category extension', hasParens: true },
+  { name: 'imports_category', category: 'reflection', description: 'Query category import', hasParens: true },
+  { name: 'implements_protocol', category: 'reflection', description: 'Query protocol implementation', hasParens: true },
+  { name: 'instantiates_class', category: 'reflection', description: 'Query class instantiation', hasParens: true },
+  { name: 'specializes_class', category: 'reflection', description: 'Query class specialization', hasParens: true },
+  { name: 'current_predicate', category: 'reflection', description: 'Enumerate visible predicates', hasParens: true },
+  { name: 'predicate_property', category: 'reflection', description: 'Query predicate property', hasParens: true },
+
+  // All solutions (support.function.all-solutions.logtalk)
+  { name: 'bagof', category: 'solutions', description: 'Collect solutions as a bag', hasParens: true },
+  { name: 'setof', category: 'solutions', description: 'Collect solutions as a set', hasParens: true },
+  { name: 'findall', category: 'solutions', description: 'Find all solutions', hasParens: true },
+  { name: 'forall', category: 'solutions', description: 'For all solutions, goal succeeds', hasParens: true },
+
+  // Database (support.function.database.logtalk)
+  { name: 'abolish', category: 'database', description: 'Abolish a predicate', hasParens: true },
+  { name: 'asserta', category: 'database', description: 'Assert clause at beginning', hasParens: true },
+  { name: 'assertz', category: 'database', description: 'Assert clause at end', hasParens: true },
+  { name: 'clause', category: 'database', description: 'Access clause', hasParens: true },
+  { name: 'retract', category: 'database', description: 'Retract a clause', hasParens: true },
+  { name: 'retractall', category: 'database', description: 'Retract all matching clauses', hasParens: true },
+
+  // Multi-threading (support.function.multi-threading.logtalk)
+  { name: 'threaded', category: 'threading', description: 'Prove goals in threads', hasParens: true },
+  { name: 'threaded_call', category: 'threading', description: 'Make asynchronous call', hasParens: true },
+  { name: 'threaded_cancel', category: 'threading', description: 'Cancel asynchronous call', hasParens: true },
+  { name: 'threaded_once', category: 'threading', description: 'Make asynchronous deterministic call', hasParens: true },
+  { name: 'threaded_ignore', category: 'threading', description: 'Make asynchronous call ignoring result', hasParens: true },
+  { name: 'threaded_exit', category: 'threading', description: 'Get result of asynchronous call', hasParens: true },
+  { name: 'threaded_peek', category: 'threading', description: 'Peek at asynchronous call result', hasParens: true },
+  { name: 'threaded_wait', category: 'threading', description: 'Wait for notification', hasParens: true },
+  { name: 'threaded_notify', category: 'threading', description: 'Send notification', hasParens: true },
+
+  // Engines (support.function.engines.logtalk)
+  { name: 'threaded_engine', category: 'engines', description: 'Query engine existence', hasParens: true },
+  { name: 'threaded_engine_create', category: 'engines', description: 'Create an engine', hasParens: true },
+  { name: 'threaded_engine_destroy', category: 'engines', description: 'Destroy an engine', hasParens: true },
+  { name: 'threaded_engine_self', category: 'engines', description: 'Get engine identifier', hasParens: true },
+  { name: 'threaded_engine_next', category: 'engines', description: 'Get next engine answer', hasParens: true },
+  { name: 'threaded_engine_next_reified', category: 'engines', description: 'Get next engine answer reified', hasParens: true },
+  { name: 'threaded_engine_yield', category: 'engines', description: 'Yield engine answer', hasParens: true },
+  { name: 'threaded_engine_post', category: 'engines', description: 'Post term to engine', hasParens: true },
+  { name: 'threaded_engine_fetch', category: 'engines', description: 'Fetch term from engine', hasParens: true },
+
+  // Event handlers (support.function.event-handler.logtalk)
+  { name: 'before', category: 'event-handler', description: 'Before event handler', hasParens: true },
+  { name: 'after', category: 'event-handler', description: 'After event handler', hasParens: true },
+
+  // Message forwarding handler (support.function.message-forwarding-handler.logtalk)
+  { name: 'forward', category: 'forwarding', description: 'Message forwarding handler', hasParens: true },
+
+  // Grammar rules (support.function.grammar-rule.logtalk)
+  { name: 'expand_goal', category: 'grammar', description: 'Expand a goal', hasParens: true },
+  { name: 'expand_term', category: 'grammar', description: 'Expand a term', hasParens: true },
+  { name: 'goal_expansion', category: 'grammar', description: 'Goal expansion hook', hasParens: true },
+  { name: 'term_expansion', category: 'grammar', description: 'Term expansion hook', hasParens: true },
+  { name: 'phrase', category: 'grammar', description: 'Apply grammar rule', hasParens: true },
+
+  // Execution context (support.function.execution-context.logtalk)
+  { name: 'context', category: 'context', description: 'Execution context', hasParens: true },
+  { name: 'parameter', category: 'context', description: 'Entity parameter', hasParens: true },
+  { name: 'self', category: 'context', description: 'Self reference', hasParens: true },
+  { name: 'sender', category: 'context', description: 'Message sender', hasParens: true },
+  { name: 'this', category: 'context', description: 'This reference', hasParens: true },
+
+  // Entity relations (storage.type.relations.logtalk)
+  { name: 'complements', category: 'relation', description: 'Category complements object', hasParens: true },
+  { name: 'extends', category: 'relation', description: 'Entity extension', hasParens: true },
+  { name: 'instantiates', category: 'relation', description: 'Object instantiates class', hasParens: true },
+  { name: 'imports', category: 'relation', description: 'Entity imports category', hasParens: true },
+  { name: 'implements', category: 'relation', description: 'Entity implements protocol', hasParens: true },
+  { name: 'specializes', category: 'relation', description: 'Class specializes class', hasParens: true },
+];
 
 /**
  * List of all Logtalk library names
@@ -1625,3 +1883,137 @@ export class LogtalkSnippetCompletionProvider implements CompletionItemProvider 
   }
 }
 
+/**
+ * Provider for Logtalk keywords extracted from syntax highlighting
+ * Provides completion items for all Logtalk built-in predicates and keywords
+ */
+export class LogtalkKeywordCompletionProvider implements CompletionItemProvider {
+  private logger = getLogger();
+
+  provideCompletionItems(
+    document: TextDocument,
+    position: Position,
+    _token: CancellationToken,
+    _context: CompletionContext
+  ): ProviderResult<CompletionItem[] | CompletionList> {
+    try {
+      const lineText = document.lineAt(position.line).text;
+      const textBeforeCursor = lineText.substring(0, position.character);
+
+      // Respect user's editor.quickSuggestions setting for strings and comments
+      const editorConfig = workspace.getConfiguration('editor', document.uri);
+      const quickSuggestions = editorConfig.get<{ strings?: boolean; comments?: boolean; other?: boolean }>('quickSuggestions');
+
+      // Check if we're inside a string and if completions are disabled for strings
+      if (this.isInsideString(textBeforeCursor)) {
+        if (quickSuggestions && quickSuggestions.strings === false) {
+          return [];
+        }
+      }
+
+      // Check if we're inside a comment and if completions are disabled for comments
+      if (this.isInsideComment(document, position)) {
+        if (quickSuggestions && quickSuggestions.comments === false) {
+          return [];
+        }
+      }
+
+      // Extract the partial word being typed
+      const wordMatch = textBeforeCursor.match(/([a-z_][a-z0-9_]*)$/i);
+      const partialWord = wordMatch ? wordMatch[1].toLowerCase() : '';
+
+      // Filter keywords that match the partial word
+      const filteredKeywords = LOGTALK_KEYWORDS.filter(kw =>
+        kw.name.toLowerCase().startsWith(partialWord)
+      );
+
+      // Create completion items
+      const completionItems: CompletionItem[] = filteredKeywords.map((keyword, index) => {
+        const item = new CompletionItem(
+          keyword.name,
+          CompletionItemKind.Keyword
+        );
+
+        item.detail = `${keyword.category}: ${keyword.description}`;
+
+        // Create documentation
+        const documentation = new MarkdownString();
+        documentation.appendText(`**Category:** ${keyword.category}\n\n`);
+        documentation.appendText(keyword.description);
+        if (keyword.hasParens) {
+          documentation.appendText('\n\n');
+          documentation.appendCodeblock(`${keyword.name}(...)`, 'logtalk');
+        }
+        item.documentation = documentation;
+
+        // Insert text with parentheses and cursor positioning for predicates
+        if (keyword.hasParens) {
+          item.insertText = new SnippetString(`${keyword.name}($1)$0`);
+        } else {
+          item.insertText = keyword.name;
+        }
+
+        // Sorting: prioritize exact prefix matches
+        item.sortText = String(index).padStart(4, '0');
+
+        return item;
+      });
+
+      this.logger.debug(`Keyword completion: suggesting ${completionItems.length} items for "${partialWord}"`);
+      return completionItems;
+    } catch (error: any) {
+      this.logger.error(`Error in LogtalkKeywordCompletionProvider: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Check if the cursor is inside a string literal
+   */
+  private isInsideString(textBeforeCursor: string): boolean {
+    // Count unescaped single and double quotes
+    let singleQuotes = 0;
+    let doubleQuotes = 0;
+    for (let i = 0; i < textBeforeCursor.length; i++) {
+      const char = textBeforeCursor[i];
+      const prevChar = i > 0 ? textBeforeCursor[i - 1] : '';
+      if (char === "'" && prevChar !== '\\') {
+        singleQuotes++;
+      } else if (char === '"' && prevChar !== '\\') {
+        doubleQuotes++;
+      }
+    }
+    // Odd number of quotes means we're inside a string
+    return (singleQuotes % 2 !== 0) || (doubleQuotes % 2 !== 0);
+  }
+
+  /**
+   * Check if the cursor is inside a comment
+   */
+  private isInsideComment(document: TextDocument, position: Position): boolean {
+    const lineText = document.lineAt(position.line).text;
+    const textBeforeCursor = lineText.substring(0, position.character);
+
+    // Check for line comment (%)
+    const percentIndex = textBeforeCursor.indexOf('%');
+    if (percentIndex !== -1) {
+      // Make sure it's not inside a string
+      const textBeforePercent = textBeforeCursor.substring(0, percentIndex);
+      if (!this.isInsideString(textBeforePercent)) {
+        return true;
+      }
+    }
+
+    // Check for block comment /* ... */
+    // This is a simplified check - we look backwards from current position
+    const fullTextBefore = document.getText(new Range(0, 0, position.line, position.character));
+    const lastBlockCommentStart = fullTextBefore.lastIndexOf('/*');
+    const lastBlockCommentEnd = fullTextBefore.lastIndexOf('*/');
+
+    if (lastBlockCommentStart !== -1 && lastBlockCommentStart > lastBlockCommentEnd) {
+      return true;
+    }
+
+    return false;
+  }
+}

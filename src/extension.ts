@@ -49,7 +49,7 @@ import { LogtalkChatParticipant } from "./features/chatParticipant";
 import { LogtalkRefactorProvider } from "./features/refactorProvider";
 import { LogtalkDocumentFormattingEditProvider } from "./features/documentFormattingEditProvider";
 import { LogtalkDocumentRangeFormattingEditProvider } from "./features/documentRangeFormattingEditProvider";
-import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkMakeCompletionProvider, LogtalkMakeTargetActionCompletionProvider, PrintMessageCompletionProvider, MessagePrefixStreamCompletionProvider, QuestionPromptStreamCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider, ThrowCompletionProvider, LogtalkSnippetCompletionProvider } from "./features/completionItemProvider";
+import { LogtalkListCompletionProvider, LogtalkLoadCompletionProvider, LogtalkMakeCompletionProvider, LogtalkMakeTargetActionCompletionProvider, PrintMessageCompletionProvider, MessagePrefixStreamCompletionProvider, QuestionPromptStreamCompletionProvider, LogtalkLoadContextCompletionProvider, CurrentLogtalkFlagCompletionProvider, SetLogtalkFlagCompletionProvider, ThrowCompletionProvider, LogtalkSnippetCompletionProvider, LogtalkKeywordCompletionProvider } from "./features/completionItemProvider";
 import { LogtalkSelectionRangeProvider } from "./features/selectionRangeProvider";
 import { LogtalkProfiling } from "./features/profiling";
 import { getLogger } from "./utils/logger";
@@ -1069,6 +1069,12 @@ export async function activate(context: ExtensionContext) {
   const snippetCompletionProvider = new LogtalkSnippetCompletionProvider();
   context.subscriptions.push(
     languages.registerCompletionItemProvider({ language: "logtalk" }, snippetCompletionProvider)
+  );
+
+  // Register keyword completion provider (for built-in predicates from syntax highlighting)
+  const keywordCompletionProvider = new LogtalkKeywordCompletionProvider();
+  context.subscriptions.push(
+    languages.registerCompletionItemProvider({ language: "logtalk" }, keywordCompletionProvider)
   );
 
   // Register chained formatting command (indentation conversion + Logtalk formatting)

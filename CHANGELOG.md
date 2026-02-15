@@ -1,7 +1,8 @@
 # Changelog
 
-## [0.87.1]
+## [0.88.0]
 
+* Add completions for Logtalk and Prolog built-in directives, predicates, and evaluable functors
 * Fix snippet completions to be case sensitive
 
 ## [0.87.0]
