@@ -1918,13 +1918,17 @@ export class LogtalkKeywordCompletionProvider implements CompletionItemProvider 
         }
       }
 
-      // Extract the partial word being typed
-      const wordMatch = textBeforeCursor.match(/([a-z_][a-z0-9_]*)$/i);
-      const partialWord = wordMatch ? wordMatch[1].toLowerCase() : '';
+      // Extract the partial word being typed (case-sensitive: uppercase = variable in Logtalk)
+      const wordMatch = textBeforeCursor.match(/([a-z_][a-z0-9_]*)$/);
+      // If no lowercase word prefix found (e.g. user typed an uppercase variable), skip keyword completions
+      if (!wordMatch) {
+        return [];
+      }
+      const partialWord = wordMatch[1];
 
-      // Filter keywords that match the partial word
+      // Filter keywords that match the partial word (case-sensitive)
       const filteredKeywords = LOGTALK_KEYWORDS.filter(kw =>
-        kw.name.toLowerCase().startsWith(partialWord)
+        kw.name.startsWith(partialWord)
       );
 
       // Create completion items

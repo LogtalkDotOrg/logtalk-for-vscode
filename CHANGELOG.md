@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.88.1]
+
+* Fix language keywords completions to be case sensitive
+
 ## [0.88.0]
 
 * Add completions for Logtalk and Prolog built-in directives, predicates, and evaluable functors
