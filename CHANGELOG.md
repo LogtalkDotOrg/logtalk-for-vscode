@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.88.2]
+
+* Improve Logtalk terminal process termination to use escalating signals to avoid orphans in case of busy and non-responding processes
+
 ## [0.88.1]
 
 * Fix language keywords completions to be case sensitive

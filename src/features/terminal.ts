@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as jsesc from "jsesc";
 import * as fs from "fs";
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import LogtalkLinter from "./linterCodeActionProvider";
 import LogtalkTestsReporter from "./testsCodeActionProvider";
 import LogtalkDeadCodeScanner from "./deadCodeScannerCodeActionProvider";
@@ -49,9 +49,67 @@ export default class LogtalkTerminal {
   private static _loadedDirectories: Set<string> = new Set();
   private static disposables: Disposable[] = [];
 
+  // Terminal process tracking for reliable cleanup
+  private static _terminalPid: number | null = null;
+
   // Terminal readiness tracking
   private static _terminalReadyPromise: Promise<void> | null = null;
   private static _terminalReadyResolve: (() => void) | null = null;
+
+  /**
+   * Attempt to kill a process and all its children using escalating signals.
+   * Waits 2s for SIGHUP (already sent by terminal disposal) to take effect,
+   * then sends SIGTERM, waits another 2s, and finally sends SIGKILL.
+   * On Windows, uses taskkill /T for tree kill after the initial 2s grace period.
+   */
+  private static killProcessTree(pid: number): void {
+    const logger = getLogger();
+
+    const isAlive = (p: number): boolean => {
+      try { process.kill(p, 0); return true; } catch { return false; }
+    };
+
+    const sendSignal = (p: number, signal: NodeJS.Signals): void => {
+      try {
+        process.kill(-p, signal);
+      } catch {
+        try { process.kill(p, signal); } catch { /* already dead */ }
+      }
+    };
+
+    // Wait 2s for the default SIGHUP (sent by the terminal close) to work
+    setTimeout(() => {
+      if (!isAlive(pid)) {
+        logger.info(`Logtalk process ${pid} exited after SIGHUP`);
+        return;
+      }
+
+      try {
+        if (process.platform === 'win32') {
+          // /T kills the process tree, /F forces termination
+          execSync(`taskkill /F /T /PID ${pid}`, { timeout: 5000 });
+          logger.info(`Killed Logtalk process tree (PID ${pid}) via taskkill`);
+        } else {
+          // SIGHUP didn't work — escalate to SIGTERM
+          logger.info(`Process ${pid} still alive after SIGHUP, sending SIGTERM`);
+          sendSignal(pid, 'SIGTERM');
+
+          // Wait another 2s, then escalate to SIGKILL if needed
+          setTimeout(() => {
+            if (!isAlive(pid)) {
+              logger.info(`Logtalk process ${pid} exited after SIGTERM`);
+              return;
+            }
+            logger.warn(`Process ${pid} still alive after SIGTERM, sending SIGKILL`);
+            sendSignal(pid, 'SIGKILL');
+          }, 2000);
+        }
+      } catch (error) {
+        // Process may already be dead; that's fine
+        logger.debug(`Process tree kill for PID ${pid} returned: ${error}`);
+      }
+    }, 2000);
+  }
 
   /**
    * Expands VS Code-style environment variables (${env:VAR}) to their actual values.
@@ -242,6 +300,12 @@ export default class LogtalkTerminal {
     return (<any>window).onDidCloseTerminal(terminal => {
       // Only clear if the closed terminal is the Logtalk terminal
       if (terminal === LogtalkTerminal._terminal) {
+        // Kill the underlying Logtalk/Prolog process tree to avoid orphans
+        if (LogtalkTerminal._terminalPid) {
+          LogtalkTerminal.killProcessTree(LogtalkTerminal._terminalPid);
+          LogtalkTerminal._terminalPid = null;
+        }
+
         // Check if the terminal crashed
         if (terminal.exitStatus) {
           if (terminal.exitStatus.code !== undefined && terminal.exitStatus.code !== 0) {
@@ -298,6 +362,12 @@ export default class LogtalkTerminal {
    * Dispose of all resources
    */
   public static dispose(): void {
+    // Kill the underlying Logtalk/Prolog process tree before disposing
+    if (LogtalkTerminal._terminalPid) {
+      LogtalkTerminal.killProcessTree(LogtalkTerminal._terminalPid);
+      LogtalkTerminal._terminalPid = null;
+    }
+
     // Explicitly dispose of the terminal to prevent restoration
     if (LogtalkTerminal._terminal) {
       try {
@@ -437,6 +507,14 @@ export default class LogtalkTerminal {
         shellPath: executable,
         shellArgs: args,
         isTransient: true
+      });
+
+      // Capture the terminal's shell PID for reliable process-tree cleanup
+      LogtalkTerminal._terminal.processId.then((pid: number | undefined) => {
+        if (pid !== undefined) {
+          LogtalkTerminal._terminalPid = pid;
+          getLogger().info(`Logtalk terminal started with PID ${pid}`);
+        }
       });
 
       // Reset the creation flag now that terminal is created
