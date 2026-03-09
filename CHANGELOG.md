@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.88.4]
+
+* Fix race condition where code navigation and refactoring operations could hang with workspaces with a large number of directories due to extension startup workspace cleanup process
+
 ## [0.88.3]
 
 * Fix code navigation features to be more robust to concurrent requests

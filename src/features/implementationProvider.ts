@@ -19,30 +19,38 @@ import * as path from "path";
 
 export class LogtalkImplementationProvider implements ImplementationProvider {
   private logger = getLogger();
-  private disposables: Disposable[] = [];
+  private static readonly TEMP_FILES = [
+    ".vscode_implementations",
+    ".vscode_implementations_done"
+  ];
+  private static startupCleanupPromise: Promise<void> | null = null;
+  private static workspaceFoldersListener: Disposable | null = null;
 
   constructor() {
-    // Delete any temporary files from previous sessions in all workspace folders
-    const files = [
-      ".vscode_implementations",
-      ".vscode_implementations_done"
-    ];
-    // Fire-and-forget cleanup - errors are logged internally
-    if (workspace.workspaceFolders) {
-      for (const wf of workspace.workspaceFolders) {
-        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
-      }
+    // Ensure startup marker cleanup runs once and can be awaited before lookups.
+    if (!LogtalkImplementationProvider.startupCleanupPromise) {
+      LogtalkImplementationProvider.startupCleanupPromise = this.cleanupStartupTemporaryFiles();
     }
 
-    // Clean up any temporary files when folders are added to the workspace
-    const workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
-      // For each added workspace folder, run the cleanup using the folder path
-      // Fire-and-forget cleanup - errors are logged internally
-      for (const wf of event.added) {
-        Utils.cleanupTemporaryFiles(wf.uri.fsPath, files);
-      }
-    });
-    this.disposables.push(workspaceFoldersListener);
+    // Register the workspace-folder listener only once to avoid duplicate cleanup runs.
+    if (!LogtalkImplementationProvider.workspaceFoldersListener) {
+      LogtalkImplementationProvider.workspaceFoldersListener = workspace.onDidChangeWorkspaceFolders((event) => {
+        for (const wf of event.added) {
+          // Fire-and-forget for newly added folders; startup is the critical synchronized path.
+          Utils.cleanupTemporaryFiles(wf.uri.fsPath, LogtalkImplementationProvider.TEMP_FILES);
+        }
+      });
+    }
+  }
+
+  private async cleanupStartupTemporaryFiles(): Promise<void> {
+    if (!workspace.workspaceFolders) {
+      return;
+    }
+
+    for (const wf of workspace.workspaceFolders) {
+      await Utils.cleanupTemporaryFiles(wf.uri.fsPath, LogtalkImplementationProvider.TEMP_FILES);
+    }
   }
 
   public async provideImplementation(
@@ -50,6 +58,10 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
     position: Position,
     token: CancellationToken
   ): Promise<Definition | LocationLink[]> {
+    if (LogtalkImplementationProvider.startupCleanupPromise) {
+      await LogtalkImplementationProvider.startupCleanupPromise;
+    }
+
     const lineText = doc.lineAt(position.line).text.trim();
     if (lineText.startsWith("%")) {
       return null;
@@ -96,13 +108,6 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
   }
 
   public dispose(): void {
-    for (const d of this.disposables) {
-      try {
-        d.dispose();
-      } catch (err) {
-        this.logger.error('Error disposing resource:', err);
-      }
-    }
-    this.disposables = [];
+    // Shared listener is intentionally process-scoped and initialized once.
   }
 }
