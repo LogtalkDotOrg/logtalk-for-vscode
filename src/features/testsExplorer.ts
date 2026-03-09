@@ -361,6 +361,28 @@ export class LogtalkTestsExplorerProvider implements Disposable {
     // Track whether any tests failed for openOnTestFailure setting
     let hasFailures = false;
 
+    // Link cancellation from the VS Code token and Logtalk terminal close events.
+    const linkedCancellationSource = new vscode.CancellationTokenSource();
+    const linkedToken = linkedCancellationSource.token;
+    const cancellationDisposables: Disposable[] = [];
+
+    if (token) {
+      cancellationDisposables.push(
+        token.onCancellationRequested(() => {
+          linkedCancellationSource.cancel();
+        })
+      );
+    }
+
+    cancellationDisposables.push(
+      vscode.window.onDidCloseTerminal((terminal) => {
+        if (LogtalkTerminal.isLogtalkTerminal(terminal) || terminal.name === 'Logtalk') {
+          this.logger.info('Logtalk terminal was closed while tests were running; cancelling test run');
+          linkedCancellationSource.cancel();
+        }
+      })
+    );
+
     try {
       // If no specific tests are selected, run all tests via the tester file
       if (!request.include) {
@@ -369,7 +391,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
         // If URI is provided (from ViaProfile methods), use it directly
         if (uri) {
           this.logger.info(`Running tests for provided URI: ${uri.fsPath}`);
-          await LogtalkTerminal.runAllTests(uri, this.linter, this.testsReporter);
+          await LogtalkTerminal.runAllTests(uri, this.linter, this.testsReporter, linkedToken);
 
           // Parse results
           // Check if URI is a directory or file
@@ -411,7 +433,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               const workspacePath = workspaceFolder.uri.fsPath;
               testDirectories.add(workspacePath);
               this.logger.info(`Running all tests in workspace folder: ${workspacePath}`);
-              await LogtalkTerminal.runAllTests(workspaceFolder.uri, this.linter, this.testsReporter);
+              await LogtalkTerminal.runAllTests(workspaceFolder.uri, this.linter, this.testsReporter, linkedToken);
 
               // Parse results - look in tester directory
               const testerFile = LogtalkTerminal.findTesterFile(workspacePath, workspaceFolder.uri);
@@ -449,7 +471,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               directoriesProcessed.add(dirPath);
               testDirectories.add(dirPath);
               this.logger.info(`Running all tests in directory: ${dirPath}`);
-              await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter);
+              await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter, linkedToken);
 
               // Parse results - look in tester directory
               const testerFile = LogtalkTerminal.findTesterFile(dirPath, metadata.directoryUri!);
@@ -470,7 +492,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               directoriesProcessed.add(dirPath);
               testDirectories.add(dirPath);
               this.logger.info(`Running all tests in workspace root directory: ${dirPath}`);
-              await LogtalkTerminal.runAllTests(Uri.file(dirPath), this.linter, this.testsReporter);
+              await LogtalkTerminal.runAllTests(Uri.file(dirPath), this.linter, this.testsReporter, linkedToken);
 
               // Parse results - look in tester directory
               const testerFile = LogtalkTerminal.findTesterFile(dirPath, Uri.file(dirPath));
@@ -503,7 +525,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
 
       // Process each test item
       for (const test of queue) {
-        if (token?.isCancellationRequested) {
+        if (linkedToken.isCancellationRequested) {
           break;
         }
 
@@ -527,7 +549,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
               // Run all tests in the directory
               this.logger.info(`Running all tests in directory: ${metadata.directoryUri!.fsPath}`);
               testDirectories.add(metadata.directoryUri!.fsPath);
-              await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter);
+              await LogtalkTerminal.runAllTests(metadata.directoryUri!, this.linter, this.testsReporter, linkedToken);
 
               // Parse results - look in tester directory
               const dirTesterFile = LogtalkTerminal.findTesterFile(metadata.directoryUri!.fsPath, metadata.directoryUri!);
@@ -545,7 +567,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             case 'file':
               // Run all tests in the file
               this.logger.info(`Running all tests in file: ${metadata.fileUri.fsPath}`);
-              await LogtalkTerminal.runFileTests(metadata.fileUri, this.linter, this.testsReporter);
+              await LogtalkTerminal.runFileTests(metadata.fileUri, this.linter, this.testsReporter, linkedToken);
 
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
@@ -557,7 +579,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             case 'object':
               // Run all tests in the object (test suite)
               this.logger.info(`Running all tests for object: ${metadata.objectName} in file: ${metadata.fileUri.fsPath}`);
-              await LogtalkTerminal.runObjectTests(metadata.fileUri, metadata.objectName!, this.linter, this.testsReporter);
+              await LogtalkTerminal.runObjectTests(metadata.fileUri, metadata.objectName!, this.linter, this.testsReporter, linkedToken);
 
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
@@ -569,7 +591,7 @@ export class LogtalkTestsExplorerProvider implements Disposable {
             case 'test':
               // Run a specific test
               this.logger.info(`Running test: ${metadata.testName} in object: ${metadata.objectName}`);
-              await LogtalkTerminal.runTest(metadata.fileUri, metadata.objectName!, metadata.testName!, this.linter, this.testsReporter);
+              await LogtalkTerminal.runTest(metadata.fileUri, metadata.objectName!, metadata.testName!, this.linter, this.testsReporter, linkedToken);
 
               // Parse results
               if (fs.existsSync(resultsFilePath)) {
@@ -598,6 +620,9 @@ export class LogtalkTestsExplorerProvider implements Disposable {
       }
       this.runAllureReportIfEnabled(testDirectories);
       testRun.end();
+    } finally {
+      linkedCancellationSource.dispose();
+      cancellationDisposables.forEach(disposable => disposable.dispose());
     }
   }
 

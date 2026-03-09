@@ -3,6 +3,7 @@
 ## [0.88.3]
 
 * Fix code navigation features to be more robust to concurrent requests
+* Fix unexpected Logtalk terminal termination while tests are running not cancelling the Test Explorer waiting for test results
 
 ## [0.88.2]
 

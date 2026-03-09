@@ -666,6 +666,19 @@ export default class LogtalkTerminal {
     }
   }
 
+  /**
+   * Check if a terminal instance is the managed Logtalk terminal.
+   */
+  public static isLogtalkTerminal(terminal: Terminal | undefined): boolean {
+    if (!terminal) {
+      return false;
+    }
+
+    // Prefer strict identity, but also allow name-based matching because
+    // terminal close listeners may clear _terminal before other listeners run.
+    return terminal === LogtalkTerminal._terminal || terminal.name === "Logtalk";
+  }
+
   public static sendString(text: string, show = false) {
     // LogtalkTerminal.createLogtalkTerm();
     LogtalkTerminal._terminal.sendText(text, false);
@@ -1074,7 +1087,12 @@ export default class LogtalkTerminal {
     }
   }
 
-  public static async runAllTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runAllTests(
+    uri: Uri,
+    linter: LogtalkLinter,
+    testsReporter: LogtalkTestsReporter,
+    cancellationToken?: CancellationToken
+  ) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -1133,7 +1151,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(`vscode::tests('${dir}','${tester}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(testerDir0, ".vscode_loading_done");
-    await LogtalkTerminal.waitForFile(marker);
+    await LogtalkTerminal.waitForFile(marker, { cancellationToken });
     await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     try {
       const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
@@ -1168,7 +1186,12 @@ export default class LogtalkTerminal {
     LogtalkTestsCodeLensProvider.outdated = false;
   }
 
-  public static async runFileTests(uri: Uri, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runFileTests(
+    uri: Uri,
+    linter: LogtalkLinter,
+    testsReporter: LogtalkTestsReporter,
+    cancellationToken?: CancellationToken
+  ) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -1212,7 +1235,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(`vscode::tests_file('${dir}','${file}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(testerDir0, ".vscode_loading_done");
-    await LogtalkTerminal.waitForFile(marker);
+    await LogtalkTerminal.waitForFile(marker, { cancellationToken });
     await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     try {
       const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
@@ -1246,7 +1269,13 @@ export default class LogtalkTerminal {
     LogtalkTestsCodeLensProvider.outdated = false;
   }
 
-  public static async runObjectTests(uri: Uri, object: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runObjectTests(
+    uri: Uri,
+    object: string,
+    linter: LogtalkLinter,
+    testsReporter: LogtalkTestsReporter,
+    cancellationToken?: CancellationToken
+  ) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -1290,7 +1319,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(`vscode::tests_object('${dir}','${object}').\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(testerDir0, ".vscode_loading_done");
-    await LogtalkTerminal.waitForFile(marker);
+    await LogtalkTerminal.waitForFile(marker, { cancellationToken });
     await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     try {
       const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
@@ -1325,7 +1354,14 @@ export default class LogtalkTerminal {
     LogtalkTestsCodeLensProvider.outdated = false;
   }
 
-  public static async runTest(uri: Uri, object: string, test: string, linter: LogtalkLinter, testsReporter: LogtalkTestsReporter) {
+  public static async runTest(
+    uri: Uri,
+    object: string,
+    test: string,
+    linter: LogtalkLinter,
+    testsReporter: LogtalkTestsReporter,
+    cancellationToken?: CancellationToken
+  ) {
     if (typeof uri === 'undefined') {
       uri = window.activeTextEditor.document.uri;
     }
@@ -1371,7 +1407,7 @@ export default class LogtalkTerminal {
     LogtalkTerminal.sendString(`vscode::test('${dir}',${object}, ${test}).\r`, true);
     // Parse any compiler errors or warnings
     const marker = path.join(testerDir0, ".vscode_loading_done");
-    await LogtalkTerminal.waitForFile(marker);
+    await LogtalkTerminal.waitForFile(marker, { cancellationToken });
     await workspace.fs.delete(Uri.file(marker), { useTrash: false });
     try {
       const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
