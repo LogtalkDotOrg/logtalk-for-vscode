@@ -11,6 +11,7 @@ import {
   Uri,
   ExtensionContext,
   Position,
+  CancellationToken,
   BreakpointsChangeEvent,
   SourceBreakpoint,
   FunctionBreakpoint
@@ -55,6 +56,9 @@ export default class LogtalkTerminal {
   // Terminal readiness tracking
   private static _terminalReadyPromise: Promise<void> | null = null;
   private static _terminalReadyResolve: (() => void) | null = null;
+
+  // Serialize navigation/query operations that rely on shared marker files
+  private static _navigationQueue: Promise<void> = Promise.resolve();
 
   /**
    * Attempt to kill a process and all its children using escalating signals.
@@ -2011,11 +2015,15 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_entity_definition_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::find_entity_definition('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_entity_definition_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
   }
 
   public static async getPredicateDefinition(entity: string, predicate: string) {
@@ -2024,96 +2032,145 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_predicate_definition_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::find_predicate_definition('${wdir}', ${entity}, ${predicate}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_predicate_definition_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
   }
 
-  public static async getDeclaration(doc: TextDocument, position: Position, call: string) {
-    LogtalkTerminal.createLogtalkTerm();
-    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = Utils.normalizeFilePath(dir0);
-    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = Utils.normalizeFilePath(doc.fileName);
-    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
-    if (!wdir) {
-      throw new Error('No workspace folder open');
-    }
-    let goals = `vscode::find_declaration('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
-    LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_declaration_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+  public static async getDeclaration(doc: TextDocument, position: Position, call: string, token?: CancellationToken) {
+    return LogtalkTerminal.enqueueNavigationOperation(async () => {
+      if (token?.isCancellationRequested) {
+        return;
+      }
+      LogtalkTerminal.createLogtalkTerm();
+      const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+      const dir = Utils.normalizeFilePath(dir0);
+      LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
+      const file = Utils.normalizeFilePath(doc.fileName);
+      const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
+      if (!wdir) {
+        throw new Error('No workspace folder open');
+      }
+      const marker = path.join(wdir, ".vscode_declaration_done");
+      await LogtalkTerminal.safelyDeleteFile(marker);
+      let goals = `vscode::find_declaration('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
+      LogtalkTerminal.sendString(goals);
+      try {
+        await LogtalkTerminal.waitForFile(marker, { cancellationToken: token });
+      } finally {
+        await LogtalkTerminal.safelyDeleteFile(marker);
+      }
+    });
   }
 
-  public static async getDefinition(doc: TextDocument, position: Position, call: string) {
-    LogtalkTerminal.createLogtalkTerm();
-    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = Utils.normalizeFilePath(dir0);
-    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = Utils.normalizeFilePath(doc.fileName);
-    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
-    if (!wdir) {
-      throw new Error('No workspace folder open');
-    }
-    let goals = `vscode::find_definition('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
-    LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_definition_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+  public static async getDefinition(doc: TextDocument, position: Position, call: string, token?: CancellationToken) {
+    return LogtalkTerminal.enqueueNavigationOperation(async () => {
+      if (token?.isCancellationRequested) {
+        return;
+      }
+      LogtalkTerminal.createLogtalkTerm();
+      const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+      const dir = Utils.normalizeFilePath(dir0);
+      LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
+      const file = Utils.normalizeFilePath(doc.fileName);
+      const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
+      if (!wdir) {
+        throw new Error('No workspace folder open');
+      }
+      const marker = path.join(wdir, ".vscode_definition_done");
+      await LogtalkTerminal.safelyDeleteFile(marker);
+      let goals = `vscode::find_definition('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
+      LogtalkTerminal.sendString(goals);
+      try {
+        await LogtalkTerminal.waitForFile(marker, { cancellationToken: token });
+      } finally {
+        await LogtalkTerminal.safelyDeleteFile(marker);
+      }
+    });
   }
 
-  public static async getTypeDefinition(doc: TextDocument, position: Position, entity: string) {
-    LogtalkTerminal.createLogtalkTerm();
-    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = Utils.normalizeFilePath(dir0);
-    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = Utils.normalizeFilePath(doc.fileName);
-    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
-    if (!wdir) {
-      throw new Error('No workspace folder open');
-    }
-    let goals = `vscode::find_type_definition('${wdir}', ${entity}, '${file}', ${position.line+1}).\r`;
-    LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_type_definition_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+  public static async getTypeDefinition(doc: TextDocument, position: Position, entity: string, token?: CancellationToken) {
+    return LogtalkTerminal.enqueueNavigationOperation(async () => {
+      if (token?.isCancellationRequested) {
+        return;
+      }
+      LogtalkTerminal.createLogtalkTerm();
+      const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+      const dir = Utils.normalizeFilePath(dir0);
+      LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
+      const file = Utils.normalizeFilePath(doc.fileName);
+      const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
+      if (!wdir) {
+        throw new Error('No workspace folder open');
+      }
+      const marker = path.join(wdir, ".vscode_type_definition_done");
+      await LogtalkTerminal.safelyDeleteFile(marker);
+      let goals = `vscode::find_type_definition('${wdir}', ${entity}, '${file}', ${position.line+1}).\r`;
+      LogtalkTerminal.sendString(goals);
+      try {
+        await LogtalkTerminal.waitForFile(marker, { cancellationToken: token });
+      } finally {
+        await LogtalkTerminal.safelyDeleteFile(marker);
+      }
+    });
   }
 
-  public static async getReferences(doc: TextDocument, position: Position, call: string) {
-    LogtalkTerminal.createLogtalkTerm();
-    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = Utils.normalizeFilePath(dir0);
-    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = Utils.normalizeFilePath(doc.fileName);
-    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
-    if (!wdir) {
-      throw new Error('No workspace folder open');
-    }
-    let goals = `vscode::find_references('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
-    LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_references_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+  public static async getReferences(doc: TextDocument, position: Position, call: string, token?: CancellationToken) {
+    return LogtalkTerminal.enqueueNavigationOperation(async () => {
+      if (token?.isCancellationRequested) {
+        return;
+      }
+      LogtalkTerminal.createLogtalkTerm();
+      const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+      const dir = Utils.normalizeFilePath(dir0);
+      LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
+      const file = Utils.normalizeFilePath(doc.fileName);
+      const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
+      if (!wdir) {
+        throw new Error('No workspace folder open');
+      }
+      const marker = path.join(wdir, ".vscode_references_done");
+      await LogtalkTerminal.safelyDeleteFile(marker);
+      let goals = `vscode::find_references('${wdir}', ${call}, '${file}', ${position.line+1}).\r`;
+      LogtalkTerminal.sendString(goals);
+      try {
+        await LogtalkTerminal.waitForFile(marker, { cancellationToken: token });
+      } finally {
+        await LogtalkTerminal.safelyDeleteFile(marker);
+      }
+    });
   }
 
-  public static async getImplementations(doc: TextDocument, position: Position, predicate: string) {
-    LogtalkTerminal.createLogtalkTerm();
-    const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
-    const dir = Utils.normalizeFilePath(dir0);
-    LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
-    const file = Utils.normalizeFilePath(doc.fileName);
-    const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
-    if (!wdir) {
-      throw new Error('No workspace folder open');
-    }
-    let goals = `vscode::find_implementations('${wdir}', ${predicate}, '${file}', ${position.line+1}).\r`;
-    LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_implementations_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+  public static async getImplementations(doc: TextDocument, position: Position, predicate: string, token?: CancellationToken) {
+    return LogtalkTerminal.enqueueNavigationOperation(async () => {
+      if (token?.isCancellationRequested) {
+        return;
+      }
+      LogtalkTerminal.createLogtalkTerm();
+      const dir0: string = LogtalkTerminal.ensureDir(doc.uri);
+      const dir = Utils.normalizeFilePath(dir0);
+      LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
+      const file = Utils.normalizeFilePath(doc.fileName);
+      const wdir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
+      if (!wdir) {
+        throw new Error('No workspace folder open');
+      }
+      const marker = path.join(wdir, ".vscode_implementations_done");
+      await LogtalkTerminal.safelyDeleteFile(marker);
+      let goals = `vscode::find_implementations('${wdir}', ${predicate}, '${file}', ${position.line+1}).\r`;
+      LogtalkTerminal.sendString(goals);
+      try {
+        await LogtalkTerminal.waitForFile(marker, { cancellationToken: token });
+      } finally {
+        await LogtalkTerminal.safelyDeleteFile(marker);
+      }
+    });
   }
 
   public static async getCallers(file: string, position: Position, predicate: string, fileUri: Uri) {
@@ -2125,11 +2182,15 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_callers_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::find_callers('${wdir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_callers_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
   }
 
   public static async getCallees(file: string, position: Position, predicate: string, fileUri: Uri) {
@@ -2141,11 +2202,15 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_callees_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::find_callees('${wdir}', ${predicate}, '${fileSlash}', ${position.line+1}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_callees_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
   }
 
   public static async getAncestors(file: string, entity: string, fileUri: Uri) {
@@ -2156,11 +2221,15 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_ancestors_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::find_ancestors('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_ancestors_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
   }
 
   public static async getDescendants(file: string, entity: string, fileUri: Uri) {
@@ -2171,11 +2240,15 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_descendants_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::find_descendants('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_descendants_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
   }
 
   public static async getType(file: string, entity: string, fileUri: Uri): Promise<string> {
@@ -2186,11 +2259,15 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_type_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::find_entity_type('${wdir}', ${entity}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_type_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
     const result = path.join(wdir, ".vscode_type");
     const content = await workspace.fs.readFile(Uri.file(result));
     let type = content.toString();
@@ -2204,21 +2281,29 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_infer_public_predicates_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::infer_public_predicates('${wdir}', ${entityName}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_infer_public_predicates_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
   }
 
   public static async sortFilesByDependencies(workspaceDir: string, loaderDir: string, files: string[]) {
     LogtalkTerminal.createLogtalkTerm();
     const filesListStr = '[' + files.map(f => `'${f}'`).join(', ') + ']';
+    const marker = path.join(workspaceDir, ".vscode_files_topological_sort_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::files_topological_sort('${workspaceDir}', '${loaderDir}', ${filesListStr}).\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(workspaceDir, ".vscode_files_topological_sort_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
   }
 
   public static async openParentFile(uri: Uri) {
@@ -2234,11 +2319,15 @@ export default class LogtalkTerminal {
     if (!wdir) {
       throw new Error('No workspace folder open');
     }
+    const marker = path.join(wdir, ".vscode_find_parent_done");
+    await LogtalkTerminal.safelyDeleteFile(marker);
     let goals = `vscode::find_parent_file('${wdir}', '${file}').\r`;
     LogtalkTerminal.sendString(goals);
-    const marker = path.join(wdir, ".vscode_find_parent_done");
-    await LogtalkTerminal.waitForFile(marker);
-    await workspace.fs.delete(Uri.file(marker), { useTrash: false });
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
     const result = path.join(wdir, ".vscode_find_parent");
     const content = await workspace.fs.readFile(Uri.file(result));
     let loader = content.toString();
@@ -2475,11 +2564,21 @@ export default class LogtalkTerminal {
 
   private static waitForFile = async (
     filePath,
-    {timeout = LogtalkTerminal._timeout, delay = 200} = {}
+    {timeout = LogtalkTerminal._timeout, delay = 200, cancellationToken = undefined} = {}
   ): Promise<void> => {
+    const logger = getLogger();
     const startTime = Date.now();
+    let lastWaitLogTime = startTime;
+
+    if (cancellationToken?.isCancellationRequested) {
+      throw new Error(`Operation cancelled while waiting for ${filePath}`);
+    }
 
     while (Date.now() - startTime < timeout) {
+      if (cancellationToken?.isCancellationRequested) {
+        throw new Error(`Operation cancelled while waiting for ${filePath}`);
+      }
+
       try {
         await workspace.fs.stat(Uri.file(filePath));
         return;
@@ -2489,10 +2588,31 @@ export default class LogtalkTerminal {
       }
 
       await timers.setTimeout(delay);
+
+      const now = Date.now();
+      if (now - lastWaitLogTime >= 5000) {
+        logger.debug(`Still waiting for marker file: ${filePath} (${now - startTime} ms elapsed)`);
+        lastWaitLogTime = now;
+      }
     }
 
     throw new Error(`Timeout of ${timeout} ms exceeded waiting for ${filePath}`);
   };
+
+  private static async safelyDeleteFile(filePath: string): Promise<void> {
+    try {
+      await workspace.fs.delete(Uri.file(filePath), { useTrash: false });
+    } catch {
+      // Ignore missing marker files (possible with stale/cancelled requests)
+    }
+  }
+
+  private static enqueueNavigationOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const runOperation = async () => operation();
+    const result = LogtalkTerminal._navigationQueue.then(runOperation, runOperation);
+    LogtalkTerminal._navigationQueue = result.then(() => undefined, () => undefined);
+    return result;
+  }
 
   public static getFirstWorkspaceFolder(): string | undefined {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {

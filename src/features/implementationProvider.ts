@@ -68,7 +68,7 @@ export class LogtalkImplementationProvider implements ImplementationProvider {
       return null;
     }
 
-    await LogtalkTerminal.getImplementations(doc, position, resource);
+    await LogtalkTerminal.getImplementations(doc, position, resource, token);
 
     let locations: Location[] = [];
     const dir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);

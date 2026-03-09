@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.88.3]
+
+* Fix code navigation features to be more robust to concurrent requests
+
 ## [0.88.2]
 
 * Improve Logtalk terminal process termination to use escalating signals to avoid orphans in case of busy and non-responding processes

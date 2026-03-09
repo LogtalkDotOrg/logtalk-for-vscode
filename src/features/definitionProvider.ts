@@ -245,7 +245,7 @@ export class LogtalkDefinitionProvider implements DefinitionProvider {
       return null;
     }
 
-    await LogtalkTerminal.getDefinition(doc, position, call);
+    await LogtalkTerminal.getDefinition(doc, position, call, token);
 
     let location: Location = null;
     const dir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);

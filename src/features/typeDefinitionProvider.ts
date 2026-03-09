@@ -55,7 +55,7 @@ export class LogtalkTypeDefinitionProvider implements TypeDefinitionProvider {
       return null;
     }
 
-    await LogtalkTerminal.getTypeDefinition(doc, position, entity);
+    await LogtalkTerminal.getTypeDefinition(doc, position, entity, token);
 
     const dir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
     if (!dir) {

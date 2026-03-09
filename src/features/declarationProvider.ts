@@ -62,7 +62,7 @@ export class LogtalkDeclarationProvider implements DeclarationProvider {
       return null;
     }
 
-    await LogtalkTerminal.getDeclaration(doc, position, call);
+    await LogtalkTerminal.getDeclaration(doc, position, call, token);
 
     let location: Location = null;
     const dir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);

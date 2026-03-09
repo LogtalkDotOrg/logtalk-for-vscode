@@ -68,7 +68,7 @@ export class LogtalkReferenceProvider implements ReferenceProvider {
       return null;
     }
 
-    await LogtalkTerminal.getReferences(doc, position, resource);
+    await LogtalkTerminal.getReferences(doc, position, resource, token);
 
     let locations: Location[] = [];
     const dir = LogtalkTerminal.getWorkspaceFolderForUri(doc.uri);
