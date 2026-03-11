@@ -1100,6 +1100,42 @@ export async function activate(context: ExtensionContext) {
     })
   );
 
+  // Add onWillSaveTextDocument event handler for optional format-on-save behavior
+  context.subscriptions.push(
+    workspace.onWillSaveTextDocument(event => {
+      const document = event.document;
+      if (document.languageId !== 'logtalk') {
+        return;
+      }
+
+      const editorSettings = workspace.getConfiguration('editor', document.uri);
+      const formatOnSave = editorSettings.get<boolean>('formatOnSave', false);
+      if (!formatOnSave) {
+        return;
+      }
+
+      event.waitUntil((async () => {
+        documentFormattingProvider.beginSaveFormatting();
+        try {
+          await commands.executeCommand('editor.action.indentationToTabs');
+
+          const formattingOptions = {
+            tabSize: editorSettings.get<number>('tabSize', 4),
+            insertSpaces: editorSettings.get<boolean>('insertSpaces', false)
+          };
+
+          const edits = await commands.executeCommand('vscode.executeFormatDocumentProvider', document.uri, formattingOptions);
+          return Array.isArray(edits) ? edits : [];
+        } catch (error) {
+          logger.error('Error formatting document on save:', error);
+          return [];
+        } finally {
+          documentFormattingProvider.endSaveFormatting();
+        }
+      })());
+    })
+  );
+
   // Provide file deletion edits for preview (before deletion happens)
   // Note: VS Code API does not support canceling file deletion from onWillDeleteFiles.
   // The preview dialog only shows the edits, not the deletion itself.

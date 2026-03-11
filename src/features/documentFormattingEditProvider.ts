@@ -20,6 +20,16 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private lastTermType = "";
   private lastTermIndicator = "";
   private lastPredicateIndicator = "";
+  private formatChainInProgress = false;
+  private saveFormattingInProgress = false;
+
+  public beginSaveFormatting(): void {
+    this.saveFormattingInProgress = true;
+  }
+
+  public endSaveFormatting(): void {
+    this.saveFormattingInProgress = false;
+  }
 
   /**
    * Custom command that chains native indentation conversion with Logtalk formatting
@@ -59,11 +69,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     }
   }
 
-  public provideDocumentFormattingEdits(
+  public async provideDocumentFormattingEdits(
     document: TextDocument,
     options: FormattingOptions,
     token: CancellationToken
-  ): TextEdit[] {
+  ): Promise<TextEdit[]> {
     const edits: TextEdit[] = [];
 
     this.logger.debug('Received formatting options - tabSize:', options.tabSize, 'insertSpaces:', options.insertSpaces);
@@ -76,18 +86,25 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const hasSpaceIndentation = spaceIndentPattern.test(documentText);
     this.logger.debug('Document analysis - hasSpaceIndentation:', hasSpaceIndentation, 'options.insertSpaces:', options.insertSpaces);
 
-    // If document uses spaces, trigger the chained formatting command asynchronously
-    // and return empty edits (the command will handle everything)
+    if ((options.insertSpaces || hasSpaceIndentation) && !this.saveFormattingInProgress && !this.formatChainInProgress) {
+      const activeEditor = vscode.window.activeTextEditor;
+      if (activeEditor && activeEditor.document.uri.toString() === document.uri.toString()) {
+        try {
+          this.formatChainInProgress = true;
+          this.logger.debug('Document uses spaces - running chained indentation conversion + format command');
+          await vscode.commands.executeCommand('editor.action.indentationToTabs');
+          await vscode.commands.executeCommand('editor.action.formatDocument');
+          return edits;
+        } catch (error: any) {
+          this.logger.error(`Error running indentation conversion before formatting: ${error.message}`);
+        } finally {
+          this.formatChainInProgress = false;
+        }
+      }
+    }
+
     if (options.insertSpaces || hasSpaceIndentation) {
-      this.logger.debug('Document uses spaces - triggering automatic indentation conversion + formatting');
-      // Trigger the chained formatting asynchronously
-      setTimeout(() => {
-        this.formatDocumentWithIndentationConversion().catch(error => {
-          this.logger.error(`Error during automatic indentation conversion: ${error.message}`);
-        });
-      }, 0);
-      // Return empty edits - the async command will handle the formatting
-      return [];
+      this.logger.debug('Document uses spaces; proceeding with direct Logtalk formatting edits');
     }
 
     this.logger.debug('Document uses tabs, proceeding with normal Logtalk formatting');

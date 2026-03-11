@@ -54,7 +54,7 @@ write(Result).
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       testDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -69,7 +69,7 @@ write(Result).
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       testDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -93,7 +93,7 @@ write(Result).
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       testDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -119,7 +119,7 @@ write(Result).
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       testDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -145,7 +145,7 @@ write(Result).
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       testDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -180,7 +180,7 @@ test_rule(X) :- test_fact(X).`;
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       simpleDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -207,7 +207,7 @@ test_rule(X) :- test_fact(X).`;
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       bugDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -245,7 +245,7 @@ test_rule(X) :- test_fact(X).`;
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       unindentedDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -286,7 +286,7 @@ argnames is ['Input', 'Output']
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       info2Document,
       options,
       new vscode.CancellationTokenSource().token
@@ -327,7 +327,7 @@ arguments is ['Input'-'The input', 'Options'-'Processing options', 'Result'-'The
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       argumentsDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -369,7 +369,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       examplesDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -406,7 +406,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       entityDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -442,7 +442,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       singleRelationDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -479,7 +479,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       parametricDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -516,7 +516,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       categoryDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -552,7 +552,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       complexDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -588,7 +588,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multiComplexDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -631,7 +631,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       aliasDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -669,7 +669,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       singleAliasDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -707,7 +707,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       nonTerminalDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -746,7 +746,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       compoundTermDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -784,7 +784,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       complexCompoundDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -827,7 +827,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       compoundInfo2Document,
       options,
       new vscode.CancellationTokenSource().token
@@ -866,7 +866,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       compoundUsesDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -910,7 +910,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multipleEntitiesDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -972,7 +972,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       nestedEntitiesDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1017,7 +1017,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       uses1Document,
       options,
       new vscode.CancellationTokenSource().token
@@ -1055,7 +1055,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       useModuleDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1096,7 +1096,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       scopeDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1150,7 +1150,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       propertyDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1219,7 +1219,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       singleElementDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1263,7 +1263,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       useModule2Document,
       options,
       new vscode.CancellationTokenSource().token
@@ -1301,7 +1301,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       complexUseModule2Document,
       options,
       new vscode.CancellationTokenSource().token
@@ -1342,7 +1342,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       singleUseModule2Document,
       options,
       new vscode.CancellationTokenSource().token
@@ -1383,7 +1383,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       spaceIndentedDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1436,7 +1436,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       mixedIndentDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1478,7 +1478,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const editsTabSize2 = provider.provideDocumentFormattingEdits(
+    const editsTabSize2 = await provider.provideDocumentFormattingEdits(
       spaceDocument,
       optionsTabSize2,
       new vscode.CancellationTokenSource().token
@@ -1499,7 +1499,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const editsTabSize8 = provider.provideDocumentFormattingEdits(
+    const editsTabSize8 = await provider.provideDocumentFormattingEdits(
       spaceDocument,
       optionsTabSize8,
       new vscode.CancellationTokenSource().token
@@ -1534,7 +1534,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       tabPlusSpacesDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1597,7 +1597,7 @@ insert_top(List, Key-Value) :-
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       unindentedObjectDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1671,7 +1671,7 @@ insert_top(List, Key-Value) :-
       insertSpaces: false
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       parameterizedObjectDocument,
       options,
       new vscode.CancellationTokenSource().token
@@ -1731,7 +1731,7 @@ insert_top(List, Key-Value) :-
       insertSpaces: true  // This simulates VS Code's auto-detection of spaces
     };
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       spaceDocument,
       spaceOptions,
       new vscode.CancellationTokenSource().token
@@ -1761,7 +1761,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multiPredicateDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -1813,7 +1813,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multiGrammarDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -1865,7 +1865,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multiFactDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -1917,7 +1917,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multiModeDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -1968,7 +1968,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multiInfoDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -2019,7 +2019,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multiScopeDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -2070,7 +2070,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       callableFormDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -2123,7 +2123,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       blockCommentDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -2170,7 +2170,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       multiLineFactDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -2231,7 +2231,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       nestedIfDoc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token
@@ -2299,7 +2299,7 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    const edits = provider.provideDocumentFormattingEdits(
+    const edits = await provider.provideDocumentFormattingEdits(
       info1Doc,
       { tabSize: 4, insertSpaces: false },
       new vscode.CancellationTokenSource().token

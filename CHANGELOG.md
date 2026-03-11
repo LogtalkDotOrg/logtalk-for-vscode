@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.89.0]
+
+* Format Logtalk source files when saving them depending on the `editor.formatOnSave` setting
+
 ## [0.88.4]
 
 * Fix race condition where code navigation and refactoring operations could hang with workspaces with a large number of directories due to extension startup workspace cleanup process
