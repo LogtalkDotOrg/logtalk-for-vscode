@@ -126,7 +126,9 @@ The "Expand Selection" command can be used to expand the selection to the next l
 
 ### Formatting support
 
-Experimental support for the "Format Document" and "Format Selection" commands is provided. The formatting rules follow the Logtalk [coding style guidelines](https://logtalk.org/coding_style_guidelines.html). Currently, the following formatting rules are supported:
+Experimental support for the "Format Document" and "Format Selection" commands is provided.
+The extension applies a two step process. The first step applies indentation fixes. The second step formats the code and comments.
+The formatting rules follow the Logtalk [coding style guidelines](https://logtalk.org/coding_style_guidelines.html). Currently, the following formatting rules are supported:
 
 - Space-to-tab conversion is performed using the editor's tab size setting
 - Mixed indentation is handled by converting all spaces to tabs based on the tab size setting
@@ -148,6 +150,8 @@ Experimental support for the "Format Document" and "Format Selection" commands i
 - Block comments content are indented when the comment delimiters are on separate lines; otherwise, the full block comment is indented
 
 You can verify the changes before saving them using the "File: Compare Active File with Saved" command, which also allows selectively undoing formatting changes.
+
+The `editor.formatOnSave` setting can be used to automatically format files when saved. 
 
 ### Linter
 
