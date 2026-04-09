@@ -504,6 +504,7 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.make.debug",                callback: uri  => LogtalkTerminal.makeDebug(uri, linter)},
     { command: "logtalk.make.check",                callback: uri  => LogtalkTerminal.makeCheck(uri, linter)},
     { command: "logtalk.make.circular",             callback: uri  => LogtalkTerminal.makeCircular(uri, linter)},
+    { command: "logtalk.make.force",                callback: uri  => LogtalkTerminal.makeForce(uri, linter)},
     { command: "logtalk.make.clean",                callback: uri  => LogtalkTerminal.makeClean(uri, linter)},
     { command: "logtalk.make.caches",               callback: uri  => LogtalkTerminal.makeCaches(uri, linter)},
     { command: "logtalk.run.tests",                 callback: uri  => LogtalkTerminal.runAllTestsViaProfile(uri, linter, testsReporter, testsExplorerProvider)},

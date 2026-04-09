@@ -1031,6 +1031,10 @@ export default class LogtalkTerminal {
     LogtalkTerminal.make(uri, linter, "circular", true, "");
   }
 
+  public static async makeForce(uri: Uri, linter: LogtalkLinter) {
+    LogtalkTerminal.make(uri, linter, "force", false, "Reloaded all files.");
+  }
+
   public static async make(uri: Uri, linter: LogtalkLinter, target: string, showTerminal: boolean, info: string) {
     if (!LogtalkTerminal._terminal) {
       window.showWarningMessage("No Logtalk process is running.");

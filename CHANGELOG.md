@@ -2,6 +2,7 @@
 
 ## [0.89.0]
 
+* Add "Make - Force" command to force reloading of all loaded files
 * Add "Check Code Portability" command to check the portability of loaded files
 * Format Logtalk source files when saving them depending on the `editor.formatOnSave` setting
 

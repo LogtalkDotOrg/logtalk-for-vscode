@@ -124,6 +124,11 @@
                 "category": "Logtalk"
             },
             {
+                "command": "logtalk.make.force",
+                "title": "Make - Force",
+                "category": "Logtalk"
+            },
+            {
                 "command": "logtalk.make.clean",
                 "title": "Make - Clean",
                 "category": "Logtalk"
@@ -558,6 +563,10 @@
                     "when": "!virtualWorkspace"
                 },
                 {
+                    "command": "logtalk.make.force",
+                    "when": "!virtualWorkspace"
+                },
+                {
                     "command": "logtalk.make.clean",
                     "when": "!virtualWorkspace"
                 },
@@ -855,14 +864,19 @@
                     "group": "make_3_Check@2"
                 },
                 {
+                    "command": "logtalk.make.force",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
+                    "group": "make_4_Force@1"
+                },
+                {
                     "command": "logtalk.make.clean",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
-                    "group": "make_4_Clean@1"
+                    "group": "make_5_Clean@1"
                 },
                 {
                     "command": "logtalk.make.caches",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
-                    "group": "make_4_Clean@2"
+                    "group": "make_5_Clean@2"
                 }
             ],
             "jupytersubmenu": [
