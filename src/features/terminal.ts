@@ -227,6 +227,7 @@ export default class LogtalkTerminal {
       ".vscode_xml_files_done",
       ".vscode_dot_files_done",
       ".vscode_dead_code_scanning_done",
+      ".vscode_portability_done",
       ".vscode_entity_definition_done",
       ".vscode_predicate_definition_done",
       ".vscode_declaration_done",
@@ -1733,6 +1734,58 @@ export default class LogtalkTerminal {
       // File doesn't exist or can't be read, ignore
     }
     window.showInformationMessage("Dead code scanning completed.");
+  }
+
+  public static async checkPortability(uri: Uri, linter: LogtalkLinter) {
+    let logtalkUser: string = '';
+    // Check for Configurations
+    let section = workspace.getConfiguration("logtalk");
+    if (section) {
+      logtalkUser = jsesc(section.get<string>("user.path", "logtalk"));
+    } else {
+      throw new Error("configuration settings error: logtalk");
+    }
+    // Clear the Scratch Message File
+    let compilerMessagesFile = `${logtalkUser}/scratch/.messages`;
+    try {
+      await workspace.fs.delete(Uri.file(compilerMessagesFile), { useTrash: false });
+    } catch (err) {
+      // Ignore if file doesn't exist
+    }
+    // Create the Terminal
+    LogtalkTerminal.createLogtalkTerm();
+    const wdir = LogtalkTerminal.getFirstWorkspaceFolder();
+    if (!wdir) {
+      throw new Error('No workspace folder open');
+    }
+    const marker = Utils.normalizeFilePath(path.join(wdir, ".vscode_portability_done"));
+    let goals = `vscode::portability('${wdir}').\r`;
+    LogtalkTerminal.sendString(goals);
+    try {
+      await LogtalkTerminal.waitForFile(marker);
+    } finally {
+      await LogtalkTerminal.safelyDeleteFile(marker);
+    }
+    // Parse any compiler errors or warnings
+    try {
+      const content = await workspace.fs.readFile(Uri.file(compilerMessagesFile));
+      let lines = content.toString().split(/\r?\n/);
+      let message = '';
+      for (let line of lines) {
+        if (line.startsWith('% [ compiling ')) {
+          linter.clear(line);
+        } else {
+          message = message + line + '\n';
+          if(line == '*     ' || line == '!     ') {
+            linter.lint(message);
+            message = '';
+          }
+        }
+      }
+    } catch (err) {
+      // File doesn't exist or can't be read, ignore
+    }
+    window.showInformationMessage("Portability check completed.");
   }
 
   /**

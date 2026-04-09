@@ -2,7 +2,7 @@
 
 A VSCode extension that provides language support for Logtalk. Forked from the [original extension](https://github.com/arthwang/vsc-logtalk) by Arthur Wang.
 
-Requires **Logtalk 3.97.0** or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
+Requires **Logtalk 3.99.0** or later and a supported [Prolog backend](https://logtalk.org/download.html#requirements). As this extension uses supporting code that's part of the Logtalk distribution, use of the latest Logtalk version is strongly recommended.
 
 🙏 Sponsored by [Permion](https://permion.ai/) and [GitHub Sponsors](https://github.com/sponsors/pmoura).
 
@@ -184,6 +184,7 @@ Project (workspace) commands can be triggered from the command palette by typing
 |                    Open Logtalk | Opens Logtalk in an integrated terminal                            |
 |                            Make | Sub-menu with available make targets                               |
 |          Scan Project Dead Code | Recursively scans the workspace root folder for dead code          |
+|          Check Code Portability | Checks loaded code portability                                     |
 |         Compute Project Metrics | Recursively computes metrics for the workspace root folder         |
 |                       Profiling | Sub-menu with code profiling commands                              |
 |  Generate Project Documentation | Recursively generates documentation for the workspace root folder  |
@@ -197,6 +198,8 @@ The "Create Project" command is usually called from the command palette. It asks
 The "Load Project" command looks for a `loader.lgt` or `loader.logtalk` file in the workspace root folder, printing a warning if no loader file is found.
 
 The "Create Loader File" command creates a `loader.lgt` file from selected Logtalk files or from all Logtalk files in a selected directory. When multiple Logtalk files are selected in the explorer, it creates a loader file containing all selected files. When a directory is selected, it finds all `.lgt` and `.logtalk` files in that directory and also includes any `loader.lgt` files found in immediate subdirectories. The command filters only Logtalk files, removes duplicates, sorts them alphabetically, and prompts for confirmation before overwriting an existing `loader.lgt` file. The created file is automatically opened after creation.
+
+The "Check Code Portability" command reloads all files by calling `logtalk_make(force)` with the `portability` flag set to `warning`. But note that all linter warnings will be reported and added to the "Problems" pane, not just portability warnings.
 
 The "Scan Project Dead Code", "Compute Project Metrics", "Generate Project Documentation", and "Generate Project Diagrams" commands require that the project code is already loaded. Quick fixes are provided for some of the documentation and dead code linter warnings.
 
@@ -217,6 +220,7 @@ These commands can be triggered from the editor/context menu via right-click in 
 |        Open Parent File | Opens the file that loaded the active source file if any                         |
 |                    Make | Sub-menu with available make targets                                             |
 |          Scan Dead Code | Scans the active source file directory for dead code                             |
+|  Check Code Portability | Checks loaded code portability                                                   |
 |         Compute Metrics | Computes metrics for all files in the active source file directory               |
 |               Profiling | Sub-menu with code profiling commands                                            |
 |  Generate Documentation | Generates documentation for the active source file directory                     |
@@ -231,7 +235,7 @@ The "Load Directory" command looks for a `loader.lgt` or `loader.logtalk` file i
 
 The "Run Tests" and "Run Tests with Coverage" commands add failed tests to the "PROBLEMS" pane. Quick fixes are provided for some test definition warnings.
 
-The "Generate Documentation" and "Scan Dead Code" commands add linter warnings to the "PROBLEMS" pane. Quick fixes are provided for some of the warnings.
+The "Generate Documentation", "Scan Dead Code", and "Check Code Portability" commands add linter warnings to the "PROBLEMS" pane. Quick fixes are provided for some of the warnings.
 
 The output of the "Generate Documentation" and "Generate Diagrams" commands assume that the documentation and the diagrams will be browsed locally in VSCode (with the entry point being the main diagram, which can be opened using the "Open SVG in Viewer" command). The default output directories are `xml_docs` for documentation and `dot_dias` for diagrams. To generate documentation and diagrams for publication, define a _doclet_ and run it using the "Run Doclet" command.
 

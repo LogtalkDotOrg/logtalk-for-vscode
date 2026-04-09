@@ -513,6 +513,7 @@ export async function activate(context: ExtensionContext) {
     { command: "logtalk.run.test",                  callback: (uri, object, test) => LogtalkTerminal.runTestViaProfile(uri, object, test, linter, testsReporter, testsExplorerProvider)},
     { command: "logtalk.run.doclet",                callback: uri  => LogtalkTerminal.runDoclet(uri, linter)},
     { command: "logtalk.scan.deadCode",             callback: uri  => LogtalkTerminal.scanForDeadCode(uri, deadCodeScanner)},
+    { command: "logtalk.check.codePortability",     callback: async uri  => LogtalkTerminal.checkPortability(uri, linter)},
     { command: "logtalk.generate.documentation",    callback: uri  => LogtalkTerminal.genDocumentation(uri, documentationLinter)},
     { command: "logtalk.generate.diagrams",         callback: uri  => LogtalkTerminal.genDiagrams(uri)},
     { command: "logtalk.open.parentFile",           callback: uri  => LogtalkTerminal.openParentFile(uri)},

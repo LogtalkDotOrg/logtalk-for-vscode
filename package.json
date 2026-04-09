@@ -149,6 +149,11 @@
                 "category": "Logtalk"
             },
             {
+                "command": "logtalk.check.codePortability",
+                "title": "Check Code Portability",
+                "category": "Logtalk"
+            },
+            {
                 "command": "logtalk.run.doclet",
                 "title": "Run Doclet",
                 "category": "Logtalk"
@@ -497,6 +502,10 @@
                     "when": "!virtualWorkspace"
                 },
                 {
+                    "command": "logtalk.check.codePortability",
+                    "when": "!virtualWorkspace"
+                },
+                {
                     "command": "logtalk.compute.metrics",
                     "when": "!virtualWorkspace"
                 },
@@ -663,14 +672,19 @@
                     "group": "directory_2@1"
                 },
                 {
-                    "command": "logtalk.compute.metrics",
+                    "command": "logtalk.check.codePortability",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_2@2"
                 },
                 {
-                    "submenu": "profilingsubmenu",
+                    "command": "logtalk.compute.metrics",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "directory_2@3"
+                },
+                {
+                    "submenu": "profilingsubmenu",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
+                    "group": "directory_2@4"
                 },
                 {
                     "command": "logtalk.generate.documentation",
@@ -740,14 +754,19 @@
                     "group": "project_2@1"
                 },
                 {
-                    "command": "logtalk.rcompute.metrics",
+                    "command": "logtalk.check.codePortability",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_2@2"
                 },
                 {
-                    "submenu": "profilingsubmenu",
+                    "command": "logtalk.rcompute.metrics",
                     "when": "resourceLangId == logtalk && !virtualWorkspace",
                     "group": "project_2@3"
+                },
+                {
+                    "submenu": "profilingsubmenu",
+                    "when": "resourceLangId == logtalk && !virtualWorkspace",
+                    "group": "project_2@4"
                 },
                 {
                     "command": "logtalk.rgenerate.diagrams",
