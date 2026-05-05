@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.89.1]
+
+* Fix quick fixes for the dead code scanner warnings in case of non-terminals and recent Logtalk versions that include diagnostic information in the warning messages
+
 ## [0.89.0]
 
 * Add "Make - Force" command to force reloading of all loaded files

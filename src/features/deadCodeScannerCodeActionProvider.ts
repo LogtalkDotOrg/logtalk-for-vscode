@@ -190,15 +190,10 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
            message.includes('dead non-terminal') ||
            message.includes('unused predicate') ||
            message.includes('unused non-terminal') ||
-           message.includes('unreachable predicate') ||
-           message.includes('unreachable non-terminal') ||
-           message.includes('Likely unused predicate:') ||
            // Look for predicate/non-terminal indicators in the message
            /\b\w+\/\d+\b/.test(message) ||  // predicate indicator: name/arity
            /\b\w+\/\/\d+\b/.test(message);  // non-terminal indicator: name//arity
   }
-
-
 
   /**
    * Check if a callable form matches an indicator
@@ -288,8 +283,8 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
     _token: CancellationToken
   ): Promise<CodeAction | null> {
     try {
-      // Check if this is a "Likely unused predicate:" warning in a uses/2 or use_module/2 directive
-      if (diagnostic.message.includes('Likely unused predicate:')) {
+      // Check if this is a likely-unused resource warning in a uses/2 or use_module/2 directive
+      if (/Likely unused (predicate|non-terminal):/.test(diagnostic.message)) {
         return this.createRemoveFromUsesOrUseModuleAction(document, diagnostic);
       }
 
@@ -357,8 +352,8 @@ export default class LogtalkDeadCodeScanner implements CodeActionProvider {
     diagnostic: Diagnostic
   ): CodeAction | null {
     try {
-      // Extract the predicate indicator from the diagnostic message
-      const indicatorMatch = diagnostic.message.match(/Likely unused predicate:\s*(.+)/);
+      // Extract the predicate or non-terminal indicator from the diagnostic message
+      const indicatorMatch = diagnostic.message.match(/Likely unused (?:predicate|non-terminal):\s*([^\s]+?(?:\/\/|\/)\d+)/);
       if (!indicatorMatch) {
         this.logger.debug(`Could not extract indicator from message: ${diagnostic.message}`);
         return null;
