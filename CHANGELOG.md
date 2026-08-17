@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.90.0]
+
+* Add code completions for developer tool, port, and contribution names
+* Update code completions for library names for recently added libraries
+* Update code completions for `logtalk_make/1` targets
+
 ## [0.89.1]
 
 * Fix quick fixes for the dead code scanner warnings in case of non-terminals and recent Logtalk versions that include diagnostic information in the warning messages
