@@ -2,6 +2,7 @@
 
 ## [0.90.0]
 
+* Compile the `$LOGTALKHOME/coding/vscode.lgt` support file in optimal mode
 * Add code completions for developer tool, port, and contribution names
 * Update code completions for library names for recently added libraries
 * Update code completions for `logtalk_make/1` targets

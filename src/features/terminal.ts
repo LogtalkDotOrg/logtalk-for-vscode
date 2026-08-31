@@ -639,7 +639,7 @@ export default class LogtalkTerminal {
         }
       });
 
-      let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode.lgt', [scratch_directory('${logtalkUser}/scratch/')]).\r`;
+      let goals = `logtalk_load('${logtalkHome}/coding/vscode/vscode.lgt', [optimize(on),scratch_directory('${logtalkUser}/scratch/')]).\r`;
       LogtalkTerminal.sendString(goals, false);
 
       // Add the Logtalk core directory to loaded directories to avoid warnings
