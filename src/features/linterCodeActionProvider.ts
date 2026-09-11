@@ -121,6 +121,8 @@ export default class LogtalkLinter implements CodeActionProvider {
       return true;
     } else if (diagnostic.message.includes('Suspicious call: repeat loop without a cut in clause for predicate ')) {
       return true;
+    } else if (diagnostic.message.includes('Suspicious call: ! as a cut followed by a goal that throws an error is useless')) {
+      return true;
     }
     return false;
   }
@@ -595,6 +597,18 @@ export default class LogtalkLinter implements CodeActionProvider {
       // Insert ",\n<indent>!" before the period
       const insertPosition = new Position(lastLine, periodIndex);
       edit.insert(document.uri, insertPosition, `,\n${indent}!`);
+    } else if (diagnostic.message.includes('Suspicious call: ! as a cut followed by a goal that throws an error is useless')) {
+      action = new CodeAction(
+        'Remove useless cut before error-throwing goal',
+        CodeActionKind.QuickFix
+      );
+
+      const cutRange = this.findUselessCutRange(document, diagnostic);
+      if (!cutRange) {
+        return null;
+      }
+
+      edit.delete(document.uri, cutRange);
     } else if (diagnostic.message.includes('as the goal compares numbers using unification')) {
       // Replace unification with number equality operator
       action = new CodeAction(
@@ -693,6 +707,35 @@ export default class LogtalkLinter implements CodeActionProvider {
     };
 
     return action;
+  }
+
+  private findUselessCutRange(document: TextDocument, diagnostic: Diagnostic): Range | null {
+    const clauseRange = PredicateUtils.getClauseRange(document, diagnostic.range.start.line);
+    const searchRange = new Range(
+      new Position(diagnostic.range.start.line, 0),
+      new Position(clauseRange.end, document.lineAt(clauseRange.end).text.length)
+    );
+    const clauseText = document.getText(searchRange);
+    const errorPredicate = '(?:(?:throw|uninstantiation_error|type_error|domain_error|consistency_error|existence_error|permission_error|representation_error|evaluation_error|resource_error|syntax_error)\\s*\\(|(?:instantiation_error|system_error)\\b)';
+    const cutPattern = new RegExp(`![ \\t]*,(?=\\s*${errorPredicate})`);
+    const match = cutPattern.exec(clauseText);
+
+    if (!match) {
+      return null;
+    }
+
+    const cutStart = document.positionAt(document.offsetAt(searchRange.start) + match.index);
+    const cutLine = document.lineAt(cutStart.line);
+    if (/^\s*!\s*,\s*$/.test(cutLine.text)) {
+      return cutLine.rangeIncludingLineBreak;
+    }
+
+    const textAfterComma = cutLine.text.substring(cutStart.character + match[0].length);
+    const trailingWhitespaceLength = textAfterComma.match(/^[ \t]*/)[0].length;
+    return new Range(
+      cutStart,
+      new Position(cutStart.line, cutStart.character + match[0].length + trailingWhitespaceLength)
+    );
   }
 
   /**

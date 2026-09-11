@@ -2,6 +2,7 @@
 
 ## [0.90.0]
 
+* Add quick fix for the linter warning on cuts before error throwing goals
 * Compile the `$LOGTALKHOME/coding/vscode.lgt` support file in optimal mode
 * Add code completions for developer tool, port, and contribution names
 * Update code completions for library names for recently added libraries
