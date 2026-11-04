@@ -593,7 +593,7 @@ No defaults (VSCode doesn't support using environment variables to define settin
 
     "logtalk.backend": ""
 
-No default. Possible values are `b`, `ciao`, `cx`, `eclipse`, `gnu`, `sicstus`, `swi`, `tau`, `trealla`, `xsb`, `xvm`, and `yap`. Ensure that the backend you want to use is installed. See also the [Known issues](#known-issues) section for limitations when using some of these backends.
+No default. Possible values are `b`, `ciao`, `cx`, `eclipse`, `gnu`, `sicstus`, `shumway`, `swi`, `tau`, `trealla`, `xsb`, `xvm`, and `yap`. Ensure that the backend you want to use is installed. See also the [Known issues](#known-issues) section for limitations when using some of these backends.
 
 ### Optional settings
 
@@ -784,7 +784,7 @@ On Windows systems, using the ECLiPSe backend requires version 7.2#5 or later.
 
 On Windows systems, the XSB backend is barely usable due to file path representation issues.
 
-Several features (notably, precise code navigation, quick fixes, and refactoring operations) require a Prolog backend that supports accessing read term starting line but only some backends (B-Prolog, GNU Prolog, JIProlog, SICStus Prolog, SWI-Prolog, Trealla Prolog, XVM, and YAP) provide accurate line numbers. This issue is fixed for ECLiPSe in version 7.2#5 when using Logtalk 3.96.0 or later. XSB doesn't support accessing the starting line of read terms, preventing most features from working with this backend.
+Several features (notably, precise code navigation, quick fixes, and refactoring operations) require a Prolog backend that supports accessing read term starting line but only some backends (B-Prolog, GNU Prolog, JIProlog, SICStus Prolog, Shumway Prolog, SWI-Prolog, Trealla Prolog, XVM, and YAP) provide accurate line numbers. This issue is fixed for ECLiPSe in version 7.2#5 when using Logtalk 3.96.0 or later. XSB doesn't support accessing the starting line of read terms, preventing most features from working with this backend.
 
 When using the "Make - Reload" command, spurious warnings may be reported when there are multiple modified files due to out-of-order compilation. Although the Logtalk `make` tool attempts to avoid or minimize such warnings, they may still occur (e.g. due to circular dependencies). See the `make` tool documentation for details.
 
@@ -796,7 +796,7 @@ In rare cases, the Logtalk terminal may be restored when reloading the VSCode wi
 
 ## Development
 
-Developed and tested with **Logtalk 3.97.0** and **VSCode 1.106.3** on **macOS 14.8** and **Windows 10** with **Node 25.2.1**.
+Developed and tested with **Logtalk 3.103.0** and **VSCode 1.144.0** on **macOS 26.7.2** and **Windows 10** with **Node 26.13.0**.
 
 After running `npm install`, `npm run vsix:make` makes the `.vsix` file and `npm run vsix:install` installs it. Restart VSCode after installation.
 

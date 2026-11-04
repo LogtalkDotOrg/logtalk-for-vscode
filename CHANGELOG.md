@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.91.0]
+
+* Add support for Shumway Prolog
+
 ## [0.90.0]
 
 * Add quick fix for the linter warning on cuts before error throwing goals

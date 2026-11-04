@@ -19,6 +19,7 @@ The Prolog backend you intend to use, specified using its identifier:
 * GNU Prolog: `gnu`
 * GNU Prolog (native code): `gnunc`
 * SICStus Prolog: `sicstus`
+* Shumway Prolog: `shumway`
 * SWI-Prolog: `swi`
 * Tau Prolog: `tau`
 * Trealla Prolog: `trealla`

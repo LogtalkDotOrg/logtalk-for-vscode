@@ -113,6 +113,9 @@ export class Utils {
         case "sicstus":
           Utils.script = "sicstuslgt"
           break;
+        case "shumway":
+          Utils.script = "shumwaylgt"
+          break;
         case "swi":
           Utils.script = "swilgt"
           break;

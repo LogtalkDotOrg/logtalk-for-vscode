@@ -656,7 +656,7 @@ interface LogtalkFlag {
 const LOGTALK_FLAGS: LogtalkFlag[] = [
   // Read-only flags
   { name: 'settings_file', values: ['allow', 'restrict', 'deny'], readOnly: true, description: 'Allows or disables loading of a settings file at startup' },
-  { name: 'prolog_dialect', values: ['b', 'ciao', 'cx', 'eclipse', 'gnu', 'ji', 'quintus', 'sicstus', 'swi', 'tau', 'trealla', 'xsb', 'xvm', 'yap'], readOnly: true, description: 'Identifier of the backend Prolog compiler' },
+  { name: 'prolog_dialect', values: ['b', 'ciao', 'cx', 'eclipse', 'gnu', 'ji', 'quintus', 'sicstus', 'shumway', 'swi', 'tau', 'trealla', 'xsb', 'xvm', 'yap'], readOnly: true, description: 'Identifier of the backend Prolog compiler' },
   { name: 'prolog_version', values: [], readOnly: true, description: 'Version of the backend Prolog compiler' },
   { name: 'prolog_compatible_version', values: [], readOnly: true, description: 'Compatible version of the backend Prolog compiler' },
   { name: 'unicode', values: ['unsupported', 'full', 'bmp'], readOnly: true, description: 'Unicode support level of the backend Prolog compiler' },

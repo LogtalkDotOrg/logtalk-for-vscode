@@ -475,6 +475,9 @@ export default class LogtalkTerminal {
           case "sicstus":
             script = "sicstuslgt"
             break;
+          case "shumway":
+            script = "shumwaylgt"
+            break;
           case "swi":
             script = "swilgt"
             break;
