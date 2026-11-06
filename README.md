@@ -77,6 +77,14 @@ To also use the syntax highlighting support with Prolog source files, open the V
 - Completions for the first argument of the `logtalk::print_message/3`, `logtalk::message_prefix_stream/4`, and `logtalk::question_prompt_stream/4` predicates
 - Completions for the argument of the `throw/1` predicate
 
+If, while typing, you get a completion popup listing words from the current file that merely contain the typed characters (e.g., after typing an underscore), it is VS Code's own word-based suggestions and not the extension's completions, which are case-sensitive and prefix-based. Try changing the `"editor.wordBasedSuggestions"` setting to `offWithInlineSuggestions` or `off`. Alternatively, disable it only for Logtalk files by adding the following to your user or workspace `settings.json` file:
+
+```json
+"[logtalk]": {
+    "editor.wordBasedSuggestions": "offWithInlineSuggestions"
+}
+```
+
 ### Snippets
 
 The snippets for entity opening directives and predicate scope directives are all triggered by natural prefix, i.e. `:- public` triggers `:- public()` directive. You don't need to type all characters to show up the suggestion list. Relations between entities use choice snippets: `orel` triggers object relation choices and `crel` for category. There is only one relation between protocols, 'extends', so `ext` will trigger the snippet.
