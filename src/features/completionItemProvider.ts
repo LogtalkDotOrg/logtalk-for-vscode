@@ -2160,7 +2160,7 @@ export class LogtalkKeywordCompletionProvider implements CompletionItemProvider 
       }
 
       // Extract the partial word being typed (case-sensitive: uppercase = variable in Logtalk)
-      const wordMatch = textBeforeCursor.match(/([a-z_][a-z0-9_]*)$/);
+      const wordMatch = textBeforeCursor.match(/(?<![A-Za-z0-9_])([a-z][a-zA-Z0-9_]*)$/);
       // If no lowercase word prefix found (e.g. user typed an uppercase variable), skip keyword completions
       if (!wordMatch) {
         return [];

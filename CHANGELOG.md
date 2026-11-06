@@ -2,6 +2,7 @@
 
 ## [0.91.1]
 
+* Fix keyword completions being offered while typing the lowercase tail of a variable (e.g., `_Var`)
 * Fix completions for libraries, flags, make targets, message kinds, and throw terms to be case sensitive
 
 ## [0.91.0]
