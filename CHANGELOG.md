@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.91.1]
+
+* Fix completions for libraries, flags, make targets, message kinds, and throw terms to be case sensitive
+
 ## [0.91.0]
 
 * Add support for Shumway Prolog

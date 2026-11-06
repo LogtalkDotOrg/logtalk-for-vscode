@@ -847,7 +847,7 @@ export class LogtalkLoadCompletionProvider implements CompletionItemProvider {
 
     // Filter libraries if partial text is provided
     const filteredLibraries = partialText
-      ? LOGTALK_LIBRARIES.filter(lib => lib.toLowerCase().startsWith(partialText.toLowerCase()))
+      ? LOGTALK_LIBRARIES.filter(lib => lib.startsWith(partialText))
       : LOGTALK_LIBRARIES;
 
     // Create completion items for each library
@@ -1006,7 +1006,7 @@ export class LogtalkMakeCompletionProvider implements CompletionItemProvider {
 
   private createTargetCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
     const filteredTargets = partialText
-      ? LOGTALK_MAKE_TARGETS.filter(t => t.name.startsWith(partialText.toLowerCase()))
+      ? LOGTALK_MAKE_TARGETS.filter(t => t.name.startsWith(partialText))
       : LOGTALK_MAKE_TARGETS;
 
     return filteredTargets.map((target, index) => {
@@ -1066,7 +1066,7 @@ export class LogtalkMakeTargetActionCompletionProvider implements CompletionItem
 
   private createTargetCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
     const filteredTargets = partialText
-      ? LOGTALK_MAKE_TARGETS.filter(t => t.name.startsWith(partialText.toLowerCase()))
+      ? LOGTALK_MAKE_TARGETS.filter(t => t.name.startsWith(partialText))
       : LOGTALK_MAKE_TARGETS;
 
     return filteredTargets.map((target, index) => {
@@ -1173,7 +1173,7 @@ function handleMessageKindTypingInsideParens(
 
 function createMessageKindCompletionItems(partialText: string, docTemplate: string): CompletionItem[] {
   const filteredKinds = partialText
-    ? PRINT_MESSAGE_KINDS.filter(k => k.name.toLowerCase().startsWith(partialText.toLowerCase()))
+    ? PRINT_MESSAGE_KINDS.filter(k => k.name.startsWith(partialText))
     : PRINT_MESSAGE_KINDS;
 
   return filteredKinds.map((kind, index) => {
@@ -1415,7 +1415,7 @@ export class LogtalkLoadContextCompletionProvider implements CompletionItemProvi
 
     // Filter keys if partial text is provided
     const filteredKeys = partialText
-      ? LOGTALK_LOAD_CONTEXT_KEYS.filter(key => key.toLowerCase().startsWith(partialText.toLowerCase()))
+      ? LOGTALK_LOAD_CONTEXT_KEYS.filter(key => key.startsWith(partialText))
       : LOGTALK_LOAD_CONTEXT_KEYS;
 
     // Create completion items for each key
@@ -1582,7 +1582,7 @@ function createFlagCompletionItems(
 ): CompletionItem[] {
   const availableFlags = config.includeReadOnly ? LOGTALK_FLAGS : LOGTALK_FLAGS.filter(f => !f.readOnly);
   const filteredFlags = partialText
-    ? availableFlags.filter(f => f.name.startsWith(partialText.toLowerCase()))
+    ? availableFlags.filter(f => f.name.startsWith(partialText))
     : availableFlags;
 
   return filteredFlags.map((flag, index) => {
@@ -1614,7 +1614,7 @@ function createFlagValueCompletionItems(
   }
 
   const filteredValues = partialValue
-    ? flag.values.filter(v => v.startsWith(partialValue.toLowerCase()))
+    ? flag.values.filter(v => v.startsWith(partialValue))
     : flag.values;
 
   return filteredValues.map((value, index) => {
@@ -1802,7 +1802,7 @@ export class ThrowCompletionProvider implements CompletionItemProvider {
 
   private createErrorTermCompletionItems(partialText: string, closingParenHandling: 'add' | 'skip' | 'none'): CompletionItem[] {
     const filteredTerms = partialText
-      ? THROW_ERROR_TERMS.filter(t => t.name.toLowerCase().startsWith(partialText.toLowerCase()))
+      ? THROW_ERROR_TERMS.filter(t => t.name.startsWith(partialText))
       : THROW_ERROR_TERMS;
 
     return filteredTerms.map((term, index) => {
