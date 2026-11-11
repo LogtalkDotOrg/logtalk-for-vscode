@@ -1652,18 +1652,20 @@ export default class LogtalkTerminal {
     const dir = Utils.normalizeFilePath(dir0);
     LogtalkTerminal.checkCodeLoadedFromDirectory(dir);
     const project = path.basename(dir);
-    const format = workspace.getConfiguration("logtalk").get<string>("diagrams.format", "Graphviz");
+    const format = workspace.getConfiguration("logtalk").get<string>("diagrams.format", "dot");
     LogtalkTerminal.sendString(`vscode::${predicate}('${project}','${dir}', '${format}').\r`, true);
     const marker = path.join(dir0, ".vscode_dot_files_done");
     await LogtalkTerminal.waitForFile(marker);
     await workspace.fs.delete(Uri.file(marker), { useTrash: false });
-    LogtalkTerminal.spawnScript(
-      path.join(dir0, "dot_dias"),
-      ["diagrams", "logtalk.diagrams.script", LogtalkTerminal._diaExec],
-      LogtalkTerminal._diaExec,
-      LogtalkTerminal._diaArgs,
-      "Diagrams generation completed."
-    );
+    if (format === 'dot' || format === 'd2') {
+      LogtalkTerminal.spawnScript(
+        path.join(dir0, "dot_dias"),
+        ["diagrams", "logtalk.diagrams.script", LogtalkTerminal._diaExec],
+        LogtalkTerminal._diaExec,
+        LogtalkTerminal._diaArgs,
+        "Diagrams generation completed."
+      );
+    }
   }
 
   public static async scanForDeadCode(uri: Uri, deadCodeScanner: LogtalkDeadCodeScanner) {
