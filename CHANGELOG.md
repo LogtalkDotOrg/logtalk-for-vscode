@@ -4,6 +4,10 @@
 
 * Fix document formatting to ensure a single empty line after object, category, and protocol opening directives
 * Fix document formatting to ensure a single empty line after `uses/1-2`, `use_module/1-2`, and `alias/2` directives
+* Fix document formatting to convert space and mixed indentation to tabs using the editor tab size
+* Fix document formatting of conditional compilation blocks to avoid adding tabs to existing indentation on repeated formatting
+* Fix document formatting to preserve multi-line conditional directive layout, keeping closing delimiters aligned with the directive opening
+* Fix document formatting of conditional compilation branches to shift complete clauses while preserving their body indentation
 
 ## [0.93.0]
 

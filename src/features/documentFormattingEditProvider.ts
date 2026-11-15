@@ -129,7 +129,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         this.formatEntityOpeningDirective(document, { start: entityInfo.opening.start.line, end: entityInfo.opening.end.line}, edits);
 
         // 2. Indent all content inside the entity and apply specific directive formatting
-        this.indentEntityContent(document, entityInfo.opening.end.line + 1, entityInfo.closing.start.line - 1, edits);
+        this.indentEntityContent(document, entityInfo.opening.end.line + 1, entityInfo.closing.start.line - 1, edits, tabSize);
 
         // 3. Format entity closing directive (ensure it starts at column 0 with empty line after)
         this.formatEntityClosingDirective(document, { start: entityInfo.closing.start.line, end: entityInfo.closing.end.line}, edits);
@@ -378,7 +378,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    * Ensure all content inside entity is indented by at least one tab
    * Handles comments, directives, predicate clauses, and grammar rules specifically
    */
-  public indentEntityContent(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
+  public indentEntityContent(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[], tabSize: number = 4): void {
     this.logger.debug(`Indenting entity content from line ${startLine + 1} to ${endLine + 1}`);
     let indentedItems = 0;
     this.lastTermType = "";
@@ -416,9 +416,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
 
       // Handle line comments - indent if they start at character zero but not followed by indented content
       if (trimmedText.startsWith('%')) {
-        if (!lineText.startsWith('\t') && !lineText.startsWith('%\t')) {
+        const indentedText = this.getTabIndentation(lineText, tabSize) + lineText.trimStart();
+        if (indentedText !== lineText && !lineText.startsWith('%\t')) {
           this.logger.debug(`  Indenting line comment at line ${lineNum + 1}: "${lineText}"`);
-          const indentedText = '\t' + lineText;
           const range = new Range(
             new Position(lineNum, 0),
             new Position(lineNum, lineText.length)
@@ -437,12 +437,14 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         if (!lineText.startsWith('\t')) {
           if (trimmedText === '/*' && document.lineAt(blockRange.end).text.trim() === '*/') {
             // Indent content inside the block comment
-            this.indentEntityContent(document, blockRange.start + 1, blockRange.end - 1, edits);
+            this.indentEntityContent(document, blockRange.start + 1, blockRange.end - 1, edits, tabSize);
           } else {
             // Indent all lines in the block comment
-            this.indentRange(document, blockRange.start, blockRange.end, edits);
+            this.indentRange(document, blockRange.start, blockRange.end, edits, tabSize);
           }
           indentedItems++;
+        } else {
+          this.indentRange(document, blockRange.start, blockRange.end, edits, tabSize);
         }
         // Move past the block comment without changing lastTermType or lastTermIndicator
         lineNum = blockRange.end + 1;
@@ -454,7 +456,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         this.logger.debug(`  Found if/1 conditional compilation directive at line ${lineNum + 1}: "${trimmedText}"`);
         const endifLine = this.findMatchingEndif(document, lineNum);
         if (endifLine !== -1) {
-          this.formatIfBlock(document, lineNum, endifLine, edits);
+          this.formatIfBlock(document, lineNum, endifLine, edits, tabSize);
           indentedItems++;
         }
         lineNum = endifLine + 1;
@@ -528,7 +530,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       if (this.findTopLevelOperator(trimmedText, '-->') !== -1) {
         this.logger.debug(`  Found grammar rule at line ${lineNum + 1}: "${trimmedText}"`);
         const ruleRange = PredicateUtils.getClauseRange(document, lineNum);
-        this.formatClauseOrGrammarRule(document, ruleRange.start, ruleRange.end, edits);
+        this.formatClauseOrGrammarRule(document, ruleRange.start, ruleRange.end, edits, tabSize);
         lineNum = ruleRange.end + 1;
         this.lastTermType = "non_terminal";
         continue;
@@ -536,7 +538,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Handle predicate clauses (rules with :- at top level)
         this.logger.debug(`  Found predicate rule at line ${lineNum + 1}: "${trimmedText}"`);
         const clauseRange = PredicateUtils.getClauseRange(document, lineNum);
-        this.formatClauseOrGrammarRule(document, clauseRange.start, clauseRange.end, edits);
+        this.formatClauseOrGrammarRule(document, clauseRange.start, clauseRange.end, edits, tabSize);
         lineNum = clauseRange.end + 1;
         this.lastTermType = "predicate";
         continue;
@@ -573,11 +575,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           }
         }
 
-        // Indent the fact if needed
-        if (!lineText.startsWith('\t')) {
-          this.indentRange(document, factRange.start, factRange.end, edits);
-          indentedItems++;
-        }
+        this.indentRange(document, factRange.start, factRange.end, edits, tabSize);
 
         // Update the last term and predicate indicators
         if (indicator) {
@@ -596,10 +594,19 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     this.logger.debug(`Added indentation to ${indentedItems} items`);
   }
 
+  private getTabIndentation(text: string, tabSize: number, minimumLevel: number = 1): string {
+    const whitespace = text.match(/^[ \t]*/)[0];
+    let columns = 0;
+    for (const character of whitespace) {
+      columns += character === '\t' ? tabSize - columns % tabSize : 1;
+    }
+    return '\t'.repeat(Math.max(minimumLevel, Math.ceil(columns / tabSize)));
+  }
+
   /**
-   * Helper method to indent all lines in a range with initial indent
+   * Normalize indentation inside an entity while preserving deeper indentation
    */
-  private indentRange(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
+  private indentRange(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[], tabSize: number): void {
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const line = document.lineAt(lineNum);
       const lineText = line.text;
@@ -609,8 +616,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         continue;
       }
 
-      // Add initial indent to line
-      const newText = '\t' + lineText;
+      const newText = this.getTabIndentation(lineText, tabSize) + lineText.trimStart();
+      if (newText === lineText) {
+        continue;
+      }
       const range = new Range(
         new Position(lineNum, 0),
         new Position(lineNum, lineText.length)
@@ -641,14 +650,13 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Helper method to indent all lines in a range
    */
-  private formatClauseOrGrammarRule(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
-    let initialIndent = '\t';
-    if (document.lineAt(startLine).text.startsWith('\t')) {
-      initialIndent = '';
-    }
+  private formatClauseOrGrammarRule(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[], tabSize: number): void {
+    const headIndent = this.getTabIndentation(document.lineAt(startLine).text, tabSize);
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const line = document.lineAt(lineNum);
-      const lineText = line.text.trimEnd();
+      const minimumLevel = lineNum === startLine ? 1 : headIndent.length + 1;
+      const lineText = line.text.trim() === '' ? '' :
+        this.getTabIndentation(line.text, tabSize, minimumLevel) + line.text.trim();
       this.logger.debug(`    Indenting line ${lineNum + 1}: "${lineText}"`);
 
       // Skip empty lines
@@ -665,7 +673,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         if (lineText.includes(':-')) {
           const result = this.formatClauseOrGrammarHeadLine(lineText, ':-');
           this.logger.debug(`    Clause indicator: "${result.indicator}", lastTermIndicator: "${this.lastTermIndicator}", lastTermType: "${this.lastTermType}"`);
-          processedHead = initialIndent + result.head;
+          processedHead = result.head;
           // If there's content after the head, extract it to move to next line
           if (result.contentAfterHead) {
             extractedContentAfterHead = result.contentAfterHead;
@@ -695,7 +703,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Handle grammar rule head lines containing "-->"
         } else if (lineText.includes('-->')) {
           const result = this.formatClauseOrGrammarHeadLine(lineText, '-->');
-          processedHead = initialIndent + result.head;
+          processedHead = result.head;
           // If there's content after the head, extract it to move to next line
           if (result.contentAfterHead) {
             extractedContentAfterHead = result.contentAfterHead;
@@ -721,10 +729,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
             this.lastPredicateIndicator = result.indicator;
           }
         } else {
-          processedHead = initialIndent + lineText;
+          processedHead = lineText;
         }
       } else {
-        processedHead = initialIndent + lineText;
+        processedHead = lineText;
       }
       this.logger.debug(`    Processed head: ${processedHead}`);
       this.logger.debug(`    Extracted content after head: ${extractedContentAfterHead}`);
@@ -734,11 +742,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         // Replace the current line with just the head
         const range = new Range(
           new Position(lineNum, 0),
-          new Position(lineNum, lineText.length)
+          new Position(lineNum, line.text.length)
         );
         edits.push(TextEdit.replace(range, processedHead));
-        // Insert the content after head on the next line with double indentation
-        edits.push(TextEdit.insert(new Position(lineNum + 1, 0), '\t\t' + extractedContentAfterHead + '\n'));
+        // Keep a moved body one level deeper than its head.
+        edits.push(TextEdit.insert(new Position(lineNum + 1, 0), headIndent + '\t' + extractedContentAfterHead + '\n'));
       } else {
         // Normal line replacement
         const range = new Range(
@@ -2333,15 +2341,10 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   /**
    * Format a conditional compilation block (if/elif/else/endif) with proper spacing and nesting
    */
-  private formatIfBlock(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[]): void {
-    // Determine the base indentation level (should be one tab for entity content)
-    let baseIndent = '\t';
-    if (document.lineAt(startLine).text.startsWith('\t')) {
-      baseIndent = '';
-    }
-
+  private formatIfBlock(document: TextDocument, startLine: number, endLine: number, edits: TextEdit[], tabSize: number): void {
     // Track nesting level for nested if/endif blocks
     let nestingLevel = 0;
+    const sourceIndentation: number[] = [];
 
     for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
       const line = document.lineAt(lineNum);
@@ -2353,12 +2356,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         continue;
       }
 
-      // Check if this line contains a conditional compilation directive
-      const directiveMatch = trimmedText.match(/^:-\s*(if|elif|else|endif)(.*)$/);
-
-      if (directiveMatch) {
-        const directiveName = directiveMatch[1];
-        const remainder = directiveMatch[2]; // Everything after the directive name
+      if (trimmedText.startsWith(':-')) {
+        const directiveMatch = trimmedText.match(/^:-\s*(if|elif|else|endif)\b/);
+        const directiveName = directiveMatch ? directiveMatch[1] : '';
+        const directiveRange = PredicateUtils.getDirectiveRange(document, lineNum);
+        const originalIndentation = this.getTabIndentation(lineText, tabSize, 0).length;
 
         // Determine the indentation level for this directive
         let directiveNestingLevel = nestingLevel;
@@ -2369,39 +2371,62 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           directiveNestingLevel = nestingLevel - 1;
         }
 
-        // Format the directive with base indent plus nesting indent
-        const directiveIndent = baseIndent + '\t'.repeat(directiveNestingLevel);
-        const formattedDirective = `${directiveIndent}${lineText}`;
-
-        this.logger.debug(`    Formatting conditional directive at line ${lineNum + 1}, nesting=${nestingLevel}, directive_nesting=${directiveNestingLevel}: "${trimmedText}" → "${formattedDirective}"`);
-
-        const range = new Range(
-          new Position(lineNum, 0),
-          new Position(lineNum, lineText.length)
-        );
-        edits.push(TextEdit.replace(range, formattedDirective));
+        // A directive's continuation lines belong to the directive, not its branch body.
+        for (let termLine = lineNum; termLine <= directiveRange.end; termLine++) {
+          const termText = document.lineAt(termLine).text;
+          const trimmedTermText = termText.trim();
+          if (trimmedTermText === '') {
+            continue;
+          }
+          const isClosingLine = termLine === directiveRange.end &&
+            /^(?:[)\]}]\s*)+\.\s*(?:%.*)?$/.test(trimmedTermText);
+          const relativeIndentation = termLine === lineNum || isClosingLine ? 0 : Math.max(1,
+            this.getTabIndentation(termText, tabSize, 0).length - originalIndentation);
+          const formattedDirective = '\t'.repeat(directiveNestingLevel + 1 + relativeIndentation) + trimmedTermText;
+          const range = new Range(
+            new Position(termLine, 0),
+            new Position(termLine, termText.length)
+          );
+          edits.push(TextEdit.replace(range, formattedDirective));
+        }
 
         // Adjust nesting level AFTER formatting
         if (directiveName === 'if') {
           nestingLevel++;
+          sourceIndentation.push(originalIndentation);
         } else if (directiveName === 'endif') {
           nestingLevel--;
+          sourceIndentation.pop();
+        } else if (directiveName === 'elif' || directiveName === 'else') {
+          sourceIndentation[nestingLevel - 1] = originalIndentation;
         }
         // elif and else don't change nesting level
+        lineNum = directiveRange.end;
       } else {
-        // This is content between conditional directives
-        // Content should be indented one level deeper than the current if directive
-        // The current if is at level (nestingLevel - 1), so content is at nestingLevel
-        const contentIndent = baseIndent + '\t'.repeat(nestingLevel);
-        const formattedContent = lineText.startsWith(contentIndent) ? lineText : contentIndent + lineText;
+        const contentEnd = trimmedText.startsWith('%') ? lineNum :
+          trimmedText.startsWith('/*') ? this.getBlockCommentRange(document, lineNum).end :
+            PredicateUtils.getClauseRange(document, lineNum).end;
+        const originalIndentation = this.getTabIndentation(lineText, tabSize, 0).length;
+        const relativeIndentation = Math.max(1,
+          originalIndentation - sourceIndentation[nestingLevel - 1]);
+        const headIndentation = nestingLevel + relativeIndentation;
 
-        this.logger.debug(`    Formatting conditional block content at line ${lineNum + 1}, nesting=${nestingLevel}: "${trimmedText}" → "${formattedContent}"`);
-
-        const range = new Range(
-          new Position(lineNum, 0),
-          new Position(lineNum, lineText.length)
-        );
-        edits.push(TextEdit.replace(range, formattedContent));
+        // Shift the complete clause, preserving indentation relative to its head.
+        for (let contentLine = lineNum; contentLine <= contentEnd; contentLine++) {
+          const contentText = document.lineAt(contentLine).text;
+          if (contentText.trim() === '') {
+            continue;
+          }
+          const indentation = Math.max(0,
+            this.getTabIndentation(contentText, tabSize, 0).length - originalIndentation);
+          const formattedContent = '\t'.repeat(headIndentation + indentation) + contentText.trim();
+          const range = new Range(
+            new Position(contentLine, 0),
+            new Position(contentLine, contentText.length)
+          );
+          edits.push(TextEdit.replace(range, formattedContent));
+        }
+        lineNum = contentEnd;
       }
     }
   }

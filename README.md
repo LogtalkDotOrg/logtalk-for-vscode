@@ -144,7 +144,7 @@ The formatting rules follow the Logtalk [coding style guidelines](https://logtal
 - Entity opening and closing directives are formatted to start at column 0 with empty lines before and after
 - Multiple entities in the same file are separated by two or more empty lines
 - Entity opening directives are formatted to use multi-line layout when there are multiple relations
-- Content inside entity opening and closing directives is indented by one tab
+- Directives and clauses inside entities are indented by exactly one tab, except within conditional compilation blocks
 - Directives with list arguments are formatted to use multi-line syntax (depending on the `editor.rulers` and `editor.tabSize` settings)
 - Documentation directives key values that are lists of pairs are formatted to use multi-line syntax (depending on the `editor.rulers` and `editor.tabSize` settings)
 - Documentation directives key values that are lists of non-pair elements are formatted to use either single- or multi-line syntax (depending on the `editor.rulers` and `editor.tabSize` settings)
@@ -153,7 +153,7 @@ The formatting rules follow the Logtalk [coding style guidelines](https://logtal
 - A space is added if missing after the neck operator (`:-`) in directives
 - A space is added if missing before the neck operator (`:-` or `-->`) in predicate/non-terminal rules
 - Any comment or goal after the neck operator (`:-` or `-->`) is moved to the next line and indented
-- Conditional compilation blocks are formatted by aligning conditional compilation directives according to their nesting level
+- Conditional compilation directives are aligned according to their nesting level, with code between them indented one level deeper
 - Line comments are indented if they start at character zero but are not followed by indented content
 - Block comments content are indented when the comment delimiters are on separate lines; otherwise, the full block comment is indented
 

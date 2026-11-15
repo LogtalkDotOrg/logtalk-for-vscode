@@ -107,7 +107,7 @@ export class LogtalkDocumentRangeFormattingEditProvider implements DocumentRange
 
       if (allEntities.length === 0) {
         this.logger.debug("No entity directives found in range, formatting entity content only");
-        this.documentFormatter.indentEntityContent(document, range.start.line, range.end.line, edits);
+        this.documentFormatter.indentEntityContent(document, range.start.line, range.end.line, edits, tabSize);
         return edits;
       }
 
@@ -122,7 +122,7 @@ export class LogtalkDocumentRangeFormattingEditProvider implements DocumentRange
         this.documentFormatter.formatEntityOpeningDirective(document, {start: entityInfo.opening.start.line, end: entityInfo.opening.end.line}, edits);
 
         // 2. Indent all content inside the entity and apply specific directive formatting
-        this.documentFormatter.indentEntityContent(document, entityInfo.opening.end.line + 1, entityInfo.closing.start.line - 1, edits);
+        this.documentFormatter.indentEntityContent(document, entityInfo.opening.end.line + 1, entityInfo.closing.start.line - 1, edits, tabSize);
 
         // 3. Format entity closing directive (ensure it starts at column 0 with empty line after)
         this.documentFormatter.formatEntityClosingDirective(document, { start: entityInfo.closing.start.line, end: entityInfo.closing.end.line}, edits);

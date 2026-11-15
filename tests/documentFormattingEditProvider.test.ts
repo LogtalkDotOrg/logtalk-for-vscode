@@ -87,13 +87,16 @@ write(Result).
     assert.ok(formattedText.startsWith(':- object('), 'Should start with entity directive');
   });
 
-  async function formatContent(content: string): Promise<string> {
+  async function formatContent(
+    content: string,
+    options: vscode.FormattingOptions = { tabSize: 4, insertSpaces: false }
+  ): Promise<string> {
     const document = await vscode.workspace.openTextDocument({ content, language: 'logtalk' });
     const cancellation = new vscode.CancellationTokenSource();
     try {
       const edits = await provider.provideDocumentFormattingEdits(
         document,
-        { tabSize: 4, insertSpaces: false },
+        options,
         cancellation.token
       );
       const workspaceEdit = new vscode.WorkspaceEdit();
@@ -1601,12 +1604,8 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
     });
 
     assert.ok(mixedIndentEdit, 'Should have edit for mixed indentation line');
-    // Tab + 4 spaces should become 2 tabs (1 existing tab + 1 tab from 4 spaces)
-    assert.ok(mixedIndentEdit.newText.startsWith('\t\t'), 'Should normalize mixed indentation to tabs');
-
-    // Verify the exact conversion: tab + 4 spaces → 2 tabs
-    assert.strictEqual(mixedIndentEdit.newText.match(/^\t*/)?.[0].length, 2,
-      'Should convert tab + 4 spaces to exactly 2 tabs');
+    assert.ok(mixedIndentEdit.newText.startsWith('\t:- info('),
+      'Should discard excess directive indentation and use exactly one tab');
   });
 
   test('should handle different tab size settings', async () => {
@@ -1692,7 +1691,6 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       new vscode.CancellationTokenSource().token
     );
 
-    // Test tab + 4 spaces → 2 tabs
     const infoEdit = edits.find(edit => {
       const originalText = tabPlusSpacesDocument.getText(edit.range);
       return originalText.includes('info([version') && originalText.startsWith('\t    ');
@@ -1700,7 +1698,8 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     assert.ok(infoEdit, 'Should have edit for tab + 4 spaces line');
     const infoTabCount = infoEdit.newText.match(/^\t*/)?.[0].length || 0;
-    assert.strictEqual(infoTabCount, 2, 'Should convert tab + 4 spaces to 2 tabs');
+    assert.strictEqual(infoTabCount, 1, 'Should indent the directive with exactly one tab');
+    assert.ok(infoEdit.newText.startsWith('\t:- info('), 'Should not keep spaces before the directive');
 
     // Test tab + 8 spaces → 3 tabs
     const predicateEdit = edits.find(edit => {
@@ -1721,6 +1720,250 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
     assert.ok(bodyEdit, 'Should have edit for tab + 12 spaces line');
     const bodyTabCount = bodyEdit.newText.match(/^\t*/)?.[0].length || 0;
     assert.strictEqual(bodyTabCount, 4, 'Should convert tab + 12 spaces to 4 tabs');
+  });
+
+  test('should produce tab-only indentation during direct save formatting', async () => {
+    provider.beginSaveFormatting();
+    try {
+      for (const tabSize of [2, 4, 8]) {
+        for (const insertSpaces of [false, true]) {
+          const content = `:- object(test_indentation).
+
+\t${' '.repeat(tabSize)}:- info([comment is 'Keep  two spaces']).
+
+\t${' '.repeat(2 * tabSize)}foo :-
+\t${' '.repeat(3 * tabSize)}write('Keep  two spaces').
+
+${' '.repeat(tabSize)}\tbar.
+\t${' '.repeat(tabSize)}% Keep  two spaces
+
+:- end_object.
+`;
+          const expected = `:- object(test_indentation).
+
+\t:- info([
+\t\tcomment is 'Keep  two spaces'
+\t]).
+
+\t\t\tfoo :-
+\t\t\t\twrite('Keep  two spaces').
+
+\t\tbar.
+\t\t% Keep  two spaces
+
+:- end_object.
+`;
+          const options = { tabSize, insertSpaces };
+          const formatted = await formatContent(content, options);
+          assert.strictEqual(formatted, expected, JSON.stringify(options));
+          assert.strictEqual(await formatContent(formatted, options), expected, 'Formatting should be idempotent');
+        }
+      }
+    } finally {
+      provider.endSaveFormatting();
+    }
+  });
+
+  test('should respect tab stops and preserve indentation when moving an inline body', async () => {
+    const content = `:- object(test_indentation).
+
+ \t:- info([]).
+
+\t        foo :- true.
+
+:- end_object.
+`;
+    const expected = `:- object(test_indentation).
+
+\t:- info([]).
+
+\t\t\tfoo :-
+\t\t\t\ttrue.
+
+:- end_object.
+`;
+    const formatted = await formatContent(content);
+    assert.strictEqual(formatted, expected);
+    assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+  });
+
+  test('should normalize conditional directives while preserving relative clause indentation', async () => {
+    const content = `:- object(test_indentation).
+
+    :- if(true).
+        foo :-
+            true.
+            :- public(foo/0).
+        :- if(true).
+            bar.
+        :- else.
+            baz.
+        :- endif.
+    :- endif.
+
+:- end_object.
+`;
+    const expected = `:- object(test_indentation).
+
+\t:- if(true).
+\t\tfoo :-
+\t\t\ttrue.
+\t\t:- public(foo/0).
+\t\t:- if(true).
+\t\t\tbar.
+\t\t:- else.
+\t\t\tbaz.
+\t\t:- endif.
+\t:- endif.
+
+:- end_object.
+`;
+    const formatted = await formatContent(content);
+    assert.strictEqual(formatted, expected);
+    assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+  });
+
+  test('should preserve correctly aligned multi-line if/1 directives', async () => {
+    const content = `:- object(test_condition).
+
+\t:- if((
+\t\tcurrent_logtalk_flag(prolog_dialect, Dialect),
+\t\tDialect \\== eclipse, Dialect \\== swi, Dialect \\== yap
+\t)).
+\t\tfoo.
+\t:- endif.
+
+:- end_object.
+`;
+    const formatted = await formatContent(content);
+    assert.strictEqual(formatted, content);
+    assert.strictEqual(await formatContent(formatted), content, 'Formatting should be idempotent');
+  });
+
+  test('should preserve multi-line nested if/1, elif/1, and body directive alignment', async () => {
+    const content = `:- object(test_condition).
+
+\t:- if(true).
+\t\t:- if((
+\t\t\tcondition_a,
+\t\t\t(
+\t\t\t\tcondition_b,
+\t\t\t\tcondition_c
+\t\t\t)
+\t\t)).
+\t\t\t:- uses(library, [
+\t\t\t\tfoo/0
+\t\t\t]).
+\t\t:- elif((
+\t\t\tcondition_d,
+\t\t\tcondition_e
+\t\t)).
+\t\t\tbar.
+\t\t:- endif.
+\t:- elif((
+\t\tcondition_f,
+\t\tcondition_g
+\t)).
+\t\tbaz.
+\t:- endif.
+
+:- end_object.
+`;
+    const formatted = await formatContent(content);
+    assert.strictEqual(formatted, content);
+    assert.strictEqual(await formatContent(formatted), content, 'Formatting should be idempotent');
+  });
+
+  test('should shift entire clauses in both branches of a conditional block', async () => {
+    const content = `:- object(test_condition).
+
+\t:- if(true).
+\t\t:- if((current_prolog_flag(version_data, yap(Major,Minor,_,_)), (Major,Minor) @< (6,3))).
+\t\tabsolute_file_name(Path, ExpandedPath) :-
+\t\t\t{\tworking_directory(Current, Current),
+\t\t\t\tabsolute_file_name(Path, [access(none), file_type(txt), relative_to(Current)], ExpandedPath)
+\t\t\t}.
+\t\t:- else.
+\t\tabsolute_file_name(Path, ExpandedPath) :-
+\t\t\t{working_directory(Current, Current)},
+\t\t\t(\t{absolute_file_name(Path, [expand(true), relative_to(Current), file_errors(fail)], ExpandedPath)} ->
+\t\t\t\ttrue
+\t\t\t;\t{absolute_file_name(Path, [expand(true), relative_to(Current), file_type(directory), file_errors(fail)], ExpandedPath)}
+\t\t\t).
+\t\t:- endif.
+\t:- endif.
+
+:- end_object.
+`;
+    const expected = `:- object(test_condition).
+
+\t:- if(true).
+\t\t:- if((current_prolog_flag(version_data, yap(Major,Minor,_,_)), (Major,Minor) @< (6,3))).
+\t\t\tabsolute_file_name(Path, ExpandedPath) :-
+\t\t\t\t{\tworking_directory(Current, Current),
+\t\t\t\t\tabsolute_file_name(Path, [access(none), file_type(txt), relative_to(Current)], ExpandedPath)
+\t\t\t\t}.
+\t\t:- else.
+\t\t\tabsolute_file_name(Path, ExpandedPath) :-
+\t\t\t\t{working_directory(Current, Current)},
+\t\t\t\t(\t{absolute_file_name(Path, [expand(true), relative_to(Current), file_errors(fail)], ExpandedPath)} ->
+\t\t\t\t\ttrue
+\t\t\t\t;\t{absolute_file_name(Path, [expand(true), relative_to(Current), file_type(directory), file_errors(fail)], ExpandedPath)}
+\t\t\t\t).
+\t\t:- endif.
+\t:- endif.
+
+:- end_object.
+`;
+    const formatted = await formatContent(content);
+    assert.strictEqual(formatted, expected);
+    assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+  });
+
+  test('should shift complete facts and grammar rules without swallowing conditional comments', async () => {
+    const content = `:- object(test_condition).
+
+\t:- if(true).
+\t% Fact comment
+\tfact(
+\t\ta,
+\t\tb
+\t).
+\t:- else.
+\tgrammar -->
+\t\t{\tfoo,
+\t\t\tbar
+\t\t}.
+\t/* Branch comment
+\t\tcontinued comment
+\t*/
+\t:- endif.
+
+:- end_object.
+`;
+    const expected = `:- object(test_condition).
+
+\t:- if(true).
+\t\t% Fact comment
+\t\tfact(
+\t\t\ta,
+\t\t\tb
+\t\t).
+\t:- else.
+\t\tgrammar -->
+\t\t\t{\tfoo,
+\t\t\t\tbar
+\t\t\t}.
+\t\t/* Branch comment
+\t\t\tcontinued comment
+\t\t*/
+\t:- endif.
+
+:- end_object.
+`;
+    const formatted = await formatContent(content);
+    assert.strictEqual(formatted, expected);
+    assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
   });
 
   test('should indent content inside object that is not already indented', async () => {
@@ -1877,21 +2120,34 @@ insert_top(List, Key-Value) :-
       language: 'logtalk'
     });
 
-    // Simulate VS Code detecting spaces (insertSpaces: true)
     const spaceOptions: vscode.FormattingOptions = {
       tabSize: 4,
-      insertSpaces: true  // This simulates VS Code's auto-detection of spaces
+      insertSpaces: true
     };
-
-    const edits = await provider.provideDocumentFormattingEdits(
-      spaceDocument,
-      spaceOptions,
-      new vscode.CancellationTokenSource().token
-    );
-
-    // When spaces are detected, the formatter returns empty edits and triggers
-    // the async formatDocumentWithIndentationConversion command instead
-    assert.strictEqual(edits.length, 0, 'Should return empty edits when spaces detected (async conversion will be triggered)');
+    const previousEditor = vscode.window.activeTextEditor;
+    const editor = await vscode.window.showTextDocument(spaceDocument);
+    editor.options = spaceOptions;
+    const cancellation = new vscode.CancellationTokenSource();
+    try {
+      const edits = await provider.provideDocumentFormattingEdits(
+        spaceDocument,
+        spaceOptions,
+        cancellation.token
+      );
+      assert.strictEqual(edits.length, 0, 'Should delegate formatting for the active document');
+      assert.ok(spaceDocument.getText().includes('\t:- info(['), 'Should convert directive indentation to tabs');
+      assert.ok(spaceDocument.getText().includes('\t\twrite('), 'Should convert body indentation to tabs');
+      assert.ok(!/^[ \t]* /m.test(spaceDocument.getText()), 'Should not retain leading indentation spaces');
+      assert.ok(spaceDocument.getText().endsWith('\n'), 'Should run document formatting after indentation conversion');
+    } finally {
+      cancellation.dispose();
+      if (vscode.window.activeTextEditor?.document === spaceDocument) {
+        await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+      }
+      if (previousEditor) {
+        await vscode.window.showTextDocument(previousEditor.document, previousEditor.viewColumn);
+      }
+    }
   });
 
   test('should separate predicates with different indicators with empty lines', async () => {
@@ -1960,46 +2216,22 @@ insert_top(List, Key-Value) :-
 
 :- end_object.`;
 
-    const multiGrammarDoc = await vscode.workspace.openTextDocument({
-      content: multiGrammarContent,
-      language: 'logtalk'
-    });
+    const expected = `:- object(test).
 
-    const edits = await provider.provideDocumentFormattingEdits(
-      multiGrammarDoc,
-      { tabSize: 4, insertSpaces: false },
-      new vscode.CancellationTokenSource().token
-    );
+\tsentence -->
+\t\tnoun, verb.
+\tsentence -->
+\t\tnoun, verb, object.
 
-    // Apply edits to get the formatted text
-    let formattedText = multiGrammarDoc.getText();
-    for (const edit of edits.reverse()) {
-      const startOffset = multiGrammarDoc.offsetAt(edit.range.start);
-      const endOffset = multiGrammarDoc.offsetAt(edit.range.end);
-      formattedText = formattedText.substring(0, startOffset) + edit.newText + formattedText.substring(endOffset);
-    }
+\tnoun -->
+\t\t[cat].
+\tnoun -->
+\t\t[dog].
 
-    // Check that there's an empty line between sentence//0 and noun//0
-    const lines = formattedText.split('\n');
-    let foundSentence2 = false;
-    let foundEmptyAfterSentence = false;
-    let foundNoun = false;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line.startsWith('sentence --> noun, verb, object')) {
-        foundSentence2 = true;
-      } else if (foundSentence2 && !foundEmptyAfterSentence && line === '') {
-        foundEmptyAfterSentence = true;
-      } else if (foundEmptyAfterSentence && line.startsWith('noun -->')) {
-        foundNoun = true;
-        break;
-      }
-    }
-
-    assert.ok(foundSentence2, 'Should find sentence//0 grammar rule with 3 elements');
-    assert.ok(foundEmptyAfterSentence, 'Should have empty line after sentence//0');
-    assert.ok(foundNoun, 'Should find noun//0 grammar rule after empty line');
+:- end_object.
+`;
+    assert.strictEqual(await formatContent(multiGrammarContent), expected,
+      'Should separate sentence//0 and noun//0 definitions while keeping each rule body below its head');
   });
 
   test('should separate facts with different indicators with empty lines', async () => {
