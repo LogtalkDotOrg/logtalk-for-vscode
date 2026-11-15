@@ -87,6 +87,75 @@ write(Result).
     assert.ok(formattedText.startsWith(':- object('), 'Should start with entity directive');
   });
 
+  async function formatContent(content: string): Promise<string> {
+    const document = await vscode.workspace.openTextDocument({ content, language: 'logtalk' });
+    const cancellation = new vscode.CancellationTokenSource();
+    try {
+      const edits = await provider.provideDocumentFormattingEdits(
+        document,
+        { tabSize: 4, insertSpaces: false },
+        cancellation.token
+      );
+      const workspaceEdit = new vscode.WorkspaceEdit();
+      workspaceEdit.set(document.uri, edits);
+      assert.ok(await vscode.workspace.applyEdit(workspaceEdit), 'Formatting edits should apply');
+      return document.getText();
+    } finally {
+      cancellation.dispose();
+    }
+  }
+
+  test('should separate a multi-line entity opening from its first facts', async () => {
+    const content = `:- object(missing_values_umap_dataset,
+\timplements(dimension_reduction_dataset_protocol)).
+\tattribute_values(x, continuous).
+\tattribute_values(y, continuous).
+\texample(1, [x-1.0, y-2.0]).
+\texample(2, [x-_, y-4.0]).
+\texample(3, [x-3.0, y-_]).
+\texample(4, [x-5.0, y-8.0]).
+:- end_object.`;
+    const expected = `:- object(missing_values_umap_dataset,
+\timplements(dimension_reduction_dataset_protocol)).
+
+\tattribute_values(x, continuous).
+\tattribute_values(y, continuous).
+
+\texample(1, [x-1.0, y-2.0]).
+\texample(2, [x-_, y-4.0]).
+\texample(3, [x-3.0, y-_]).
+\texample(4, [x-5.0, y-8.0]).
+
+:- end_object.
+`;
+
+    const formatted = await formatContent(content);
+    assert.strictEqual(formatted, expected);
+    assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+  });
+
+  test('should keep exactly one empty line after all entity opening types', async () => {
+    for (const entityType of ['object', 'category', 'protocol']) {
+      for (const separator of ['\n', '\n\n', '\n\n \t\n\n']) {
+        const content = `:- ${entityType}(test_entity).${separator}\t:- public(foo/0).\n\n:- end_${entityType}.\n`;
+        const expected = `:- ${entityType}(test_entity).\n\n\t:- public(foo/0).\n\n:- end_${entityType}.\n`;
+        const formatted = await formatContent(content);
+        assert.strictEqual(formatted, expected, `${entityType} with ${JSON.stringify(separator)}`);
+        assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+      }
+    }
+  });
+
+  test('should not duplicate opening spacing supplied by body or closing directives', async () => {
+    for (const body of ['\t:- info([]).\n', '\t:- initialization(foo).\n', '\t:- threaded.\n', '\t% Comment\n', '']) {
+      const content = `:- object(test_entity).\n${body}:- end_object.\n`;
+      const formatted = await formatContent(content);
+      assert.ok(formatted.startsWith(`:- object(test_entity).\n\n${body}`), JSON.stringify(body));
+      assert.ok(!formatted.includes('\n\n\n'), 'Should not insert duplicate empty lines');
+      assert.strictEqual(await formatContent(formatted), formatted, 'Formatting should be idempotent');
+    }
+  });
+
   test('should format info directive with proper indentation', async () => {
     const options: vscode.FormattingOptions = {
       tabSize: 4,
@@ -427,7 +496,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
       'Should format entity opening directive as multi-line with proper indentation');
   });
 
-  test('should keep single relation entity directive on one line', async () => {
+  test('should format single relation entity directive on multiple lines', async () => {
     const singleRelationContent = `:- object(single_relation_object, implements(some_protocol)).
 
 :- end_object.`;
@@ -456,12 +525,10 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     assert.ok(entityEdit, 'Should have edit for single relation entity directive');
 
-    // Should stay single line
     const formattedText = entityEdit.newText;
-    assert.ok(!formattedText.includes('\n\t'),
-      'Should keep single relation on one line');
-    assert.ok(formattedText.includes('implements(some_protocol)'),
-      'Should preserve the relation');
+    const expectedFormat = ':- object(single_relation_object,\n\timplements(some_protocol)).';
+    assert.strictEqual(formattedText, expectedFormat,
+      'Should place the single relation on its own indented line');
   });
 
   test('should format parametric entity with relations', async () => {
@@ -647,7 +714,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     // Should format as multi-line with proper indentation
     const formattedText = aliasEdit.newText;
-    const expectedFormat = '\t:- alias(collection, [\n\t\tmember/2 as collection_member/2,\n\t\tappend/3 as collection_append/3\n\t]).';
+    const expectedFormat = '\t:- alias(collection, [\n\t\tmember/2 as collection_member/2, append/3 as collection_append/3\n\t]).';
     assert.strictEqual(formattedText, expectedFormat,
       'Should format alias/2 directive as multi-line with proper indentation');
   });
@@ -882,7 +949,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     // Should format as multi-line with proper indentation
     const formattedText = compoundUsesEdit.newText;
-    const expectedFormat = '\t:- uses(library(lists), [\n\t\tmember/2,\n\t\tappend/3\n\t]).';
+    const expectedFormat = '\t:- uses(library(lists), [\n\t\tmember/2, append/3\n\t]).';
     assert.strictEqual(formattedText, expectedFormat,
       'Should format compound term uses directive correctly');
   });
@@ -1033,7 +1100,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     // Should format as multi-line with proper indentation
     const formattedText = uses1Edit.newText;
-    const expectedFormat = '\t:- uses([\n\t\tlist,\n\t\tset,\n\t\tqueue\n\t]).';
+    const expectedFormat = '\t:- uses([\n\t\tlist, set, queue\n\t]).';
     assert.strictEqual(formattedText, expectedFormat,
       'Should format uses/1 directive as multi-line with proper indentation');
   });
@@ -1124,7 +1191,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     // Check public directive formatting
     const publicFormatted = publicEdit.newText;
-    const expectedPublicFormat = '\t:- public([\n\t\tmember/2,\n\t\tappend/3\n\t]).';
+    const expectedPublicFormat = '\t:- public([\n\t\tmember/2, append/3\n\t]).';
     assert.strictEqual(publicFormatted, expectedPublicFormat,
       'Should format public/1 directive correctly');
   });
@@ -1190,7 +1257,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     // Check dynamic directive formatting
     const dynamicFormatted = dynamicEdit.newText;
-    const expectedDynamicFormat = '\t:- dynamic([\n\t\tcounter/1,\n\t\tcache/2\n\t]).';
+    const expectedDynamicFormat = '\t:- dynamic([\n\t\tcounter/1, cache/2\n\t]).';
     assert.strictEqual(dynamicFormatted, expectedDynamicFormat,
       'Should format dynamic/1 directive correctly');
 
@@ -1279,7 +1346,7 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     // Should format as multi-line with proper indentation
     const formattedText = useModule2Edit.newText;
-    const expectedFormat = '\t:- use_module(library(lists), [\n\t\tmember/2,\n\t\tappend/3,\n\t\treverse/2\n\t]).';
+    const expectedFormat = '\t:- use_module(library(lists), [\n\t\tmember/2, append/3, reverse/2\n\t]).';
     assert.strictEqual(formattedText, expectedFormat,
       'Should format use_module/2 directive as multi-line with proper indentation');
   });

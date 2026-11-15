@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.93.1]
+
+* Fix document formatting to ensure a single empty line after object, category, and protocol opening directives
+
 ## [0.93.0]
 
 * Update the "logtalk.diagrams.format" setting to also allow selecting Cytoscape (`cx2`) and PlantUML (`puml`) formats

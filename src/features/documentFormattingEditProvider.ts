@@ -224,7 +224,11 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       directiveText += document.lineAt(lineNum).text.trim();
     }
 
-    const formattedDirective = this.formatEntityOpeningDirectiveContent(directiveText);
+    let formattedDirective = this.formatEntityOpeningDirectiveContent(directiveText);
+    const nextLine = directiveRange.end + 1;
+    if (nextLine < document.lineCount && document.lineAt(nextLine).text.trim() !== '') {
+      formattedDirective += '\n';
+    }
 
     const range = new Range(
       new Position(directiveRange.start, 0),
@@ -299,6 +303,17 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     return { rulerLength, tabSize };
   }
 
+  private hasEmptyLineBefore(document: TextDocument, line: number, edits: TextEdit[]): boolean {
+    if (line <= 0) {
+      return false;
+    }
+    const previousLine = document.lineAt(line - 1).text;
+    // The preceding directive may already have scheduled the missing line break.
+    return previousLine.trim() === '' ||
+      edits.some(edit => edit.range.end.line === line - 1 &&
+        edit.range.end.character === previousLine.length && edit.newText.endsWith('\n'));
+  }
+
   /**
    * Format entity closing directive to start at column 0 with single empty line before and after
    */
@@ -312,8 +327,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     // Add empty line before directive if not present
     const previousLineNum = directiveRange.start - 1;
     if (previousLineNum < document.lineCount) {
-      const previousLine = document.lineAt(previousLineNum).text.trim();
-      if (previousLine !== '') {
+      if (!this.hasEmptyLineBefore(document, directiveRange.start, edits)) {
         finalText = '\n' + finalText;
       }
     }
@@ -544,7 +558,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
         const prevLine = lineNum - 1;
         if (prevLine >= 0) {
           const prevLineText = document.lineAt(prevLine).text.trim();
-          if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+          if (!this.hasEmptyLineBefore(document, lineNum, edits) && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
             if (this.lastTermType === "predicate" && this.lastTermIndicator !== "" && indicator !== "" && this.lastTermIndicator !== indicator) {
               this.logger.debug(`  Inserting empty line before fact (different predicate: ${indicator} != ${this.lastTermIndicator})`);
               edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
@@ -658,7 +672,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           const prevLine = lineNum - 1;
           if (prevLine >= 0) {
             const prevLineText = document.lineAt(prevLine).text.trim();
-            if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+            if (!this.hasEmptyLineBefore(document, lineNum, edits) && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
               if (this.lastTermType === "non_terminal" || this.lastTermType === "directive") {
                 this.logger.debug(`    Inserting empty line before clause (switching from ${this.lastTermType})`);
                 edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
@@ -688,7 +702,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
           const prevLine = lineNum - 1;
           if (prevLine >= 0) {
             const prevLineText = document.lineAt(prevLine).text.trim();
-            if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+            if (!this.hasEmptyLineBefore(document, lineNum, edits) && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
               if (this.lastTermType === "predicate" || this.lastTermType === "directive") {
                 edits.push(TextEdit.insert(new Position(lineNum, 0), '\n'));
               } else if (this.lastTermType === "non_terminal" && this.lastTermIndicator !== "" && result.indicator !== "" && this.lastTermIndicator !== result.indicator) {
@@ -1079,8 +1093,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     let finalText = formattedInfo1;
 
     if (previousLineNum >= 0) {
-      const previousLine = document.lineAt(previousLineNum).text;
-      if (previousLine.trim() !== '') {
+      if (!this.hasEmptyLineBefore(document, directiveRange.start, edits)) {
         finalText = '\n' + finalText;
       }
     }
@@ -1261,7 +1274,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const previousLineNum = directiveRange.start - 1;
     if (previousLineNum < document.lineCount) {
       const previousLine = document.lineAt(previousLineNum).text.trim();
-      if (previousLine !== '' && !previousLine.startsWith('%')) {
+      if (!this.hasEmptyLineBefore(document, directiveRange.start, edits) && !previousLine.startsWith('%')) {
         edits.push(TextEdit.insert(new Position(directiveRange.start - 1, 0), '\n'));
       }
     }
@@ -1286,7 +1299,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
   private insertEmptyLineBeforeEntityDirectiveIfRequired(document: TextDocument, line: number, termType: string, indicator: string, edits: TextEdit[]): void {
     if (line > 0) {
       const prevLine = document.lineAt(line - 1);
-      if (prevLine.text.trim() === '' || prevLine.text.trim().startsWith('%') || prevLine.text.trim().endsWith('*/')) {
+      if (this.hasEmptyLineBefore(document, line, edits) || prevLine.text.trim().startsWith('%') || prevLine.text.trim().endsWith('*/')) {
         return;
       } else if (this.lastTermType !== termType || this.lastTermIndicator !== indicator) {
         edits.push(TextEdit.insert(new Position(line, 0), '\n'));
@@ -1306,7 +1319,7 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const prevLine = directiveRange.start - 1;
     if (prevLine >= 0) {
       const prevLineText = document.lineAt(prevLine).text.trim();
-      if (prevLineText !== '' && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
+      if (!this.hasEmptyLineBefore(document, directiveRange.start, edits) && !prevLineText.startsWith('%') && !prevLineText.endsWith('*/')) {
         // Normalize indicators to treat '=~='/2 and (=~=)/2 as the same
         // Extract the name part (before / or //) and check if it needs normalization
         const normalizeIndicator = (indicator: string): string => {
