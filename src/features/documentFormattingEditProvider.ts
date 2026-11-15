@@ -224,11 +224,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
       directiveText += document.lineAt(lineNum).text.trim();
     }
 
-    let formattedDirective = this.formatEntityOpeningDirectiveContent(directiveText);
-    const nextLine = directiveRange.end + 1;
-    if (nextLine < document.lineCount && document.lineAt(nextLine).text.trim() !== '') {
-      formattedDirective += '\n';
-    }
+    const formattedDirective = this.withEmptyLineAfterDirective(
+      document, directiveRange.end, this.formatEntityOpeningDirectiveContent(directiveText)
+    );
 
     const range = new Range(
       new Position(directiveRange.start, 0),
@@ -301,6 +299,12 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
     const rulerLength = rulers.length > 0 ? rulers[0] : 119;
     const tabSize = config.get<number>('tabSize', 4);
     return { rulerLength, tabSize };
+  }
+
+  private withEmptyLineAfterDirective(document: TextDocument, endLine: number, text: string): string {
+    const nextLine = endLine + 1;
+    return nextLine < document.lineCount && document.lineAt(nextLine).text.trim() !== '' ?
+      text + '\n' : text;
   }
 
   private hasEmptyLineBefore(document: TextDocument, line: number, edits: TextEdit[]): boolean {
@@ -1665,7 +1669,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatUses2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "uses/2", edits);
-    const formattedUses = this.formatUses2DirectiveContent(document, directiveRange);
+    const formattedUses = this.withEmptyLineAfterDirective(
+      document, directiveRange.end, this.formatUses2DirectiveContent(document, directiveRange)
+    );
 
     const range = new Range(
       new Position(directiveRange.start, 0),
@@ -1756,7 +1762,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatAlias2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "alias/2", edits);
-    const formattedAlias = this.formatAlias2DirectiveContent(document, directiveRange);
+    const formattedAlias = this.withEmptyLineAfterDirective(
+      document, directiveRange.end, this.formatAlias2DirectiveContent(document, directiveRange)
+    );
 
     const range = new Range(
       new Position(directiveRange.start, 0),
@@ -1845,7 +1853,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatUseModule2Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "use_module/2", edits);
-    const formattedUseModule = this.formatUseModule2DirectiveContent(document, directiveRange);
+    const formattedUseModule = this.withEmptyLineAfterDirective(
+      document, directiveRange.end, this.formatUseModule2DirectiveContent(document, directiveRange)
+    );
 
     const range = new Range(
       new Position(directiveRange.start, 0),
@@ -1922,7 +1932,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatUses1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "uses/1", edits);
-    const formattedUses1 = this.formatListDirectiveContent(document, directiveRange, 'uses');
+    const formattedUses1 = this.withEmptyLineAfterDirective(
+      document, directiveRange.end, this.formatListDirectiveContent(document, directiveRange, 'uses')
+    );
 
     const range = new Range(
       new Position(directiveRange.start, 0),
@@ -1940,7 +1952,9 @@ export class LogtalkDocumentFormattingEditProvider implements DocumentFormatting
    */
   private formatUseModule1Directive(document: TextDocument, directiveRange: { start: number; end: number }, edits: TextEdit[]): void {
     this.insertEmptyLineBeforeEntityDirectiveIfRequired(document, directiveRange.start, "directive", "use_module/1", edits);
-    const formattedUseModule = this.formatListDirectiveContent(document, directiveRange, 'use_module');
+    const formattedUseModule = this.withEmptyLineAfterDirective(
+      document, directiveRange.end, this.formatListDirectiveContent(document, directiveRange, 'use_module')
+    );
 
     const range = new Range(
       new Position(directiveRange.start, 0),

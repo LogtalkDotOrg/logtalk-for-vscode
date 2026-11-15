@@ -3,6 +3,7 @@
 ## [0.93.1]
 
 * Fix document formatting to ensure a single empty line after object, category, and protocol opening directives
+* Fix document formatting to ensure a single empty line after `uses/1-2`, `use_module/1-2`, and `alias/2` directives
 
 ## [0.93.0]
 

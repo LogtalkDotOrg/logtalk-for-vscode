@@ -156,6 +156,91 @@ write(Result).
     }
   });
 
+  test('should ensure one empty line after uses/2 and use_module/2 before comments', async () => {
+    for (const directive of ['uses', 'use_module']) {
+      for (const separator of ['\n', '\n\n', '\n\n\n\n']) {
+        const content = `:- object(test_spacing).\n\n\t:- ${directive}(library, [foo/0]).${separator}\t% Imported predicates\n\n:- end_object.\n`;
+        const expected = `:- object(test_spacing).\n\n\t:- ${directive}(library, [\n\t\tfoo/0\n\t]).\n\n\t% Imported predicates\n\n:- end_object.\n`;
+        const formatted = await formatContent(content);
+        assert.strictEqual(formatted, expected, `${directive} with ${JSON.stringify(separator)}`);
+        assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+      }
+    }
+  });
+
+  test('should separate consecutive uses/2 and use_module/2 directives without duplicate spacing', async () => {
+    const content = `:- object(test_spacing).
+
+\t:- uses(library, [foo/0]).
+\t:- uses(other_library, []).
+\t:- use_module(library, [
+\t\tbar/0
+\t]).
+\t:- use_module(other_library, []).
+\t:- public(foo/0).
+\tfoo.
+:- end_object.
+`;
+    const expected = `:- object(test_spacing).
+
+\t:- uses(library, [
+\t\tfoo/0
+\t]).
+
+\t:- uses(other_library, []).
+
+\t:- use_module(library, [
+\t\tbar/0
+\t]).
+
+\t:- use_module(other_library, []).
+
+\t:- public(foo/0).
+
+\tfoo.
+
+:- end_object.
+`;
+    const formatted = await formatContent(content);
+    assert.strictEqual(formatted, expected);
+    assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+  });
+
+  test('should not duplicate spacing after uses/2 or use_module/2 before clauses or entity closing', async () => {
+    for (const directive of ['uses', 'use_module']) {
+      for (const body of ['\tfoo.\n', '\tfoo :-\n\t\ttrue.\n', '\tfoo -->\n\t\t[].\n', '']) {
+        const content = `:- object(test_spacing).\n\n\t:- ${directive}(library, [foo/0]).\n${body}:- end_object.\n`;
+        const expected = `:- object(test_spacing).\n\n\t:- ${directive}(library, [\n\t\tfoo/0\n\t]).\n\n${body}${body ? '\n' : ''}:- end_object.\n`;
+        const formatted = await formatContent(content);
+        assert.strictEqual(formatted, expected, `${directive} before ${JSON.stringify(body)}`);
+        assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+      }
+    }
+  });
+
+  for (const directive of [
+    { name: 'uses/1', input: '\t:- uses([library]).', formatted: '\t:- uses([\n\t\tlibrary\n\t]).' },
+    { name: 'use_module/1', input: '\t:- use_module([library]).', formatted: '\t:- use_module([\n\t\tlibrary\n\t]).' },
+    { name: 'alias/2', input: '\t:- alias(library, [foo/0 as bar/0]).', formatted: '\t:- alias(library, [\n\t\tfoo/0 as bar/0\n\t]).' }
+  ]) {
+    test(`should ensure a single empty line after ${directive.name}`, async () => {
+      for (const separator of ['\n', '\n\n', '\n\n\n\n']) {
+        for (const body of [
+          { input: '\t% Comment\n', formatted: '\t% Comment\n' },
+          { input: '\tfoo.\n', formatted: '\tfoo.\n' },
+          { input: directive.input + '\n', formatted: directive.formatted + '\n' },
+          { input: '', formatted: '' }
+        ]) {
+          const content = `:- object(test_spacing).\n\n${directive.input}${separator}${body.input}:- end_object.\n`;
+          const expected = `:- object(test_spacing).\n\n${directive.formatted}\n\n${body.formatted}${body.formatted ? '\n' : ''}:- end_object.\n`;
+          const formatted = await formatContent(content);
+          assert.strictEqual(formatted, expected, `${directive.name} before ${JSON.stringify(body.input)}`);
+          assert.strictEqual(await formatContent(formatted), expected, 'Formatting should be idempotent');
+        }
+      }
+    });
+  }
+
   test('should format info directive with proper indentation', async () => {
     const options: vscode.FormattingOptions = {
       tabSize: 4,
@@ -1308,9 +1393,9 @@ examples is ['example_predicate(test) - Basic usage', 'example_predicate([]) - E
 
     // Should format as multi-line even for single elements (consistency)
     const singleUsesFormatted = singleUsesEdit.newText;
-    const expectedSingleUsesFormat = '\t:- uses([\n\t\tsingle_library\n\t]).';
+    const expectedSingleUsesFormat = '\t:- uses([\n\t\tsingle_library\n\t]).\n';
     assert.strictEqual(singleUsesFormatted, expectedSingleUsesFormat,
-      'Should format single element uses/1 directive as multi-line');
+      'Should format single element uses/1 directive as multi-line with an empty line after');
   });
 
   test('should format use_module/2 directive with proper indentation', async () => {
