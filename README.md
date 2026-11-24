@@ -297,7 +297,7 @@ The profiling webview allows navigating to the source file location of entities,
 | -------------------: | :--------------------------------------- |
 |  Open SVG in Viewer  | Open the selected SVG file in a webview  |
 
-Right-click on a Logtalk diagram SVG file in the Explorer pane and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories (respectively, `dot_dias` and `xml_docs`). The top diagrams are the directory diagrams (that are linked to file diagrams, which are linked to entity diagrams, which are linked to predicate and non-terminal cross-referencing diagrams).
+Right-click on a Logtalk diagram SVG file in the Explorer pane and select the "Open SVG in Viewer" context menu item to open the selected file in a webview. This webview provides navigation and link handling with zoom and reload controls. It loads CSS referenced by the SVG's `xml-stylesheet` instruction, such as the `diagrams.css` file alongside Graphviz diagrams. Links to other SVG files and HTML documentation files open in the same viewer. This assumes that the commands that generate the diagrams and documentation were used with their default output directories (respectively, `dot_dias` and `xml_docs`). The top diagrams are the directory diagrams (that are linked to file diagrams, which are linked to entity diagrams, which are linked to predicate and non-terminal cross-referencing diagrams).
 
 #### Chat participant commands
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.93.2]
+
+* Fix the SVG viewer to load the CSS stylesheet referenced by the SVG files
+
 ## [0.93.1]
 
 * Fix document formatting to ensure a single empty line after object, category, and protocol opening directives

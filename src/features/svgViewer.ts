@@ -471,7 +471,7 @@ export class SvgViewerProvider {
       const svgDir = path.dirname(filePathOnly);
       const svgDirUri = panel.webview.asWebviewUri(vscode.Uri.file(svgDir));
 
-      panel.webview.html = this.getWebviewContent(svgContent, svgDirUri.toString(), svgDir, canGoBack, zoomLevel);
+      panel.webview.html = this.getWebviewContent(svgContent, svgDirUri.toString(), svgDir, canGoBack, zoomLevel, panel.webview.cspSource);
 
       // Send zoom level and scroll to anchor after a short delay to ensure DOM is ready
       setTimeout(() => {
@@ -526,17 +526,31 @@ export class SvgViewerProvider {
   /**
    * Generate the HTML content for the webview
    */
-  private static getWebviewContent(svgContent: string, baseUri: string, svgDir: string, canGoBack: boolean, zoomLevel: number): string {
+  private static getWebviewContent(svgContent: string, baseUri: string, svgDir: string, canGoBack: boolean, zoomLevel: number, cspSource: string): string {
     // Process SVG content to handle links
-    const processedSvg = this.processSvgLinks(svgContent, baseUri);
+    const stylesheets: string[] = [];
+    const processedSvg = this.processSvgLinks(svgContent, baseUri).replace(
+      /<\?xml-stylesheet\s+([\s\S]*?)\?>/gi,
+      (instruction, attributes: string) => {
+        const href = /\bhref\s*=\s*(["'])(.*?)\1/i.exec(attributes);
+        const type = /\btype\s*=\s*(["'])(.*?)\1/i.exec(attributes);
+        if (!href || (type && type[2].toLowerCase() !== 'text/css')) {
+          return instruction;
+        }
+        const url = new URL(href[2], baseUri.endsWith('/') ? baseUri : `${baseUri}/`);
+        stylesheets.push(`<link rel="stylesheet" href="${url.href.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">`);
+        return '';
+      }
+    );
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: https://*.vscode-cdn.net;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${cspSource}; script-src 'unsafe-inline'; img-src data: https://*.vscode-cdn.net;">
   <title>SVG Viewer</title>
+  ${stylesheets.join('\n  ')}
   <style>
     body {
       margin: 0;
@@ -554,7 +568,7 @@ export class SvgViewerProvider {
       height: auto;
     }
     /* Underline links on hover */
-    #svg-wrapper a:hover text {
+    #svg-wrapper a[*|href]:hover text {
       text-decoration: underline;
     }
   </style>
@@ -583,8 +597,8 @@ export class SvgViewerProvider {
       links.forEach(link => {
         const href = link.getAttribute('href') || link.getAttribute('xlink:href');
         if (href && !link.hasAttribute('title')) {
-          // Add title attribute for tooltip
-          link.setAttribute('title', href);
+          const title = link.getAttribute('xlink:title');
+          link.setAttribute('title', title === null ? href : title);
         }
       });
     }
